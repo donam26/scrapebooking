@@ -2,6 +2,7 @@ import socket
 from datetime import timedelta
 from typing import Any
 
+from arq import Retry
 from arq.connections import RedisSettings
 
 from app.clock import SystemClock
@@ -20,7 +21,7 @@ from app.logging import configure_logging, get_logger
 from app.ops.alerts import TelegramAlerter
 from app.ops.metrics import start_metrics_server
 from app.scheduler.queue import ArqJobQueue
-from app.worker.jobs import WorkerDeps, run_probe_hotel
+from app.worker.jobs import JobFailed, WorkerDeps, run_probe_hotel
 from app.worker.session_listener import DbSessionListener
 
 log = get_logger(__name__)
@@ -91,17 +92,38 @@ async def shutdown(ctx: dict[str, Any]) -> None:
     await ctx["engine"].dispose()
 
 
+RETRY_DEFER_SECONDS = 60
+
+
 async def probe_hotel(ctx: dict[str, Any], scan_run_id: int, hotel_id: int) -> dict[str, int]:
-    final_attempt = int(ctx.get("job_try", 1)) >= MAX_TRIES
-    summary = await run_probe_hotel(ctx["deps"], scan_run_id, hotel_id, final_attempt=final_attempt)
+    """Job arq. Lỗi nặng (JobFailed) ở lần đầu -> `Retry` để arq chạy lại sau 60s với job_try+1;
+    tới lần cuối thì run_probe_hotel tự chốt scan run (không đợi hạn chót 90 phút)."""
+    job_try = int(ctx.get("job_try", 1))
+    final_attempt = job_try >= MAX_TRIES
+    try:
+        summary = await run_probe_hotel(
+            ctx["deps"], scan_run_id, hotel_id, final_attempt=final_attempt
+        )
+    except JobFailed:
+        if not final_attempt:
+            raise Retry(defer=RETRY_DEFER_SECONDS) from None
+        raise
     return {"probed": summary.probed, "skipped": summary.skipped, "failed": summary.failed}
+
+
+class _LazyRedisSettings:
+    """arq đọc `WorkerSettings.redis_settings` lúc chạy; đọc env muộn để import module không cần env
+    (test và công cụ khác import được mà không cần DATABASE_URL...)."""
+
+    def __get__(self, obj: object, owner: type | None = None) -> RedisSettings:
+        return RedisSettings.from_dsn(get_settings().redis_url)
 
 
 class WorkerSettings:
     functions = [probe_hotel]
     on_startup = startup
     on_shutdown = shutdown
-    redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
+    redis_settings = _LazyRedisSettings()
     max_jobs = 1  # một khách sạn một lúc mỗi tiến trình; scale bằng số tiến trình
     job_timeout = 3600
     max_tries = MAX_TRIES

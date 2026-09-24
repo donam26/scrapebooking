@@ -180,6 +180,26 @@ export interface paths {
         patch: operations["update_item_watchlist__hotel_id__patch"];
         trace?: never;
     };
+    "/watchlist/scan-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan Now
+         * @description Quét ngay toàn bộ watchlist của tenant (không đợi mốc giờ), ví dụ sau khi thêm khách sạn.
+         */
+        post: operations["scan_now_watchlist_scan_now_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/overview": {
         parameters: {
             query?: never;
@@ -467,6 +487,26 @@ export interface paths {
         get: operations["sessions_health_sessions_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/scan-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan Now All
+         * @description Operator: quét ngay mọi tenant đang hoạt động.
+         */
+        post: operations["scan_now_all_health_scan_now_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1712,6 +1752,38 @@ export interface operations {
             };
         };
     };
+    scan_now_watchlist_scan_now_post: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     overview_overview_get: {
         parameters: {
             query?: {
@@ -2308,6 +2380,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_now_all_health_scan_now_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanRunOut"];
                 };
             };
         };

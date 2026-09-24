@@ -1,11 +1,13 @@
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
 
 from app.analytics.service import AnalyticsService
-from app.api.deps import OperatorDep, SessionDep
+from app.api.deps import ApiQueue, OperatorDep, SessionDep, get_queue
+from app.api.scan_now import create_manual_run
 from app.api.schemas import HealthSummaryOut, ScanRunOut, ScrapeSessionOut
 from app.db.models import ScanRun, ScrapeSessionRow
 from app.repo.runs import ScanRunRepository
@@ -59,3 +61,13 @@ async def sessions(
             )
         ).scalars()
     )
+
+
+@router.post("/scan-now", response_model=ScanRunOut, status_code=status.HTTP_202_ACCEPTED)
+async def scan_now_all(
+    _: OperatorDep,
+    session: SessionDep,
+    queue: Annotated[ApiQueue | None, Depends(get_queue)] = None,
+) -> ScanRun:
+    """Operator: quét ngay mọi tenant đang hoạt động."""
+    return await create_manual_run(session, queue, None)

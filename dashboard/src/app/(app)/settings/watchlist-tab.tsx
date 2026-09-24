@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { api, type WatchItemOut } from "@/lib/api";
+import { api, type ScanRunOut, type WatchItemOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { fmtDateTime } from "@/lib/format";
@@ -128,10 +128,29 @@ function Row({ item, canWrite, onChanged }: { item: WatchItemOut; canWrite: bool
   );
 }
 
+function ScanNowButton({ disabled }: { disabled: boolean }) {
+  const [run, setRun] = useState<ScanRunOut | null>(null);
+  const scan = useMutation(async () => setRun(await api.watchlist.scanNow()));
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {run && (
+        <span className="text-xs text-emerald-700">
+          Đã tạo đợt quét #{run.id} với {run.total_jobs} khách sạn; kết quả xuất hiện ở Tổng quan sau vài phút.
+        </span>
+      )}
+      {scan.error && <span className="text-xs text-rose-700">{scan.error}</span>}
+      <Button size="sm" busy={scan.busy} disabled={disabled} onClick={() => void scan.run()} title="Quét toàn bộ watchlist ngay, không đợi mốc giờ">
+        Quét ngay
+      </Button>
+    </div>
+  );
+}
+
 export function WatchlistTab() {
   const { canWrite } = useSession();
   const list = useApi("watchlist:inactive", () => api.watchlist.list(true));
   const items = list.data ?? [];
+  const activeCount = items.filter((it) => it.active).length;
   return (
     <div className="space-y-4">
       {canWrite && (
@@ -140,7 +159,7 @@ export function WatchlistTab() {
         </Card>
       )}
       <ErrorBox error={list.error} />
-      <Card title={`Danh sách theo dõi (${items.length})`} padded={false}>
+      <Card title={`Danh sách theo dõi (${items.length})`} padded={false} actions={canWrite ? <ScanNowButton disabled={activeCount === 0} /> : undefined}>
         {!list.data && !list.error ? (
           <Skeleton rows={5} className="p-4" />
         ) : items.length === 0 ? (

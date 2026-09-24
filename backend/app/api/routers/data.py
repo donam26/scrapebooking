@@ -1,6 +1,6 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import Select, select
@@ -41,7 +41,12 @@ MAX_RANGE_DAYS = 120
 
 async def _local_today(session: AsyncSession, tenant_id: int) -> date:
     tenant = await session.get(Tenant, tenant_id)
-    tz = ZoneInfo(tenant.timezone) if tenant else UTC
+    tz: ZoneInfo | timezone = UTC
+    if tenant:
+        try:
+            tz = ZoneInfo(tenant.timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            tz = UTC  # dữ liệu cũ có múi giờ sai không được làm hỏng màn hình
     return datetime.now(tz=UTC).astimezone(tz).date()
 
 

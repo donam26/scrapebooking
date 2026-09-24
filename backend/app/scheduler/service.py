@@ -94,6 +94,10 @@ class SchedulerService:
             await s.commit()
             if report.expired_runs:
                 log.warning("scan_runs_expired", run_ids=report.expired_runs)
+                enqueue_analytics = getattr(self._queue, "enqueue_analytics", None)
+                if enqueue_analytics is not None:
+                    for run_id in report.expired_runs:
+                        await enqueue_analytics(run_id)
 
             total, blocked = await repo.probe_stats_since(now - timedelta(minutes=15))
             msg = block_rate_alert(total, blocked)

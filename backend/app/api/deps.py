@@ -7,12 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import COOKIE_NAME, InvalidToken, Principal, decode_token
 from app.config import Settings, get_settings
-from app.db.models import TenantHotel
+from app.db.models import TenantHotel, User
 
 
 class ApiQueue(Protocol):
     async def enqueue_insight(self, tenant_id: int, trigger: str, request_key: str) -> None: ...
     async def enqueue_analytics(self, scan_run_id: int) -> None: ...
+    async def enqueue_probe(self, scan_run_id: int, hotel_id: int) -> None: ...
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -35,7 +36,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 
 
-def get_principal(request: Request, settings: SettingsDep) -> Principal:
+async def get_principal(request: Request, settings: SettingsDep, session: SessionDep) -> Principal:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         auth = request.headers.get("authorization", "")
@@ -44,9 +45,20 @@ def get_principal(request: Request, settings: SettingsDep) -> Principal:
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "not authenticated")
     try:
-        return decode_token(token, settings.jwt_secret)
+        principal = decode_token(token, settings.jwt_secret)
     except InvalidToken as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid session") from exc
+    # Tài khoản bị khoá hoặc đổi vai trò phải mất hiệu lực ngay, không đợi token hết hạn.
+    row = (
+        await session.execute(
+            select(User.active, User.role, User.tenant_id).where(User.id == principal.user_id)
+        )
+    ).first()
+    if row is None or not row[0]:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "user disabled")
+    if row[1] != principal.role or row[2] != principal.tenant_id:
+        return Principal(principal.user_id, principal.email, row[1], row[2])
+    return principal
 
 
 PrincipalDep = Annotated[Principal, Depends(get_principal)]

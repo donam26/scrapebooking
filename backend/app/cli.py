@@ -208,10 +208,16 @@ def prune_partitions(keep_months: int = typer.Option(24, "--keep-months")) -> No
 
 
 @app.command("reparse")
-def reparse(since_days: int = typer.Option(30, "--since-days")) -> None:
-    """Parse lại HTML thô trong MinIO cho probe `ok` gần đây bằng parser hiện tại."""
+def reparse(
+    since_days: int = typer.Option(30, "--since-days"),
+    reanalyze: bool = typer.Option(True, "--reanalyze/--no-reanalyze"),
+) -> None:
+    """Parse lại HTML thô trong MinIO cho probe `ok` gần đây bằng parser hiện tại,
+    rồi tính lại analytics cho các scan run bị ảnh hưởng (theo thứ tự thời gian)."""
 
-    async def _do(s: AsyncSession) -> tuple[int, int]:
+    async def _do(s: AsyncSession) -> tuple[int, int, int]:
+        from app.analytics.service import AnalyticsService
+
         settings = get_settings()
         store = S3RawStore(
             settings.minio_bucket,
@@ -234,6 +240,7 @@ def reparse(since_days: int = typer.Option(30, "--since-days")) -> None:
         ).all()
         repo = SnapshotRepository(s, settings.page_dropdown_cap)
         done = missing = 0
+        touched_runs: set[int] = set()
         for probe, country in probes:
             assert probe.raw_object_key is not None
             html = await store.get_html(probe.raw_object_key)
@@ -267,13 +274,28 @@ def reparse(since_days: int = typer.Option(30, "--since-days")) -> None:
                 probe.fetched_at,
             )
             done += 1
+            touched_runs.add(probe.scan_run_id)
             if done % 200 == 0:
                 await s.commit()
         await s.commit()
-        return done, missing
+        analyzed = 0
+        if reanalyze and touched_runs:
+            svc = AnalyticsService(
+                s,
+                low_stock_threshold=settings.low_stock_threshold,
+                price_change_threshold_pct=settings.price_change_threshold_pct,
+            )
+            for run_id in sorted(touched_runs):
+                await svc.run(run_id)
+                await s.commit()
+                analyzed += 1
+        return done, missing, analyzed
 
-    done, missing = _run(_do)
-    typer.echo(f"reparsed={done} missing_raw={missing} parser_version={PARSER_VERSION}")
+    done, missing, analyzed = _run(_do)
+    typer.echo(
+        f"reparsed={done} missing_raw={missing} reanalyzed_runs={analyzed} "
+        f"parser_version={PARSER_VERSION}"
+    )
 
 
 @app.command("run-status")

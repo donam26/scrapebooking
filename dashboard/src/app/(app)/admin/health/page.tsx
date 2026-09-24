@@ -1,11 +1,11 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useApi, useInterval } from "@/lib/hooks";
+import { useApi, useInterval, useMutation } from "@/lib/hooks";
 import { fmtDateTime, fmtDuration, fmtInt, fmtPct } from "@/lib/format";
 import { RUN_STATUS_LABEL, RUN_STATUS_TONE, SESSION_STATUS_TONE } from "@/lib/labels";
 import type { Tone } from "@/lib/labels";
-import { Badge, Card, EmptyState, ErrorBox, PageHeader, Skeleton, StatTile, Table, Td, Th } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, ErrorBox, PageHeader, Skeleton, StatTile, Table, Td, Th } from "@/components/ui";
 import { RunSummary } from "@/components/run-summary";
 
 const REFRESH_MS = 30_000;
@@ -26,6 +26,11 @@ export default function AdminHealthPage() {
     sessions.reload();
   };
   useInterval(reloadAll, REFRESH_MS);
+  const scanAll = useMutation(async () => {
+    const run = await api.health.scanNow();
+    reloadAll();
+    return run;
+  });
 
   const s = summary.data;
   return (
@@ -34,13 +39,19 @@ export default function AdminHealthPage() {
         title="Sức khoẻ scraper"
         subtitle="Tự làm mới mỗi 30 giây"
         actions={
-          s?.grafana_url && (
-            <a href={s.grafana_url} target="_blank" rel="noreferrer" className="text-sm text-sky-700 hover:underline">
-              Mở Grafana ↗
-            </a>
-          )
+          <div className="flex items-center gap-3">
+            {s?.grafana_url && (
+              <a href={s.grafana_url} target="_blank" rel="noreferrer" className="text-sm text-sky-700 hover:underline">
+                Mở Grafana ↗
+              </a>
+            )}
+            <Button size="sm" busy={scanAll.busy} onClick={() => void scanAll.run()} title="Tạo đợt quét thủ công cho mọi tenant đang hoạt động">
+              Quét tất cả ngay
+            </Button>
+          </div>
         }
       />
+      <ErrorBox error={scanAll.error} className="mb-4" />
       <ErrorBox error={summary.error} className="mb-4" />
       {!s && !summary.error && <Skeleton rows={3} className="mb-4" />}
       {s && (

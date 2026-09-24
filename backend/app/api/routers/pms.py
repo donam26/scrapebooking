@@ -61,6 +61,20 @@ class OwnDailyOut(ORM):
     imported_at: datetime
 
 
+def effective_mapping(
+    stored: dict[str, str], suggested: dict[str, str], columns: list[str]
+) -> dict[str, str]:
+    """Ánh xạ đã lưu chỉ dùng cho cột có trong tệp; cột thiếu lấy theo gợi ý."""
+    out: dict[str, str] = {}
+    for col in CANONICAL_COLUMNS:
+        src = stored.get(col)
+        if src and src in columns:
+            out[col] = src
+        elif suggested.get(col):
+            out[col] = suggested[col]
+    return out
+
+
 def _adapter(name: str) -> CsvAdapter:
     if name not in ADAPTERS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"unknown adapter {name!r}")
@@ -137,7 +151,11 @@ async def preview(
         table = ad.read_table(content, file.filename or "upload")
     except PmsAdapterError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
-    mapping = await _mapping(session, tenant_id, adapter) or ad.suggest_mapping(table.columns)
+    mapping = effective_mapping(
+        await _mapping(session, tenant_id, adapter),
+        ad.suggest_mapping(table.columns),
+        table.columns,
+    )
     rows, errors = ad.parse(table, mapping)
     return PreviewOut(
         columns=table.columns,
@@ -176,7 +194,11 @@ async def import_file(
         table = ad.read_table(content, filename)
     except PmsAdapterError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
-    mapping = await _mapping(session, tenant_id, adapter) or ad.suggest_mapping(table.columns)
+    mapping = effective_mapping(
+        await _mapping(session, tenant_id, adapter),
+        ad.suggest_mapping(table.columns),
+        table.columns,
+    )
     rows, errors = ad.parse(table, mapping)
     now = datetime.now(tz=UTC)
     for r in rows:

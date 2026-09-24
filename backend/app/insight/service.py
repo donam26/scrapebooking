@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,11 +49,31 @@ class DueTenant:
     request_key: str  # daily:<local date>
 
 
+def daily_due_today(tenants: list[Tenant], now: datetime) -> list[DueTenant]:
+    """Tenant đã qua insight_hour của ngày địa phương hôm nay (dùng cho dispatch có catch-up)."""
+    out = []
+    for t in tenants:
+        try:
+            tz = ZoneInfo(t.timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            log.error("invalid_timezone", tenant=t.id, timezone=t.timezone)
+            continue
+        local = now.astimezone(tz)
+        hh, mm = (int(x) for x in t.insight_hour.split(":"))
+        if (local.hour, local.minute) >= (hh, mm):
+            out.append(DueTenant(t.id, f"daily:{local.date().isoformat()}"))
+    return out
+
+
 def due_daily_tenants(tenants: list[Tenant], now: datetime, lookback: timedelta) -> list[DueTenant]:
     """Tenant có insight_hour (giờ địa phương) rơi vào (now - lookback, now]."""
     out = []
     for t in tenants:
-        tz = ZoneInfo(t.timezone)
+        try:
+            tz = ZoneInfo(t.timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            log.error("invalid_timezone", tenant=t.id, timezone=t.timezone)
+            continue
         hh, mm = (int(x) for x in t.insight_hour.split(":"))
         local_today = now.astimezone(tz).date()
         for offset in (0, -1):
@@ -151,6 +171,12 @@ class InsightService:
 
         if not built.hotel_ids:
             row.status, row.error = "failed", "watchlist is empty"
+            INSIGHTS_TOTAL.labels("failed").inc()
+            await self._s.flush()
+            return row
+        if not built.payload.get("data_quality", {}).get("hotel_dates_observed"):
+            row.status = "failed"
+            row.error = "no scan data yet (chưa có dữ liệu quét/analytics cho kỳ này)"
             INSIGHTS_TOTAL.labels("failed").inc()
             await self._s.flush()
             return row

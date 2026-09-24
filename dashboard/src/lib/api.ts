@@ -206,6 +206,8 @@ export const api = {
     update: (hotelId: number, body: WatchItemUpdate) =>
       request<WatchItemOut>("PATCH", `/watchlist/${hotelId}`, { body }),
     remove: (hotelId: number) => request<void>("DELETE", `/watchlist/${hotelId}`),
+    /** Quét ngay toàn bộ watchlist của tenant (202; trong 10 phút trả về đợt đang chạy). */
+    scanNow: () => request<ScanRunOut>("POST", "/watchlist/scan-now"),
   },
   overview: (query: { start?: string; end?: string }) => request<OverviewOut>("GET", "/overview", { query }),
   hotel: (hotelId: number, query: { start?: string; end?: string; event_limit?: number }) =>
@@ -254,5 +256,7 @@ export const api = {
     summary: () => request<HealthSummaryOut>("GET", "/health/summary"),
     runs: (limit = 20) => request<ScanRunOut[]>("GET", "/health/runs", { query: { limit } }),
     sessions: (limit = 50) => request<ScrapeSessionOut[]>("GET", "/health/sessions", { query: { limit } }),
+    /** Operator: quét ngay mọi tenant đang hoạt động. */
+    scanNow: () => request<ScanRunOut>("POST", "/health/scan-now"),
   },
 };

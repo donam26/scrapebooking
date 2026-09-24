@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import SessionDep, TenantDep, WriterDep
-from app.api.schemas import HotelOut, WatchItemCreate, WatchItemOut, WatchItemUpdate
-from app.db.models import Hotel, TenantHotel
+from app.api.deps import ApiQueue, SessionDep, TenantDep, WriterDep, get_queue
+from app.api.scan_now import create_manual_run
+from app.api.schemas import HotelOut, ScanRunOut, WatchItemCreate, WatchItemOut, WatchItemUpdate
+from app.db.models import Hotel, ScanRun, TenantHotel
 from app.domain.booking_url import BookingUrlError, parse_booking_url
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
@@ -105,3 +108,14 @@ async def remove_item(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "hotel not in watchlist")
     link.active = False  # giữ lịch sử, ngừng quét cho tenant này
     await session.commit()
+
+
+@router.post("/scan-now", response_model=ScanRunOut, status_code=status.HTTP_202_ACCEPTED)
+async def scan_now(
+    tenant_id: TenantDep,
+    _: WriterDep,
+    session: SessionDep,
+    queue: Annotated[ApiQueue | None, Depends(get_queue)] = None,
+) -> ScanRun:
+    """Quét ngay toàn bộ watchlist của tenant (không đợi mốc giờ), ví dụ sau khi thêm khách sạn."""
+    return await create_manual_run(session, queue, tenant_id)

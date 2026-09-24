@@ -1,5 +1,7 @@
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.auth import ROLE_OPERATOR, hash_password
 from app.api.deps import OperatorDep, PrincipalDep, SessionDep, TenantDep, WriterDep
@@ -25,6 +27,32 @@ def _validate_times(times: list[str]) -> None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"bad time {t!r}") from exc
 
 
+def _validate_timezone(tz: str) -> None:
+    """Múi giờ sai sẽ làm scheduler ném lỗi ở mọi tick: chặn ngay ở API."""
+    try:
+        ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, f"unknown timezone {tz!r} (múi giờ không hợp lệ)"
+        ) from exc
+
+
+def _validate_tenant_fields(data: dict) -> None:  # type: ignore[type-arg]
+    if "scan_times" in data:
+        if not data["scan_times"]:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "scan_times must not be empty"
+            )
+        _validate_times(data["scan_times"])
+        data["scan_times"] = sorted(set(data["scan_times"]))
+    if "insight_hour" in data:
+        _validate_times([data["insight_hour"]])
+    if "timezone" in data:
+        _validate_timezone(data["timezone"])
+    if "country_code" in data:
+        data["country_code"] = data["country_code"].lower()
+
+
 # ---- tenants (operator) ----
 
 
@@ -35,9 +63,9 @@ async def list_tenants(_: OperatorDep, session: SessionDep) -> list[Tenant]:
 
 @router.post("/tenants", response_model=TenantOut, status_code=status.HTTP_201_CREATED)
 async def create_tenant(body: TenantCreate, _: OperatorDep, session: SessionDep) -> Tenant:
-    _validate_times(body.scan_times)
-    _validate_times([body.insight_hour])
-    tenant = Tenant(**body.model_dump(), active=True)
+    data = body.model_dump()
+    _validate_tenant_fields(data)
+    tenant = Tenant(**data, active=True)
     session.add(tenant)
     await session.commit()
     return tenant
@@ -59,10 +87,7 @@ async def update_tenant(
     if tenant is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "tenant not found")
     data = body.model_dump(exclude_unset=True)
-    if "scan_times" in data:
-        _validate_times(data["scan_times"])
-    if "insight_hour" in data:
-        _validate_times([data["insight_hour"]])
+    _validate_tenant_fields(data)
     for k, v in data.items():
         setattr(tenant, k, v)
     await session.commit()
@@ -89,10 +114,7 @@ async def update_settings(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "tenant not found")
     data = body.model_dump(exclude_unset=True)
     data.pop("active", None)  # tenant không tự tắt mình
-    if "scan_times" in data:
-        _validate_times(data["scan_times"])
-    if "insight_hour" in data:
-        _validate_times([data["insight_hour"]])
+    _validate_tenant_fields(data)
     for k, v in data.items():
         setattr(tenant, k, v)
     await session.commit()
@@ -147,6 +169,25 @@ async def update_user(
     data = body.model_dump(exclude_unset=True)
     if data.get("role") == ROLE_OPERATOR and not principal.is_operator:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "operator only")
+    if user.id == principal.user_id and (
+        data.get("active") is False or ("role" in data and data["role"] != user.role)
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "cannot lock or change the role of your own account",
+        )
+    if user.role == ROLE_OPERATOR and (
+        data.get("active") is False or data.get("role") not in (None, ROLE_OPERATOR)
+    ):
+        others = await session.execute(
+            select(func.count())
+            .select_from(User)
+            .where(User.role == ROLE_OPERATOR, User.active.is_(True), User.id != user.id)
+        )
+        if others.scalar_one() == 0:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "cannot remove the last active operator"
+            )
     if "password" in data:
         user.password_hash = hash_password(data.pop("password"))
     for k, v in data.items():

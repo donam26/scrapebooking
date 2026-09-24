@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.api.deps import ApiQueue, SessionDep, SettingsDep, TenantDep, WriterDep, get_queue
 from app.api.schemas import InsightDetailOut, InsightOut
@@ -49,6 +49,16 @@ async def generate_insight(
     if tenant is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "tenant not found")
     now = datetime.now(tz=UTC)
+    # Dòng pending quá 10 phút nghĩa là jobs worker không chạy: đánh dấu thất bại để không treo mãi.
+    await session.execute(
+        update(Insight)
+        .where(
+            Insight.tenant_id == tenant_id,
+            Insight.status == "pending",
+            Insight.generated_at < now - timedelta(minutes=10),
+        )
+        .values(status="failed", error="timeout: jobs worker không xử lý trong 10 phút")
+    )
     pending = (
         await session.execute(
             select(Insight).where(

@@ -1,60 +1,18 @@
-from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-import pytest
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.service import AnalyticsService
 from app.api.auth import hash_password
-from app.api.main import create_app
-from app.config import Settings
 from app.db.models import Hotel, ScanRun, Tenant, TenantHotel, User
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
 from app.repo.snapshots import SnapshotRepository
+from tests.integration.conftest import FakeQueue
 
 T0 = datetime(2026, 9, 24, 6, 0, tzinfo=UTC)
 STAY = date(2026, 10, 5)
-
-
-class FakeQueue:
-    def __init__(self) -> None:
-        self.insights: list[tuple[int, str, str]] = []
-        self.analytics: list[int] = []
-
-    async def enqueue_insight(self, tenant_id: int, trigger: str, request_key: str) -> None:
-        self.insights.append((tenant_id, trigger, request_key))
-
-    async def enqueue_analytics(self, scan_run_id: int) -> None:
-        self.analytics.append(scan_run_id)
-
-
-@pytest.fixture
-def settings() -> Settings:
-    return Settings(
-        _env_file=None,
-        database_url="x",
-        redis_url="x",
-        proxy_url_template="x",
-        jwt_secret="test-secret",
-    )
-
-
-@pytest.fixture
-def queue() -> FakeQueue:
-    return FakeQueue()
-
-
-@pytest.fixture
-async def client(
-    db: AsyncSession, settings: Settings, queue: FakeQueue
-) -> AsyncIterator[AsyncClient]:
-    factory = async_sessionmaker(db.bind, expire_on_commit=False)  # type: ignore[arg-type]
-    app = create_app(settings=settings, session_factory=factory, queue=queue)
-    async with app.router.lifespan_context(app):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            yield c
 
 
 async def _seed(db: AsyncSession) -> dict[str, int]:

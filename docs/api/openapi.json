@@ -708,6 +708,58 @@
     }
    }
   },
+  "/watchlist/scan-now": {
+   "post": {
+    "tags": [
+     "watchlist"
+    ],
+    "summary": "Scan Now",
+    "description": "Quét ngay toàn bộ watchlist của tenant (không đợi mốc giờ), ví dụ sau khi thêm khách sạn.",
+    "operationId": "scan_now_watchlist_scan_now_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ScanRunOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/overview": {
    "get": {
     "tags": [
@@ -1943,6 +1995,28 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/health/scan-now": {
+   "post": {
+    "tags": [
+     "health"
+    ],
+    "summary": "Scan Now All",
+    "description": "Operator: quét ngay mọi tenant đang hoạt động.",
+    "operationId": "scan_now_all_health_scan_now_post",
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ScanRunOut"
         }
        }
       }

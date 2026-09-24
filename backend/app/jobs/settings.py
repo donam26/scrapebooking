@@ -1,19 +1,19 @@
 """Worker `jobs` (arq): analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu,
 poll Batch API, backup đêm, dọn partition. Tách khỏi worker collector để không chặn probe."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any
 
 from arq import cron
 from arq.connections import RedisSettings
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.analytics.service import AnalyticsService
 from app.config import get_settings
 from app.db.engine import make_engine, make_session_factory
-from app.db.models import Tenant
+from app.db.models import Insight, Tenant
 from app.db.partitions import drop_room_snapshot_partitions_older_than
-from app.insight.service import InsightService, build_openai_client, due_daily_tenants
+from app.insight.service import InsightService, build_openai_client, daily_due_today
 from app.logging import configure_logging, get_logger
 from app.ops.alerts import TelegramAlerter
 from app.ops.backup import run_backup
@@ -77,16 +77,41 @@ async def generate_insight(
         return {"insight_id": row.id, "status": row.status}
 
 
-async def dispatch_daily_insights(ctx: dict[str, Any]) -> int:
-    """Cron mỗi 5 phút: tenant tới giờ insight_hour thì đẩy job daily (idempotent theo ngày)."""
-    now = datetime.now(tz=UTC)
-    async with ctx["session_factory"]() as s:
-        tenants = list(
-            (await s.execute(select(Tenant).where(Tenant.active.is_(True)))).scalars().all()
+MAX_DAILY_FAILURES = 2
+
+
+async def select_daily_dispatch(session: Any, now: datetime) -> list[tuple[int, str]]:
+    """Tenant đã qua insight_hour hôm nay mà chưa có bản tin daily của ngày đó
+    (đang chờ/hoàn tất), và chưa thất bại quá MAX_DAILY_FAILURES lần. Có catch-up:
+    jobs worker tắt đúng giờ thì lần cron sau vẫn đẩy."""
+    tenants = list((await session.execute(select(Tenant).where(Tenant.active.is_(True)))).scalars())
+    out: list[tuple[int, str]] = []
+    for d in daily_due_today(tenants, now):
+        day = date.fromisoformat(d.request_key.split(":", 1)[1])
+        rows = await session.execute(
+            select(Insight.status, func.count())
+            .where(
+                Insight.tenant_id == d.tenant_id,
+                Insight.trigger == "daily",
+                Insight.period_start == day,
+            )
+            .group_by(Insight.status)
         )
-    due = due_daily_tenants(tenants, now, lookback=timedelta(minutes=10))
-    for d in due:
-        await ctx["queue"].enqueue_insight(d.tenant_id, "daily", d.request_key)
+        by_status = {r[0]: r[1] for r in rows}
+        if any(by_status.get(st) for st in ("completed", "batch_pending", "pending")):
+            continue
+        if by_status.get("failed", 0) >= MAX_DAILY_FAILURES:
+            continue
+        out.append((d.tenant_id, d.request_key))
+    return out
+
+
+async def dispatch_daily_insights(ctx: dict[str, Any]) -> int:
+    """Cron mỗi 5 phút: đẩy job daily cho tenant đã qua insight_hour và chưa có bản tin hôm nay."""
+    async with ctx["session_factory"]() as s:
+        due = await select_daily_dispatch(s, datetime.now(tz=UTC))
+    for tenant_id, key in due:
+        await ctx["queue"].enqueue_insight(tenant_id, "daily", key)
     return len(due)
 
 
@@ -121,6 +146,14 @@ async def prune_partitions(ctx: dict[str, Any]) -> list[str]:
     return dropped
 
 
+class _LazyRedisSettings:
+    """arq đọc `WorkerSettings.redis_settings` lúc chạy; đọc env muộn để import module không cần env
+    (test và công cụ khác import được mà không cần DATABASE_URL...)."""
+
+    def __get__(self, obj: object, owner: type | None = None) -> RedisSettings:
+        return RedisSettings.from_dsn(get_settings().redis_url)
+
+
 class JobsWorkerSettings:
     functions = [run_analytics, generate_insight]
     cron_jobs = [
@@ -132,7 +165,7 @@ class JobsWorkerSettings:
     ]
     on_startup = startup
     on_shutdown = shutdown
-    redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
+    redis_settings = _LazyRedisSettings()
     max_jobs = 2
     job_timeout = 1800
     max_tries = 2

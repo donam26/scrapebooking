@@ -53,11 +53,11 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 | Lệnh | Việc |
 |---|---|
 | `add-tenant`, `add-hotel`, `add-user` | Onboard bằng CLI (dashboard làm được việc tương tự). |
-| `scan-now [--no-enqueue]` | Tạo scan run thủ công cho mọi tenant. |
+| `scan-now [--no-enqueue]` | Tạo scan run thủ công cho mọi tenant. Trên dashboard: nút "Quét ngay" (tenant, `POST /watchlist/scan-now`) và "Quét tất cả ngay" (operator, `POST /health/scan-now`), chống trùng trong 10 phút. |
 | `run-status --limit 5` | Trạng thái các đợt quét gần nhất. |
 | `analyze [--run-id N] [--all-pending]` | Chạy analytics tay. |
 | `insight <tenant_id> [--sync/--batch]` | Sinh bản tin tay. |
-| `reparse --since-days 30` | Parse lại HTML thô sau khi đổi parser. |
+| `reparse --since-days 30 [--no-reanalyze]` | Parse lại HTML thô sau khi đổi parser, rồi tính lại analytics cho các run bị ảnh hưởng. |
 | `ensure-partitions`, `prune-partitions --keep-months 24` | Partition `room_snapshots`. |
 | `backup-db` | pg_dump → gzip → MinIO bucket `BACKUP_BUCKET`, giữ `BACKUP_KEEP` bản. |
 
@@ -93,7 +93,12 @@ cd backend && uv run pytest tests/live -m live -s   # gọi Booking thật, cầ
 cd dashboard && npm run lint && npm run typecheck && npm run build
 ```
 
-## 11. Việc còn lại trước khi bán dịch vụ
+## 11. Rà soát flow người dùng
+
+Chi tiết từng flow (operator, tenant admin, xem hằng ngày, bản tin, PMS, vận hành) và các
+ràng buộc đã bổ sung: `docs/user-flows.md`.
+
+## 12. Việc còn lại trước khi bán dịch vụ
 
 - Thay 3 fixture HTML mô phỏng bằng trang Booking thật và xác nhận selector (xem `backend/tests/fixtures/html/README.md`).
 - Chạy thật giai đoạn 1 vài ngày (tiêu chí trong `docs/runbook-phase1.md`).

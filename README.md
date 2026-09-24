@@ -10,6 +10,7 @@ Tài liệu:
 - Kế hoạch giai đoạn 1: `docs/superpowers/plans/2026-09-24-phase1-foundation-collector.md`
 - Runbook giai đoạn 1: `docs/runbook-phase1.md`
 - Vận hành toàn hệ thống: `docs/operations.md`
+- Flow người dùng từng chức năng: `docs/user-flows.md`
 - OpenAPI: `docs/api/openapi.json` (sinh từ FastAPI)
 
 ## Cấu trúc

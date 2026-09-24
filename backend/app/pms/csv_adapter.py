@@ -124,6 +124,12 @@ class CsvAdapter:
         lower = filename.lower()
         if lower.endswith((".xlsx", ".xlsm")):
             return self._read_excel(content)
+        if lower.endswith(".xls") or content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+            raise PmsAdapterError(
+                "định dạng Excel cũ (.xls) không được hỗ trợ; lưu lại thành .xlsx hoặc .csv"
+            )
+        if content[:2] == b"PK":
+            return self._read_excel(content)
         return self._read_csv(content)
 
     @staticmethod

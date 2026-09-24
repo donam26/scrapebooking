@@ -1,9 +1,20 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app.logging import get_logger
 from app.repo.runs import HotelJobPlan
+
+log = get_logger(__name__)
+
+
+def safe_zone(name: str) -> ZoneInfo | None:
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        log.error("invalid_timezone", timezone=name)
+        return None
 
 
 @dataclass(frozen=True)
@@ -39,7 +50,9 @@ def compute_triggers(
     """Mốc giờ quét của mọi tenant rơi vào (now - lookback, now], gom theo phút UTC."""
     buckets: dict[str, tuple[datetime, set[int]]] = {}
     for tenant in tenants:
-        tz = ZoneInfo(tenant.timezone)
+        tz = safe_zone(tenant.timezone)
+        if tz is None:
+            continue
         local_today = now.astimezone(tz).date()
         for day_offset in (0, -1):
             local_date = local_today + timedelta(days=day_offset)
@@ -59,7 +72,8 @@ def build_hotel_plans(rows: Iterable[WatchRow], trigger_at: datetime) -> list[Ho
     """Một job mỗi khách sạn: start_date là ngày địa phương sớm nhất, horizon là lớn nhất."""
     per_hotel: dict[int, tuple[date, int]] = {}
     for row in rows:
-        local_date = trigger_at.astimezone(ZoneInfo(row.timezone)).date()
+        tz = safe_zone(row.timezone) or UTC
+        local_date = trigger_at.astimezone(tz).date()
         current = per_hotel.get(row.hotel_id)
         if current is None:
             per_hotel[row.hotel_id] = (local_date, row.horizon_days)

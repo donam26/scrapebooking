@@ -1,0 +1,70 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-30"
+  },
+  "valid_refs": [
+    "metric:1:2026-10-05",
+    "metric:2:2026-10-05",
+    "metric:2:2026-10-06",
+    "evt:10",
+    "evt:11",
+    "compset:2026-10-05",
+    "compset:2026-10-06"
+  ],
+  "hotel_ids": [
+    1,
+    2
+  ],
+  "model_output": {
+    "summary": "s",
+    "highlights": [
+      {
+        "title": "t",
+        "date_from": "2026-10-05",
+        "date_to": "2026-10-05",
+        "hotel_ids": [
+          1
+        ],
+        "evidence": [
+          {
+            "kind": "event",
+            "ref": "evt:10"
+          }
+        ],
+        "confidence": "high",
+        "recommendation": "r"
+      },
+      {
+        "title": "t",
+        "date_from": "2026-10-05",
+        "date_to": "2026-10-05",
+        "hotel_ids": [
+          1
+        ],
+        "evidence": [
+          {
+            "kind": "event",
+            "ref": "evt:9999"
+          }
+        ],
+        "confidence": "high",
+        "recommendation": "r"
+      }
+    ],
+    "demand_signals": [],
+    "pricing_opportunities": [],
+    "risks": [],
+    "data_quality_note": "n"
+  },
+  "expected": {
+    "highlights_kept": 1,
+    "pricing_kept": 0,
+    "risks_kept": 0,
+    "signals_kept": 0,
+    "dropped": 1,
+    "dropped_reasons_contain": [
+      "unknown refs"
+    ]
+  }
+}

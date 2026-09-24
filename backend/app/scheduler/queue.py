@@ -32,7 +32,11 @@ class ArqJobQueue:
 
     async def enqueue_insight(self, tenant_id: int, trigger: str, request_key: str) -> None:
         await self._redis.enqueue_job(
-            "generate_insight", tenant_id, trigger, _job_id=f"insight:{tenant_id}:{request_key}"
+            "generate_insight",
+            tenant_id,
+            trigger,
+            request_key,
+            _job_id=f"insight:{tenant_id}:{request_key}",
         )
 
     async def close(self) -> None:

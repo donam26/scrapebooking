@@ -1,0 +1,57 @@
+{
+  "title": "Collector health",
+  "uid": "sb-collector",
+  "schemaVersion": 39,
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Probes per minute by status",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum by (status) (rate(sb_probes_total[5m])) * 60", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Block rate (15m)",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.1 }, { "color": "red", "value": 0.2 } ] } } },
+      "targets": [
+        { "expr": "sum(increase(sb_probes_total{status=\"blocked\"}[15m])) / clamp_min(sum(increase(sb_probes_total{status!=\"skipped_calendar\"}[15m])), 1)" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Sessions retired (blocked, 1h)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 8 },
+      "targets": [ { "expr": "sum(increase(sb_sessions_retired_total{reason=\"blocked\"}[1h]))" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Probe duration p50 / p95",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum(rate(sb_probe_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(sb_probe_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Jobs by final status",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [ { "expr": "sum by (status) (increase(sb_jobs_total[1h]))", "legendFormat": "{{status}}" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Analytics runs / events / insights",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "targets": [
+        { "expr": "sum by (status) (increase(sb_analytics_runs_total[1h]))", "legendFormat": "analytics {{status}}" },
+        { "expr": "sum(increase(sb_events_total[1h]))", "legendFormat": "events" },
+        { "expr": "sum by (status) (increase(sb_insights_total[1h]))", "legendFormat": "insight {{status}}" }
+      ]
+    }
+  ]
+}

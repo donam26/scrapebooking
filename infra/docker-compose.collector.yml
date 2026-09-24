@@ -1,0 +1,17 @@
+name: scrapebooking-collector
+
+# Chạy worker collector trên máy khác. `.env` trên máy này phải có DATABASE_URL, REDIS_URL,
+# MINIO_ENDPOINT trỏ về IP/hostname của máy trung tâm.
+services:
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    env_file: ../.env
+    command: ["arq", "app.worker.settings.WorkerSettings"]
+    deploy:
+      resources:
+        limits:
+          memory: 1500M
+    shm_size: "512m"
+    restart: unless-stopped

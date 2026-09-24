@@ -1,0 +1,16 @@
+.omc/
+.env
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+backend/tests/fixtures/html/*.tmp.html
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+.DS_Store
+coverage/

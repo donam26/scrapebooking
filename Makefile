@@ -22,7 +22,7 @@ migrate:
 	cd backend && uv run alembic upgrade head
 
 api:
-	cd backend && uv run uvicorn app.api.main:app --reload --port 8000
+	cd backend && uv run uvicorn app.api.asgi:app --reload --port 8000
 
 dashboard-dev:
 	cd dashboard && npm run dev

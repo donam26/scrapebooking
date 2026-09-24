@@ -2,6 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Trạng thái 2026-09-24:** đã triển khai toàn bộ code của giai đoạn 1 (và các giai đoạn
+> 2–5, xem `docs/superpowers/plans/2026-09-24-phases2-5-implementation-notes.md`). Các bước
+> còn để trống là bước cần proxy residential thật, Docker daemon hoặc chạy thật nhiều ngày:
+> bắt fixture Booking thật và xác nhận selector, test live, build image và chạy full stack,
+> chạy thật 3 ngày. Fixture hiện tại là trang mô phỏng (`backend/tests/fixtures/html/README.md`).
+
 **Goal:** Snapshot số phòng còn lại và giá theo từng ngày lưu trú đổ về Postgres đúng lịch 3 lần mỗi ngày cho mọi khách sạn trong watchlist, HTML thô lưu MinIO, có health metrics và cảnh báo.
 
 **Architecture:** Một package Python `backend/app` với ba entrypoint: `scheduler` tạo scan run và đẩy job vào Redis, `worker` (arq) lấy job theo khách sạn, lấy calendar rồi probe từng ngày qua session lai (Playwright vượt challenge một lần, curl_cffi tải trang), parse và ghi snapshot, `cli` cho thao tác vận hành. Mọi phần dùng interface `Collector`, `ProxyProvider`, `SessionBootstrapper`, `Fetcher`, `RawStore` để test bằng fake.
@@ -112,7 +118,7 @@ Quy ước chạy lệnh: mọi lệnh Python chạy từ `backend/` với `uv r
 - Create: `.gitignore`, `.env.example`, `Makefile`
 - Create: `backend/pyproject.toml`, `backend/app/__init__.py`, `backend/tests/__init__.py`, `backend/tests/unit/__init__.py`, `backend/tests/integration/__init__.py`, `backend/tests/live/__init__.py`, `backend/tests/unit/test_smoke.py`
 
-- [ ] **Step 1: Tạo `.gitignore` ở gốc repo**
+- [x] **Step 1: Tạo `.gitignore` ở gốc repo**
 
 ```gitignore
 .omc/
@@ -129,7 +135,7 @@ dist/
 .DS_Store
 ```
 
-- [ ] **Step 2: Tạo `.env.example` ở gốc repo**
+- [x] **Step 2: Tạo `.env.example` ở gốc repo**
 
 ```env
 DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/scrapebooking
@@ -154,7 +160,7 @@ LOG_LEVEL=INFO
 PLAYWRIGHT_HEADLESS=true
 ```
 
-- [ ] **Step 3: Tạo `backend/pyproject.toml`**
+- [x] **Step 3: Tạo `backend/pyproject.toml`**
 
 ```toml
 [project]
@@ -226,7 +232,7 @@ ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 ```
 
-- [ ] **Step 4: Tạo package rỗng và test smoke**
+- [x] **Step 4: Tạo package rỗng và test smoke**
 
 `backend/app/__init__.py`, `backend/tests/__init__.py`, `backend/tests/unit/__init__.py`, `backend/tests/integration/__init__.py`, `backend/tests/live/__init__.py` đều rỗng.
 
@@ -240,7 +246,7 @@ def test_package_importable() -> None:
     assert app is not None
 ```
 
-- [ ] **Step 5: Tạo `Makefile` ở gốc repo**
+- [x] **Step 5: Tạo `Makefile` ở gốc repo**
 
 ```makefile
 .PHONY: infra-up infra-down test test-int lint typecheck migrate
@@ -267,12 +273,12 @@ migrate:
 	cd backend && uv run alembic upgrade head
 ```
 
-- [ ] **Step 6: Cài đặt và chạy smoke test**
+- [x] **Step 6: Cài đặt và chạy smoke test**
 
 Run: `cd backend && uv sync && uv run playwright install chromium && uv run pytest -q`
 Expected: `1 passed`
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add .gitignore .env.example Makefile backend/pyproject.toml backend/uv.lock backend/app backend/tests
@@ -287,7 +293,7 @@ git commit -m "chore: scaffold backend package with tooling"
 - Create: `backend/app/config.py`, `backend/app/logging.py`, `backend/app/clock.py`
 - Test: `backend/tests/unit/test_config.py`
 
-- [ ] **Step 1: Viết test settings thất bại**
+- [x] **Step 1: Viết test settings thất bại**
 
 `backend/tests/unit/test_config.py`:
 
@@ -317,12 +323,12 @@ def test_settings_defaults(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     assert s.minio_bucket == "raw-html"
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận thất bại**
+- [x] **Step 2: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_config.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.config'`
 
-- [ ] **Step 3: Viết `backend/app/config.py`**
+- [x] **Step 3: Viết `backend/app/config.py`**
 
 ```python
 from functools import lru_cache
@@ -363,7 +369,7 @@ def get_settings() -> Settings:
     return Settings()
 ```
 
-- [ ] **Step 4: Viết `backend/app/logging.py`**
+- [x] **Step 4: Viết `backend/app/logging.py`**
 
 ```python
 import logging
@@ -391,7 +397,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)  # type: ignore[no-any-return]
 ```
 
-- [ ] **Step 5: Viết `backend/app/clock.py`**
+- [x] **Step 5: Viết `backend/app/clock.py`**
 
 ```python
 from datetime import UTC, datetime
@@ -420,12 +426,12 @@ class FixedClock:
         self._at = self._at + timedelta(**kwargs)
 ```
 
-- [ ] **Step 6: Chạy test, xác nhận đạt**
+- [x] **Step 6: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_config.py -q`
 Expected: `2 passed`
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/app/config.py backend/app/logging.py backend/app/clock.py backend/tests/unit/test_config.py
@@ -439,7 +445,7 @@ git commit -m "feat: settings, structured logging, clock abstraction"
 **Files:**
 - Create: `infra/docker-compose.yml`
 
-- [ ] **Step 1: Viết `infra/docker-compose.yml` (mới có 3 dịch vụ hạ tầng, các dịch vụ ứng dụng thêm ở Task 19)**
+- [x] **Step 1: Viết `infra/docker-compose.yml` (mới có 3 dịch vụ hạ tầng, các dịch vụ ứng dụng thêm ở Task 19)**
 
 ```yaml
 name: scrapebooking
@@ -487,17 +493,17 @@ volumes:
   miniodata:
 ```
 
-- [ ] **Step 2: Khởi động và kiểm tra**
+- [x] **Step 2: Khởi động và kiểm tra**
 
 Run: `make infra-up && sleep 8 && docker compose -f infra/docker-compose.yml ps`
 Expected: ba dịch vụ `postgres`, `redis`, `minio` trạng thái `healthy` (hoặc `running` với minio nếu image không có `mc`; khi đó đổi healthcheck thành `["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]`).
 
-- [ ] **Step 3: Tạo database test**
+- [x] **Step 3: Tạo database test**
 
 Run: `docker compose -f infra/docker-compose.yml exec postgres psql -U app -d scrapebooking -c "CREATE DATABASE scrapebooking_test;"`
 Expected: `CREATE DATABASE`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add infra/docker-compose.yml
@@ -512,7 +518,7 @@ git commit -m "infra: compose services for postgres, redis, minio"
 - Create: `backend/app/domain/__init__.py`, `backend/app/domain/models.py`, `backend/app/domain/stock.py`, `backend/app/domain/booking_url.py`
 - Test: `backend/tests/unit/test_stock.py`, `backend/tests/unit/test_booking_url.py`, `backend/tests/unit/test_domain_models.py`
 
-- [ ] **Step 1: Viết test derive_stock thất bại**
+- [x] **Step 1: Viết test derive_stock thất bại**
 
 `backend/tests/unit/test_stock.py`:
 
@@ -548,7 +554,7 @@ def test_badge_wins_over_dropdown_when_both_present() -> None:
     assert stock.confidence == StockConfidence.EXACT
 ```
 
-- [ ] **Step 2: Viết test parse_booking_url thất bại**
+- [x] **Step 2: Viết test parse_booking_url thất bại**
 
 `backend/tests/unit/test_booking_url.py`:
 
@@ -585,7 +591,7 @@ def test_reject_non_hotel_urls(bad: str) -> None:
         parse_booking_url(bad)
 ```
 
-- [ ] **Step 3: Viết test cho RoomOffer.min_price thất bại**
+- [x] **Step 3: Viết test cho RoomOffer.min_price thất bại**
 
 `backend/tests/unit/test_domain_models.py`:
 
@@ -624,12 +630,12 @@ def test_min_prices_when_no_rates() -> None:
     assert offer.currency is None
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận thất bại**
+- [x] **Step 4: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_stock.py tests/unit/test_booking_url.py tests/unit/test_domain_models.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.domain'`
 
-- [ ] **Step 5: Viết `backend/app/domain/models.py`** (`backend/app/domain/__init__.py` rỗng)
+- [x] **Step 5: Viết `backend/app/domain/models.py`** (`backend/app/domain/__init__.py` rỗng)
 
 ```python
 from dataclasses import dataclass, field
@@ -757,7 +763,7 @@ class CalendarResult:
         return None
 ```
 
-- [ ] **Step 6: Viết `backend/app/domain/stock.py`**
+- [x] **Step 6: Viết `backend/app/domain/stock.py`**
 
 ```python
 from dataclasses import dataclass
@@ -791,7 +797,7 @@ def derive_stock(badge_count: int | None, dropdown_max: int | None, page_cap: in
     return Stock(None, StockConfidence.HIDDEN)
 ```
 
-- [ ] **Step 7: Viết `backend/app/domain/booking_url.py`**
+- [x] **Step 7: Viết `backend/app/domain/booking_url.py`**
 
 ```python
 import re
@@ -832,12 +838,12 @@ def parse_booking_url(url: str) -> BookingHotelUrl:
     )
 ```
 
-- [ ] **Step 8: Chạy test, xác nhận đạt**
+- [x] **Step 8: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_stock.py tests/unit/test_booking_url.py tests/unit/test_domain_models.py -q`
 Expected: `16 passed`
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend/app/domain backend/tests/unit/test_stock.py backend/tests/unit/test_booking_url.py backend/tests/unit/test_domain_models.py
@@ -854,7 +860,7 @@ git commit -m "feat(domain): core models, derive_stock, booking url parsing"
 - Create: `backend/tests/conftest.py`
 - Test: `backend/tests/integration/test_migrations.py`, `backend/tests/unit/test_partitions.py`
 
-- [ ] **Step 1: Viết test unit cho tên partition (thất bại)**
+- [x] **Step 1: Viết test unit cho tên partition (thất bại)**
 
 `backend/tests/unit/test_partitions.py`:
 
@@ -872,7 +878,7 @@ def test_month_range_crosses_year() -> None:
     assert month_range(date(2026, 12, 3)) == (date(2026, 12, 1), date(2027, 1, 1))
 ```
 
-- [ ] **Step 2: Viết test integration migration (thất bại)**
+- [x] **Step 2: Viết test integration migration (thất bại)**
 
 `backend/tests/integration/test_migrations.py`:
 
@@ -923,12 +929,12 @@ async def test_ensure_partitions_creates_past_month(db: AsyncSession) -> None:
     await db.commit()
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_partitions.py tests/integration/test_migrations.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.db'`
 
-- [ ] **Step 4: Viết `backend/app/db/engine.py`** (`backend/app/db/__init__.py` rỗng)
+- [x] **Step 4: Viết `backend/app/db/engine.py`** (`backend/app/db/__init__.py` rỗng)
 
 ```python
 from sqlalchemy.ext.asyncio import (
@@ -947,7 +953,7 @@ def make_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession
     return async_sessionmaker(engine, expire_on_commit=False)
 ```
 
-- [ ] **Step 5: Viết `backend/app/db/models.py`**
+- [x] **Step 5: Viết `backend/app/db/models.py`**
 
 ```python
 from datetime import date, datetime
@@ -1147,7 +1153,7 @@ class ScrapeSessionRow(Base):
     status: Mapped[str] = mapped_column(String(16), default="active")
 ```
 
-- [ ] **Step 6: Viết `backend/app/db/partitions.py`**
+- [x] **Step 6: Viết `backend/app/db/partitions.py`**
 
 ```python
 from datetime import date, timedelta
@@ -1190,7 +1196,7 @@ async def ensure_room_snapshot_partitions(
     return created
 ```
 
-- [ ] **Step 7: Viết `backend/alembic.ini`**
+- [x] **Step 7: Viết `backend/alembic.ini`**
 
 ```ini
 [alembic]
@@ -1233,7 +1239,7 @@ format = %(levelname)-5.5s [%(name)s] %(message)s
 datefmt = %H:%M:%S
 ```
 
-- [ ] **Step 8: Viết `backend/alembic/env.py`**
+- [x] **Step 8: Viết `backend/alembic/env.py`**
 
 ```python
 import asyncio
@@ -1294,7 +1300,7 @@ else:
     run_migrations_online()
 ```
 
-- [ ] **Step 9: Viết `backend/alembic/script.py.mako`**
+- [x] **Step 9: Viết `backend/alembic/script.py.mako`**
 
 ```mako
 """${message}
@@ -1324,7 +1330,7 @@ def downgrade() -> None:
     ${downgrades if downgrades else "pass"}
 ```
 
-- [ ] **Step 10: Viết migration `backend/alembic/versions/0001_phase1_tables.py`**
+- [x] **Step 10: Viết migration `backend/alembic/versions/0001_phase1_tables.py`**
 
 ```python
 """phase1 tables
@@ -1520,7 +1526,7 @@ def downgrade() -> None:
     op.drop_table("tenants")
 ```
 
-- [ ] **Step 11: Viết `backend/tests/conftest.py`**
+- [x] **Step 11: Viết `backend/tests/conftest.py`**
 
 ```python
 import asyncio
@@ -1592,12 +1598,12 @@ def fixtures_dir() -> Path:
     return FIXTURES_DIR
 ```
 
-- [ ] **Step 12: Chạy migration thật và test**
+- [x] **Step 12: Chạy migration thật và test**
 
 Run: `cd backend && uv run alembic upgrade head && uv run pytest tests/unit/test_partitions.py tests/integration/test_migrations.py -q`
 Expected: alembic in `Running upgrade  -> 0001, phase1 tables`; pytest `5 passed`
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add backend/app/db backend/alembic.ini backend/alembic backend/tests/conftest.py backend/tests/unit/test_partitions.py backend/tests/integration/test_migrations.py
@@ -1612,7 +1618,7 @@ git commit -m "feat(db): phase 1 schema, alembic, monthly partitions for room_sn
 - Create: `backend/app/collector/__init__.py`, `backend/app/collector/storage.py`
 - Test: `backend/tests/unit/test_storage.py`, `backend/tests/integration/test_storage_minio.py`
 
-- [ ] **Step 1: Viết test unit với moto (thất bại)**
+- [x] **Step 1: Viết test unit với moto (thất bại)**
 
 `backend/tests/unit/test_storage.py`:
 
@@ -1662,7 +1668,7 @@ async def test_s3_store_roundtrip_with_moto(aws_env: None) -> None:
         assert rules[0]["Expiration"]["Days"] == 30
 ```
 
-- [ ] **Step 2: Viết test integration với MinIO thật**
+- [x] **Step 2: Viết test integration với MinIO thật**
 
 `backend/tests/integration/test_storage_minio.py`:
 
@@ -1687,12 +1693,12 @@ async def test_minio_roundtrip() -> None:
     assert await store.get_html(key) == "<html>minio</html>"
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_storage.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.collector'`
 
-- [ ] **Step 4: Viết `backend/app/collector/storage.py`** (`backend/app/collector/__init__.py` rỗng)
+- [x] **Step 4: Viết `backend/app/collector/storage.py`** (`backend/app/collector/__init__.py` rỗng)
 
 ```python
 import asyncio
@@ -1793,12 +1799,12 @@ class S3RawStore:
         return await asyncio.to_thread(self._get_sync, key)
 ```
 
-- [ ] **Step 5: Chạy test, xác nhận đạt**
+- [x] **Step 5: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_storage.py tests/integration/test_storage_minio.py -q`
 Expected: `4 passed`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/collector backend/tests/unit/test_storage.py backend/tests/integration/test_storage_minio.py
@@ -1813,7 +1819,7 @@ git commit -m "feat(collector): raw html store on MinIO with memory fake"
 - Create: `backend/app/collector/proxy.py`
 - Test: `backend/tests/unit/test_proxy.py`
 
-- [ ] **Step 1: Viết test (thất bại)**
+- [x] **Step 1: Viết test (thất bại)**
 
 `backend/tests/unit/test_proxy.py`:
 
@@ -1851,12 +1857,12 @@ def test_template_without_credentials() -> None:
     assert ep.url == "http://h:1?c=th&s=s1"
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận thất bại**
+- [x] **Step 2: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_proxy.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.collector.proxy'`
 
-- [ ] **Step 3: Viết `backend/app/collector/proxy.py`**
+- [x] **Step 3: Viết `backend/app/collector/proxy.py`**
 
 ```python
 import secrets
@@ -1912,12 +1918,12 @@ class StaticProxyProvider:
         )
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận đạt**
+- [x] **Step 4: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_proxy.py -q`
 Expected: `3 passed`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/collector/proxy.py backend/tests/unit/test_proxy.py
@@ -1932,7 +1938,7 @@ git commit -m "feat(collector): proxy provider with sticky session endpoints"
 - Create: `backend/app/collector/session.py`, `backend/app/collector/booking/__init__.py`, `backend/app/collector/booking/selectors.py`, `backend/app/collector/booking/playwright_bootstrap.py`
 - Test: `backend/tests/unit/test_session.py`, `backend/tests/unit/test_selectors_csrf.py`, `backend/tests/live/test_bootstrap_live.py`
 
-- [ ] **Step 1: Viết test SessionManager với bootstrapper giả (thất bại)**
+- [x] **Step 1: Viết test SessionManager với bootstrapper giả (thất bại)**
 
 `backend/tests/unit/test_session.py`:
 
@@ -2045,7 +2051,7 @@ async def test_retire_forces_new_session_and_notifies_listener() -> None:
     assert listener.retired == [(s1, "blocked")]
 ```
 
-- [ ] **Step 2: Viết test extract_csrf_token (thất bại)**
+- [x] **Step 2: Viết test extract_csrf_token (thất bại)**
 
 `backend/tests/unit/test_selectors_csrf.py`:
 
@@ -2067,12 +2073,12 @@ def test_extract_csrf_missing() -> None:
     assert extract_csrf_token("<html></html>") is None
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_session.py tests/unit/test_selectors_csrf.py -q`
 Expected: FAIL với `ModuleNotFoundError`
 
-- [ ] **Step 4: Viết `backend/app/collector/booking/selectors.py`** (`backend/app/collector/booking/__init__.py` rỗng). Task 10 sẽ bổ sung thêm hằng số vào file này.
+- [x] **Step 4: Viết `backend/app/collector/booking/selectors.py`** (`backend/app/collector/booking/__init__.py` rỗng). Task 10 sẽ bổ sung thêm hằng số vào file này.
 
 ```python
 import re
@@ -2090,7 +2096,7 @@ def extract_csrf_token(html: str) -> str | None:
     return m.group(1) if m else None
 ```
 
-- [ ] **Step 5: Viết `backend/app/collector/session.py`**
+- [x] **Step 5: Viết `backend/app/collector/session.py`**
 
 ```python
 import uuid
@@ -2207,7 +2213,7 @@ class SessionManager:
         return self._max_age
 ```
 
-- [ ] **Step 6: Viết `backend/app/collector/booking/playwright_bootstrap.py`**
+- [x] **Step 6: Viết `backend/app/collector/booking/playwright_bootstrap.py`**
 
 ```python
 import asyncio
@@ -2274,7 +2280,7 @@ class PlaywrightBootstrapper:
                 await browser.close()
 ```
 
-- [ ] **Step 7: Viết test live**
+- [x] **Step 7: Viết test live**
 
 `backend/tests/live/test_bootstrap_live.py`:
 
@@ -2298,7 +2304,7 @@ async def test_bootstrap_real_booking() -> None:
     assert "hprt-table" in result.html or "hp_hotel_name" in result.html
 ```
 
-- [ ] **Step 8: Chạy unit test, xác nhận đạt**
+- [x] **Step 8: Chạy unit test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_session.py tests/unit/test_selectors_csrf.py -q`
 Expected: `8 passed`
@@ -2308,7 +2314,7 @@ Expected: `8 passed`
 Run: `cd backend && uv run pytest tests/live/test_bootstrap_live.py -m live -q -s`
 Expected: `1 passed`. Nếu `ChallengeNotSolved`: chạy lại với `PLAYWRIGHT_HEADLESS=false` để xem challenge có đòi captcha không, đổi proxy nếu IP bị đánh dấu.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add backend/app/collector/session.py backend/app/collector/booking backend/tests/unit/test_session.py backend/tests/unit/test_selectors_csrf.py backend/tests/live/test_bootstrap_live.py
@@ -2323,7 +2329,7 @@ git commit -m "feat(collector): session manager and playwright bootstrapper"
 - Create: `backend/app/collector/fetch.py`, `backend/app/collector/ratelimit.py`
 - Test: `backend/tests/unit/test_fetch_classify.py`, `backend/tests/unit/test_ratelimit.py`
 
-- [ ] **Step 1: Viết test classify_response (thất bại)**
+- [x] **Step 1: Viết test classify_response (thất bại)**
 
 `backend/tests/unit/test_fetch_classify.py`:
 
@@ -2351,7 +2357,7 @@ def test_classify(status: int, text: str, expected: FetchOutcome) -> None:
     assert classify_response(status, text) == expected
 ```
 
-- [ ] **Step 2: Viết test RateLimiter (thất bại)**
+- [x] **Step 2: Viết test RateLimiter (thất bại)**
 
 `backend/tests/unit/test_ratelimit.py`:
 
@@ -2404,12 +2410,12 @@ async def test_keys_are_independent() -> None:
     assert ft.sleeps == []
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_fetch_classify.py tests/unit/test_ratelimit.py -q`
 Expected: FAIL với `ModuleNotFoundError`
 
-- [ ] **Step 4: Viết `backend/app/collector/ratelimit.py`**
+- [x] **Step 4: Viết `backend/app/collector/ratelimit.py`**
 
 ```python
 import asyncio
@@ -2446,7 +2452,7 @@ class RateLimiter:
         self._last[key] = self._now()
 ```
 
-- [ ] **Step 5: Viết `backend/app/collector/fetch.py`**
+- [x] **Step 5: Viết `backend/app/collector/fetch.py`**
 
 ```python
 import time
@@ -2576,12 +2582,12 @@ class CurlFetcher:
             await self.close(sid)
 ```
 
-- [ ] **Step 6: Chạy test, xác nhận đạt**
+- [x] **Step 6: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_fetch_classify.py tests/unit/test_ratelimit.py -q`
 Expected: `13 passed`
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/app/collector/fetch.py backend/app/collector/ratelimit.py backend/tests/unit/test_fetch_classify.py backend/tests/unit/test_ratelimit.py
@@ -2601,7 +2607,7 @@ git commit -m "feat(collector): curl_cffi fetcher, block classification, rate li
 - Create: `backend/tests/fixtures/html/available_with_badge.html`, `available_no_badge.html`, `sold_out.html` và ba file `.expected.json` tương ứng
 - Test: `backend/tests/unit/test_urls.py`, `backend/tests/unit/test_price.py`, `backend/tests/unit/test_parser.py`
 
-- [ ] **Step 1: Viết test build_hotel_url và currency_for (thất bại)**
+- [x] **Step 1: Viết test build_hotel_url và currency_for (thất bại)**
 
 `backend/tests/unit/test_urls.py`:
 
@@ -2630,7 +2636,7 @@ def test_currency_for_known_and_default() -> None:
     assert currency_for("zz") == "USD"
 ```
 
-- [ ] **Step 2: Viết test parse_price (thất bại)**
+- [x] **Step 2: Viết test parse_price (thất bại)**
 
 `backend/tests/unit/test_price.py`:
 
@@ -2662,12 +2668,12 @@ def test_parse_price_no_number() -> None:
     assert parse_price("Sold out", fallback_currency="VND") is None
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_urls.py tests/unit/test_price.py -q`
 Expected: FAIL với `ModuleNotFoundError`
 
-- [ ] **Step 4: Viết `backend/app/collector/booking/urls.py`**
+- [x] **Step 4: Viết `backend/app/collector/booking/urls.py`**
 
 ```python
 from datetime import date, timedelta
@@ -2697,7 +2703,7 @@ def build_hotel_url(hotel: HotelRef, checkin: date, nights: int, adults: int, cu
     )
 ```
 
-- [ ] **Step 5: Bổ sung hằng số vào `backend/app/collector/booking/selectors.py`** (giữ nguyên phần đã có từ Task 8, thêm vào cuối)
+- [x] **Step 5: Bổ sung hằng số vào `backend/app/collector/booking/selectors.py`** (giữ nguyên phần đã có từ Task 8, thêm vào cuối)
 
 ```python
 # ---- Bảng phòng ----
@@ -2726,7 +2732,7 @@ HOTEL_ID_RE = re.compile(r"""b_hotel_id\s*[:=]\s*['"]?(\d+)""")
 MAX_PEOPLE_RE = re.compile(r"(\d+)")
 ```
 
-- [ ] **Step 6: Viết `backend/scripts/capture_fixture.py`** (dùng bootstrapper của Task 8 để lấy HTML thật qua trình duyệt)
+- [x] **Step 6: Viết `backend/scripts/capture_fixture.py`** (dùng bootstrapper của Task 8 để lấy HTML thật qua trình duyệt)
 
 ```python
 """Lưu HTML thật của trang khách sạn Booking làm fixture.
@@ -2779,7 +2785,7 @@ uv run python scripts/capture_fixture.py https://www.booking.com/hotel/vn/the-re
 
 Mở từng file trong trình duyệt (File > Open) để xác nhận bằng mắt: file `available_with_badge` phải có ít nhất một dòng "Only N rooms left", file `sold_out` phải có thông báo hết phòng. Nếu ngày chọn không cho ra tình huống mong muốn, đổi ngày hoặc đổi khách sạn (khách sạn nhỏ dễ có badge và dễ hết phòng).
 
-- [ ] **Step 8: Viết `backend/scripts/explore_fixture.py`**
+- [x] **Step 8: Viết `backend/scripts/explore_fixture.py`**
 
 ```python
 """In số lượng phần tử khớp từng selector trên một fixture để xác nhận selector còn đúng.
@@ -2840,7 +2846,7 @@ Kỳ vọng với hai fixture available: `ROOM_ROWS` ≥ 1, `ROOM_TYPE_CELL` ≥
 
 Nếu một dòng cho 0 mà bằng mắt thấy trang có phần tử đó: mở fixture, tìm phần tử tương ứng, chép selector ổn định nhất (ưu tiên `id`, `data-testid`, rồi class có tên nghĩa) vào hằng số trong `selectors.py`, chạy lại script. Ghi lại giá trị `select options` lớn nhất thấy được trên khách sạn lớn: đó là trần dropdown; nếu khác 10, đặt `PAGE_DROPDOWN_CAP` trong `.env.example` và `config.py` theo giá trị đó.
 
-- [ ] **Step 10: Viết test parser (thất bại)**
+- [x] **Step 10: Viết test parser (thất bại)**
 
 `backend/tests/unit/test_parser.py`:
 
@@ -2899,12 +2905,12 @@ def test_golden(fixtures_dir: Path, name: str) -> None:
     assert page_to_dict(page) == json.loads(expected_path.read_text(encoding="utf-8"))
 ```
 
-- [ ] **Step 11: Chạy test, xác nhận thất bại**
+- [x] **Step 11: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_parser.py -q`
 Expected: FAIL với `ImportError: cannot import name 'parse_hotel_page'`
 
-- [ ] **Step 12: Viết `backend/app/collector/booking/parser.py`**
+- [x] **Step 12: Viết `backend/app/collector/booking/parser.py`**
 
 ```python
 import re
@@ -3108,12 +3114,12 @@ Run: `cd backend && for f in available_with_badge available_no_badge sold_out; d
 
 Mở từng `.expected.json`, đối chiếu với trang HTML mở trong trình duyệt: tên phòng, số rate, giá, badge, dropdown. Nếu sai, sửa selector hoặc parser rồi emit lại. Chỉ commit golden khi đã đối chiếu.
 
-- [ ] **Step 14: Chạy toàn bộ test parser, xác nhận đạt**
+- [x] **Step 14: Chạy toàn bộ test parser, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_urls.py tests/unit/test_price.py tests/unit/test_parser.py -q`
 Expected: `17 passed`
 
-- [ ] **Step 15: Commit**
+- [x] **Step 15: Commit**
 
 ```bash
 git add backend/app/collector/booking backend/scripts backend/tests/fixtures/html backend/tests/unit/test_urls.py backend/tests/unit/test_price.py backend/tests/unit/test_parser.py
@@ -3128,7 +3134,7 @@ git commit -m "feat(collector): booking hotel page parser with real fixtures"
 - Create: `backend/app/collector/booking/calendar.py`
 - Test: `backend/tests/unit/test_calendar.py`
 
-- [ ] **Step 1: Viết test (thất bại)**
+- [x] **Step 1: Viết test (thất bại)**
 
 `backend/tests/unit/test_calendar.py`:
 
@@ -3200,12 +3206,12 @@ def test_parse_garbage() -> None:
     assert res.error and "json" in res.error.lower()
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận thất bại**
+- [x] **Step 2: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_calendar.py -q`
 Expected: FAIL với `ModuleNotFoundError`
 
-- [ ] **Step 3: Viết `backend/app/collector/booking/calendar.py`**
+- [x] **Step 3: Viết `backend/app/collector/booking/calendar.py`**
 
 ```python
 import json
@@ -3291,12 +3297,12 @@ def parse_calendar_response(text: str) -> CalendarResult:
     return CalendarResult(ok=True, days=tuple(days))
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận đạt**
+- [x] **Step 4: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_calendar.py -q`
 Expected: `5 passed`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/collector/booking/calendar.py backend/tests/unit/test_calendar.py
@@ -3311,7 +3317,7 @@ git commit -m "feat(collector): availability calendar graphql request and parsin
 - Create: `backend/app/collector/base.py`, `backend/app/collector/fake.py`, `backend/app/collector/booking/results.py`, `backend/app/collector/booking/browser.py`
 - Test: `backend/tests/unit/test_results.py`, `backend/tests/unit/test_fake_collector.py`, `backend/tests/live/test_browser_live.py`
 
-- [ ] **Step 1: Viết test probe_result_from_page (thất bại)**
+- [x] **Step 1: Viết test probe_result_from_page (thất bại)**
 
 `backend/tests/unit/test_results.py`:
 
@@ -3354,7 +3360,7 @@ def test_sold_out_and_empty_mapping() -> None:
     assert probe_result_from_page(_page(PageOutcome.EMPTY), **kw).status == ProbeStatus.NO_ROOMS_1N
 ```
 
-- [ ] **Step 2: Viết test FakeCollector (thất bại)**
+- [x] **Step 2: Viết test FakeCollector (thất bại)**
 
 `backend/tests/unit/test_fake_collector.py`:
 
@@ -3386,12 +3392,12 @@ async def test_fake_collector_default_is_error() -> None:
     assert not cal.ok
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_results.py tests/unit/test_fake_collector.py -q`
 Expected: FAIL với `ModuleNotFoundError`
 
-- [ ] **Step 4: Viết `backend/app/collector/base.py`**
+- [x] **Step 4: Viết `backend/app/collector/base.py`**
 
 ```python
 from datetime import date
@@ -3408,7 +3414,7 @@ class Collector(Protocol):
     async def probe(self, hotel: HotelRef, checkin: date, nights: int, adults: int) -> ProbeResult: ...
 ```
 
-- [ ] **Step 5: Viết `backend/app/collector/booking/results.py`**
+- [x] **Step 5: Viết `backend/app/collector/booking/results.py`**
 
 ```python
 from datetime import date, timedelta
@@ -3480,7 +3486,7 @@ def failed_result(
     )
 ```
 
-- [ ] **Step 6: Viết `backend/app/collector/fake.py`**
+- [x] **Step 6: Viết `backend/app/collector/fake.py`**
 
 ```python
 from datetime import date, timedelta
@@ -3559,7 +3565,7 @@ class FakeCollector:
         return scripted
 ```
 
-- [ ] **Step 7: Viết `backend/app/collector/booking/browser.py`**
+- [x] **Step 7: Viết `backend/app/collector/booking/browser.py`**
 
 ```python
 import time
@@ -3653,7 +3659,7 @@ class BrowserCollector:
         )
 ```
 
-- [ ] **Step 8: Viết test live**
+- [x] **Step 8: Viết test live**
 
 `backend/tests/live/test_browser_live.py`:
 
@@ -3679,7 +3685,7 @@ async def test_browser_probe_real() -> None:
         assert r.offers and r.offers[0].rates
 ```
 
-- [ ] **Step 9: Chạy unit test, xác nhận đạt**
+- [x] **Step 9: Chạy unit test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_results.py tests/unit/test_fake_collector.py -q`
 Expected: `4 passed`
@@ -3689,7 +3695,7 @@ Expected: `4 passed`
 Run: `cd backend && uv run pytest tests/live/test_browser_live.py -m live -q -s`
 Expected: `1 passed`
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add backend/app/collector/base.py backend/app/collector/fake.py backend/app/collector/booking/results.py backend/app/collector/booking/browser.py backend/tests/unit/test_results.py backend/tests/unit/test_fake_collector.py backend/tests/live/test_browser_live.py
@@ -3704,7 +3710,7 @@ git commit -m "feat(collector): collector protocol, fake collector, browser fall
 - Create: `backend/app/collector/booking/hybrid.py`, `backend/tests/fakes.py`
 - Test: `backend/tests/unit/test_hybrid.py`
 
-- [ ] **Step 1: Viết `backend/tests/fakes.py`** (fake dùng chung cho các test từ đây về sau)
+- [x] **Step 1: Viết `backend/tests/fakes.py`** (fake dùng chung cho các test từ đây về sau)
 
 ```python
 from collections import deque
@@ -3791,7 +3797,7 @@ def any_date() -> date:
     return date(2026, 10, 5)
 ```
 
-- [ ] **Step 2: Viết test HybridCollector (thất bại)**
+- [x] **Step 2: Viết test HybridCollector (thất bại)**
 
 `backend/tests/unit/test_hybrid.py`:
 
@@ -3926,12 +3932,12 @@ async def test_calendar_blocked_retires_session() -> None:
     assert len(boot.calls) == 1
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_hybrid.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.collector.booking.hybrid'`
 
-- [ ] **Step 4: Viết `backend/app/collector/booking/hybrid.py`**
+- [x] **Step 4: Viết `backend/app/collector/booking/hybrid.py`**
 
 ```python
 import asyncio
@@ -4087,12 +4093,12 @@ class HybridCollector:
         return await self._fallback.probe(hotel, checkin, nights, adults)
 ```
 
-- [ ] **Step 5: Chạy test, xác nhận đạt**
+- [x] **Step 5: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_hybrid.py -q`
 Expected: `10 passed`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/collector/booking/hybrid.py backend/tests/fakes.py backend/tests/unit/test_hybrid.py
@@ -4107,7 +4113,7 @@ git commit -m "feat(collector): hybrid collector with session rotation and brows
 - Create: `backend/app/repo/__init__.py`, `backend/app/repo/snapshots.py`, `backend/app/repo/runs.py`
 - Test: `backend/tests/integration/test_snapshot_repo.py`, `backend/tests/integration/test_run_repo.py`
 
-- [ ] **Step 1: Viết test SnapshotRepository (thất bại)**
+- [x] **Step 1: Viết test SnapshotRepository (thất bại)**
 
 `backend/tests/integration/test_snapshot_repo.py`:
 
@@ -4241,7 +4247,7 @@ async def test_terminal_dates_for_run(db: AsyncSession) -> None:
     assert done == {date(2026, 10, 5), date(2026, 10, 7)}
 ```
 
-- [ ] **Step 2: Viết test ScanRunRepository (thất bại)**
+- [x] **Step 2: Viết test ScanRunRepository (thất bại)**
 
 `backend/tests/integration/test_run_repo.py`:
 
@@ -4352,12 +4358,12 @@ async def test_probe_stats_since(db: AsyncSession) -> None:
     assert (total, blocked) == (3, 1)  # skipped_calendar không tính vì không phải request
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/integration/test_snapshot_repo.py tests/integration/test_run_repo.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.repo'`
 
-- [ ] **Step 4: Viết `backend/app/repo/snapshots.py`** (`backend/app/repo/__init__.py` rỗng)
+- [x] **Step 4: Viết `backend/app/repo/snapshots.py`** (`backend/app/repo/__init__.py` rỗng)
 
 ```python
 from dataclasses import asdict
@@ -4542,7 +4548,7 @@ class SnapshotRepository:
         return {r[0] for r in rows}
 ```
 
-- [ ] **Step 5: Viết `backend/app/repo/runs.py`**
+- [x] **Step 5: Viết `backend/app/repo/runs.py`**
 
 ```python
 from dataclasses import dataclass
@@ -4689,12 +4695,12 @@ class ScanRunRepository:
         return sum(by_status.values()), by_status.get(str(ProbeStatus.BLOCKED), 0)
 ```
 
-- [ ] **Step 6: Chạy test, xác nhận đạt**
+- [x] **Step 6: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/integration/test_snapshot_repo.py tests/integration/test_run_repo.py -q`
 Expected: `12 passed`
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/app/repo backend/tests/integration/test_snapshot_repo.py backend/tests/integration/test_run_repo.py
@@ -4709,7 +4715,7 @@ git commit -m "feat(repo): snapshot writer and scan run lifecycle repositories"
 - Create: `backend/app/ops/__init__.py`, `backend/app/ops/metrics.py`, `backend/app/ops/alerts.py`
 - Test: `backend/tests/unit/test_alerts.py`
 
-- [ ] **Step 1: Viết test (thất bại)**
+- [x] **Step 1: Viết test (thất bại)**
 
 `backend/tests/unit/test_alerts.py`:
 
@@ -4775,12 +4781,12 @@ async def test_telegram_disabled_without_token() -> None:
     await alerter.send("ignored")  # không ném lỗi, không gọi mạng
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận thất bại**
+- [x] **Step 2: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_alerts.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.ops'`
 
-- [ ] **Step 3: Viết `backend/app/ops/metrics.py`** (`backend/app/ops/__init__.py` rỗng)
+- [x] **Step 3: Viết `backend/app/ops/metrics.py`** (`backend/app/ops/__init__.py` rỗng)
 
 ```python
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
@@ -4800,7 +4806,7 @@ def start_metrics_server(port: int) -> None:
     start_http_server(port)
 ```
 
-- [ ] **Step 4: Viết `backend/app/ops/alerts.py`**
+- [x] **Step 4: Viết `backend/app/ops/alerts.py`**
 
 ```python
 from dataclasses import dataclass
@@ -4896,12 +4902,12 @@ def run_summary_alert(stats: RunStats, threshold: float = 0.9) -> str | None:
     )
 ```
 
-- [ ] **Step 5: Chạy test, xác nhận đạt**
+- [x] **Step 5: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_alerts.py -q`
 Expected: `6 passed`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/ops backend/tests/unit/test_alerts.py
@@ -4917,7 +4923,7 @@ git commit -m "feat(ops): prometheus metrics and telegram alerts with throttle"
 - Modify: `backend/app/repo/runs.py` (thêm `stale_queued_jobs`)
 - Test: `backend/tests/unit/test_planning.py`, `backend/tests/integration/test_scheduler_service.py`
 
-- [ ] **Step 1: Viết test planning (thất bại)**
+- [x] **Step 1: Viết test planning (thất bại)**
 
 `backend/tests/unit/test_planning.py`:
 
@@ -4975,7 +4981,7 @@ def test_build_hotel_plans_merges_horizon_and_start_date() -> None:
     ]
 ```
 
-- [ ] **Step 2: Viết test service (thất bại)**
+- [x] **Step 2: Viết test service (thất bại)**
 
 `backend/tests/integration/test_scheduler_service.py`:
 
@@ -5072,12 +5078,12 @@ async def test_tick_reenqueues_stale_queued_jobs(db: AsyncSession) -> None:
     assert len(queue.enqueued) == 2 * n
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/unit/test_planning.py tests/integration/test_scheduler_service.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.scheduler'`
 
-- [ ] **Step 4: Viết `backend/app/scheduler/planning.py`** (`backend/app/scheduler/__init__.py` rỗng)
+- [x] **Step 4: Viết `backend/app/scheduler/planning.py`** (`backend/app/scheduler/__init__.py` rỗng)
 
 ```python
 from collections.abc import Iterable
@@ -5150,7 +5156,7 @@ def build_hotel_plans(rows: Iterable[WatchRow], trigger_at: datetime) -> list[Ho
     return [HotelJobPlan(h, d, n) for h, (d, n) in sorted(per_hotel.items())]
 ```
 
-- [ ] **Step 5: Viết `backend/app/scheduler/queue.py`**
+- [x] **Step 5: Viết `backend/app/scheduler/queue.py`**
 
 ```python
 from typing import Protocol
@@ -5184,7 +5190,7 @@ class ArqJobQueue:
         await self._redis.aclose()
 ```
 
-- [ ] **Step 6: Thêm `stale_queued_jobs` vào `backend/app/repo/runs.py`** (thêm method vào cuối class `ScanRunRepository`)
+- [x] **Step 6: Thêm `stale_queued_jobs` vào `backend/app/repo/runs.py`** (thêm method vào cuối class `ScanRunRepository`)
 
 ```python
     async def stale_queued_jobs(self, queued_before: datetime) -> list[tuple[int, int]]:
@@ -5197,7 +5203,7 @@ class ArqJobQueue:
         return [(r[0], r[1]) for r in rows]
 ```
 
-- [ ] **Step 7: Viết `backend/app/scheduler/service.py`**
+- [x] **Step 7: Viết `backend/app/scheduler/service.py`**
 
 ```python
 import asyncio
@@ -5317,7 +5323,7 @@ class SchedulerService:
             await asyncio.sleep(interval_seconds)
 ```
 
-- [ ] **Step 8: Viết `backend/app/scheduler/__main__.py`**
+- [x] **Step 8: Viết `backend/app/scheduler/__main__.py`**
 
 ```python
 import asyncio
@@ -5357,12 +5363,12 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- [ ] **Step 9: Chạy test, xác nhận đạt**
+- [x] **Step 9: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/unit/test_planning.py tests/integration/test_scheduler_service.py -q`
 Expected: `9 passed`
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add backend/app/scheduler backend/app/repo/runs.py backend/tests/unit/test_planning.py backend/tests/integration/test_scheduler_service.py
@@ -5377,7 +5383,7 @@ git commit -m "feat(scheduler): trigger planning, run creation, job enqueue, dea
 - Create: `backend/app/worker/__init__.py`, `backend/app/worker/jobs.py`, `backend/app/worker/session_listener.py`, `backend/app/worker/settings.py`
 - Test: `backend/tests/integration/test_worker_job.py`, `backend/tests/integration/test_session_listener.py`
 
-- [ ] **Step 1: Viết test job (thất bại)**
+- [x] **Step 1: Viết test job (thất bại)**
 
 `backend/tests/integration/test_worker_job.py`:
 
@@ -5522,7 +5528,7 @@ async def test_fatal_error_marks_job_failed_and_raises(db: AsyncSession) -> None
     assert run.status == "partial"
 ```
 
-- [ ] **Step 2: Viết test session listener (thất bại)**
+- [x] **Step 2: Viết test session listener (thất bại)**
 
 `backend/tests/integration/test_session_listener.py`:
 
@@ -5557,12 +5563,12 @@ async def test_listener_persists_created_and_retired(db: AsyncSession) -> None:
     assert row.status == "retired:blocked" and row.request_count == 12 and row.retired_at is not None
 ```
 
-- [ ] **Step 3: Chạy test, xác nhận thất bại**
+- [x] **Step 3: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/integration/test_worker_job.py tests/integration/test_session_listener.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.worker'`
 
-- [ ] **Step 4: Viết `backend/app/worker/session_listener.py`** (`backend/app/worker/__init__.py` rỗng)
+- [x] **Step 4: Viết `backend/app/worker/session_listener.py`** (`backend/app/worker/__init__.py` rỗng)
 
 ```python
 from datetime import UTC, datetime, timedelta
@@ -5609,7 +5615,7 @@ class DbSessionListener:
             await s.commit()
 ```
 
-- [ ] **Step 5: Viết `backend/app/worker/jobs.py`**
+- [x] **Step 5: Viết `backend/app/worker/jobs.py`**
 
 ```python
 from dataclasses import dataclass
@@ -5761,7 +5767,7 @@ async def run_probe_hotel(
     return summary
 ```
 
-- [ ] **Step 6: Viết `backend/app/worker/settings.py`** (cấu hình arq, lắp ráp mọi thành phần thật)
+- [x] **Step 6: Viết `backend/app/worker/settings.py`** (cấu hình arq, lắp ráp mọi thành phần thật)
 
 ```python
 import socket
@@ -5858,17 +5864,17 @@ class WorkerSettings:
     keep_result = 3600
 ```
 
-- [ ] **Step 7: Chạy test, xác nhận đạt**
+- [x] **Step 7: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv run pytest tests/integration/test_worker_job.py tests/integration/test_session_listener.py -q`
 Expected: `7 passed`
 
-- [ ] **Step 8: Kiểm tra arq nhận cấu hình**
+- [x] **Step 8: Kiểm tra arq nhận cấu hình**
 
 Run: `cd backend && uv run arq app.worker.settings.WorkerSettings --check`
 Expected: in ra thông tin worker hoặc `Health check failed: no health check sentinel value found` (chưa có worker chạy, chấp nhận được). Không được có lỗi import.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend/app/worker backend/tests/integration/test_worker_job.py backend/tests/integration/test_session_listener.py
@@ -5883,7 +5889,7 @@ git commit -m "feat(worker): probe_hotel job with calendar-first probing and arq
 - Create: `backend/app/cli.py`
 - Test: `backend/tests/integration/test_cli.py`
 
-- [ ] **Step 1: Viết test CLI (thất bại)**
+- [x] **Step 1: Viết test CLI (thất bại)**
 
 `backend/tests/integration/test_cli.py`:
 
@@ -5949,12 +5955,12 @@ async def test_scan_now_creates_run_without_queue(db: AsyncSession) -> None:
     assert run.total_jobs == 1 and run.trigger_key.startswith("manual:")
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận thất bại**
+- [x] **Step 2: Chạy test, xác nhận thất bại**
 
 Run: `cd backend && uv run pytest tests/integration/test_cli.py -q`
 Expected: FAIL với `ModuleNotFoundError: No module named 'app.cli'`
 
-- [ ] **Step 3: Viết `backend/app/cli.py`**
+- [x] **Step 3: Viết `backend/app/cli.py`**
 
 ```python
 import asyncio
@@ -6176,12 +6182,12 @@ Thêm vào `backend/pyproject.toml` dưới `[project]`:
 sb = "app.cli:app"
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận đạt**
+- [x] **Step 4: Chạy test, xác nhận đạt**
 
 Run: `cd backend && uv sync && uv run pytest tests/integration/test_cli.py -q`
 Expected: `3 passed`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/cli.py backend/pyproject.toml backend/uv.lock backend/tests/integration/test_cli.py
@@ -6196,7 +6202,7 @@ git commit -m "feat(cli): add-tenant, add-hotel, scan-now, ensure-partitions, re
 - Create: `infra/Dockerfile.backend`, `infra/docker-compose.collector.yml`, `infra/docker-compose.monitoring.yml`, `infra/prometheus/prometheus.yml`, `infra/grafana/provisioning/datasources/datasource.yml`, `.github/workflows/ci.yml`
 - Modify: `infra/docker-compose.yml` (thêm scheduler, worker, migrate)
 
-- [ ] **Step 1: Viết `infra/Dockerfile.backend`**
+- [x] **Step 1: Viết `infra/Dockerfile.backend`**
 
 ```dockerfile
 FROM python:3.12-slim-bookworm
@@ -6223,7 +6229,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 CMD ["python", "-m", "app.scheduler"]
 ```
 
-- [ ] **Step 2: Thêm dịch vụ ứng dụng vào `infra/docker-compose.yml`** (thêm dưới `minio:`, trước `volumes:`)
+- [x] **Step 2: Thêm dịch vụ ứng dụng vào `infra/docker-compose.yml`** (thêm dưới `minio:`, trước `volumes:`)
 
 ```yaml
   migrate:
@@ -6274,7 +6280,7 @@ CMD ["python", "-m", "app.scheduler"]
     restart: unless-stopped
 ```
 
-- [ ] **Step 3: Viết `infra/docker-compose.collector.yml`** (chạy worker trên máy khác, trỏ về hạ tầng trung tâm qua biến môi trường)
+- [x] **Step 3: Viết `infra/docker-compose.collector.yml`** (chạy worker trên máy khác, trỏ về hạ tầng trung tâm qua biến môi trường)
 
 ```yaml
 name: scrapebooking-collector
@@ -6296,7 +6302,7 @@ services:
 
 Trên máy worker, `.env` phải có `DATABASE_URL`, `REDIS_URL`, `MINIO_ENDPOINT` trỏ về IP hoặc hostname của máy trung tâm.
 
-- [ ] **Step 4: Viết `infra/docker-compose.monitoring.yml`**
+- [x] **Step 4: Viết `infra/docker-compose.monitoring.yml`**
 
 ```yaml
 name: scrapebooking
@@ -6326,7 +6332,7 @@ volumes:
   grafanadata:
 ```
 
-- [ ] **Step 5: Viết `infra/prometheus/prometheus.yml`**
+- [x] **Step 5: Viết `infra/prometheus/prometheus.yml`**
 
 ```yaml
 global:
@@ -6343,7 +6349,7 @@ scrape_configs:
         port: 9100
 ```
 
-- [ ] **Step 6: Viết `infra/grafana/provisioning/datasources/datasource.yml`**
+- [x] **Step 6: Viết `infra/grafana/provisioning/datasources/datasource.yml`**
 
 ```yaml
 apiVersion: 1
@@ -6355,7 +6361,7 @@ datasources:
     isDefault: true
 ```
 
-- [ ] **Step 7: Viết `.github/workflows/ci.yml`**
+- [x] **Step 7: Viết `.github/workflows/ci.yml`**
 
 ```yaml
 name: ci
@@ -6421,12 +6427,12 @@ docker compose -f infra/docker-compose.yml logs --tail=20 scheduler worker
 
 Expected: `migrate` exited 0; `scheduler` log có `scheduler_started`; `worker` log có `worker_started`. Nếu worker báo `ensure_bucket` lỗi, kiểm tra MinIO healthcheck và biến `MINIO_ENDPOINT`.
 
-- [ ] **Step 9: Chạy lint và typecheck, sửa cho sạch**
+- [x] **Step 9: Chạy lint và typecheck, sửa cho sạch**
 
 Run: `make lint && make typecheck && make test-int`
 Expected: ruff không báo lỗi, mypy `Success: no issues found`, pytest toàn bộ unit và integration đạt.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add infra .github
@@ -6440,7 +6446,7 @@ git commit -m "infra: backend image, compose app services, monitoring profile, C
 **Files:**
 - Create: `docs/runbook-phase1.md`
 
-- [ ] **Step 1: Viết `docs/runbook-phase1.md`**
+- [x] **Step 1: Viết `docs/runbook-phase1.md`**
 
 ```markdown
 # Runbook giai đoạn 1
@@ -6492,7 +6498,7 @@ Trên máy khác: `docker compose -f infra/docker-compose.collector.yml up -d --
 
 Tiêu chí bàn giao giai đoạn 1: 9 đợt quét liên tiếp đều `completed`, không có đợt nào `partial`, không có cảnh báo block rate, HTML thô tra được trong MinIO cho một probe bất kỳ.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/runbook-phase1.md

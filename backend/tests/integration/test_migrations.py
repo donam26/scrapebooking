@@ -13,10 +13,24 @@ from app.db.partitions import (
 pytestmark = pytest.mark.integration
 
 EXPECTED_TABLES = {
-    "tenants", "hotels", "tenant_hotels", "room_types", "scan_runs", "scan_jobs",
-    "probes", "hotel_calendars", "room_snapshots", "scrape_sessions",
-    "hotel_date_snapshots", "availability_events", "hotel_date_metrics", "users",
-    "insights", "own_hotel_daily", "pms_imports", "pms_column_mappings",
+    "tenants",
+    "hotels",
+    "tenant_hotels",
+    "room_types",
+    "scan_runs",
+    "scan_jobs",
+    "probes",
+    "hotel_calendars",
+    "room_snapshots",
+    "scrape_sessions",
+    "hotel_date_snapshots",
+    "availability_events",
+    "hotel_date_metrics",
+    "users",
+    "insights",
+    "own_hotel_daily",
+    "pms_imports",
+    "pms_column_mappings",
 }
 
 
@@ -51,7 +65,9 @@ async def test_ensure_partitions_creates_past_month(db: AsyncSession) -> None:
 async def test_drop_old_partitions(db: AsyncSession) -> None:
     conn = await db.connection()
     await ensure_room_snapshot_partitions(conn, first_month=date(2020, 1, 10), months=2)
-    dropped = await drop_room_snapshot_partitions_older_than(conn, keep_months=24, today=date(2026, 9, 24))
+    dropped = await drop_room_snapshot_partitions_older_than(
+        conn, keep_months=24, today=date(2026, 9, 24)
+    )
     assert set(dropped) >= {"room_snapshots_2020_01", "room_snapshots_2020_02"}
     remaining = await list_room_snapshot_partitions(conn)
     assert "room_snapshots_2020_01" not in remaining

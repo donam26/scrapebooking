@@ -5,6 +5,7 @@ Revises: 0003
 Create Date: 2026-09-24
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -43,14 +44,18 @@ def upgrade() -> None:
         sa.Column("ok_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("errors", postgresql.JSONB, nullable=False, server_default="[]"),
         sa.Column("status", sa.String(16), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_table(
         "pms_column_mappings",
         sa.Column("tenant_id", sa.Integer, sa.ForeignKey("tenants.id"), primary_key=True),
         sa.Column("adapter", sa.String(32), primary_key=True),
         sa.Column("mapping", postgresql.JSONB, nullable=False, server_default="{}"),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
 

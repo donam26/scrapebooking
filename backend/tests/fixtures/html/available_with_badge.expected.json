@@ -1,0 +1,63 @@
+{
+  "outcome": "rooms",
+  "booking_hotel_id": "1234560",
+  "hotel_name": "Grand Saigon Riverside Hotel",
+  "csrf_token": "eyJhbGciOi.synthetic-csrf-token-1",
+  "offers": [
+    {
+      "booking_room_id": "12345601",
+      "name": "Deluxe Room",
+      "max_occupancy": 2,
+      "badge_count": 2,
+      "dropdown_max": 2,
+      "rates": [
+        {
+          "name": "Non-refundable",
+          "price": "2450000",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": null
+        },
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "2890000",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true
+        }
+      ]
+    },
+    {
+      "booking_room_id": "12345602",
+      "name": "Premier River View Room",
+      "max_occupancy": 3,
+      "badge_count": 1,
+      "dropdown_max": 1,
+      "rates": [
+        {
+          "name": "Free cancellation",
+          "price": "3650000",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": null
+        }
+      ]
+    },
+    {
+      "booking_room_id": "12345603",
+      "name": "Executive Suite",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "6200000",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true
+        }
+      ]
+    }
+  ]
+}

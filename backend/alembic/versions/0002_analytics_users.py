@@ -5,6 +5,7 @@ Revises: 0001
 Create Date: 2026-09-24
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -30,9 +31,7 @@ def upgrade() -> None:
         sa.Column("min_price", sa.Numeric(14, 2)),
         sa.Column("currency", sa.String(3)),
     )
-    op.create_index(
-        "ix_hotel_date_snapshots_run", "hotel_date_snapshots", ["scan_run_id"]
-    )
+    op.create_index("ix_hotel_date_snapshots_run", "hotel_date_snapshots", ["scan_run_id"])
     op.create_table(
         "availability_events",
         sa.Column("id", sa.BigInteger, sa.Identity(), primary_key=True),
@@ -48,7 +47,11 @@ def upgrade() -> None:
         sa.Column("scan_run_id", sa.Integer, sa.ForeignKey("scan_runs.id"), nullable=False),
         sa.Column("observed_at", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint(
-            "scan_run_id", "hotel_id", "room_type_id", "stay_date", "event_type",
+            "scan_run_id",
+            "hotel_id",
+            "room_type_id",
+            "stay_date",
+            "event_type",
             name="uq_availability_events_run_scope",
             postgresql_nulls_not_distinct=True,
         ),
@@ -83,7 +86,9 @@ def upgrade() -> None:
         sa.Column("password_hash", sa.String(255), nullable=False),
         sa.Column("role", sa.String(16), nullable=False),
         sa.Column("active", sa.Boolean, nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
 

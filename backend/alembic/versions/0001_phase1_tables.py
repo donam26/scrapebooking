@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-09-24
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -29,7 +30,9 @@ def upgrade() -> None:
         sa.Column("insight_hour", sa.String(5), nullable=False),
         sa.Column("country_code", sa.String(2), nullable=False),
         sa.Column("active", sa.Boolean, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_table(
         "hotels",
@@ -41,7 +44,9 @@ def upgrade() -> None:
         sa.Column("city", sa.String(120)),
         sa.Column("country_code", sa.String(2), nullable=False),
         sa.Column("star_rating", sa.Numeric(2, 1)),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_table(
         "tenant_hotels",
@@ -50,7 +55,9 @@ def upgrade() -> None:
         sa.Column("role", sa.String(16), nullable=False),
         sa.Column("label", sa.String(120)),
         sa.Column("active", sa.Boolean, nullable=False),
-        sa.Column("added_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "added_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_table(
         "room_types",
@@ -111,7 +118,9 @@ def upgrade() -> None:
         sa.Column("duration_ms", sa.Integer, nullable=False, server_default="0"),
         sa.UniqueConstraint("scan_run_id", "hotel_id", "stay_date"),
     )
-    op.create_index("ix_probes_hotel_date_fetched", "probes", ["hotel_id", "stay_date", "fetched_at"])
+    op.create_index(
+        "ix_probes_hotel_date_fetched", "probes", ["hotel_id", "stay_date", "fetched_at"]
+    )
     op.create_table(
         "hotel_calendars",
         sa.Column("hotel_id", sa.Integer, sa.ForeignKey("hotels.id"), primary_key=True),

@@ -40,9 +40,7 @@ class Tenant(Base):
     insight_hour: Mapped[str] = mapped_column(String(5), default="07:30")
     country_code: Mapped[str] = mapped_column(String(2), default="vn")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Hotel(Base):
@@ -56,9 +54,7 @@ class Hotel(Base):
     city: Mapped[str | None] = mapped_column(String(120))
     country_code: Mapped[str] = mapped_column(String(2))
     star_rating: Mapped[Decimal | None] = mapped_column(Numeric(2, 1))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class TenantHotel(Base):
@@ -69,9 +65,7 @@ class TenantHotel(Base):
     role: Mapped[str] = mapped_column(String(16))  # self | competitor
     label: Mapped[str | None] = mapped_column(String(120))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    added_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class RoomType(Base):
@@ -219,7 +213,11 @@ class AvailabilityEvent(Base):
     __tablename__ = "availability_events"
     __table_args__ = (
         UniqueConstraint(
-            "scan_run_id", "hotel_id", "room_type_id", "stay_date", "event_type",
+            "scan_run_id",
+            "hotel_id",
+            "room_type_id",
+            "stay_date",
+            "event_type",
             name="uq_availability_events_run_scope",
             postgresql_nulls_not_distinct=True,
         ),
@@ -275,9 +273,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16))  # operator | tenant_admin | viewer
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # ---------------------------------------------------------------------------
@@ -342,9 +338,7 @@ class PmsImport(Base):
     ok_count: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(16))  # completed | failed | partial
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PmsColumnMapping(Base):
@@ -353,6 +347,4 @@ class PmsColumnMapping(Base):
     tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), primary_key=True)
     adapter: Mapped[str] = mapped_column(String(32), primary_key=True)
     mapping: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

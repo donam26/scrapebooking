@@ -26,3 +26,6 @@ api:
 
 dashboard-dev:
 	cd dashboard && npm run dev
+
+openapi:
+	cd backend && uv run python scripts/export_openapi.py

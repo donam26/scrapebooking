@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import Select, select
@@ -29,6 +30,7 @@ from app.db.models import (
     RoomSnapshot,
     RoomType,
     ScanRun,
+    Tenant,
     TenantHotel,
 )
 
@@ -37,8 +39,16 @@ router = APIRouter(tags=["data"])
 MAX_RANGE_DAYS = 120
 
 
-def _range(start: date | None, end: date | None, default_days: int = 30) -> tuple[date, date]:
-    s = start or datetime.now(tz=UTC).date()
+async def _local_today(session: AsyncSession, tenant_id: int) -> date:
+    tenant = await session.get(Tenant, tenant_id)
+    tz = ZoneInfo(tenant.timezone) if tenant else UTC
+    return datetime.now(tz=UTC).astimezone(tz).date()
+
+
+def _range(
+    start: date | None, end: date | None, today: date, default_days: int = 30
+) -> tuple[date, date]:
+    s = start or today
     e = end or s + timedelta(days=default_days - 1)
     if e < s:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "end before start")
@@ -122,7 +132,7 @@ async def overview(
     start: date | None = None,
     end: date | None = None,
 ) -> OverviewOut:
-    s, e = _range(start, end)
+    s, e = _range(start, end, await _local_today(session, tenant_id))
     links = (
         await session.execute(
             select(TenantHotel, Hotel)
@@ -182,7 +192,7 @@ async def hotel_detail(
     event_limit: int = Query(200, ge=1, le=1000),
 ) -> HotelDetailOut:
     await ensure_hotel_in_tenant(session, tenant_id, hotel_id)
-    s, e = _range(start, end)
+    s, e = _range(start, end, await _local_today(session, tenant_id))
     row = (
         await session.execute(
             select(TenantHotel, Hotel)

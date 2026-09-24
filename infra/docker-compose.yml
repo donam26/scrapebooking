@@ -100,11 +100,11 @@ services:
       redis: { condition: service_healthy }
 
   dashboard:
+    # Trình duyệt gọi cùng origin /api/*; Route Handler của Next chuyển tiếp tới API_INTERNAL_URL
+    # (đọc lúc chạy, không cần build lại).
     build:
       context: ../dashboard
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     environment:
       API_INTERNAL_URL: http://api:8000
     ports: ["3000:3000"]

@@ -1,7 +1,0 @@
-{
-  "outcome": "sold_out",
-  "booking_hotel_id": "1234560",
-  "hotel_name": "Grand Saigon Riverside Hotel",
-  "csrf_token": "eyJhbGciOi.synthetic-csrf-token-3",
-  "offers": []
-}

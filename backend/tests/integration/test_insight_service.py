@@ -20,7 +20,7 @@ SETTINGS = Settings(
     database_url="x",
     redis_url="x",
     proxy_url_template="x",
-    openai_model="gpt-6-luna",
+    openrouter_model="gpt-6-luna",
 )
 
 
@@ -307,7 +307,7 @@ async def test_batch_flow_and_daily_idempotency(db: AsyncSession) -> None:
     db.expire_all()
     done = (await db.execute(select(Insight).where(Insight.id == row_id))).scalar_one()
     assert done.status == "completed" and done.output_json["summary"] == "batch"
-    assert str(done.cost_usd) == "0.001500"  # giảm 50% cho batch
+    assert str(done.cost_usd) == "0.003000"  # OpenRouter không giảm giá batch
 
 
 def test_due_daily_tenants_local_time() -> None:

@@ -253,7 +253,7 @@ bằng Playwright, dùng cho từng probe bị chặn.
 ### 6.7 Sức khoẻ
 
 Prometheus: probe theo status, độ trễ, block rate theo proxy, tuổi session. Cảnh báo
-Telegram khi block rate vượt 20% trong 15 phút hoặc đợt quét dưới 90% thành công.
+(log `ops_alert`) khi block rate vượt 20% trong 15 phút hoặc đợt quét dưới 90% thành công.
 
 ## 7. Analytics
 

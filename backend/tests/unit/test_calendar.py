@@ -10,13 +10,20 @@ from app.collector.booking.calendar import (
 
 
 def test_build_request_shape() -> None:
-    req = build_calendar_request("the-reverie-saigon", date(2026, 10, 1), 30, adults=2)
+    req = build_calendar_request("vn", "the-reverie-saigon", date(2026, 10, 1), 30, adults=2)
     assert req["operationName"] == "AvailabilityCalendar"
     cfg = req["variables"]["input"]["searchConfig"]
     assert cfg["searchConfigDate"] == {"startDate": "2026-10-01", "amountOfDays": 30}
     assert cfg["nbAdults"] == 2
     assert cfg["nbRooms"] == 1
-    assert req["variables"]["input"]["pagename"] == "the-reverie-saigon"
+    # Schema hiện tại (frontend Booking 2026-09): pagenameDetails + nbChildren/childrenAges bắt buộc;
+    # dạng cũ `pagename` bị trả VALIDATION_INVALID_TYPE_VARIABLE.
+    assert cfg["nbChildren"] == 0 and cfg["childrenAges"] == []
+    assert req["variables"]["input"]["pagenameDetails"] == {
+        "countryCode": "vn",
+        "pagename": "the-reverie-saigon",
+    }
+    assert "pagename" not in req["variables"]["input"]
     assert "availabilityCalendar(input: $input)" in req["query"]
     assert GRAPHQL_URL.startswith("https://www.booking.com/dml/graphql")
 

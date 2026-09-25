@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { InsightDetailOut, WatchItemOut } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
-import { LEVEL_LABEL, LEVEL_TONE } from "@/lib/labels";
-import { Badge, Card, cx } from "@/components/ui";
+import type { EventOut, InsightDetailOut, WatchItemOut } from "@/lib/api";
+import { fmtDate, fmtNight } from "@/lib/format";
+import { EVENT_TYPE_LABEL, LEVEL_LABEL, LEVEL_TONE } from "@/lib/labels";
+import { Badge, EmptyState, Note, cx } from "@/components/ui";
+import { IconAlert, IconBoard, IconBuilding, IconCalendar, IconChevronRight, IconInfo, IconPulse, IconSparkle } from "@/components/icons";
 
 // ---- Kiểu đầu ra AI (khớp backend/app/insight/schema.py) ----
 
@@ -80,7 +81,7 @@ export function parseDropped(raw: Record<string, unknown>[]): Dropped[] {
   return raw.map((d) => ({ section: str(d.section), item: obj(d.item), reasons: arr(d.reasons).map(str) }));
 }
 
-/** `evt:<id>` -> /events?highlight=; `metric:<hotel>:<date>` -> chi tiết ngày; `compset:<date>` -> tổng quan. */
+/** `evt:<id>` -> /events?highlight=; `metric:<hotel>:<date>` -> chi tiết đêm; `compset:<date>` -> tổng quan. */
 export function evidenceHref(ref: string): string | null {
   const evt = /^evt:(\d+)$/.exec(ref);
   if (evt) return `/events?highlight=${evt[1]}`;
@@ -91,174 +92,284 @@ export function evidenceHref(ref: string): string | null {
   return null;
 }
 
-function evidenceLabel(e: Evidence): string {
+type NameOf = (id: number) => string;
+/** Tra sự kiện theo id để bằng chứng đọc được: "Caravelle · Giảm phòng · đêm T7 26/09". */
+export type EventOf = (id: number) => EventOut | undefined;
+
+function evidenceLabel(e: Evidence, nameOf: NameOf, eventOf?: EventOf): { icon: ReactNode; text: string } {
   const evt = /^evt:(\d+)$/.exec(e.ref);
-  if (evt) return `Sự kiện #${evt[1]}`;
+  if (evt) {
+    const ev = eventOf?.(Number(evt[1]));
+    return {
+      icon: <IconPulse size={13} />,
+      text: ev ? `${nameOf(ev.hotel_id)} · ${(EVENT_TYPE_LABEL[ev.event_type] ?? ev.event_type).toLowerCase()} · đêm ${fmtNight(ev.stay_date)}` : `Sự kiện #${evt[1]}`,
+    };
+  }
   const metric = /^metric:(\d+):(\d{4}-\d{2}-\d{2})$/.exec(e.ref);
-  if (metric) return `Chỉ số KS ${metric[1]} · ${fmtDate(metric[2])}`;
+  if (metric) return { icon: <IconBuilding size={13} />, text: `${nameOf(Number(metric[1]))} · đêm ${fmtNight(metric[2])}` };
   const compset = /^compset:(\d{4}-\d{2}-\d{2})$/.exec(e.ref);
-  if (compset) return `Compset ${fmtDate(compset[1])}`;
-  return e.ref;
+  if (compset) return { icon: <IconBoard size={13} />, text: `Thị trường · đêm ${fmtNight(compset[1])}` };
+  return { icon: <IconInfo size={13} />, text: e.ref };
 }
 
-export function EvidenceChips({ evidence }: { evidence: Evidence[] }) {
+export function EvidenceChips({ evidence, nameOf, eventOf, label = true }: { evidence: Evidence[]; nameOf: NameOf; eventOf?: EventOf; label?: boolean }) {
   if (evidence.length === 0) return null;
   return (
-    <ul className="mt-1.5 flex flex-wrap gap-1">
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      {label && <span className="mr-0.5 text-xs font-semibold text-muted">Bằng chứng</span>}
       {evidence.map((e, i) => {
         const href = evidenceHref(e.ref);
-        const cls = "inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 ring-1 ring-inset ring-slate-200";
-        return (
-          <li key={`${e.ref}-${i}`}>
-            {href ? (
-              <Link href={href} className={cx(cls, "hover:bg-sky-50 hover:text-sky-800 hover:ring-sky-200")} title={e.ref}>
-                {evidenceLabel(e)}
-              </Link>
-            ) : (
-              <span className={cls} title={e.ref}>
-                {evidenceLabel(e)}
-              </span>
-            )}
-          </li>
+        const { icon, text } = evidenceLabel(e, nameOf, eventOf);
+        const cls = "inline-flex h-7 items-center gap-1.5 rounded-lg bg-surface px-2 text-xs font-medium text-body ring-1 ring-inset ring-line tabular";
+        return href ? (
+          <Link key={`${e.ref}-${i}`} href={href} className={cx(cls, "transition-colors hover:bg-brand-softer hover:text-brand-hover hover:ring-brand-soft")} title={e.ref}>
+            <span className="text-muted">{icon}</span>
+            {text}
+          </Link>
+        ) : (
+          <span key={`${e.ref}-${i}`} className={cls} title={e.ref}>
+            <span className="text-muted">{icon}</span>
+            {text}
+          </span>
         );
       })}
-    </ul>
+    </div>
   );
 }
 
 function DateSpan({ from, to }: { from: string; to: string }) {
   if (!from) return null;
-  return <span className="text-xs text-slate-500">{from === to || !to ? fmtDate(from) : `${fmtDate(from)} – ${fmtDate(to)}`}</span>;
-}
-
-function Section({ title, count, children }: { title: string; count: number; children: ReactNode }) {
   return (
-    <Card title={`${title} (${count})`}>
-      {count === 0 ? <p className="text-sm text-slate-500">Không có.</p> : children}
-    </Card>
+    <span className="inline-flex items-center gap-1.5 text-sm text-muted tabular">
+      <IconCalendar size={14} />
+      {from === to || !to ? `Đêm ${fmtNight(from)}` : `${fmtNight(from)} – ${fmtNight(to)}`}
+    </span>
   );
 }
 
-export function InsightView({ insight, hotels }: { insight: InsightDetailOut; hotels: WatchItemOut[] }) {
+function Section({ id, title, count, children, empty }: { id: string; title: string; count: number; children: ReactNode; empty: string }) {
+  return (
+    <section id={id} className="scroll-mt-20">
+      <h2 className="mb-3 flex items-baseline gap-2 text-lg font-bold text-ink">
+        {title}
+        <span className="text-base font-semibold text-muted tabular">{count}</span>
+      </h2>
+      {count === 0 ? <p className="rounded-lg bg-subtle px-4 py-3 text-base text-muted">{empty}</p> : children}
+    </section>
+  );
+}
+
+export function insightCounts(out: InsightOutput | null) {
+  return {
+    highlights: out?.highlights.length ?? 0,
+    signals: out?.demand_signals.length ?? 0,
+    pricing: out?.pricing_opportunities.length ?? 0,
+    risks: out?.risks.length ?? 0,
+  };
+}
+
+export function hotelNames(hotels: WatchItemOut[]): { nameOf: NameOf; isSelf: (id: number) => boolean } {
+  return {
+    nameOf: (id: number) => {
+      const w = hotels.find((h) => h.hotel.id === id);
+      return w ? w.label || w.hotel.name || w.hotel.booking_slug : `KS #${id}`;
+    },
+    isSelf: (id: number) => hotels.some((h) => h.hotel.id === id && h.role === "self"),
+  };
+}
+
+/** Nội dung đọc của một bản tin: tóm tắt, điểm nổi bật, tín hiệu, cơ hội giá, rủi ro, mục bị loại. */
+export function InsightView({ insight, hotels, eventOf }: { insight: InsightDetailOut; hotels: WatchItemOut[]; eventOf?: EventOf }) {
   const out = parseInsightOutput(insight.output_json);
   const dropped = parseDropped(insight.dropped_highlights);
-  const hotelName = (id: number) => {
-    const w = hotels.find((h) => h.hotel.id === id);
-    return w ? w.label || w.hotel.name || w.hotel.booking_slug : `KS #${id}`;
-  };
+  const { nameOf, isSelf } = hotelNames(hotels);
 
   if (!out) {
-    return <Card>{insight.status === "failed" ? <p className="text-sm text-rose-700">Tạo bản tin thất bại: {insight.error ?? "không rõ lỗi"}</p> : <p className="text-sm text-slate-500">Chưa có nội dung.</p>}</Card>;
+    return insight.status === "failed" ? (
+      <Note tone="warn" icon={<IconAlert size={16} />}>
+        Tạo bản tin thất bại: {insight.error ?? "không rõ lỗi"}
+      </Note>
+    ) : (
+      <EmptyState icon={<IconSparkle />} title="Đang chờ nội dung">
+        Bản tin sẽ hiện ở đây khi mô hình trả kết quả. Trang tự làm mới.
+      </EmptyState>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <Card title="Tóm tắt">
-        <p className="whitespace-pre-line text-sm leading-relaxed text-slate-800">{out.summary || "—"}</p>
-        {out.data_quality_note && (
-          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            <span className="font-medium">Ghi chú chất lượng dữ liệu: </span>
-            {out.data_quality_note}
-          </p>
-        )}
-      </Card>
+    <div className="space-y-10">
+      <section id="tom-tat" className="scroll-mt-20">
+        <p className="max-w-[70ch] whitespace-pre-line text-lg leading-[1.7] text-ink">{out.summary || "—"}</p>
+      </section>
 
-      <Section title="Điểm nổi bật" count={out.highlights.length}>
-        <ol className="space-y-3">
+      <Section id="noi-bat" title="Điểm nổi bật" count={out.highlights.length} empty="Không có điểm nổi bật nào đủ bằng chứng trong kỳ này.">
+        <div className="space-y-3">
           {out.highlights.map((h, i) => (
-            <li key={i} className="rounded border border-line p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-medium text-slate-900">{h.title}</h3>
-                <div className="flex items-center gap-2">
-                  <DateSpan from={h.date_from} to={h.date_to} />
-                  <Badge tone={LEVEL_TONE[h.confidence] ?? "gray"} title="Mức tin cậy">
-                    Tin cậy: {LEVEL_LABEL[h.confidence] ?? h.confidence}
+            <article key={i} className="rounded-xl border border-line bg-surface p-5 shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                <h3 className="max-w-[60ch] text-md font-bold leading-snug text-ink">{h.title}</h3>
+                {h.confidence && (
+                  <Badge tone={LEVEL_TONE[h.confidence] ?? "gray"} title="Mức tin cậy của nhận định">
+                    Tin cậy {(LEVEL_LABEL[h.confidence] ?? h.confidence).toLowerCase()}
                   </Badge>
-                </div>
+                )}
               </div>
-              {h.hotel_ids.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {h.hotel_ids.map((id) => (
-                    <Link key={id} href={`/hotels/${id}`} className="text-xs text-sky-700 hover:underline">
-                      {hotelName(id)}
-                    </Link>
-                  ))}
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                <DateSpan from={h.date_from} to={h.date_to} />
+                {h.hotel_ids.length > 0 && (
+                  <span className="flex flex-wrap items-center gap-1">
+                    {h.hotel_ids.map((id) => (
+                      <Link
+                        key={id}
+                        href={`/hotels/${id}`}
+                        className={cx(
+                          "rounded-md px-1.5 py-0.5 text-sm font-semibold hover:underline",
+                          isSelf(id) ? "bg-yours-soft text-yours-deep" : "bg-sunken text-body hover:text-brand",
+                        )}
+                      >
+                        {nameOf(id)}
+                      </Link>
+                    ))}
+                  </span>
+                )}
+              </div>
+              {h.recommendation && (
+                <div className="mt-3.5 rounded-lg bg-brand-softer px-4 py-3">
+                  <div className="text-xs font-semibold text-brand-hover">Đề xuất</div>
+                  <p className="mt-0.5 max-w-[72ch] text-base text-ink">{h.recommendation}</p>
                 </div>
               )}
-              {h.recommendation && (
-                <p className="mt-2 text-sm text-slate-800">
-                  <span className="font-medium text-slate-600">Đề xuất: </span>
-                  {h.recommendation}
-                </p>
-              )}
-              <EvidenceChips evidence={h.evidence} />
-            </li>
+              <EvidenceChips evidence={h.evidence} nameOf={nameOf} eventOf={eventOf} />
+            </article>
           ))}
-        </ol>
+        </div>
       </Section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Tín hiệu nhu cầu" count={out.demand_signals.length}>
-          <ul className="space-y-2">
-            {out.demand_signals.map((s, i) => (
-              <li key={i} className="flex gap-3 text-sm">
-                <span className="w-24 shrink-0 tabular text-slate-600">{fmtDate(s.date)}</span>
-                <Badge tone={LEVEL_TONE[s.level] ?? "gray"}>{LEVEL_LABEL[s.level] ?? s.level}</Badge>
-                <span className="text-slate-800">{s.reason}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-        <Section title="Cơ hội giá" count={out.pricing_opportunities.length}>
-          <ul className="space-y-3">
-            {out.pricing_opportunities.map((p, i) => (
-              <li key={i} className="text-sm">
-                <DateSpan from={p.date_from} to={p.date_to} />
-                <p className="text-slate-800">{p.rationale}</p>
-                <EvidenceChips evidence={p.evidence} />
-              </li>
-            ))}
-          </ul>
-        </Section>
-      </div>
-
-      <Section title="Rủi ro" count={out.risks.length}>
-        <ul className="space-y-3">
-          {out.risks.map((r, i) => (
-            <li key={i} className="text-sm">
-              <h3 className="font-medium text-slate-900">{r.title}</h3>
-              <p className="text-slate-800">{r.rationale}</p>
-              <EvidenceChips evidence={r.evidence} />
+      <Section id="nhu-cau" title="Tín hiệu nhu cầu" count={out.demand_signals.length} empty="Không có tín hiệu nhu cầu đáng kể.">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+          {out.demand_signals.map((s, i) => (
+            <li key={i} className="grid gap-x-4 gap-y-1 px-5 py-3 sm:grid-cols-[124px_160px_minmax(0,1fr)] sm:items-baseline">
+              <span className="font-semibold text-ink tabular">{s.date ? `Đêm ${fmtNight(s.date)}` : "—"}</span>
+              <span>
+                <Badge tone={LEVEL_TONE[s.level] ?? "gray"}>Nhu cầu {(LEVEL_LABEL[s.level] ?? s.level).toLowerCase()}</Badge>
+              </span>
+              <span className="text-base text-body">{s.reason}</span>
             </li>
           ))}
         </ul>
       </Section>
 
+      <Section id="co-hoi-gia" title="Cơ hội giá" count={out.pricing_opportunities.length} empty="Chưa thấy cơ hội điều chỉnh giá có bằng chứng.">
+        <div className="space-y-3">
+          {out.pricing_opportunities.map((p, i) => (
+            <article key={i} className="rounded-xl border border-line bg-surface p-5 shadow-card">
+              <DateSpan from={p.date_from} to={p.date_to} />
+              <p className="mt-1.5 max-w-[72ch] text-base text-ink">{p.rationale}</p>
+              <EvidenceChips evidence={p.evidence} nameOf={nameOf} eventOf={eventOf} />
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section id="rui-ro" title="Rủi ro" count={out.risks.length} empty="Không có rủi ro nào được nêu.">
+        <div className="space-y-3">
+          {out.risks.map((r, i) => (
+            <article key={i} className="rounded-xl border border-line bg-surface p-5 shadow-card">
+              <h3 className="flex items-start gap-2 text-md font-bold text-ink">
+                <IconAlert size={17} className="mt-0.5 shrink-0 text-warning-deep" />
+                {r.title}
+              </h3>
+              <p className="mt-1.5 max-w-[72ch] text-base text-body">{r.rationale}</p>
+              <EvidenceChips evidence={r.evidence} nameOf={nameOf} eventOf={eventOf} />
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      {out.data_quality_note && (
+        <details id="du-lieu" className="group scroll-mt-20 rounded-xl border border-line bg-surface">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2">
+              <IconInfo size={16} className="text-muted" />
+              <span className="text-md font-bold text-ink">Giới hạn của dữ liệu</span>
+              <span className="text-sm text-muted">AI tự ghi chú khi dữ liệu thiếu hoặc chưa chắc</span>
+            </span>
+            <IconChevronRight size={16} className="shrink-0 text-muted transition-transform group-open:rotate-90" />
+          </summary>
+          <p className="max-w-[80ch] border-t border-line px-5 py-4 text-base text-body">{plainNote(out.data_quality_note)}</p>
+        </details>
+      )}
+
       {dropped.length > 0 && (
-        <details className="rounded-lg border border-line bg-surface shadow-xs">
-          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-700">Bằng chứng bị loại ({dropped.length})</summary>
-          <div className="border-t border-line p-4">
-            <p className="mb-3 text-xs text-slate-500">Các mục AI đưa ra nhưng không có bằng chứng hợp lệ trong dữ liệu đầu vào nên đã bị loại khỏi bản tin.</p>
-            <ul className="space-y-3">
-              {dropped.map((d, i) => (
-                <li key={i} className="rounded border border-dashed border-slate-300 p-3 text-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="gray">{d.section}</Badge>
-                    <span className="font-medium text-slate-800">{str(d.item.title) || str(d.item.rationale) || str(d.item.reason) || "(không có tiêu đề)"}</span>
-                  </div>
-                  {str(d.item.recommendation) && <p className="mt-1 text-slate-700">{str(d.item.recommendation)}</p>}
-                  <ul className="mt-1 list-disc pl-5 text-xs text-rose-700">
-                    {d.reasons.map((r, j) => (
-                      <li key={j}>{r}</li>
-                    ))}
-                  </ul>
-                  <EvidenceChips evidence={evidenceList(d.item.evidence)} />
-                </li>
-              ))}
-            </ul>
-          </div>
+        <details id="bi-loai" className="group scroll-mt-20 rounded-xl border border-dashed border-line-strong bg-subtle">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 [&::-webkit-details-marker]:hidden">
+            <span>
+              <span className="text-md font-bold text-ink">Nhận định bị loại</span>
+              <span className="ml-2 text-base font-semibold text-muted tabular">{dropped.length}</span>
+              <span className="mt-0.5 block text-sm text-muted">AI có nêu nhưng không có bằng chứng hợp lệ trong dữ liệu, nên không đưa vào bản tin.</span>
+            </span>
+            <IconChevronRight size={16} className="shrink-0 text-muted transition-transform group-open:rotate-90" />
+          </summary>
+          <ul className="space-y-3 border-t border-line px-5 py-4">
+            {dropped.map((d, i) => (
+              <li key={i} className="rounded-lg bg-surface p-4 ring-1 ring-line">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="gray" dot={false}>
+                    {SECTION_LABEL[d.section] ?? d.section}
+                  </Badge>
+                  <span className="font-semibold text-ink">{str(d.item.title) || str(d.item.rationale) || str(d.item.reason) || "(không có tiêu đề)"}</span>
+                </div>
+                {str(d.item.recommendation) && <p className="mt-1.5 text-base text-body">{str(d.item.recommendation)}</p>}
+                <ul className="mt-2 space-y-0.5 text-sm text-danger-deep">
+                  {d.reasons.map((r, j) => (
+                    <li key={j} className="flex gap-1.5">
+                      <IconAlert size={14} className="mt-0.5 shrink-0" />
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+                <EvidenceChips evidence={evidenceList(d.item.evidence)} nameOf={nameOf} eventOf={eventOf} />
+              </li>
+            ))}
+          </ul>
         </details>
       )}
     </div>
   );
+}
+
+/** Ghi chú dữ liệu do AI viết đôi khi lộ tên trường; đổi sang lời thường trước khi hiện. */
+const FIELD_WORDS: Array<[RegExp, string]> = [
+  [/\bexact_share_7d\b/g, "tỷ lệ số phòng chính xác trong 7 ngày"],
+  [/\bexact_share\b/g, "tỷ lệ số phòng chính xác"],
+  [/\bexact_rooms_left\b/g, "số phòng chính xác"],
+  [/\bprice_index\b/g, "chỉ số giá"],
+  [/\bpickup_24h\b/g, "số phòng bán thêm trong 24 giờ"],
+  [/\bvelocity_3d\b/g, "tốc độ bán 3 ngày"],
+  [/\bown_occupancy_pct\b|\boccupancy_pct\b/g, "công suất PMS"],
+  [/\bsold_out\b/g, "hết phòng"],
+  [/\bunknown\b/g, "không đọc được"],
+  [/\bcapped\b/g, "“ít nhất”"],
+  [/\bhidden\b/g, "ẩn số"],
+  [/\bexact\b/g, "chính xác"],
+  [/\bcompset\b/gi, "nhóm đối thủ"],
+];
+
+export function plainNote(text: string): string {
+  let out = text;
+  for (const [re, word] of FIELD_WORDS) out = out.replace(re, word);
+  // Tên trường còn sót (snake_case) -> tách thành chữ.
+  return out.replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (m) => m.replace(/_/g, " "));
+}
+
+const SECTION_LABEL: Record<string, string> = {
+  highlights: "Điểm nổi bật",
+  demand_signals: "Tín hiệu nhu cầu",
+  pricing_opportunities: "Cơ hội giá",
+  risks: "Rủi ro",
+};
+
+/** Kỳ dữ liệu ngắn: "25/09 – 24/10/2026". */
+export function periodText(from: string, to: string): string {
+  return `${fmtDate(from).slice(0, 5)} – ${fmtDate(to)}`;
 }

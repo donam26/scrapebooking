@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError } from "./api";
+import { ApiError, errorMessage } from "./api";
 import { useSession } from "./session";
 
 export type ApiState<T> = {
@@ -82,7 +82,7 @@ export function useMutation<A extends unknown[], R>(fn: (...args: A) => Promise<
     try {
       return await fnRef.current(...args);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
       return undefined;
     } finally {
       setBusy(false);

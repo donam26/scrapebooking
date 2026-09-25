@@ -247,7 +247,7 @@ def reparse(
             if html is None:
                 missing += 1
                 continue
-            page = parse_hotel_page(html, currency_for(country))
+            page = parse_hotel_page(html, currency_for(country), probe.adults)
             result = ProbeResult(
                 status=ProbeStatus.OK if page.offers else ProbeStatus.NO_ROOMS_1N,
                 method=ProbeMethod(probe.method or "http"),
@@ -355,11 +355,11 @@ def analyze(
 @app.command("insight")
 def insight(tenant_id: int, sync: bool = typer.Option(True, "--sync/--batch")) -> None:
     """Sinh insight cho một tenant ngay (gọi đồng bộ) hoặc qua Batch API."""
-    from app.insight.service import InsightService, build_openai_client
+    from app.insight.service import InsightService, build_insight_client
 
     async def _do(s: AsyncSession) -> str:
         settings = get_settings()
-        svc = InsightService(s, client=build_openai_client(settings), settings=settings)
+        svc = InsightService(s, client=build_insight_client(settings), settings=settings)
         row = await svc.generate(tenant_id, trigger="on_demand", use_batch=not sync)
         await s.commit()
         return f"insight {row.id} status={row.status} model={row.model} cost=${row.cost_usd}"

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.service import AnalyticsService
 from app.api.auth import hash_password
-from app.db.models import Hotel, ScanRun, Tenant, TenantHotel, User
+from app.db.models import Hotel, ScanJob, ScanRun, Tenant, TenantHotel, User
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
 from app.repo.snapshots import SnapshotRepository
 from tests.integration.conftest import FakeQueue
@@ -330,6 +330,150 @@ async def test_overview_hotel_day_events(client: AsyncClient, db: AsyncSession) 
     assert r.status_code == 404
     r = await client.get("/runs")
     assert r.status_code == 200 and len(r.json()) == 2
+
+
+async def test_day_detail_latest_reflects_sold_out_scan(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    # Lần quét mới nhất hết phòng: "lần quét gần nhất" không được hiện loại phòng còn của lần trước.
+    ids = await _seed(db)
+    await _snapshot_data(db, ids)
+    await _login(client, "view@a.com", "view-pass-1")
+    url = f"/hotels/{ids['own']}/dates/{STAY.isoformat()}"
+    d = (await client.get(url, params={"history_days": 60})).json()
+    assert d["latest_status"] == "available" and len(d["latest"]) == 1
+    assert d["latest_scanned_at"] == d["latest"][0]["scanned_at"]
+
+    run3 = ScanRun(
+        trigger_key="r3",
+        scheduled_at=T0 + timedelta(hours=16),
+        started_at=T0 + timedelta(hours=16),
+        finished_at=T0 + timedelta(hours=17),
+        status="completed",
+        total_probes=1,
+    )
+    db.add(run3)
+    await db.flush()
+    sold_out = ProbeResult(
+        ProbeStatus.SOLD_OUT,
+        ProbeMethod.HTTP,
+        STAY,
+        STAY + timedelta(days=1),
+        1,
+        2,
+        (),
+        "<html/>",
+        200,
+        "s",
+        10,
+    )
+    await SnapshotRepository(db, 10).write_probe(
+        run3.id, ids["own"], STAY, sold_out, None, "1", "vn", T0 + timedelta(hours=16)
+    )
+    await db.commit()
+    await AnalyticsService(db).run(run3.id)
+    await db.commit()
+
+    d = (await client.get(url, params={"history_days": 60})).json()
+    assert d["latest_status"] == "sold_out" and d["latest"] == []
+    assert d["latest_scanned_at"].startswith("2026-09-24T22:00")
+    assert len(d["history"]) == 2  # lịch sử theo loại phòng vẫn giữ
+
+
+async def test_last_run_and_runs_are_scoped_to_tenant(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    # Run chung toàn hệ thống: tenant chỉ thấy run có khách sạn của mình, số liệu chỉ của mình.
+    ids = await _seed(db)
+    await _snapshot_data(db, ids)  # 2 run chỉ gồm khách sạn của tenant A
+    shared = ScanRun(
+        trigger_key="r3",
+        scheduled_at=T0 + timedelta(hours=16),
+        started_at=T0 + timedelta(hours=16),
+        finished_at=T0 + timedelta(hours=17),
+        status="partial",
+        total_jobs=2,
+        total_probes=2,
+        ok_count=1,
+        blocked_count=1,
+    )
+    db.add(shared)
+    await db.flush()
+    db.add_all(
+        [
+            ScanJob(
+                scan_run_id=shared.id,
+                hotel_id=ids["own"],
+                start_date=STAY,
+                horizon_days=1,
+                status="done",
+            ),
+            ScanJob(
+                scan_run_id=shared.id,
+                hotel_id=ids["other"],
+                start_date=STAY,
+                horizon_days=1,
+                status="failed",
+            ),
+        ]
+    )
+    repo = SnapshotRepository(db, 10)
+    ok = ProbeResult(
+        ProbeStatus.OK,
+        ProbeMethod.HTTP,
+        STAY,
+        STAY + timedelta(days=1),
+        1,
+        2,
+        (_offer("1", 1, 1, "110"),),
+        "<html/>",
+        200,
+        "s",
+        10,
+    )
+    blocked = ProbeResult(
+        ProbeStatus.BLOCKED,
+        ProbeMethod.HTTP,
+        STAY,
+        STAY + timedelta(days=1),
+        1,
+        2,
+        (),
+        None,
+        403,
+        "s",
+        10,
+        error="blocked",
+    )
+    await repo.write_probe(
+        shared.id, ids["own"], STAY, ok, None, "1", "vn", T0 + timedelta(hours=16)
+    )
+    await repo.write_probe(
+        shared.id, ids["other"], STAY, blocked, None, "1", "vn", T0 + timedelta(hours=16)
+    )
+    await db.commit()
+    shared_id = shared.id
+
+    await _login(client, "op@x.com", "op-pass-123")
+    a = (await client.get("/overview", params={"tenant_id": ids["t1"]})).json()["last_run"]
+    assert a["id"] == shared_id and a["status"] == "completed"
+    assert (a["total_jobs"], a["total_probes"], a["ok_count"], a["blocked_count"]) == (1, 1, 1, 0)
+    b = (await client.get("/overview", params={"tenant_id": ids["t2"]})).json()["last_run"]
+    assert b["id"] == shared_id and b["status"] == "partial"
+    assert (b["total_jobs"], b["total_probes"], b["ok_count"], b["blocked_count"]) == (1, 1, 0, 1)
+    runs_b = (await client.get("/runs", params={"tenant_id": ids["t2"]})).json()
+    assert [r["id"] for r in runs_b] == [shared_id]
+    runs_a = (await client.get("/runs", params={"tenant_id": ids["t1"]})).json()
+    assert len(runs_a) == 3 and runs_a[0]["blocked_count"] == 0
+
+
+async def test_new_tenant_has_no_last_run(client: AsyncClient, db: AsyncSession) -> None:
+    ids = await _seed(db)
+    await _snapshot_data(db, ids)
+    await _login(client, "op@x.com", "op-pass-123")
+    r = await client.get("/overview", params={"tenant_id": ids["t2"]})
+    assert r.status_code == 200 and r.json()["last_run"] is None
+    assert (await client.get("/runs", params={"tenant_id": ids["t2"]})).json() == []
 
 
 async def test_insight_generate_enqueues_and_dedups(

@@ -84,35 +84,85 @@ def parse_date(value: Any) -> date:
     raise ValueError(f"unrecognised date {text!r}")
 
 
+_CURRENCY_RE = re.compile(r"^(₫|vnđ|vnd|đồng|đ)|(₫|vnđ|vnd|đồng|đ)$", re.IGNORECASE)
+
+
+def _is_thousands(parts: list[str]) -> bool:
+    """`parts` là các nhóm tách theo một dấu: nhóm đầu 1–3 số không bắt đầu bằng 0, các nhóm sau
+    đúng 3 số ("0.500" không phải 500)."""
+    head = parts[0]
+    return (
+        1 <= len(head) <= 3
+        and head.isdigit()
+        and head[0] != "0"
+        and all(len(p) == 3 and p.isdigit() for p in parts[1:])
+    )
+
+
+def _normalize_number(text: str, money: bool) -> str:
+    """Chuẩn hoá chuỗi số kiểu Việt Nam/Anh về dạng Decimal hiểu được.
+
+    "1.850.000" và "1,850,000" là ngăn nghìn; "1.234.567,89" / "1,234,567.89" có phần thập phân;
+    "850.000" (một dấu chấm, đúng 3 số sau) chỉ coi là ngăn nghìn ở cột tiền (money=True).
+    Bỏ khoảng trắng, "%" và đơn vị tiền (₫, đ, VND, VNĐ, đồng) ở đầu/cuối.
+    """
+    text = text.replace(" ", "").replace("\u00a0", "").replace("%", "")
+    text = _CURRENCY_RE.sub("", text)
+    sign = "-" if text.startswith("-") else ""
+    text = text.lstrip("+-")
+    if "," in text and "." in text:
+        if text.rfind(".") > text.rfind(","):
+            return sign + text.replace(",", "")
+        return sign + text.replace(".", "").replace(",", ".")
+    for sep, decimal_sep in ((",", "."), (".", None)):
+        if sep not in text:
+            continue
+        parts = text.split(sep)
+        if _is_thousands(parts) and (len(parts) > 2 or sep == "," or money):
+            return sign + text.replace(sep, "")
+        return sign + (text.replace(sep, decimal_sep) if decimal_sep else text)
+    return sign + text
+
+
+def _finite(d: Decimal, value: Any, what: str) -> Decimal:
+    if not d.is_finite():  # "NaN"/"Infinity" hợp lệ với Decimal nhưng không phải số liệu
+        raise ValueError(f"{what} {value!r}")
+    return d
+
+
 def parse_int(value: Any) -> int | None:
     if value is None or str(value).strip() == "":
         return None
-    text = str(value).strip().replace(",", "").replace(" ", "")
-    d = Decimal(text)
+    text = (
+        str(value)
+        if isinstance(value, int | float | Decimal)
+        else _normalize_number(str(value).strip(), money=True)
+    )
+    try:
+        d = _finite(Decimal(text), value, "not an integer")
+    except InvalidOperation as exc:
+        raise ValueError(f"not an integer {value!r}") from exc
     if d != d.to_integral_value():
         raise ValueError(f"not an integer {value!r}")
     return int(d)
 
 
-def parse_decimal(value: Any) -> Decimal | None:
+def parse_decimal(value: Any, money: bool = False) -> Decimal | None:
     if value is None or str(value).strip() == "":
         return None
-    text = str(value).strip().replace(" ", "").replace("%", "")
-    if "," in text and "." in text:
-        text = (
-            text.replace(",", "")
-            if text.rfind(".") > text.rfind(",")
-            else text.replace(".", "").replace(",", ".")
-        )
-    elif "," in text:
-        parts = text.split(",")
-        text = (
-            text.replace(",", "") if all(len(p) == 3 for p in parts[1:]) else text.replace(",", ".")
-        )
+    text = (
+        str(value)  # ô số của Excel: giữ nguyên giá trị
+        if isinstance(value, int | float | Decimal)
+        else _normalize_number(str(value).strip(), money)
+    )
     try:
-        return Decimal(text)
+        return _finite(Decimal(text), value, "not a number")
     except InvalidOperation as exc:
         raise ValueError(f"not a number {value!r}") from exc
+
+
+def _parse_money(value: Any) -> Decimal | None:
+    return parse_decimal(value, money=True)
 
 
 class CsvAdapter:
@@ -220,8 +270,8 @@ class CsvAdapter:
                 ("rooms_sold", parse_int),
                 ("rooms_available", parse_int),
                 ("occupancy_pct", parse_decimal),
-                ("adr", parse_decimal),
-                ("revenue", parse_decimal),
+                ("adr", _parse_money),
+                ("revenue", _parse_money),
             ):
                 try:
                     vals[col] = fn(_get(raw, mapping, col))
@@ -236,14 +286,14 @@ class CsvAdapter:
                 avail = total - sold
             if sold is None and total is not None and avail is not None:
                 sold = total - avail
+            if total is not None and sold is not None and sold > total:
+                errors.append(RowError(i, "rooms_sold", f"sold {sold} > total {total}"))
+                continue
             occ = vals["occupancy_pct"]
             if occ is None and total and sold is not None:
                 occ = (Decimal(sold) / Decimal(total) * 100).quantize(Decimal("0.01"))
             if occ is not None and not (0 <= occ <= 100):
                 errors.append(RowError(i, "occupancy_pct", f"out of range {occ}"))
-                continue
-            if total is not None and sold is not None and sold > total:
-                errors.append(RowError(i, "rooms_sold", f"sold {sold} > total {total}"))
                 continue
             seen.add(stay)
             rows.append(

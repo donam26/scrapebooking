@@ -1,9 +1,10 @@
 """In số lượng phần tử khớp từng selector trên một fixture để xác nhận selector còn đúng.
 
-Dùng: uv run python scripts/explore_fixture.py tests/fixtures/html/available_with_badge.html
-      uv run python scripts/explore_fixture.py --emit-expected tests/fixtures/html/available_with_badge.html
+Dùng: uv run python scripts/explore_fixture.py tests/fixtures/html/reverie_2026-10-10.html.gz
+      uv run python scripts/explore_fixture.py --emit-expected tests/fixtures/html/reverie_2026-10-10.html.gz
 """
 
+import gzip
 import sys
 from pathlib import Path
 
@@ -28,8 +29,18 @@ CHECKS = {
 }
 
 
+def _read(path: str) -> str:
+    data = Path(path).read_bytes()
+    return (gzip.decompress(data) if path.endswith(".gz") else data).decode("utf-8")
+
+
+def _stem(path: str) -> Path:
+    p = Path(path)
+    return p.parent / p.name.split(".html")[0]
+
+
 def main(path: str) -> None:
-    html = Path(path).read_text(encoding="utf-8")
+    html = _read(path)
     tree = HTMLParser(html)
     print(f"file: {path}  bytes={len(html)}")
     print(f"csrf: {S.extract_csrf_token(html)}")
@@ -51,9 +62,8 @@ def emit_expected(path: str) -> None:
 
     from app.collector.booking.parser import page_to_dict, parse_hotel_page
 
-    html = Path(path).read_text(encoding="utf-8")
-    page = parse_hotel_page(html, expected_currency="VND")
-    out = Path(path).with_suffix("").with_suffix(".expected.json")
+    page = parse_hotel_page(_read(path), expected_currency="VND", adults=2)
+    out = _stem(path).with_name(_stem(path).name + ".expected.json")
     out.write_text(json.dumps(page_to_dict(page), indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {out}: outcome={page.outcome} offers={len(page.offers)}")
 

@@ -35,6 +35,81 @@ def test_parse_numbers() -> None:
         parse_int("1.5")
 
 
+@pytest.mark.parametrize(
+    "text,money,expected",
+    [
+        # Excel/PMS Việt Nam: dấu chấm ngăn nghìn (đúng định dạng dashboard hiển thị).
+        ("1.850.000", True, Decimal("1850000")),
+        ("1.850.000", False, Decimal("1850000")),
+        ("74.000.000", True, Decimal("74000000")),
+        ("850.000", True, Decimal("850000")),  # một dấu chấm + 3 số ở cột tiền: là ngăn nghìn
+        ("1.850.000 ₫", True, Decimal("1850000")),
+        ("1.850.000đ", True, Decimal("1850000")),
+        ("2,500,000 VND", True, Decimal("2500000")),
+        ("1850000", True, Decimal("1850000")),
+        ("1850000.50", True, Decimal("1850000.50")),
+        ("85.5", False, Decimal("85.5")),
+        ("85.500", False, Decimal("85.500")),  # cột không phải tiền: giữ nghĩa thập phân
+        ("80,5", False, Decimal("80.5")),
+        ("1.850.000 VNĐ", True, Decimal("1850000")),
+        ("1.850.000 vnđ", True, Decimal("1850000")),
+        ("850.000 đồng", True, Decimal("850000")),
+        ("VND 850.000", True, Decimal("850000")),
+        ("₫850.000", True, Decimal("850000")),
+        ("-850.000", True, Decimal("-850000")),
+        ("-1.000.000,50", True, Decimal("-1000000.50")),
+        ("0.500", True, Decimal("0.500")),  # nhóm đầu "0" không phải ngăn nghìn
+        ("12.345,6", False, Decimal("12345.6")),
+    ],
+)
+def test_parse_decimal_vietnamese_formats(text: str, money: bool, expected: Decimal) -> None:
+    assert parse_decimal(text, money=money) == expected
+
+
+def test_parse_numbers_from_excel_cells_are_not_reinterpreted() -> None:
+    # Ô số của Excel đến dưới dạng float/int: không áp heuristic ngăn nghìn.
+    assert parse_decimal(850.125, money=True) == Decimal("850.125")
+    assert parse_decimal(1850000, money=True) == Decimal("1850000")
+    assert parse_int(80.0) == 80
+
+
+def test_parse_int_with_dot_thousands() -> None:
+    assert parse_int("1.200") == 1200
+    with pytest.raises(ValueError):
+        parse_int("1.5")
+    with pytest.raises(ValueError):
+        parse_int("0.500")
+
+
+@pytest.mark.parametrize("text", ["NaN", "nan", "Infinity", "-inf"])
+def test_non_finite_numbers_are_row_errors(text: str) -> None:
+    with pytest.raises(ValueError):
+        parse_decimal(text)
+    ad = CsvAdapter()
+    table = ad.read_table(f"stay_date,occupancy_pct\n2026-10-01,{text}\n".encode(), "x.csv")
+    rows, errors = ad.parse(table, ad.suggest_mapping(table.columns))
+    assert rows == [] and [(e.row, e.column) for e in errors] == [(1, "occupancy_pct")]
+
+
+def test_vietnamese_money_and_sold_over_total_errors() -> None:
+    content = (
+        "Ngày;Tổng phòng;Phòng đã bán;Giá trung bình;Doanh thu\n"
+        "01/10/2026;80;40;1.850.000;74.000.000\n"
+        "02/10/2026;80;43;850.000;36.550.000\n"
+        "03/10/2026;80;95;1.850.000;\n"
+    ).encode("utf-8-sig")
+    ad = CsvAdapter()
+    table = ad.read_table(content, "pms.csv")
+    rows, errors = ad.parse(table, ad.suggest_mapping(table.columns))
+    assert [(r.adr, r.revenue) for r in rows] == [
+        (Decimal("1850000"), Decimal("74000000")),
+        (Decimal("850000"), Decimal("36550000")),
+    ]
+    assert [(e.row, e.column, e.message) for e in errors] == [
+        (3, "rooms_sold", "sold 95 > total 80")
+    ]
+
+
 def test_template_roundtrip_and_derived_fields() -> None:
     ad = CsvAdapter()
     table = ad.read_table(template_csv().encode(), "template.csv")
@@ -61,7 +136,7 @@ def test_semicolon_csv_with_aliases_and_row_errors() -> None:
     rows, errors = ad.parse(table, mapping)
     assert len(rows) == 1 and rows[0].rooms_available == 20
     assert [(e.row, e.column) for e in errors] == [
-        (2, "occupancy_pct"),
+        (2, "rooms_sold"),  # bán 120 > tổng 100: báo nguyên nhân gốc, không báo công suất 120%
         (3, "stay_date"),
         (4, "stay_date"),
     ]

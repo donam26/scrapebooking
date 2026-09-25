@@ -25,16 +25,16 @@ export const EVENT_TYPE_LABEL: Record<string, string> = {
   room_type_gone: "Mất loại phòng",
 };
 
-export type Tone = "green" | "red" | "amber" | "gray" | "blue" | "purple";
+export type Tone = "green" | "red" | "amber" | "gray" | "blue" | "purple" | "plum";
 
 export const EVENT_TYPE_TONE: Record<string, Tone> = {
-  sold_out: "red",
-  restock: "green",
+  sold_out: "plum",
+  restock: "blue",
   rooms_decrease: "amber",
-  rooms_increase: "green",
-  low_stock_enter: "red",
-  price_up: "blue",
-  price_down: "purple",
+  rooms_increase: "blue",
+  low_stock_enter: "amber",
+  price_up: "gray",
+  price_down: "gray",
   room_type_new: "gray",
   room_type_gone: "gray",
 };
@@ -46,8 +46,8 @@ export const AVAILABILITY_LABEL: Record<string, string> = {
 };
 
 export const AVAILABILITY_TONE: Record<string, Tone> = {
-  available: "green",
-  sold_out: "red",
+  available: "blue",
+  sold_out: "plum",
   unknown: "gray",
 };
 
@@ -59,10 +59,10 @@ export const STOCK_CONFIDENCE_LABEL: Record<string, string> = {
 };
 
 export const STOCK_CONFIDENCE_TONE: Record<string, Tone> = {
-  exact: "green",
-  capped: "blue",
+  exact: "amber",
+  capped: "purple",
   hidden: "gray",
-  sold_out: "red",
+  sold_out: "plum",
 };
 
 export const USER_ROLE_LABEL: Record<string, string> = {

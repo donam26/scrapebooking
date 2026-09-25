@@ -40,7 +40,6 @@ dev = [
   "ruff>=0.5",
   "mypy>=1.10",
   "types-boto3",
-  "respx>=0.21",
   "types-openpyxl",
 ]
 

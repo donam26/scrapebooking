@@ -14,3 +14,6 @@ out/
 *.tsbuildinfo
 .DS_Store
 coverage/
+
+# Ảnh chụp review thiết kế (impeccable), không cần commit
+.impeccable/review/

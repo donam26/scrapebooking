@@ -195,6 +195,10 @@ class DayDetailOut(BaseModel):
     hotel: HotelOut
     stay_date: date
     room_types: list[RoomTypeOut]
+    # Lần quét gần nhất của ngày: trạng thái (available | sold_out | unknown) và thời điểm.
+    # `latest` chỉ gồm loại phòng của đúng lần quét đó (rỗng khi hết phòng/không rõ).
+    latest_status: str | None = None
+    latest_scanned_at: datetime | None = None
     latest: list[RoomSnapshotOut]
     history: list[RoomSnapshotOut]
     observations: list[HotelDateSnapshotOut]

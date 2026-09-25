@@ -36,7 +36,8 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    # minio/minio không còn phát hành trên Docker Hub/quay: dùng bản build cộng đồng, cùng CLI.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -107,6 +108,9 @@ services:
       dockerfile: Dockerfile
     environment:
       API_INTERNAL_URL: http://api:8000
+      CONTACT_PHONE: ${CONTACT_PHONE:-}
+      CONTACT_ZALO: ${CONTACT_ZALO:-}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}
     ports: ["3000:3000"]
     depends_on: [api]
     restart: unless-stopped

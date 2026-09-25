@@ -3,7 +3,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import Select, select
+from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.compset import compset_by_day
@@ -27,12 +27,15 @@ from app.db.models import (
     Hotel,
     HotelDateMetric,
     HotelDateSnapshot,
+    Probe,
     RoomSnapshot,
     RoomType,
+    ScanJob,
     ScanRun,
     Tenant,
     TenantHotel,
 )
+from app.domain.models import ProbeStatus
 
 router = APIRouter(tags=["data"])
 
@@ -130,6 +133,75 @@ def _events_stmt() -> Select[Any]:
     )
 
 
+async def _tenant_runs(
+    session: AsyncSession, tenant_id: int, limit: int, finished_only: bool
+) -> list[ScanRunOut]:
+    """Run là chung toàn hệ thống: tenant chỉ thấy run có khách sạn của mình, với số job/probe
+    và trạng thái tính riêng trên các khách sạn đó (không lộ số liệu của tenant khác)."""
+    hotel_ids = await tenant_hotel_ids(session, tenant_id, include_inactive=True)
+    if not hotel_ids:
+        return []
+    touches_tenant = or_(
+        exists().where(ScanJob.scan_run_id == ScanRun.id, ScanJob.hotel_id.in_(hotel_ids)),
+        exists().where(Probe.scan_run_id == ScanRun.id, Probe.hotel_id.in_(hotel_ids)),
+    )
+    stmt = select(ScanRun).where(touches_tenant)
+    if finished_only:
+        stmt = stmt.where(ScanRun.status.in_(["completed", "partial"])).order_by(
+            ScanRun.finished_at.desc()
+        )
+    else:
+        stmt = stmt.order_by(ScanRun.id.desc())
+    runs = list((await session.execute(stmt.limit(limit))).scalars())
+    if not runs:
+        return []
+    run_ids = [r.id for r in runs]
+    jobs: dict[int, tuple[int, int]] = {
+        row[0]: (row[1], row[2] or 0)
+        for row in await session.execute(
+            select(
+                ScanJob.scan_run_id,
+                func.count(),
+                func.count().filter(ScanJob.status == "failed"),
+            )
+            .where(ScanJob.scan_run_id.in_(run_ids), ScanJob.hotel_id.in_(hotel_ids))
+            .group_by(ScanJob.scan_run_id)
+        )
+    }
+    probes: dict[int, dict[str, int]] = {}
+    for run_id, status_, n in await session.execute(
+        select(Probe.scan_run_id, Probe.status, func.count())
+        .where(Probe.scan_run_id.in_(run_ids), Probe.hotel_id.in_(hotel_ids))
+        .group_by(Probe.scan_run_id, Probe.status)
+    ):
+        probes.setdefault(run_id, {})[status_] = n
+    out = []
+    for r in runs:
+        total_jobs, failed_jobs = jobs.get(r.id, (0, 0))
+        by_status = probes.get(r.id, {})
+        status_ = r.status
+        if status_ in ("completed", "partial"):
+            status_ = "partial" if failed_jobs else "completed"
+        out.append(
+            ScanRunOut(
+                id=r.id,
+                trigger_key=r.trigger_key,
+                scheduled_at=r.scheduled_at,
+                started_at=r.started_at,
+                finished_at=r.finished_at,
+                status=status_,
+                total_jobs=total_jobs,
+                total_probes=sum(by_status.values()),
+                ok_count=by_status.get(str(ProbeStatus.OK), 0),
+                sold_out_count=by_status.get(str(ProbeStatus.SOLD_OUT), 0)
+                + by_status.get(str(ProbeStatus.SKIPPED_CALENDAR), 0),
+                blocked_count=by_status.get(str(ProbeStatus.BLOCKED), 0),
+                error_count=by_status.get(str(ProbeStatus.ERROR), 0),
+            )
+        )
+    return out
+
+
 @router.get("/overview", response_model=OverviewOut)
 async def overview(
     tenant_id: TenantDep,
@@ -170,20 +242,13 @@ async def overview(
         for link, h in links
     ]
     compset = [CompsetDayOut(**c.__dict__) for c in await compset_by_day(session, tenant_id, s, e)]
-    last_run = (
-        await session.execute(
-            select(ScanRun)
-            .where(ScanRun.status.in_(["completed", "partial"]))
-            .order_by(ScanRun.finished_at.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    last_runs = await _tenant_runs(session, tenant_id, limit=1, finished_only=True)
     return OverviewOut(
         start=s,
         end=e,
         hotels=hotels,
         compset=compset,
-        last_run=ScanRunOut.model_validate(last_run) if last_run else None,
+        last_run=last_runs[0] if last_runs else None,
     )
 
 
@@ -261,8 +326,6 @@ async def day_detail(
             )
         ).scalars()
     )
-    latest_at = max((r.scanned_at for r in history), default=None)
-    latest = [r for r in history if r.scanned_at == latest_at] if latest_at else []
     rt_ids = {r.room_type_id for r in history}
     room_types = (
         list(
@@ -294,10 +357,23 @@ async def day_detail(
         .where(AvailabilityEvent.hotel_id == hotel_id, AvailabilityEvent.stay_date == stay_date)
         .order_by(AvailabilityEvent.observed_at.desc()),
     )
+    # Lần quét gần nhất lấy theo quan sát (gồm cả hết phòng/không rõ, vốn không có snapshot loại
+    # phòng); snapshot mới hơn quan sát nghĩa là analytics chưa chạy xong cho lần quét đó.
+    rooms_at = max((r.scanned_at for r in history), default=None)
+    last_obs = observations[-1] if observations else None
+    latest_at: datetime | None
+    latest_status: str | None
+    if last_obs is not None and (rooms_at is None or last_obs.scanned_at >= rooms_at):
+        latest_at, latest_status = last_obs.scanned_at, last_obs.status
+    else:
+        latest_at, latest_status = rooms_at, ("available" if rooms_at else None)
+    latest = [r for r in history if r.scanned_at == latest_at]
     return DayDetailOut(
         hotel=HotelOut.model_validate(hotel),
         stay_date=stay_date,
         room_types=[RoomTypeOut.model_validate(r) for r in room_types],
+        latest_status=latest_status,
+        latest_scanned_at=latest_at,
         latest=[RoomSnapshotOut.model_validate(r) for r in latest],
         history=[RoomSnapshotOut.model_validate(r) for r in history],
         observations=[HotelDateSnapshotOut.model_validate(o) for o in observations],
@@ -343,8 +419,6 @@ async def list_events(
 
 @router.get("/runs", response_model=list[ScanRunOut])
 async def list_runs(
-    _: TenantDep, session: SessionDep, limit: int = Query(10, ge=1, le=100)
-) -> list[ScanRun]:
-    return list(
-        (await session.execute(select(ScanRun).order_by(ScanRun.id.desc()).limit(limit))).scalars()
-    )
+    tenant_id: TenantDep, session: SessionDep, limit: int = Query(10, ge=1, le=100)
+) -> list[ScanRunOut]:
+    return await _tenant_runs(session, tenant_id, limit=limit, finished_only=False)

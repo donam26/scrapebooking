@@ -2,7 +2,7 @@
 
 ## Khởi động
 1. `cp .env.example .env`, điền `PROXY_URL_TEMPLATE` (residential, sticky session theo `{session}`,
-   chọn nước theo `{country}`), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `JWT_SECRET`.
+   chọn nước theo `{country}`), `JWT_SECRET`.
 2. `docker compose -f infra/docker-compose.yml up -d --build`
 3. Monitoring: `docker compose -f infra/docker-compose.monitoring.yml up -d`, Grafana tại
    http://localhost:3001 (admin/admin), dashboard "Collector health" được provision sẵn.

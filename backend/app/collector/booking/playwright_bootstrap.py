@@ -1,6 +1,6 @@
 import asyncio
 
-from playwright.async_api import Page, async_playwright
+from playwright.async_api import Browser, Page, async_playwright
 
 from app.collector.booking.selectors import READY_SELECTOR, extract_csrf_token
 from app.collector.proxy import ProxyEndpoint
@@ -12,6 +12,23 @@ log = get_logger(__name__)
 
 class ChallengeNotSolved(RuntimeError):
     pass
+
+
+def normalize_user_agent(user_agent: str) -> str:
+    """Chromium headless tự khai "HeadlessChrome": Booking nhận ra và 301 về trang không có ngày
+    (bỏ checkin/checkout), nên dùng UA như Chrome thường cho cả trình duyệt lẫn curl."""
+    return user_agent.replace("HeadlessChrome", "Chrome")
+
+
+async def browser_user_agent(browser: Browser) -> str:
+    """UA thật của bản Chromium đang chạy (đúng phiên bản, đúng nền tảng), đã bỏ dấu headless."""
+    context = await browser.new_context()
+    try:
+        page = await context.new_page()
+        user_agent: str = await page.evaluate("() => navigator.userAgent")
+    finally:
+        await context.close()
+    return normalize_user_agent(user_agent)
 
 
 async def wait_until_ready(page: Page, timeout_ms: int, poll_ms: int = 1000) -> None:
@@ -43,7 +60,9 @@ class PlaywrightBootstrapper:
             )
             try:
                 context = await browser.new_context(
-                    locale="en-GB", viewport={"width": 1366, "height": 850}
+                    locale="en-GB",
+                    viewport={"width": 1366, "height": 850},
+                    user_agent=await browser_user_agent(browser),
                 )
                 page = await context.new_page()
                 await page.goto(warmup_url, wait_until="domcontentloaded", timeout=60_000)

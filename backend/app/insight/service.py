@@ -15,7 +15,8 @@ from app.insight.client import (
     CompletionResult,
     FakeInsightClient,
     InsightClient,
-    OpenAIInsightClient,
+    OpenRouterInsightClient,
+    RedisBatchStore,
     estimate_cost,
 )
 from app.insight.input_builder import InsightInput, build_input
@@ -27,12 +28,12 @@ from app.ops.metrics import INSIGHTS_TOTAL
 log = get_logger(__name__)
 
 
-def build_openai_client(settings: Settings) -> InsightClient:
-    if not settings.openai_api_key:
-        log.warning("openai_api_key_missing_using_fake_client")
+def build_insight_client(settings: Settings) -> InsightClient:
+    if not settings.openrouter_api_key:
+        log.warning("openrouter_api_key_missing_using_fake_client")
         return FakeInsightClient(
             default_output={
-                "summary": "OPENAI_API_KEY chưa cấu hình; đây là đầu ra giả.",
+                "summary": "OPENROUTER_API_KEY chưa cấu hình; đây là đầu ra giả.",
                 "highlights": [],
                 "demand_signals": [],
                 "pricing_opportunities": [],
@@ -40,7 +41,17 @@ def build_openai_client(settings: Settings) -> InsightClient:
                 "data_quality_note": "fake client",
             }
         )
-    return OpenAIInsightClient(settings.openai_api_key)
+    headers: dict[str, str] = {}
+    if settings.openrouter_app_name:
+        headers["X-Title"] = settings.openrouter_app_name
+    if settings.openrouter_site_url:
+        headers["HTTP-Referer"] = settings.openrouter_site_url
+    return OpenRouterInsightClient(
+        api_key=settings.openrouter_api_key,
+        base_url=settings.openrouter_base_url,
+        store=RedisBatchStore(settings.redis_url),
+        headers=headers or None,
+    )
 
 
 @dataclass(frozen=True)
@@ -93,11 +104,11 @@ class InsightService:
     def _request(self, insight_id: int, built: InsightInput, language: str) -> CompletionRequest:
         return CompletionRequest(
             custom_id=f"insight-{insight_id}",
-            model=self._settings.openai_model,
+            model=self._settings.openrouter_model,
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt(language),
             input_json=built.payload,
-            reasoning_effort=self._settings.openai_reasoning_effort,
+            reasoning_effort=self._settings.openrouter_reasoning_effort,
         )
 
     async def _find_pending(self, tenant_id: int, request_key: str | None) -> Insight | None:
@@ -155,7 +166,7 @@ class InsightService:
                 generated_at=now,
                 trigger=trigger,
                 status="pending",
-                model=self._settings.openai_model,
+                model=self._settings.openrouter_model,
                 prompt_version=PROMPT_VERSION,
                 input_json={},
                 output_json=None,
@@ -166,7 +177,7 @@ class InsightService:
         row.period_start, row.period_end = built.period_start, built.period_end
         row.scan_run_id = built.scan_run_id
         row.input_json = built.payload
-        row.model = self._settings.openai_model
+        row.model = self._settings.openrouter_model
         row.prompt_version = PROMPT_VERSION
 
         if not built.hotel_ids:

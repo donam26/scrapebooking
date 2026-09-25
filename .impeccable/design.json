@@ -1,0 +1,1281 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T09:29:07+00:00",
+  "title": "Design System: ScrapeBooking",
+  "scope": "**Phạm vi.** Tài liệu này điều chỉnh cả hai bề mặt của ScrapeBooking. Ngày 2026-09-25 chủ sản phẩm chọn nối thương hiệu của trang giới thiệu vào dashboard, nên hai bề mặt là một hệ thống với hai giọng:\n\n- **Trang giới thiệu (giọng Brand):** route `/`, nhóm route `dashboard/src/app/(marketing)/`, mọi lớp mang tiền tố `lp-` trong `landing.css`.\n- **Ứng dụng (giọng Operate):** nhóm route `dashboard/src/app/(app)/` (màn hình tenant và operator) cùng `/login`. Token là các biến `--sb-*` trong `dashboard/src/app/globals.css`, ánh xạ sang tiện ích Tailwind qua `@theme` (`bg-night`, `bg-canvas`, `text-muted`, `bg-exact`…), cộng các lớp `sb-mark-*`, `sb-cell`, `sb-select`, `sb-skeleton`, `sb-scroll`.\n\nHai bề mặt dùng chung bảng màu, bốn dấu mức tin cậy, một họ chữ Be Vietnam Pro, số thẳng cột, tím cho hành động và xanh cho khách sạn của bạn. Chúng khác nhau ở mật độ và vật liệu: trang giới thiệu bo 16–28px, có quầng tím trên nền tối, chữ thân 17px; app bo tối đa 12px, không quầng, chữ thân 14px, khung là thanh bên tím than. Mục nào chỉ áp cho một bề mặt thì ghi rõ \"(trang giới thiệu)\" hoặc \"(app)\". Trong frontmatter, typography, spacing và components mang tiền tố `app-`, `axis-`, `strip-` chỉ dùng trong app; phần còn lại là của trang giới thiệu hoặc dùng chung.",
+  "extensions": {
+    "colorMeta": {
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Tím than đêm (Night Ink)",
+        "canonical": "#16123a",
+        "oklch": "oklch(21.5% 0.074 282.7)",
+        "tonalRamp": [
+          "#090329",
+          "#211e48",
+          "#3d3c68",
+          "#5b5c8a",
+          "#7b7dae",
+          "#9ea0d3",
+          "#c1c4f9",
+          "#ecedfe"
+        ]
+      },
+      "night-raised": {
+        "role": "neutral",
+        "displayName": "Tím than nổi (Night Raised)",
+        "canonical": "#211a52",
+        "oklch": "oklch(26.5% 0.098 283.1)",
+        "tonalRamp": [
+          "#0a002f",
+          "#211a52",
+          "#3c3974",
+          "#5a5997",
+          "#7a7abb",
+          "#9c9de1",
+          "#c1c3ff",
+          "#ecedff"
+        ]
+      },
+      "scan-purple": {
+        "role": "primary",
+        "displayName": "Tím lượt quét (Scan Purple)",
+        "canonical": "#673de6",
+        "oklch": "oklch(51.8% 0.237 286.2)",
+        "tonalRamp": [
+          "#0c002d",
+          "#270069",
+          "#4401ad",
+          "#6133dd",
+          "#7e61fe",
+          "#9e95fe",
+          "#c4c2fe",
+          "#edecff"
+        ]
+      },
+      "scan-purple-deep": {
+        "role": "primary",
+        "displayName": "Tím lượt quét đậm",
+        "canonical": "#5025d1",
+        "oklch": "oklch(45.2% 0.237 282.9)",
+        "tonalRamp": [
+          "#0a002e",
+          "#23006c",
+          "#3f02b1",
+          "#5a37df",
+          "#7665fe",
+          "#9997ff",
+          "#c1c3fe",
+          "#ecedfe"
+        ]
+      },
+      "lavender-glow": {
+        "role": "primary",
+        "displayName": "Tím quầng (Lavender Glow)",
+        "canonical": "#8c85ff",
+        "oklch": "oklch(67.9% 0.175 283.3)",
+        "tonalRamp": [
+          "#0a002e",
+          "#24016b",
+          "#3d2699",
+          "#594bbf",
+          "#776ee6",
+          "#9997ff",
+          "#c1c3fe",
+          "#ecedfe"
+        ]
+      },
+      "lavender-wash": {
+        "role": "primary",
+        "displayName": "Tím rửa (Lavender Wash)",
+        "canonical": "#ebe4ff",
+        "oklch": "oklch(93.2% 0.037 297.5)",
+        "tonalRamp": [
+          "#0d0719",
+          "#272135",
+          "#443e53",
+          "#635d74",
+          "#847e96",
+          "#a7a1ba",
+          "#cbc5df",
+          "#f0ebff"
+        ]
+      },
+      "lilac": {
+        "role": "neutral",
+        "displayName": "Tím sữa (Lilac)",
+        "canonical": "#cfc6ff",
+        "oklch": "oklch(85.3% 0.079 291.9)",
+        "tonalRamp": [
+          "#0e0129",
+          "#271b48",
+          "#433968",
+          "#62598b",
+          "#837aae",
+          "#a59cd3",
+          "#c9c0f9",
+          "#eeecff"
+        ]
+      },
+      "hatch-stripe": {
+        "role": "data",
+        "displayName": "Sọc gạch (Hatch Stripe) · mức Ít nhất",
+        "canonical": "#d6cbff",
+        "oklch": "oklch(86.8% 0.072 294.5)",
+        "tonalRamp": [
+          "#0f0225",
+          "#281c44",
+          "#453a64",
+          "#645986",
+          "#857aaa",
+          "#a79dce",
+          "#ccc1f4",
+          "#efebff"
+        ]
+      },
+      "sold-out-plum": {
+        "role": "data",
+        "displayName": "Tím đậm hết phòng (Sold-out Plum)",
+        "canonical": "#2f1c6a",
+        "oklch": "oklch(30.5% 0.128 287.4)",
+        "tonalRamp": [
+          "#0d002d",
+          "#260f5e",
+          "#413281",
+          "#5e53a5",
+          "#7f74ca",
+          "#a198f0",
+          "#c5c1ff",
+          "#edecfe"
+        ]
+      },
+      "exact-amber": {
+        "role": "secondary",
+        "displayName": "Vàng ô cửa sáng (Exact Amber) · mức Chính xác",
+        "canonical": "#ffcd35",
+        "oklch": "oklch(86.9% 0.164 89.1)",
+        "tonalRamp": [
+          "#100a00",
+          "#302300",
+          "#523f02",
+          "#785d01",
+          "#a07d08",
+          "#ca9f07",
+          "#f4c222",
+          "#ffedc1"
+        ],
+        "appShades": {
+          "le3": "#ffcd35",
+          "4to10": "#ffe28a",
+          "gt10": "#fff3cc"
+        }
+      },
+      "tick-green": {
+        "role": "tertiary",
+        "displayName": "Xanh dấu tích (Tick Green)",
+        "canonical": "#00b090",
+        "oklch": "oklch(67.5% 0.129 173.5)",
+        "tonalRamp": [
+          "#000f0a",
+          "#022d23",
+          "#034e3f",
+          "#05725d",
+          "#06987c",
+          "#2abf9e",
+          "#5ce4c2",
+          "#bdffea"
+        ]
+      },
+      "tick-green-deep": {
+        "role": "tertiary",
+        "displayName": "Xanh dấu tích đậm",
+        "canonical": "#008a70",
+        "oklch": "oklch(56.5% 0.108 173.2)",
+        "tonalRamp": [
+          "#000f0a",
+          "#002d23",
+          "#014e3e",
+          "#01725c",
+          "#21977c",
+          "#4fbb9f",
+          "#76e0c3",
+          "#beffea"
+        ]
+      },
+      "mist": {
+        "role": "neutral",
+        "displayName": "Sương tím (Mist)",
+        "canonical": "#f4f5ff",
+        "oklch": "oklch(97.2% 0.013 281.6)",
+        "tonalRamp": [
+          "#0a0b11",
+          "#24242c",
+          "#414149",
+          "#606069",
+          "#81828a",
+          "#a3a4ad",
+          "#c7c8d2",
+          "#edeef8"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Giấy (Paper)",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Mực (Ink)",
+        "canonical": "#1d1e20",
+        "oklch": "oklch(23.5% 0.004 264.5)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#242527",
+          "#414244",
+          "#606164",
+          "#818285",
+          "#a4a5a8",
+          "#c8c9cc",
+          "#edeef1"
+        ]
+      },
+      "body-text": {
+        "role": "neutral",
+        "displayName": "Chữ thân (Body Text)",
+        "canonical": "#36344d",
+        "oklch": "oklch(33.8% 0.044 287.5)",
+        "tonalRamp": [
+          "#0b071c",
+          "#242139",
+          "#403e58",
+          "#5f5e79",
+          "#807f9c",
+          "#a3a1c0",
+          "#c7c5e5",
+          "#edecfe"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Chữ phụ (Muted)",
+        "canonical": "#5e6072",
+        "oklch": "oklch(49.4% 0.029 280.3)",
+        "tonalRamp": [
+          "#090a17",
+          "#222433",
+          "#3f4151",
+          "#5e6072",
+          "#7f8194",
+          "#a1a3b7",
+          "#c5c8dc",
+          "#ebedfe"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Đường tóc (Hairline)",
+        "canonical": "#e3e1f0",
+        "oklch": "oklch(91.6% 0.020 292.1)",
+        "tonalRamp": [
+          "#0b0a13",
+          "#25232e",
+          "#42404c",
+          "#615f6c",
+          "#82808e",
+          "#a5a3b1",
+          "#c9c7d6",
+          "#eeecfb"
+        ]
+      },
+      "on-dark-soft": {
+        "role": "neutral",
+        "displayName": "Chữ mờ trên nền tối (On-dark Soft)",
+        "canonical": "#d5d1ef",
+        "oklch": "oklch(87.3% 0.041 291.6)",
+        "tonalRamp": [
+          "#0c071b",
+          "#252138",
+          "#423e56",
+          "#615d77",
+          "#827e9a",
+          "#a5a1bd",
+          "#c9c5e3",
+          "#eeecff"
+        ]
+      },
+      "lavender-tint": {
+        "role": "primary",
+        "displayName": "Tím phớt (Lavender Tint) · app",
+        "canonical": "#f4f0ff",
+        "oklch": "oklch(96.3% 0.020 298.2)",
+        "tonalRamp": [
+          "#0c0913",
+          "#26232e",
+          "#43404c",
+          "#625f6c",
+          "#84808d",
+          "#a6a3b0",
+          "#cac7d5",
+          "#f0ecfb"
+        ]
+      },
+      "exact-amber-mid": {
+        "role": "secondary",
+        "displayName": "Vàng vừa · Chính xác 4–10 phòng (app)",
+        "canonical": "#ffe28a",
+        "oklch": "oklch(91.8% 0.112 91.8)",
+        "tonalRamp": [
+          "#100b00",
+          "#2f2400",
+          "#514002",
+          "#765e01",
+          "#9b7f22",
+          "#bea34a",
+          "#e4c76f",
+          "#ffeebb"
+        ]
+      },
+      "exact-amber-light": {
+        "role": "secondary",
+        "displayName": "Vàng nhạt · Chính xác >10 phòng (app)",
+        "canonical": "#fff3cc",
+        "oklch": "oklch(96.4% 0.052 92.9)",
+        "tonalRamp": [
+          "#100b00",
+          "#2e2402",
+          "#4c4120",
+          "#6b613e",
+          "#8d825e",
+          "#b0a580",
+          "#d5c9a3",
+          "#faeec8"
+        ]
+      },
+      "tick-green-text": {
+        "role": "tertiary",
+        "displayName": "Xanh chữ · app",
+        "canonical": "#007a63",
+        "oklch": "oklch(51.7% 0.099 173.4)",
+        "tonalRamp": [
+          "#000f0a",
+          "#002d23",
+          "#044e3f",
+          "#06725d",
+          "#32957d",
+          "#5ab9a0",
+          "#80dec4",
+          "#bdffea"
+        ]
+      },
+      "tick-green-soft": {
+        "role": "tertiary",
+        "displayName": "Xanh nhạt · app",
+        "canonical": "#ddf5ef",
+        "oklch": "oklch(95.1% 0.026 179.1)",
+        "tonalRamp": [
+          "#000f0b",
+          "#162925",
+          "#334742",
+          "#516661",
+          "#728883",
+          "#94aba5",
+          "#b8cfc9",
+          "#ddf5ef"
+        ]
+      },
+      "paper-tint": {
+        "role": "neutral",
+        "displayName": "Giấy phớt (Paper Tint) · app",
+        "canonical": "#f8f8fd",
+        "oklch": "oklch(98.1% 0.007 286.3)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#252528",
+          "#414145",
+          "#616165",
+          "#828286",
+          "#a4a4a9",
+          "#c8c8cd",
+          "#eeeef3"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Lõm (Sunken) · app",
+        "canonical": "#eeeef9",
+        "oklch": "oklch(95.2% 0.015 286.1)",
+        "tonalRamp": [
+          "#0b0a11",
+          "#24242c",
+          "#41414a",
+          "#606069",
+          "#81818b",
+          "#a4a4ae",
+          "#c8c8d3",
+          "#ededf8"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Chữ mờ (Faint) · app",
+        "canonical": "#8a89a0",
+        "oklch": "oklch(63.9% 0.034 287.4)",
+        "tonalRamp": [
+          "#0a0819",
+          "#242235",
+          "#413f54",
+          "#605f74",
+          "#818096",
+          "#a3a2ba",
+          "#c7c6df",
+          "#edecfe"
+        ]
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Đường tóc đậm · app",
+        "canonical": "#cfcce4",
+        "oklch": "oklch(85.5% 0.033 291.4)",
+        "tonalRamp": [
+          "#0b0818",
+          "#252234",
+          "#423f53",
+          "#615e73",
+          "#827f95",
+          "#a5a2b9",
+          "#c9c6de",
+          "#eeecff"
+        ]
+      },
+      "chart-grid": {
+        "role": "neutral",
+        "displayName": "Lưới biểu đồ",
+        "canonical": "#ece9f7",
+        "oklch": "oklch(94.0% 0.019 295.9)",
+        "tonalRamp": [
+          "#0c0a12",
+          "#26232d",
+          "#43404b",
+          "#625f6b",
+          "#83808d",
+          "#a6a3b0",
+          "#cac7d4",
+          "#efecfa"
+        ]
+      },
+      "on-dark-muted": {
+        "role": "neutral",
+        "displayName": "Chữ nhạt trên nền tối · app",
+        "canonical": "#a7a2d2",
+        "oklch": "oklch(73.3% 0.069 289.4)",
+        "tonalRamp": [
+          "#0c0325",
+          "#251e44",
+          "#413b64",
+          "#605b86",
+          "#817ca9",
+          "#a39ece",
+          "#c7c2f4",
+          "#eeecff"
+        ]
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Đỏ lỗi · app",
+        "canonical": "#c2334f",
+        "oklch": "oklch(54.7% 0.179 14.5)",
+        "tonalRamp": [
+          "#1e0004",
+          "#4b0114",
+          "#7e0128",
+          "#af1d40",
+          "#d74860",
+          "#ff6f82",
+          "#feb1b7",
+          "#ffe8e9"
+        ]
+      },
+      "danger-deep": {
+        "role": "status",
+        "displayName": "Đỏ lỗi đậm · app",
+        "canonical": "#9b1d38",
+        "oklch": "oklch(45.4% 0.160 15.2)",
+        "tonalRamp": [
+          "#1e0004",
+          "#4c0013",
+          "#7e0227",
+          "#a82c43",
+          "#d05162",
+          "#f87684",
+          "#feb1b6",
+          "#fee8e9"
+        ]
+      },
+      "danger-soft": {
+        "role": "status",
+        "displayName": "Đỏ lỗi nhạt · app",
+        "canonical": "#fdecef",
+        "oklch": "oklch(95.7% 0.019 5.3)",
+        "tonalRamp": [
+          "#12080a",
+          "#2d2124",
+          "#4b3e40",
+          "#6b5d60",
+          "#8d7e81",
+          "#b0a0a3",
+          "#d5c4c7",
+          "#fbeaed"
+        ]
+      },
+      "warning-deep": {
+        "role": "status",
+        "displayName": "Nâu cảnh báo · app",
+        "canonical": "#7a5200",
+        "oklch": "oklch(47.1% 0.099 76.3)",
+        "tonalRamp": [
+          "#130900",
+          "#342101",
+          "#593b01",
+          "#81580c",
+          "#a47a37",
+          "#c89d5b",
+          "#eec17e",
+          "#ffecd1"
+        ]
+      },
+      "warning-soft": {
+        "role": "status",
+        "displayName": "Vàng cảnh báo nhạt · app",
+        "canonical": "#fff4d1",
+        "oklch": "oklch(96.7% 0.047 92.6)",
+        "tonalRamp": [
+          "#100b00",
+          "#2d2406",
+          "#4b4124",
+          "#6a6142",
+          "#8c8262",
+          "#afa584",
+          "#d4c9a7",
+          "#f9eecc"
+        ]
+      },
+      "series-1": {
+        "role": "chart",
+        "displayName": "Chuỗi 1 · xanh dương",
+        "canonical": "#2a78d6",
+        "oklch": "oklch(57.5% 0.163 255.5)",
+        "tonalRamp": [
+          "#000a20",
+          "#00244f",
+          "#004083",
+          "#055fba",
+          "#3582e1",
+          "#63a7ff",
+          "#a6ccff",
+          "#e5f0fe"
+        ]
+      },
+      "series-2": {
+        "role": "chart",
+        "displayName": "Chuỗi 2 · cam",
+        "canonical": "#e0662a",
+        "oklch": "oklch(65.1% 0.168 43.7)",
+        "tonalRamp": [
+          "#190400",
+          "#421501",
+          "#6f2901",
+          "#a03e00",
+          "#d15817",
+          "#f97c43",
+          "#ffb596",
+          "#ffe9e1"
+        ]
+      },
+      "series-3": {
+        "role": "chart",
+        "displayName": "Chuỗi 3 · mận",
+        "canonical": "#9c3d8f",
+        "oklch": "oklch(51.9% 0.161 333.3)",
+        "tonalRamp": [
+          "#1a0017",
+          "#43003c",
+          "#6f0b65",
+          "#933587",
+          "#b958aa",
+          "#df7bcf",
+          "#ffa6ef",
+          "#fee6f9"
+        ]
+      },
+      "series-4": {
+        "role": "chart",
+        "displayName": "Chuỗi 4 · xanh ngọc",
+        "canonical": "#1596b8",
+        "oklch": "oklch(62.5% 0.112 222.2)",
+        "tonalRamp": [
+          "#000e14",
+          "#012a36",
+          "#014a5d",
+          "#056c86",
+          "#0390b2",
+          "#43b4d7",
+          "#6cd9fd",
+          "#d8f4fe"
+        ]
+      },
+      "series-5": {
+        "role": "chart",
+        "displayName": "Chuỗi 5 · nâu đồng",
+        "canonical": "#a8601c",
+        "oklch": "oklch(56.1% 0.121 58.4)",
+        "tonalRamp": [
+          "#160700",
+          "#3b1c00",
+          "#643401",
+          "#914d00",
+          "#b76e2d",
+          "#dd9153",
+          "#ffb780",
+          "#feeadc"
+        ]
+      },
+      "series-6": {
+        "role": "chart",
+        "displayName": "Chuỗi 6 · hồng",
+        "canonical": "#ef7fae",
+        "oklch": "oklch(73.4% 0.146 354.8)",
+        "tonalRamp": [
+          "#1d000d",
+          "#490028",
+          "#770b46",
+          "#9d3566",
+          "#c35887",
+          "#eb7baa",
+          "#ffadcd",
+          "#fee8ef"
+        ]
+      },
+      "series-7": {
+        "role": "chart",
+        "displayName": "Chuỗi 7 · chàm",
+        "canonical": "#4a5cc4",
+        "oklch": "oklch(51.8% 0.163 272.1)",
+        "tonalRamp": [
+          "#040033",
+          "#140672",
+          "#293196",
+          "#4454bc",
+          "#6278e2",
+          "#869efe",
+          "#b7c7fe",
+          "#e9eefe"
+        ]
+      },
+      "series-8": {
+        "role": "chart",
+        "displayName": "Chuỗi 8 · đỏ gạch",
+        "canonical": "#c8352b",
+        "oklch": "oklch(55.3% 0.185 28.6)",
+        "tonalRamp": [
+          "#1f0000",
+          "#4d0101",
+          "#800204",
+          "#b31c16",
+          "#db483c",
+          "#fe7464",
+          "#feb3a8",
+          "#fee9e6"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Chỉ H1 trắng ở đầu trang; text-wrap: balance."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "H2 của mỗi phần."
+      },
+      "headline-cta": {
+        "displayName": "Headline CTA",
+        "purpose": "H2 trong khối lời mời tím."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "H3 dẫn khối mức tin cậy; tên khách sạn trong bảng chi tiết."
+      },
+      "title-sm": {
+        "displayName": "Title nhỏ",
+        "purpose": "Tiêu đề trong thẻ (16.5–18.5px)."
+      },
+      "body-lead": {
+        "displayName": "Body lead",
+        "purpose": "Đoạn dẫn dưới H2, đoạn chính bố cục hai cột, tối đa 56ch, màu chữ phụ."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Cỡ gốc 17px; 16px dưới 720px."
+      },
+      "body-sm": {
+        "displayName": "Body nhỏ",
+        "purpose": "Mô tả dòng thời gian, nguyên tắc, chân trang."
+      },
+      "note": {
+        "displayName": "Note",
+        "purpose": "Ghi chú minh hoạ, chú giải, meta lượt quét."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "CHỮ HOA, chỉ làm tiêu đề cột trong mảnh giao diện sản phẩm; không dùng làm kicker trên tiêu đề phần."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Chữ nút chính và nút ghost."
+      },
+      "nav": {
+        "displayName": "Nav",
+        "purpose": "Liên kết thanh điều hướng."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Con số lớn thẳng cột (giá thẻ so sánh)."
+      },
+      "data-cell": {
+        "displayName": "Data cell",
+        "purpose": "Số trong ô bảng 30 đêm."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "Chữ SCRAPEBOOKING cạnh biểu tượng mặt tiền."
+      },
+      "app-page-title": {
+        "displayName": "App · Page title",
+        "purpose": "H1 duy nhất của mỗi màn hình app (24px/700/−0.015em, balance)."
+      },
+      "app-lead": {
+        "displayName": "App · Lead",
+        "purpose": "Tóm tắt bản tin AI, 17px/1.7, tối đa 70ch."
+      },
+      "app-section-title": {
+        "displayName": "App · Section title",
+        "purpose": "H2 các phần trong bản tin, kèm số đếm."
+      },
+      "app-card-title": {
+        "displayName": "App · Card title",
+        "purpose": "Tiêu đề thẻ, tên khách sạn trên dải, đầu bảng đọc."
+      },
+      "app-stat": {
+        "displayName": "App · Stat",
+        "purpose": "Giá trị dải số đo, 20px (17px dưới 640px), thẳng cột."
+      },
+      "app-body": {
+        "displayName": "App · Body",
+        "purpose": "Cỡ gốc 14px của app: ô bảng, nội dung thẻ, ô nhập, nút."
+      },
+      "app-body-sm": {
+        "displayName": "App · Body nhỏ",
+        "purpose": "Phụ đề, đường dẫn, nhãn trường (600), nhóm chọn."
+      },
+      "app-label": {
+        "displayName": "App · Label",
+        "purpose": "12px/600 viết thường: đầu bảng, nhãn số đo, chú giải, huy hiệu."
+      },
+      "app-micro": {
+        "displayName": "App · Micro",
+        "purpose": "11px: thứ/tháng trên trục đêm, số thước đo, công suất PMS."
+      },
+      "app-nav": {
+        "displayName": "App · Nav",
+        "purpose": "Mục thanh bên 15px/500."
+      },
+      "app-button": {
+        "displayName": "App · Button",
+        "purpose": "Chữ nút 14px/600 (13px bản nhỏ)."
+      },
+      "app-cell": {
+        "displayName": "App · Ô dải",
+        "purpose": "Số trong ô 32px, 13px/700; HẾT 9px."
+      },
+      "app-wordmark": {
+        "displayName": "App · Wordmark",
+        "purpose": "SCRAPEBOOKING cạnh logo trên thanh bên."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 2px rgba(29, 30, 32, 0.06), 0 12px 32px -12px rgba(47, 28, 106, 0.18)",
+        "purpose": "Thẻ trắng, bảng 30 đêm, bảng chi tiết, dải ảnh, FAQ đang mở."
+      },
+      {
+        "name": "float-deep",
+        "value": "0 40px 80px -30px rgba(6, 2, 30, 0.8)",
+        "purpose": "Thẻ ảnh đầu trang, thẻ bản tin trên nền tối."
+      },
+      {
+        "name": "float",
+        "value": "0 24px 50px -20px rgba(6, 2, 30, 0.7)",
+        "purpose": "Hộp bản tin đang gõ trong ảnh ghép đầu trang."
+      },
+      {
+        "name": "menu",
+        "value": "0 24px 48px -16px rgba(6, 2, 30, 0.6)",
+        "purpose": "Bảng menu gập."
+      },
+      {
+        "name": "scan-toggle",
+        "value": "0 16px 32px -14px rgba(6, 2, 30, 0.6)",
+        "purpose": "Công tắc lượt quét kính mờ."
+      },
+      {
+        "name": "channel",
+        "value": "0 16px 30px -18px rgba(22, 18, 58, 0.7)",
+        "purpose": "Thẻ kênh liên hệ trên khối tím."
+      },
+      {
+        "name": "channel-hover",
+        "value": "0 22px 36px -18px rgba(22, 18, 58, 0.8)",
+        "purpose": "Thẻ kênh liên hệ khi hover."
+      },
+      {
+        "name": "button-glow",
+        "value": "0 10px 24px -10px rgba(103, 61, 230, 0.8)",
+        "purpose": "Nút chính khi hover."
+      },
+      {
+        "name": "cell-lift",
+        "value": "0 6px 12px -6px rgba(47, 28, 106, 0.55)",
+        "purpose": "Ô dữ liệu khi hover."
+      },
+      {
+        "name": "glow-hero",
+        "value": "radial-gradient(55% 65% at 86% 90%, rgba(118, 76, 245, 0.8), transparent 72%), radial-gradient(40% 45% at 70% 28%, rgba(140, 133, 255, 0.22), transparent 70%), radial-gradient(32% 42% at 0% 100%, rgba(103, 61, 230, 0.3), transparent 70%), #16123a",
+        "purpose": "Nền đầu trang: ba quầng tím trên tím than (background, không phải box-shadow)."
+      },
+      {
+        "name": "glow-dark-section",
+        "value": "radial-gradient(45% 60% at 10% 10%, rgba(103, 61, 230, 0.4), transparent 70%), radial-gradient(40% 55% at 95% 95%, rgba(103, 61, 230, 0.45), transparent 70%), #16123a",
+        "purpose": "Nền phần tối (Bản tin)."
+      },
+      {
+        "name": "glow-cta",
+        "value": "radial-gradient(60% 90% at 100% 100%, rgba(140, 133, 255, 0.55), transparent 70%), radial-gradient(50% 70% at 0% 0%, rgba(47, 28, 106, 0.6), transparent 70%), #673de6",
+        "purpose": "Nền khối lời mời."
+      },
+      {
+        "name": "app-card",
+        "value": "0 1px 2px rgba(29, 30, 32, 0.05), 0 10px 28px -18px rgba(47, 28, 106, 0.22)",
+        "purpose": "App: mọi thẻ, dải số đo, thẻ khách sạn (--sb-shadow-card)."
+      },
+      {
+        "name": "app-float",
+        "value": "0 2px 6px rgba(22, 18, 58, 0.08), 0 24px 48px -16px rgba(22, 18, 58, 0.35)",
+        "purpose": "App: bảng đọc một đêm, chú thích biểu đồ, ngăn kéo (--sb-shadow-float)."
+      },
+      {
+        "name": "app-button-base",
+        "value": "0 1px 2px rgba(47, 28, 106, 0.25)",
+        "purpose": "App: đế nút chính lúc nghỉ; không quầng khi hover."
+      },
+      {
+        "name": "app-segmented-on",
+        "value": "0 1px 2px rgba(22, 18, 58, 0.12), 0 0 0 1px rgba(22, 18, 58, 0.04)",
+        "purpose": "App: lựa chọn đang bật trong nhóm chọn."
+      },
+      {
+        "name": "app-input-inset",
+        "value": "inset 0 1px 1px rgba(22, 18, 58, 0.04)",
+        "purpose": "App: lõm nhẹ của ô nhập."
+      },
+      {
+        "name": "app-input-focus",
+        "value": "0 0 0 3px rgba(103, 61, 230, 0.15)",
+        "purpose": "App: vòng focus ô nhập (kèm viền tím)."
+      },
+      {
+        "name": "app-yours-halo",
+        "value": "0 0 0 3px rgba(0, 176, 144, 0.18)",
+        "purpose": "App: quầng quanh chấm xanh của khách sạn bạn và chấm Quét lúc."
+      },
+      {
+        "name": "app-login-glow",
+        "value": "radial-gradient(60% 50% at 85% 100%, rgba(103,61,230,0.45), transparent 70%), radial-gradient(40% 35% at 0% 0%, rgba(140,133,255,0.18), transparent 70%)",
+        "purpose": "Quầng duy nhất trong phạm vi app: nửa tím than của trang đăng nhập."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Easing chung cho nhấc nút, trượt mũi tên, xoay chevron, đổi màu ô."
+      },
+      {
+        "name": "state",
+        "value": "0.2s",
+        "purpose": "Hover nút, thẻ kênh, ô dữ liệu, viền FAQ."
+      },
+      {
+        "name": "chevron",
+        "value": "0.3s",
+        "purpose": "Chevron FAQ xoay 180° khi mở."
+      },
+      {
+        "name": "scan-cell",
+        "value": "0.5s",
+        "purpose": "Ô bảng mini đổi dấu khi lượt quét đổi."
+      },
+      {
+        "name": "scan-cycle",
+        "value": "2600ms",
+        "purpose": "Công tắc lượt quét chạy vòng 06:00 → 14:00 → 22:00."
+      },
+      {
+        "name": "typing",
+        "value": "26ms / ký tự",
+        "purpose": "Bản tin đầu trang gõ lại một lần."
+      },
+      {
+        "name": "caret-blink",
+        "value": "1s steps(1) infinite",
+        "purpose": "Con trỏ tím nhấp nháy."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Tắt mọi transition/animation, cuộn mượt; bản tin hiện đủ, lượt quét đứng yên."
+      },
+      {
+        "name": "app-state",
+        "value": "150ms",
+        "purpose": "App: hover/active nút, ô nhập, tab, nhóm chọn."
+      },
+      {
+        "name": "app-row",
+        "value": "100ms",
+        "purpose": "App: hover hàng bảng, đổi màu cột trục đêm."
+      },
+      {
+        "name": "app-cell-lift",
+        "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "App: ô dải nhấc 1px khi rê (sb-cell)."
+      },
+      {
+        "name": "app-readout",
+        "value": "120ms sb-fade-in",
+        "purpose": "App: bảng đọc một đêm hiện dần, trồi 2px."
+      },
+      {
+        "name": "app-drawer",
+        "value": "200ms sb-fade-in",
+        "purpose": "App: ngăn kéo điện thoại."
+      },
+      {
+        "name": "app-skeleton",
+        "value": "1.4s linear infinite",
+        "purpose": "App: ánh chạy của skeleton."
+      },
+      {
+        "name": "app-reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "App: mọi animation/transition về 0.01ms, cuộn mượt tắt."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "nav-collapse",
+        "value": "1180px",
+        "purpose": "≤1180px: liên kết điều hướng → menu gập; bảng chi tiết 3 → 2 cột."
+      },
+      {
+        "name": "stack",
+        "value": "1000px",
+        "purpose": "≤1000px: bố cục hai cột xếp một cột; dòng thời gian dọc; chú giải 2×2."
+      },
+      {
+        "name": "mobile",
+        "value": "720px",
+        "purpose": "≤720px: chữ gốc 16px, nav 64px, lưới thẻ một cột, ảnh ghép đầu trang đổi bố cục."
+      },
+      {
+        "name": "app-sm",
+        "value": "640px",
+        "purpose": "App ≥640px: lề 24px, ô số đo rộng hơn, số 20px, tab có biểu tượng."
+      },
+      {
+        "name": "app-md",
+        "value": "768px",
+        "purpose": "App ≥768px: dòng sự kiện thành lưới 4 cột, bảng hiện đủ cột."
+      },
+      {
+        "name": "app-lg",
+        "value": "1024px",
+        "purpose": "App ≥1024px: thanh bên cố định 248px; dưới đó thanh trên 56px + ngăn kéo 280px."
+      },
+      {
+        "name": "app-xl",
+        "value": "1280px",
+        "purpose": "App ≥1280px: đầu thẻ khách sạn hiện Giá kỳ này."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Nút chính",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Hành động chính duy nhất của mỗi khối: Liên hệ tư vấn.",
+      "html": "<a href=\"#\" class=\"ds-btn-primary\">Liên hệ tư vấn</a>",
+      "css": ".ds-btn-primary { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 28px; border-radius: 8px; background: #673de6; color: #fff; font-weight: 700; font-size: 16px; line-height: 1.2; text-decoration: none; transition: background-color 0.2s, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s; } .ds-btn-primary:hover { background: #5025d1; transform: translateY(-1px); box-shadow: 0 10px 24px -10px rgba(103, 61, 230, 0.8); } .ds-btn-primary:active { transform: translateY(0); } .ds-btn-primary:focus-visible { outline: 2px solid #673de6; outline-offset: 3px; }"
+    },
+    {
+      "name": "Nút viền trên nền tối",
+      "kind": "button",
+      "refersTo": "button-outline-dark",
+      "description": "Nút phụ trên thanh điều hướng tím than.",
+      "html": "<div class=\"ds-dark-strip\"><a href=\"#\" class=\"ds-btn-outline\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A1.5 1.5 0 0 1 4 14.5z\"/><path d=\"M8.5 10h7\"/></svg> Liên hệ tư vấn</a><a href=\"#\" class=\"ds-btn-ghost\">Xem bảng mẫu <svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></a></div>",
+      "css": ".ds-dark-strip { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding: 20px 24px; background: #16123a; border-radius: 12px; } .ds-btn-outline { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: 1.5px solid #8c85ff; border-radius: 10px; color: #fff; font-weight: 600; font-size: 15px; text-decoration: none; transition: background-color 0.2s, border-color 0.2s; } .ds-btn-outline:hover { background: rgba(140, 133, 255, 0.14); border-color: #b3adff; } .ds-btn-outline:focus-visible, .ds-btn-ghost:focus-visible { outline: 2px solid #8c85ff; outline-offset: 3px; border-radius: 4px; } .ds-btn-ghost { display: inline-flex; align-items: center; gap: 8px; padding: 16px 6px; color: #fff; font-weight: 700; font-size: 16px; text-decoration: none; } .ds-btn-ghost svg { transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-ghost:hover svg { transform: translateX(4px); }"
+    },
+    {
+      "name": "Thanh điều hướng",
+      "kind": "nav",
+      "refersTo": "nav-bar",
+      "description": "Thanh dính tím than: logo mặt tiền, liên kết neo, nút viền, đăng nhập.",
+      "html": "<header class=\"ds-nav\"><a href=\"#\" class=\"ds-nav-logo\"><span class=\"ds-logo\"><svg viewBox=\"0 0 28 28\" width=\"30\" height=\"30\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"26\" height=\"26\" rx=\"7\" fill=\"#673de6\"/><rect x=\"6.5\" y=\"8.0\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffffff\" opacity=\"0.9\"/><rect x=\"6.5\" y=\"14.5\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffffff\" opacity=\"0.9\"/><rect x=\"12.0\" y=\"8.0\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffcd35\"/><rect x=\"12.0\" y=\"14.5\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffffff\" opacity=\"0.9\"/><rect x=\"17.5\" y=\"8.0\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffffff\" opacity=\"0.9\"/><rect x=\"17.5\" y=\"14.5\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffcd35\"/></svg><span>SCRAPEBOOKING</span></span></a><nav class=\"ds-nav-links\"><a href=\"#\">Vì sao</a><a href=\"#\">Cách hoạt động</a><a href=\"#\">Bảng 30 đêm</a><a href=\"#\">Bản tin AI</a><a href=\"#\">Hỏi đáp</a></nav><div class=\"ds-nav-actions\"><a href=\"#\" class=\"ds-nav-outline\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A1.5 1.5 0 0 1 4 14.5z\"/><path d=\"M8.5 10h7\"/></svg> Liên hệ tư vấn</a><a href=\"#\" class=\"ds-nav-login\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"8.5\" r=\"3.5\"/><path d=\"M5 20c1.2-3.4 4-5 7-5s5.8 1.6 7 5\"/></svg><span>Đăng nhập</span></a></div></header>",
+      "css": ".ds-nav { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; align-items: center; gap: 36px; min-height: 76px; padding: 10px 32px; background: #16123a; border-bottom: 1px solid rgba(255, 255, 255, 0.06); } .ds-nav-logo { text-decoration: none; } .ds-logo { display: inline-flex; align-items: center; gap: 10px; color: #fff; font-weight: 800; font-size: 19px; letter-spacing: 0.08em; line-height: 1; } .ds-nav-links { display: flex; gap: 26px; font-size: 15.5px; font-weight: 500; white-space: nowrap; } .ds-nav-links a { color: #fff; opacity: 0.92; text-decoration: none; transition: opacity 0.2s; } .ds-nav-links a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 6px; text-decoration-color: #8c85ff; } .ds-nav-actions { margin-left: auto; display: flex; align-items: center; gap: 22px; white-space: nowrap; } .ds-nav-outline { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: 1.5px solid #8c85ff; border-radius: 10px; color: #fff; font-weight: 600; font-size: 15px; text-decoration: none; transition: background-color 0.2s, border-color 0.2s; } .ds-nav-outline:hover { background: rgba(140, 133, 255, 0.14); border-color: #b3adff; } .ds-nav-login { display: inline-flex; align-items: center; gap: 8px; color: #fff; font-weight: 600; font-size: 15px; text-decoration: none; } .ds-nav-login:hover span { text-decoration: underline; text-underline-offset: 5px; } .ds-nav a:focus-visible { outline: 2px solid #8c85ff; outline-offset: 3px; border-radius: 4px; }"
+    },
+    {
+      "name": "Bốn dấu mức tin cậy",
+      "kind": "custom",
+      "refersTo": "data-cell-exact",
+      "description": "Ô dữ liệu 32px: Chính xác (vàng), Ít nhất (sọc), Ẩn (viền đứt), Hết phòng (tím đậm), kèm trạng thái chọn và chú giải.",
+      "html": "<div class=\"ds-cells\"><div class=\"ds-cell-row\"><button type=\"button\" class=\"ds-cell ds-cell-exact\">3</button><button type=\"button\" class=\"ds-cell ds-cell-capped\">10</button><button type=\"button\" class=\"ds-cell ds-cell-hidden\" aria-label=\"Ẩn\"></button><button type=\"button\" class=\"ds-cell ds-cell-sold\" aria-pressed=\"true\">HẾT</button><button type=\"button\" class=\"ds-cell ds-cell-exact\">1</button><button type=\"button\" class=\"ds-cell ds-cell-capped\">20</button></div><ul class=\"ds-cell-legend\"><li><i class=\"ds-key ds-cell-exact\"></i> Chính xác</li><li><i class=\"ds-key ds-cell-capped\"></i> Ít nhất</li><li><i class=\"ds-key ds-cell-hidden\"></i> Ẩn</li><li><i class=\"ds-key ds-cell-sold\"></i> Hết phòng</li></ul></div>",
+      "css": ".ds-cells { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; gap: 14px; padding: 22px; background: #fff; border-radius: 20px; box-shadow: 0 1px 2px rgba(29, 30, 32, 0.06), 0 12px 32px -12px rgba(47, 28, 106, 0.18); } .ds-cell-row { display: flex; gap: 3px; } .ds-cell { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 6px; font: inherit; font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; color: #1d1e20; cursor: pointer; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s; } .ds-cell:hover { transform: translateY(-1px); box-shadow: 0 6px 12px -6px rgba(47, 28, 106, 0.55); } .ds-cell[aria-pressed='true'] { outline: 2.5px solid #673de6; outline-offset: 2px; } .ds-cell:focus-visible { outline: 2px solid #673de6; outline-offset: 3px; } .ds-cell-exact { background: #ffcd35; } .ds-cell-capped { background: repeating-linear-gradient(45deg, #d6cbff 0 2px, #ebe4ff 2px 6px); } .ds-cell-hidden { background: #fff; outline: 1.5px dashed #8c85ff; outline-offset: -1.5px; } .ds-cell-sold { background: #2f1c6a; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: 0.02em; } .ds-cell-legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 14px 0 0; list-style: none; border-top: 1px solid #e3e1f0; font-size: 13.5px; color: #5e6072; } .ds-cell-legend li { display: inline-flex; align-items: center; gap: 8px; } .ds-key { display: inline-block; width: 18px; height: 18px; border-radius: 5px; }"
+    },
+    {
+      "name": "Thẻ so sánh",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Thẻ trắng bo 16px trên nền sương; biến thể 'nóng' viền tím và huy hiệu vàng.",
+      "html": "<article class=\"ds-card\" data-tone=\"hot\"><div class=\"ds-card-top\"><span class=\"ds-card-name\">Khách sạn B</span><span class=\"ds-badge\">Chỉ còn 2 phòng</span></div><p class=\"ds-card-price\">1.200.000 ₫ <span>/ đêm thứ Bảy</span></p><div class=\"ds-rooms\"><i data-open=\"true\"></i><i data-open=\"true\"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class=\"ds-card-note\"><b>Còn 2 phòng.</b> Sắp kín, đây là đêm bạn có thể giữ hoặc tăng giá.</p></article>",
+      "css": ".ds-card { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; gap: 16px; max-width: 440px; padding: 28px; background: #fff; border: 1.5px solid transparent; border-radius: 16px; box-shadow: 0 1px 2px rgba(29, 30, 32, 0.06), 0 12px 32px -12px rgba(47, 28, 106, 0.18); color: #36344d; } .ds-card[data-tone='hot'] { border-color: #673de6; } .ds-card p { margin: 0; } .ds-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; } .ds-card-name { font-weight: 700; font-size: 18px; color: #1d1e20; } .ds-badge { padding: 4px 12px; border-radius: 999px; background: #ebe4ff; color: #5025d1; font-size: 13px; font-weight: 700; } .ds-card[data-tone='hot'] .ds-badge { background: #ffcd35; color: #1d1e20; } .ds-card-price { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: #1d1e20; font-variant-numeric: tabular-nums; } .ds-card-price span { font-size: 15px; font-weight: 500; letter-spacing: 0; color: #5e6072; } .ds-rooms { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; } .ds-rooms i { height: 26px; border-radius: 5px; background: #2f1c6a; } .ds-rooms i[data-open='true'] { background: #ffcd35; } .ds-card-note { font-size: 16px; color: #5e6072; } .ds-card-note b { color: #1d1e20; }"
+    },
+    {
+      "name": "Chip và huy hiệu",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Huy hiệu viên thuốc, chip mức tin cậy bản tin, chip bằng chứng.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip\">Còn nhiều phòng</span><span class=\"ds-chip ds-chip-exact\">Chỉ còn 2 phòng</span><span class=\"ds-conf\" data-level=\"high\">Tin cậy cao</span><span class=\"ds-conf\" data-level=\"medium\">Tin cậy vừa</span><span class=\"ds-evidence\"><b>Cát Vàng</b> <span>4 → 0 phòng</span></span></div>",
+      "css": ".ds-chips { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 20px; background: #f4f5ff; border-radius: 12px; } .ds-chip { padding: 4px 12px; border-radius: 999px; background: #ebe4ff; color: #5025d1; font-size: 13px; font-weight: 700; } .ds-chip-exact { background: #ffcd35; color: #1d1e20; } .ds-conf { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; } .ds-conf[data-level='high'] { background: rgba(0, 176, 144, 0.14); color: #008a70; } .ds-conf[data-level='medium'] { background: rgba(255, 205, 53, 0.3); color: #6b5200; } .ds-evidence { padding: 4px 10px; border-radius: 8px; background: #fff; border: 1px solid #e3e1f0; font-size: 12.5px; line-height: 1.4; color: #36344d; } .ds-evidence b { color: #1d1e20; } .ds-evidence span { color: #5e6072; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Câu hỏi thường gặp",
+      "kind": "custom",
+      "refersTo": "faq-item",
+      "description": "Accordion details/summary gốc, chevron tím xoay khi mở.",
+      "html": "<div class=\"ds-faq\"><details open><summary><span>Số phòng còn lại chính xác đến đâu?</span><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></summary><p>Mỗi con số đi kèm mức tin cậy: chính xác, ít nhất, ẩn hoặc hết. Tốc độ bán chỉ được tính từ các cặp số chính xác.</p></details><details><summary><span>Có theo dõi Agoda hay Expedia không?</span><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></summary><p>Hiện tại chỉ Booking.com.</p></details></div>",
+      "css": ".ds-faq { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; gap: 12px; max-width: 880px; } .ds-faq details { border: 1px solid #e3e1f0; border-radius: 12px; background: #fff; transition: border-color 0.2s, box-shadow 0.2s; } .ds-faq details:hover { border-color: #cfc6ff; } .ds-faq details[open] { border-color: #8c85ff; box-shadow: 0 1px 2px rgba(29, 30, 32, 0.06), 0 12px 32px -12px rgba(47, 28, 106, 0.18); } .ds-faq summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 24px; cursor: pointer; list-style: none; font-size: 17.5px; font-weight: 600; line-height: 1.4; color: #1d1e20; } .ds-faq summary::-webkit-details-marker { display: none; } .ds-faq summary:focus-visible { outline: 2px solid #673de6; outline-offset: 3px; border-radius: 4px; } .ds-faq summary svg { flex: none; color: #673de6; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); } .ds-faq details[open] summary svg { transform: rotate(180deg); } .ds-faq details p { margin: 0; padding: 0 24px 22px; font-size: 16px; line-height: 1.6; color: #5e6072; max-width: 68ch; }"
+    },
+    {
+      "name": "Khối lời mời + kênh liên hệ",
+      "kind": "card",
+      "refersTo": "channel-card",
+      "description": "Khối tím bo 28px có quầng; kênh liên hệ là thẻ trắng nhấc lên khi hover.",
+      "html": "<div class=\"ds-cta\"><a href=\"#\" class=\"ds-channel\"><span class=\"ds-channel-icon\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 4.5h3.2l1.6 4-2 1.3a10.5 10.5 0 0 0 6.4 6.4l1.3-2 4 1.6V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 6.1 1.5 1.5 0 0 1 5 4.5z\"/></svg></span><span class=\"ds-channel-text\"><span class=\"ds-channel-label\">Gọi điện</span><span class=\"ds-channel-value\">[số điện thoại]</span></span><span class=\"ds-channel-arrow\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></span></a><p class=\"ds-channels-empty\">Thông tin liên hệ đang được cập nhật.</p></div>",
+      "css": ".ds-cta { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; gap: 12px; max-width: 460px; padding: 40px; border-radius: 28px; background: radial-gradient(60% 90% at 100% 100%, rgba(140, 133, 255, 0.55), transparent 70%), radial-gradient(50% 70% at 0% 0%, rgba(47, 28, 106, 0.6), transparent 70%), #673de6; color: #efeaff; } .ds-channel { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 14px; background: #fff; color: #1d1e20; text-decoration: none; box-shadow: 0 16px 30px -18px rgba(22, 18, 58, 0.7); transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s; } .ds-channel:hover { transform: translateY(-2px); box-shadow: 0 22px 36px -18px rgba(22, 18, 58, 0.8); } .ds-channel:focus-visible { outline: 3px solid #fff; outline-offset: 3px; } .ds-channel-icon { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: #ebe4ff; color: #673de6; } .ds-channel-text { display: grid; min-width: 0; } .ds-channel-label { font-size: 13px; font-weight: 600; color: #5e6072; } .ds-channel-value { font-size: 19px; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; } .ds-channel-arrow { margin-left: auto; display: grid; color: #673de6; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-channel:hover .ds-channel-arrow { transform: translateX(4px); } .ds-channels-empty { margin: 0; padding: 20px 22px; border: 1.5px dashed rgba(255, 255, 255, 0.6); border-radius: 14px; font-size: 16px; }"
+    },
+    {
+      "name": "App · Nút",
+      "kind": "button",
+      "refersTo": "app-button-primary",
+      "description": "Nút app bo 8px cao 36px: chính (tím), phụ (trắng vòng đường tóc đậm), lặng (chữ tím), nguy hiểm. Không nhấc, không quầng.",
+      "html": "<div class=\"ds-app-btns\"><button type=\"button\" class=\"ds-app-btn ds-app-btn-primary\">Thêm khách sạn</button><button type=\"button\" class=\"ds-app-btn ds-app-btn-secondary\">Sửa</button><button type=\"button\" class=\"ds-app-btn ds-app-btn-quiet\">Xem tất cả</button><button type=\"button\" class=\"ds-app-btn ds-app-btn-danger\">Xoá</button></div>",
+      "css": ".ds-app-btns { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; flex-wrap: wrap; gap: 8px; } .ds-app-btn { font: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 150ms, box-shadow 150ms, color 150ms, transform 150ms; } .ds-app-btn:focus-visible { outline: 2px solid #673de6; outline-offset: 2px; } .ds-app-btn-primary { background: #673de6; color: #fff; box-shadow: 0 1px 2px rgba(47, 28, 106, 0.25); } .ds-app-btn-primary:hover { background: #5025d1; } .ds-app-btn-primary:active { transform: translateY(1px); } .ds-app-btn-secondary { background: #fff; color: #1d1e20; box-shadow: inset 0 0 0 1px #cfcce4; } .ds-app-btn-secondary:hover { background: #f8f8fd; } .ds-app-btn-secondary:active { background: #eeeef9; } .ds-app-btn-quiet { background: transparent; color: #673de6; } .ds-app-btn-quiet:hover { background: #f4f0ff; color: #5025d1; } .ds-app-btn-danger { background: #fff; color: #c2334f; box-shadow: inset 0 0 0 1px rgba(194, 51, 79, 0.35); } .ds-app-btn-danger:hover { background: #fdecef; }"
+    },
+    {
+      "name": "App · Ô nhập + nhóm chọn",
+      "kind": "input",
+      "refersTo": "app-input",
+      "description": "Ô nhập 36px viền đường tóc đậm, focus viền tím + vòng 3px; nhóm chọn 14/30/60 đêm trên rãnh lõm.",
+      "html": "<div class=\"ds-app-form\"><label class=\"ds-app-field\"><span>Link Booking.com</span><input class=\"ds-app-input\" placeholder=\"https://www.booking.com/hotel/vn/…\"></label><div class=\"ds-app-seg\" role=\"radiogroup\" aria-label=\"Số đêm\"><button type=\"button\" role=\"radio\" aria-checked=\"false\">14 đêm</button><button type=\"button\" role=\"radio\" aria-checked=\"true\">30 đêm</button><button type=\"button\" role=\"radio\" aria-checked=\"false\">60 đêm</button></div></div>",
+      "css": ".ds-app-form { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; gap: 16px; max-width: 420px; } .ds-app-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #36344d; } .ds-app-input { font: inherit; height: 36px; padding: 0 12px; border: 1px solid #cfcce4; border-radius: 8px; background: #fff; color: #1d1e20; font-size: 14px; font-weight: 400; box-shadow: inset 0 1px 1px rgba(22, 18, 58, 0.04); transition: border-color 150ms, box-shadow 150ms; } .ds-app-input::placeholder { color: #8a89a0; } .ds-app-input:focus { outline: none; border-color: #673de6; box-shadow: 0 0 0 3px rgba(103, 61, 230, 0.15); } .ds-app-seg { display: inline-flex; justify-self: start; padding: 2px; border-radius: 8px; background: #eeeef9; } .ds-app-seg button { font: inherit; height: 32px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: #5e6072; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 150ms, color 150ms, box-shadow 150ms; } .ds-app-seg button:hover { color: #1d1e20; } .ds-app-seg button[aria-checked='true'] { background: #fff; color: #1d1e20; box-shadow: 0 1px 2px rgba(22, 18, 58, 0.12), 0 0 0 1px rgba(22, 18, 58, 0.04); } .ds-app-seg button:focus-visible { outline: 2px solid #673de6; outline-offset: 2px; }"
+    },
+    {
+      "name": "App · Thanh bên",
+      "kind": "nav",
+      "refersTo": "app-sidebar",
+      "description": "Thanh bên tím than 248px: logo mặt tiền, mục 40px, mục đang chọn nền trắng 9% biểu tượng tím quầng, khối độ mới dữ liệu.",
+      "html": "<nav class=\"ds-app-side\" aria-label=\"Điều hướng chính\"><div class=\"ds-app-brand\"><svg viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"26\" height=\"26\" rx=\"7\" fill=\"#673de6\"/><rect x=\"6.5\" y=\"8\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#fff\" opacity=\".9\"/><rect x=\"12\" y=\"8\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffcd35\"/><rect x=\"17.5\" y=\"8\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#fff\" opacity=\".9\"/><rect x=\"6.5\" y=\"14.5\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#fff\" opacity=\".9\"/><rect x=\"12\" y=\"14.5\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#fff\" opacity=\".9\"/><rect x=\"17.5\" y=\"14.5\" width=\"4\" height=\"4.5\" rx=\"1\" fill=\"#ffcd35\"/></svg><span>SCRAPEBOOKING</span></div><a href=\"#\" class=\"ds-app-nav\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3.5\" y=\"4\" width=\"17\" height=\"16\" rx=\"2.5\"/><path d=\"M3.5 9.5h17M9 9.5V20M14.5 9.5V20\"/></svg>Tổng quan</a><a href=\"#\" class=\"ds-app-nav\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12h3.5l2.5-6 4 12 2.5-6H21\"/></svg>Sự kiện</a><a href=\"#\" class=\"ds-app-nav\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 3.5h9l3.5 3.5v13.5H6z\"/><path d=\"M14.5 3.5V7.5h4M9 11.5h6.5M9 15h6.5M9 18h4\"/></svg>Bản tin AI</a><div class=\"ds-app-fresh\"><div><i></i><b>Quét lúc 14:06 hôm nay</b></div><small>Lượt tiếp theo 22:00</small></div></nav>",
+      "css": ".ds-app-side { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; flex-direction: column; gap: 2px; width: 248px; padding: 0 12px 16px; background: #16123a; color: #d5d1ef; border-radius: 12px; } .ds-app-brand { display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 8px; color: #fff; font-size: 13.5px; font-weight: 800; letter-spacing: 0.08em; } .ds-app-nav { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; color: #d5d1ef; font-size: 15px; font-weight: 500; text-decoration: none; transition: background-color 150ms, color 150ms; } .ds-app-nav svg { color: #a7a2d2; } .ds-app-nav:hover { background: rgba(255, 255, 255, 0.05); color: #fff; } .ds-app-nav[aria-current='page'] { background: rgba(255, 255, 255, 0.09); color: #fff; } .ds-app-nav[aria-current='page'] svg { color: #8c85ff; } .ds-app-nav:focus-visible { outline: 2px solid #8c85ff; outline-offset: 2px; } .ds-app-fresh { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); font-size: 12px; line-height: 1.6; } .ds-app-fresh div { display: flex; align-items: center; gap: 8px; } .ds-app-fresh i { width: 8px; height: 8px; border-radius: 50%; background: #00b090; box-shadow: 0 0 0 3px rgba(0, 176, 144, 0.18); } .ds-app-fresh b { font-weight: 400; color: #fff; } .ds-app-fresh small { display: block; padding-left: 16px; font-size: 12px; color: #a7a2d2; }"
+    },
+    {
+      "name": "App · Nhãn trạng thái",
+      "kind": "chip",
+      "refersTo": "app-badge",
+      "description": "Viên thuốc 22px có chấm: xanh (tin cậy cao, của bạn), cảnh báo (giảm phòng), lam (có phòng lại), xám (giá), tím đậm (Hết phòng, chấm vàng).",
+      "html": "<div class=\"ds-app-badges\"><span class=\"ds-app-badge ds-b-plum\"><i></i>Hết phòng</span><span class=\"ds-app-badge ds-b-amber\"><i></i>Giảm phòng</span><span class=\"ds-app-badge ds-b-blue\"><i></i>Có phòng lại</span><span class=\"ds-app-badge ds-b-gray\"><i></i>Tăng giá</span><span class=\"ds-app-badge ds-b-green\"><i></i>Tin cậy cao</span><span class=\"ds-app-yours\">Của bạn</span></div>",
+      "css": ".ds-app-badges { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; } .ds-app-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; } .ds-app-badge i { width: 6px; height: 6px; border-radius: 50%; } .ds-b-plum { background: #2f1c6a; color: #fff; } .ds-b-plum i { background: #ffcd35; } .ds-b-amber { background: #fff4d1; color: #7a5200; } .ds-b-amber i { background: #7a5200; } .ds-b-blue { background: #f4f0ff; color: #5025d1; } .ds-b-blue i { background: #673de6; } .ds-b-gray { background: #eeeef9; color: #5e6072; } .ds-b-gray i { background: #8a89a0; } .ds-b-green { background: #ddf5ef; color: #007a63; } .ds-b-green i { background: #00b090; } .ds-app-yours { padding: 1px 8px; border-radius: 999px; background: #ddf5ef; color: #007a63; font-size: 12px; font-weight: 600; }"
+    },
+    {
+      "name": "App · Dải số đo",
+      "kind": "card",
+      "refersTo": "app-stat-cell",
+      "description": "Một khối bo 12px chia ô bằng khe đường tóc 1px; nhãn 13px, giá trị 20px/700 thẳng cột theo tông.",
+      "html": "<dl class=\"ds-app-stats\"><div><dt>Rex (của tôi) đêm nay</dt><dd>Còn 7 phòng</dd><dd class=\"ds-h\">Giá thấp nhất 4.000.577 ₫</dd></div><div><dt>Đối thủ hết phòng đêm nay</dt><dd>0/3</dd><dd class=\"ds-h\">7 đêm tới: chưa đối thủ nào hết phòng</dd></div><div><dt>Giá của bạn so với trung vị</dt><dd class=\"ds-warn\">Thấp hơn 47%</dd><dd class=\"ds-h\">Trung bình 7 đêm tới</dd></div><div><dt>Đêm bạn còn ≤ 3 phòng</dt><dd>11 đêm</dd><dd class=\"ds-h\">T7 26/09, T3 06/10…</dd></div></dl>",
+      "css": ".ds-app-stats { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0; overflow: hidden; border: 1px solid #e3e1f0; border-radius: 12px; background: #e3e1f0; box-shadow: 0 1px 2px rgba(29, 30, 32, 0.05), 0 10px 28px -18px rgba(47, 28, 106, 0.22); } .ds-app-stats > div { padding: 16px 20px; background: #fff; } .ds-app-stats dt { font-size: 13px; color: #5e6072; } .ds-app-stats dd { margin: 4px 0 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: #1d1e20; font-variant-numeric: tabular-nums; } .ds-app-stats dd.ds-warn { color: #7a5200; } .ds-app-stats dd.ds-h { margin-top: 2px; font-size: 12px; font-weight: 400; letter-spacing: 0; color: #5e6072; }"
+    },
+    {
+      "name": "App · Dải khách sạn + dò một đêm",
+      "kind": "custom",
+      "refersTo": "strip-cell-exact-scarce",
+      "description": "Thẻ khách sạn của bạn: dải ô 32px bốn dấu, vàng đậm dần khi ít phòng, cột đang dò viền tím; trục đêm cuối tuần là ô lõm chữ mực.",
+      "html": "<section class=\"ds-strip\" aria-label=\"Rex (của tôi)\"><header><i></i><b>Rex (của tôi)</b><span class=\"ds-yours\">Của bạn</span><a href=\"#\">Chi tiết →</a></header><div class=\"ds-axis\" aria-hidden=\"true\"><span>T6<b>25</b></span><span class=\"we\">T7<b>26</b></span><span class=\"we\">CN<b>27</b></span><span class=\"on\">T2<b>28</b></span><span>T3<b>29</b></span><span>T4<b>30</b></span><span>T5<b>1</b></span><span>T6<b>2</b></span></div><div class=\"ds-row\"><a href=\"#\" class=\"c e2\">7</a><a href=\"#\" class=\"c e3\">3</a><a href=\"#\" class=\"c h\" aria-label=\"Còn phòng, không lộ số\"></a><a href=\"#\" class=\"c e3 on\">1</a><a href=\"#\" class=\"c s\">HẾT</a><a href=\"#\" class=\"c e1\">14</a><a href=\"#\" class=\"c u\">?</a><a href=\"#\" class=\"c n\" aria-label=\"Chưa quét\"></a></div></section>",
+      "css": ".ds-strip { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; max-width: 420px; padding: 14px 20px; border: 1px solid rgba(0, 176, 144, 0.35); border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 176, 144, 0.1), 0 1px 2px rgba(29, 30, 32, 0.05), 0 10px 28px -18px rgba(47, 28, 106, 0.22); } .ds-strip header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; } .ds-strip header i { width: 10px; height: 10px; border-radius: 50%; background: #00b090; box-shadow: 0 0 0 3px rgba(0, 176, 144, 0.18); } .ds-strip header b { font-size: 15px; color: #1d1e20; } .ds-yours { padding: 1px 8px; border-radius: 999px; background: #ddf5ef; color: #007a63; font-size: 12px; font-weight: 600; } .ds-strip header a { margin-left: auto; padding: 4px 6px; border-radius: 6px; color: #673de6; font-size: 13px; font-weight: 600; text-decoration: none; } .ds-strip header a:hover { background: #f4f0ff; } .ds-axis, .ds-row { display: grid; grid-template-columns: repeat(8, minmax(28px, 1fr)); column-gap: 3px; } .ds-axis { margin-bottom: 6px; } .ds-axis span { display: flex; flex-direction: column; align-items: center; padding: 2px 0; border-radius: 6px; font-size: 11px; color: #5e6072; line-height: 1.3; } .ds-axis b { font-size: 13px; color: #1d1e20; font-variant-numeric: tabular-nums; } .ds-axis .we { background: #eeeef9; font-weight: 600; color: #1d1e20; } .ds-axis .we b { font-weight: 800; } .ds-axis .on { background: #673de6; color: #fff; } .ds-axis .on b { color: #fff; } .c { display: grid; place-items: center; height: 32px; border-radius: 6px; color: #1d1e20; font-size: 13px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; text-decoration: none; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1); } .c:hover { transform: translateY(-1px); box-shadow: 0 6px 12px -6px rgba(47, 28, 106, 0.55); } .c:focus-visible, .c.on { outline: 2px solid #673de6; outline-offset: 1px; } .e3 { background: #ffcd35; } .e2 { background: #ffe28a; } .e1 { background: #fff3cc; } .h { background: #fff; outline: 1.5px dashed #8c85ff; outline-offset: -1.5px; } .s { background: #2f1c6a; color: #fff; font-size: 9px; letter-spacing: 0.02em; } .u { background: #eeeef9; color: #5e6072; } .n { background: transparent; box-shadow: inset 0 0 0 1px #e3e1f0; }"
+    },
+    {
+      "name": "App · Thẻ",
+      "kind": "card",
+      "refersTo": "app-card",
+      "description": "Thẻ app bo 12px, viền đường tóc, bóng thẻ dịu; đầu thẻ có đường chia, thân đệm 20px.",
+      "html": "<section class=\"ds-app-card\"><header><div><h3>Khách sạn đang theo dõi</h3><p>Thêm bằng link Booking.com</p></div><button type=\"button\">Thêm</button></header><div class=\"ds-app-card-body\">Chưa có đối thủ nào. Dán link trang khách sạn trên Booking.com để bắt đầu quét ở lượt tiếp theo.</div></section>",
+      "css": ".ds-app-card { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; max-width: 460px; border: 1px solid #e3e1f0; border-radius: 12px; background: #fff; color: #36344d; box-shadow: 0 1px 2px rgba(29, 30, 32, 0.05), 0 10px 28px -18px rgba(47, 28, 106, 0.22); } .ds-app-card header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 20px; border-bottom: 1px solid #e3e1f0; } .ds-app-card h3 { margin: 0; font-size: 15px; font-weight: 700; color: #1d1e20; } .ds-app-card p { margin: 2px 0 0; font-size: 13px; color: #5e6072; } .ds-app-card button { font: inherit; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: #673de6; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 150ms; } .ds-app-card button:hover { background: #5025d1; } .ds-app-card button:focus-visible { outline: 2px solid #673de6; outline-offset: 2px; } .ds-app-card-body { padding: 20px; font-size: 14px; line-height: 1.6; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Đếm ô cửa sáng",
+    "overview": "Logo là một mặt tiền 3×2 ô cửa, hai ô sáng màu vàng; dải ảnh giữa trang viết \"Mỗi ô cửa sáng là một phòng chưa bán\". Cả hệ thống kể đúng một hình ảnh đó: một thị trường khách sạn về đêm (nền tím than có quầng tím), và những ô sáng được đếm lại ba lần mỗi ngày. Khung trang giới thiệu là landing SaaS chuẩn ngành theo tham chiếu Hostinger, do người dùng chọn thay cho hướng \"tranh in đá Đông Dương\": đầu trang tối có ảnh ghép sản phẩm, các phần sáng xen kẽ với thẻ trắng bo tròn, khối lời mời tím, chân trang tối. Chuẩn ngành là lựa chọn có chủ ý: khách sạn vãng lai phải nhận ra ngay đây là một dịch vụ phần mềm nghiêm túc, rồi mới đọc tới phần dữ liệu.\n\nChỗ riêng của hệ thống nằm ở dữ liệu. Sản phẩm tự trình bày: các mảnh giao diện thật (bảng phòng mini, bản tin đang gõ, công tắc lượt quét) nổi trên ảnh bờ biển Mỹ Khê; bảng 30 đêm bấm được; bản tin mẫu có bằng chứng. Mọi con số phòng còn mang một trong bốn dấu mức tin cậy, và dấu đó giống nhau ở chú giải, bảng lớn, bảng mini, bảng chi tiết và mọi màn hình app. Dữ liệu minh hoạ luôn được ghi rõ là minh hoạ.\n\nMật độ hai tầng trên trang giới thiệu: khoảng thở rộng ở cấp phần (đệm dọc tới 120px, đầu phần căn giữa, rộng tối đa 780px), dày đặc có kiểm soát ở cấp dữ liệu (ô 32px, 30 cột, số thẳng cột). Chỉ một họ chữ, Be Vietnam Pro, dấu tiếng Việt chuẩn ở mọi cỡ.\n\nTrong app, cùng thế giới đó chuyển sang giọng Operate: một bảng thị trường theo từng khách sạn. Khung là thanh bên tím than 248px mang logo mặt tiền; nền làm việc là sương tím; mỗi khách sạn là một thẻ trắng bo 12px chứa dải 30 đêm mang bốn dấu và một đường giá đặt trên cùng trục đêm. App từ chối giao diện admin Tailwind mặc định: không bảng số trơn, không nhãn kỹ thuật phơi ra cho chủ khách sạn. Luồng đọc: mở app → đọc đêm nay và 7 đêm tới trong một dải số đo → dò một đêm qua cả chồng → bấm ô vào chi tiết đêm → đọc bản tin AI với bằng chứng bấm được. Chữ ký là \"dò một đêm\": rê chuột hoặc Tab vào một cột đêm, cột đó sáng qua mọi thẻ và một bảng đọc liệt kê mọi khách sạn đêm đó.",
+    "keyCharacteristics": [
+      "Nhịp nền (trang giới thiệu): tím than → sương tím nhạt / trắng xen kẽ → khối tím → tím than.",
+      "Tím `#673de6` là màu hành động duy nhất; vàng, tím đậm, gạch chéo, viền đứt là mã dữ liệu, không phải trang trí.",
+      "Thẻ trắng bo 16–20px nổi nhẹ trên nền sáng; quầng tím chỉ sống trên nền tối và khối lời mời (trang giới thiệu).",
+      "Ảnh chụp màu thật, bo góc, có ghi nguồn Unsplash ở chân trang.",
+      "Giao diện sản phẩm là hình minh hoạ chính, không có hình vẽ trừu tượng.",
+      "Chuyển động ít và có nghĩa: bản tin gõ chữ, lượt quét 06:00 → 14:00 → 22:00 chạy vòng; tắt hết khi người dùng yêu cầu giảm chuyển động.",
+      "App: thanh bên tím than, nền sương, thẻ trắng bo 12px viền đường tóc, bóng thẻ dịu; không quầng, không kính.",
+      "App: một trục đêm chung, dính trên cùng, cho cả chồng thẻ khách sạn; vàng đậm dần khi phòng càng ít.",
+      "App: thông tin kỹ thuật (token, chi phí, mô hình AI, probe, chặn, lỗi, mã lượt quét) chỉ operator thấy."
+    ],
+    "rules": [
+      {
+        "name": "Quy tắc Bốn dấu",
+        "body": "Mọi con số phòng còn đều mang đúng một trong bốn dấu: vàng đặc = chính xác; sọc tím nhạt = ít nhất (số trong ô là mức sàn, hiển thị \"≥N\" ở bảng chi tiết); nền trắng viền đứt 1.5px tím quầng = ẩn (còn phòng, không lộ số, ô để trống); tím đậm có chữ \"HẾT\" = hết phòng. Không có dấu thứ năm, không hiện số mà không có dấu, và bảng nào dùng dấu thì có chú giải ngay bên dưới. Trong app, hai trạng thái chất lượng dữ liệu đứng ngoài bốn dấu và không bao giờ mang số phòng: ô lõm xám có \"?\" = không đọc được (bị chặn hoặc lỗi); ô trong suốt viền đường tóc = chưa quét. Chú giải mức khách sạn liệt kê cả hai; chú giải mức loại phòng liệt kê đúng bốn dấu.",
+        "section": "colors"
+      },
+      {
+        "name": "Quy tắc Tím là để bấm",
+        "body": "Tím lượt quét đánh dấu thứ người dùng có thể bấm hoặc đang được chọn. Hết phòng dùng tím đậm `#2f1c6a`, đủ xa để hai nghĩa không lẫn vào nhau.",
+        "section": "colors"
+      },
+      {
+        "name": "Quy tắc Xanh là của bạn",
+        "body": "Xanh dấu tích chỉ gắn với khách sạn của người xem và những điều đã xác nhận. Không dùng xanh để mã hoá tình trạng phòng của đối thủ.",
+        "section": "colors"
+      },
+      {
+        "name": "Quy tắc Vàng theo độ khan (app)",
+        "body": "Trong dải khách sạn, ô \"Chính xác\" đậm dần khi phòng càng ít: ≤3 phòng vàng đặc `exact-amber`, 4–10 phòng `exact-amber-mid`, >10 phòng `exact-amber-light`. Cả ba vẫn là một dấu; số luôn in trong ô, chữ mực.",
+        "section": "colors"
+      },
+      {
+        "name": "Quy tắc Cuối tuần là mực (app)",
+        "body": "Thứ bảy và chủ nhật trên trục đêm là chữ mực đậm 800 trên ô lõm, không bao giờ tím, để tím chỉ còn nghĩa \"đang chọn\".",
+        "section": "colors"
+      },
+      {
+        "name": "Quy tắc Chuỗi không mượn nghĩa (app)",
+        "body": "Bảng chuỗi biểu đồ không có xanh lá (của bạn) và vàng (chính xác). Giá trị là mức sàn \"≥N\" vẽ bằng chấm rỗng, kèm chú giải \"Chấm rỗng: ít nhất\".",
+        "section": "colors"
+      },
+      {
+        "name": "Quy tắc Một họ chữ",
+        "body": "Chỉ Be Vietnam Pro. Không thêm serif, mono hay họ chữ hiển thị thứ hai; cần nhấn thì đổi độ đậm hoặc cỡ. Ngoại lệ duy nhất (app): mono hệ thống `ui-monospace` 12px, không nạp font, cho mã máy (trigger key, mã lượt quét) trên màn hình chỉ operator thấy.",
+        "section": "typography"
+      },
+      {
+        "name": "Quy tắc Số thẳng cột",
+        "body": "Mọi con số được so sánh hoặc thay đổi theo thời gian (ô bảng, giá, giờ quét, trục biểu đồ, số liệu thống kê, kênh liên hệ) dùng `font-variant-numeric: tabular-nums`.",
+        "section": "typography"
+      },
+      {
+        "name": "Quy tắc Nhãn viết thường (app)",
+        "body": "Mọi nhãn trong app viết như câu: đầu bảng, nhãn số đo, nhóm \"Vận hành\" trên thanh bên, nhãn huy hiệu. Chữ hoa chỉ dành cho wordmark và mã quốc gia; không có kicker hay eyebrow.",
+        "section": "typography"
+      },
+      {
+        "name": "Quy tắc Một trục (app)",
+        "body": "Mọi thứ đo theo đêm trên một màn hình dùng chung một lưới cột; không thẻ nào tự co giãn trục riêng. Khi không vừa, cả chồng cuộn cùng nhau, không cuộn từng thẻ.",
+        "section": "layout"
+      },
+      {
+        "name": "Quy tắc Quầng chỉ ở nền tối",
+        "body": "Quầng tím hướng tâm chỉ xuất hiện trên mặt tím than và trong khối lời mời tím. Phần sáng luôn phẳng: sương hoặc trắng đặc.",
+        "section": "elevation"
+      },
+      {
+        "name": "Quy tắc Kính chỉ trên ảnh",
+        "body": "Lớp kính mờ (`backdrop-filter: blur`) chỉ dùng cho mảnh giao diện nổi trên ảnh đầu trang (bảng phòng mini, công tắc lượt quét), nơi nó để ảnh còn thấy được. Không dùng kính cho thẻ trên nền phẳng. Trong app, làm mờ nền chỉ xuất hiện sau dải dính đục 95% (trục đêm, tiêu đề nhóm lượt quét) và lớp phủ ngăn kéo (2px), để nội dung cuộn bên dưới không lẫn vào chữ; không bao giờ là một thẻ kính.",
+        "section": "elevation"
+      },
+      {
+        "name": "Quy tắc Không quầng trong app",
+        "body": "Màn hình sau đăng nhập không có quầng, gradient trang trí hay bóng nút phát sáng; chiều sâu chỉ là sương → thẻ trắng viền đường tóc → vật nổi.",
+        "section": "elevation"
+      },
+      {
+        "name": "Quy tắc Bo theo cỡ",
+        "body": "Vật càng lớn góc càng tròn; không bo một ô dữ liệu tròn như thẻ, không bo khối lời mời vuông như nút.",
+        "section": "shapes"
+      },
+      {
+        "name": "Quy tắc Trần 12px (app)",
+        "body": "Không vật nào trong app bo quá 12px (trừ viên thuốc và hình tròn); bo 16–28px là giọng của trang giới thiệu.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Nên** ghi rõ mọi bảng, biểu đồ, bản tin dựng từ dữ liệu tổng hợp là minh hoạ, bằng dòng ghi chú 13px chữ phụ ngay dưới nó, và dùng tên khách sạn giả định.",
+      "**Nên** hiển thị mọi con số phòng còn với một trong bốn dấu (vàng, sọc tím nhạt, viền đứt, tím đậm \"HẾT\") và đặt chú giải cạnh bảng.",
+      "**Nên** đặt khách sạn của người xem ở hàng trên cùng, đánh dấu chấm xanh, tách khỏi đối thủ bằng một đường tóc.",
+      "**Nên** giữ một nút chính tím bo 8px cho mỗi khối, hành động chính luôn là liên hệ (\"Liên hệ tư vấn\") (trang giới thiệu).",
+      "**Nên** xen kẽ nền sương `#f4f5ff` và trắng giữa các phần sáng, thẻ trắng bo 16–20px với bóng thẻ dịu (trang giới thiệu).",
+      "**Nên** dùng `tabular-nums` cho mọi số liệu, giờ, giá.",
+      "**Nên** giữ vòng focus 2px lệch 3px, đổi màu theo nền (tím trên sáng, tím quầng trên tím than, trắng trên khối tím) (trang giới thiệu); trong app vòng 2px tím lệch 2px bo 6px, tím quầng trên thanh bên.",
+      "**Nên** tắt mọi chuyển động khi `prefers-reduced-motion: reduce` và cho nội dung động hiện trạng thái cuối ngay.",
+      "**Nên** ghi nguồn ảnh Unsplash ở chân trang cho mọi ảnh đang dùng.",
+      "**Nên** dựng màn hình app trên nền sương với thẻ trắng bo 12px, viền đường tóc 1px và bóng thẻ app; khung là thanh bên tím than 248px.",
+      "**Nên** đặt mọi dữ liệu theo đêm trên một lưới cột chung (khe 3px, tối thiểu 28px/cột) để \"dò một đêm\" sáng đúng một cột qua cả chồng.",
+      "**Nên** tô ô \"Chính xác\" theo độ khan: ≤3 vàng đặc, 4–10 vàng vừa, >10 vàng nhạt.",
+      "**Nên** in cuối tuần bằng chữ mực đậm trên ô lõm, không tím.",
+      "**Nên** viết nhãn bằng lời của chủ khách sạn (\"Còn 7 phòng\", \"Đêm 26/09\", \"Thấp hơn 47%\") và gói thông tin kỹ thuật trong khối \"Chi tiết kỹ thuật\" chỉ operator thấy.",
+      "**Nên** dùng bảng chuỗi `series-1…8` theo thứ tự cố định cho biểu đồ nhiều loại phòng và vẽ mức sàn bằng chấm rỗng.",
+      "**Nên** cho mỗi trạng thái rỗng một câu nói vì sao trống và một bước tiếp theo."
+    ],
+    "donts": [
+      "**Không** bịa giá, số đánh giá, sao, lời chứng thực, logo khách hàng, số liệu hiệu quả hay cam kết hoàn tiền; chỗ giá luôn là \"Liên hệ báo giá\".",
+      "**Không** dùng logo, màu nhận diện hay tên Hostinger; không dùng logo hay nhận diện Booking.com, chỉ nhắc tên để nói nguồn dữ liệu.",
+      "**Không** dùng vàng, tím đậm, sọc hay viền đứt để trang trí; bốn dấu đó chỉ mang nghĩa mức tin cậy.",
+      "**Không** hiện kênh liên hệ với số hay email chưa cấu hình; thiếu thì hiện hộp \"đang được cập nhật\".",
+      "**Không** thêm họ chữ thứ hai.",
+      "**Không** đặt quầng tím trên phần sáng, không dùng kính mờ ngoài ảnh ghép đầu trang.",
+      "**Không** đặt nhãn chữ hoa nhỏ (kicker, eyebrow) phía trên tiêu đề phần; đầu phần chỉ gồm H2 và đoạn dẫn.",
+      "**Không** để trang cuộn ngang; bảng rộng cuộn trong khung của chính nó.",
+      "**Không** mang bo 16–28px, quầng tím, quầng nút, nhấc nút hay kính mờ của trang giới thiệu vào màn hình app; app dừng ở bo 12px và bóng thẻ dịu.",
+      "**Không** dựng Tổng quan thành bảng số trơn hay lưới thẻ KPI kiểu admin Tailwind mặc định; mỗi khách sạn là một dải mang dấu.",
+      "**Không** dùng xanh lá hay vàng trong chuỗi biểu đồ; trong app không tô tím cho cuối tuần hay để trang trí.",
+      "**Không** cho tenant thấy token, chi phí, mô hình AI, probe, chặn, lỗi hay mã lượt quét.",
+      "**Không** dùng giá trị hex rời (`bg-[#…]`) trong app; màu mới phải thành biến `--sb-*` trước.",
+      "**Không** dùng viền màu bên trái cho ghi chú hay thẻ."
+    ]
+  }
+}

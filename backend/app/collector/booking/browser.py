@@ -4,8 +4,13 @@ from datetime import date
 from playwright.async_api import async_playwright
 
 from app.collector.booking.parser import parse_hotel_page
-from app.collector.booking.playwright_bootstrap import ChallengeNotSolved, wait_until_ready
+from app.collector.booking.playwright_bootstrap import (
+    ChallengeNotSolved,
+    browser_user_agent,
+    wait_until_ready,
+)
 from app.collector.booking.results import failed_result, probe_result_from_page
+from app.collector.booking.selectors import dates_dropped, shown_other_checkin
 from app.collector.booking.urls import build_hotel_url, currency_for
 from app.collector.proxy import ProxyProvider
 from app.domain.models import CalendarResult, HotelRef, ProbeMethod, ProbeResult, ProbeStatus
@@ -44,7 +49,9 @@ class BrowserCollector:
                 },
             )
             try:
-                context = await browser.new_context(locale="en-GB")
+                context = await browser.new_context(
+                    locale="en-GB", user_agent=await browser_user_agent(browser)
+                )
                 page = await context.new_page()
                 await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
                 try:
@@ -62,6 +69,30 @@ class BrowserCollector:
                         duration_ms=int((time.monotonic() - t0) * 1000),
                     )
                 html = await page.content()
+                other = shown_other_checkin(html, checkin)
+                if other is not None:
+                    return failed_result(
+                        ProbeStatus.ERROR,
+                        method=ProbeMethod.BROWSER,
+                        checkin=checkin,
+                        nights=nights,
+                        adults=adults,
+                        error=f"booking showed other dates: checkin {other}",
+                        session_id=f"browser:{proxy.id}",
+                        duration_ms=int((time.monotonic() - t0) * 1000),
+                    )
+                if dates_dropped(html):
+                    log.warning("browser_probe_dates_dropped", hotel=hotel.id, checkin=str(checkin))
+                    return failed_result(
+                        ProbeStatus.BLOCKED,
+                        method=ProbeMethod.BROWSER,
+                        checkin=checkin,
+                        nights=nights,
+                        adults=adults,
+                        error="dates dropped (soft block)",
+                        session_id=f"browser:{proxy.id}",
+                        duration_ms=int((time.monotonic() - t0) * 1000),
+                    )
             except Exception as exc:  # noqa: BLE001
                 return failed_result(
                     ProbeStatus.ERROR,
@@ -75,7 +106,7 @@ class BrowserCollector:
                 )
             finally:
                 await browser.close()
-        parsed = parse_hotel_page(html, currency)
+        parsed = parse_hotel_page(html, currency, adults)
         return probe_result_from_page(
             parsed,
             method=ProbeMethod.BROWSER,

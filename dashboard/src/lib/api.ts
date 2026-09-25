@@ -6,6 +6,7 @@
  * - Operator: tự gắn `tenant_id` vào mọi endpoint theo tenant khi đã chọn tenant.
  */
 import type { components } from "./api-types";
+import { fieldLabel, translateError } from "./errors";
 
 export type Schemas = components["schemas"];
 export type UserOut = Schemas["UserOut"];
@@ -52,14 +53,18 @@ export class ApiError extends Error {
 
 /** Chuyển `detail` của FastAPI (chuỗi hoặc mảng lỗi validation) thành câu đọc được. */
 export function detailToMessage(detail: unknown, status?: number): string {
-  if (typeof detail === "string" && detail) return detail;
+  if (typeof detail === "string" && detail) return translateError(detail);
   if (Array.isArray(detail)) {
     const parts = detail
       .map((item) => {
         if (item && typeof item === "object" && "msg" in item) {
           const v = item as ValidationErrorItem;
-          const loc = (v.loc ?? []).filter((p) => p !== "body" && p !== "query").join(".");
-          return loc ? `${loc}: ${v.msg}` : v.msg;
+          const loc = (v.loc ?? [])
+            .filter((p) => p !== "body" && p !== "query")
+            .map((p) => fieldLabel(String(p)))
+            .join(".");
+          const msg = translateError(v.msg);
+          return loc ? `${loc}: ${msg}` : msg;
         }
         return String(item);
       })
@@ -78,8 +83,8 @@ export function detailToMessage(detail: unknown, status?: number): string {
 
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) return err.message;
-  if (err instanceof Error) return err.message;
-  return String(err);
+  if (err instanceof Error) return translateError(err.message);
+  return translateError(String(err));
 }
 
 // ---- phạm vi tenant (operator) ----

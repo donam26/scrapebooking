@@ -628,6 +628,10 @@ export interface components {
             stay_date: string;
             /** Room Types */
             room_types: components["schemas"]["RoomTypeOut"][];
+            /** Latest Status */
+            latest_status?: string | null;
+            /** Latest Scanned At */
+            latest_scanned_at?: string | null;
             /** Latest */
             latest: components["schemas"]["RoomSnapshotOut"][];
             /** History */

@@ -17,6 +17,8 @@ from app.db.models import Tenant, User
 
 router = APIRouter(tags=["tenants"])
 
+MAX_SCAN_TIMES = 8  # mỗi mốc là một đợt quét toàn watchlist
+
 
 def _validate_times(times: list[str]) -> None:
     for t in times:
@@ -45,6 +47,11 @@ def _validate_tenant_fields(data: dict) -> None:  # type: ignore[type-arg]
             )
         _validate_times(data["scan_times"])
         data["scan_times"] = sorted(set(data["scan_times"]))
+        if len(data["scan_times"]) > MAX_SCAN_TIMES:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"at most {MAX_SCAN_TIMES} scan_times per day",
+            )
     if "insight_hour" in data:
         _validate_times([data["insight_hour"]])
     if "timezone" in data:

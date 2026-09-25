@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
-import httpx
-
 from app.clock import Clock
 from app.logging import get_logger
 
@@ -19,26 +17,11 @@ class NullAlerter:
         log.info("alert_suppressed", text=text)
 
 
-class TelegramAlerter:
-    def __init__(self, token: str, chat_id: str, client: httpx.AsyncClient | None = None) -> None:
-        self._token = token
-        self._chat_id = chat_id
-        self._client = client
+class LogAlerter:
+    """Cảnh báo vận hành ghi thành log warning (event `ops_alert`) để lọc trong log tập trung."""
 
     async def send(self, text: str) -> None:
-        if not self._token or not self._chat_id:
-            log.info("alert_no_telegram_config", text=text)
-            return
-        url = f"https://api.telegram.org/bot{self._token}/sendMessage"
-        payload = {"chat_id": self._chat_id, "text": text}
-        try:
-            if self._client is not None:
-                await self._client.post(url, json=payload, timeout=10)
-            else:
-                async with httpx.AsyncClient() as client:
-                    await client.post(url, json=payload, timeout=10)
-        except httpx.HTTPError as exc:
-            log.warning("alert_send_failed", error=str(exc))
+        log.warning("ops_alert", text=text)
 
 
 class AlertThrottle:

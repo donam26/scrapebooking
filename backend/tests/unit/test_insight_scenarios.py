@@ -54,18 +54,18 @@ def test_request_body_uses_structured_outputs_and_fixed_system_prompt() -> None:
     )
     body = req.body()
     assert body["model"] == "gpt-6-luna" and body["reasoning"] == {"effort": "medium"}
-    assert body["input"][0] == {"role": "system", "content": SYSTEM_PROMPT}
-    assert body["input"][1]["content"].endswith('{"a":1}')
-    fmt = body["text"]["format"]
+    assert body["messages"][0] == {"role": "system", "content": SYSTEM_PROMPT}
+    assert body["messages"][1]["content"].endswith('{"a":1}')
+    fmt = body["response_format"]
+    assert fmt["type"] == "json_schema"
     assert (
-        fmt["type"] == "json_schema"
-        and fmt["strict"] is True
-        and fmt["schema"] == INSIGHT_JSON_SCHEMA
+        fmt["json_schema"]["strict"] is True and fmt["json_schema"]["schema"] == INSIGHT_JSON_SCHEMA
     )
     assert PROMPT_VERSION == "1"
 
 
 def test_cost_estimate_matches_research_pricing() -> None:
-    # 20.000 token vào, 2.000 token ra: 0.002 + 0.001 = $0.003, batch còn $0.0015
+    # 20.000 token vào, 2.000 token ra: 0.002 + 0.001 = $0.003.
+    # OpenRouter không có chiết khấu batch nên batch=True cho cùng chi phí.
     assert str(estimate_cost(20_000, 2_000)) == "0.003000"
-    assert str(estimate_cost(20_000, 2_000, batch=True)) == "0.001500"
+    assert str(estimate_cost(20_000, 2_000, batch=True)) == "0.003000"

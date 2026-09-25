@@ -5,7 +5,7 @@ from app.clock import SystemClock
 from app.config import get_settings
 from app.db.engine import make_engine, make_session_factory
 from app.logging import configure_logging
-from app.ops.alerts import TelegramAlerter
+from app.ops.alerts import LogAlerter
 from app.ops.metrics import start_metrics_server
 from app.scheduler.queue import ArqJobQueue
 from app.scheduler.service import SchedulerService
@@ -22,7 +22,7 @@ async def main() -> None:
         queue=queue,
         clock=SystemClock(),
         deadline=timedelta(minutes=settings.run_deadline_minutes),
-        alerter=TelegramAlerter(settings.telegram_bot_token, settings.telegram_chat_id),
+        alerter=LogAlerter(),
     )
     try:
         await service.run_forever()

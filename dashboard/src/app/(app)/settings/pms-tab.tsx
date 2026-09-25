@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useState, type DragEvent, type ReactNode } from "react";
 import { api, type PmsImportOut, type PreviewOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
+import { translateError } from "@/lib/errors";
 import { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { CANONICAL_PMS_COLUMNS, IMPORT_STATUS_LABEL, IMPORT_STATUS_TONE, PMS_COLUMN_LABEL } from "@/lib/labels";
-import { Badge, Button, Card, EmptyState, ErrorBox, Field, Select, Skeleton, Table, Td, Th } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, ErrorBox, Field, ROW_CLASS, Select, Skeleton, Table, Td, Th, cx } from "@/components/ui";
+import { IconAlert, IconCheck, IconDownload, IconFile, IconUpload } from "@/components/icons";
 
 type RowError = { row?: unknown; column?: unknown; message?: unknown };
 
@@ -16,43 +18,54 @@ function cellText(v: unknown): string {
   return String(v);
 }
 
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${fmtNum(n / 1024, 0)} KB`;
+  return `${fmtNum(n / (1024 * 1024), 1)} MB`;
+}
+
 function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
   if (errors.length === 0) return null;
   return (
-    <Table dense>
-      <thead>
-        <tr>
-          <Th right>Dòng</Th>
-          <Th>Cột</Th>
-          <Th>Lỗi</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {errors.map((raw, i) => {
-          const e = raw as RowError;
-          return (
-            <tr key={i}>
-              <Td right>{cellText(e.row)}</Td>
-              <Td className="font-mono text-xs">{cellText(e.column) || "—"}</Td>
-              <Td className="text-rose-700">{cellText(e.message)}</Td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </Table>
+    <div className="overflow-hidden rounded-lg border border-line">
+      <Table dense>
+        <thead>
+          <tr>
+            <Th right>Dòng</Th>
+            <Th>Cột</Th>
+            <Th>Lỗi</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {errors.map((raw, i) => {
+            const e = raw as RowError;
+            return (
+              <tr key={i}>
+                <Td right className="w-16 text-muted">
+                  {cellText(e.row)}
+                </Td>
+                <Td className="whitespace-nowrap text-sm">{e.column ? (PMS_COLUMN_LABEL[cellText(e.column)] ?? cellText(e.column)) : "—"}</Td>
+                <Td className="text-sm text-danger-deep">{translateError(cellText(e.message))}</Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+    </div>
   );
 }
 
 function ImportResult({ result }: { result: PmsImportOut }) {
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3 text-sm">
+    <div className="space-y-3 rounded-lg bg-subtle p-4">
+      <div className="flex flex-wrap items-center gap-3 text-base">
         <Badge tone={IMPORT_STATUS_TONE[result.status] ?? "gray"}>{IMPORT_STATUS_LABEL[result.status] ?? result.status}</Badge>
-        <span>
-          <span className="font-medium">{fmtInt(result.ok_count)}</span> / {fmtInt(result.row_count)} dòng nhập thành công
+        <span className="text-body">
+          <span className="font-bold text-ink tabular">{fmtInt(result.ok_count)}</span> / <span className="tabular">{fmtInt(result.row_count)}</span> dòng nhập thành công
         </span>
-        {result.errors.length > 0 && <span className="text-rose-700">{fmtInt(result.errors.length)} dòng lỗi</span>}
+        {result.errors.length > 0 && <span className="text-danger tabular">{fmtInt(result.errors.length)} dòng lỗi</span>}
       </div>
+      {result.status !== "failed" && <p className="text-sm text-muted">Công suất đã nhập hiện trên Tổng quan, trong dải khách sạn của bạn.</p>}
       <ErrorRows errors={result.errors} />
     </div>
   );
@@ -66,6 +79,86 @@ function downloadText(filename: string, text: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Bước trong quy trình nhập: số thứ tự có nghĩa vì phải làm lần lượt. */
+function Step({ n, title, hint, active, children }: { n: number; title: string; hint?: ReactNode; active: boolean; children?: ReactNode }) {
+  return (
+    <section className={cx("border-t border-line px-5 py-5 first:border-t-0", !active && "bg-subtle/60")}>
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className={cx(
+            "grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold tabular",
+            active ? "bg-brand text-white" : "bg-sunken text-faint",
+          )}
+        >
+          {n}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className={cx("text-base font-bold", active ? "text-ink" : "text-muted")}>
+            <span className="sr-only">Bước {n}: </span>
+            {title}
+          </h3>
+          {hint && <div className="mt-0.5 text-sm text-muted">{hint}</div>}
+          {active && children && <div className="mt-4">{children}</div>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Dropzone({ file, busy, onFile }: { file: File | null; busy: boolean; onFile: (f: File | null) => void }) {
+  const [over, setOver] = useState(false);
+  function onDrop(e: DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setOver(false);
+    const f = e.dataTransfer.files?.[0] ?? null;
+    if (f) onFile(f);
+  }
+  return (
+    <label
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={onDrop}
+      className={cx(
+        "relative flex min-h-[104px] cursor-pointer items-center gap-4 rounded-xl border-[1.5px] border-dashed px-5 py-4 transition-colors duration-150",
+        "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand",
+        over ? "border-brand bg-brand-softer" : file ? "border-line-strong bg-surface hover:border-brand-light" : "border-line-strong bg-subtle hover:border-brand-light hover:bg-brand-softer/60",
+      )}
+    >
+      <input
+        type="file"
+        accept=".csv,.xlsx,.xls,text/csv"
+        className="sr-only"
+        onChange={(e) => {
+          onFile(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
+      />
+      <span className={cx("grid h-11 w-11 shrink-0 place-items-center rounded-full", file ? "bg-brand-soft text-brand" : "bg-surface text-brand shadow-card")}>
+        {file ? <IconFile size={20} /> : <IconUpload size={20} />}
+      </span>
+      {file ? (
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-base font-semibold text-ink" title={file.name}>
+            {file.name}
+          </span>
+          <span className="block text-sm text-muted tabular">
+            {fmtBytes(file.size)} · {busy ? "Đang đọc tệp…" : "Bấm hoặc kéo tệp khác vào để đổi"}
+          </span>
+        </span>
+      ) : (
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold text-ink">{over ? "Thả tệp vào đây" : "Kéo thả hoặc chọn tệp CSV/Excel"}</span>
+          <span className="block text-sm text-muted">Tệp xuất công suất theo ngày từ PMS: CSV, XLSX hoặc XLS</span>
+        </span>
+      )}
+    </label>
+  );
 }
 
 export function PmsTab() {
@@ -101,61 +194,114 @@ export function PmsTab() {
     daily.reload();
   });
 
-  function onFile(e: ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
+  function onFile(f: File | null) {
     setFile(f);
     setPreview(null);
     setResult(null);
+    doPreview.clearError();
+    doImport.clearError();
     if (f) void doPreview.run(f);
   }
 
+  const hotelName = (id: number | null) => {
+    if (id === null) return "—";
+    const w = (watchlist.data ?? []).find((x) => x.hotel.id === id);
+    return w ? w.label || w.hotel.name || w.hotel.booking_slug : `#${id}`;
+  };
+
   const hotelSelect = (
-    <Field label="Khách sạn của bạn">
-      <Select value={effectiveHotelId ?? ""} onChange={(e) => setHotelId(e.target.value)} disabled={selfHotels.length === 0}>
-        {selfHotels.length === 0 && <option value="">Chưa có khách sạn vai trò “Khách sạn của bạn”</option>}
-        {selfHotels.map((w) => (
-          <option key={w.hotel.id} value={w.hotel.id}>
-            {w.label || w.hotel.name || w.hotel.booking_slug}
-          </option>
-        ))}
-      </Select>
-    </Field>
+    <Select
+      aria-label="Khách sạn của bạn"
+      value={effectiveHotelId ?? ""}
+      onChange={(e) => setHotelId(e.target.value)}
+      disabled={selfHotels.length === 0}
+      className="min-w-[220px]"
+    >
+      {selfHotels.length === 0 && <option value="">Chưa có khách sạn của bạn</option>}
+      {selfHotels.map((w) => (
+        <option key={w.hotel.id} value={w.hotel.id}>
+          {w.label || w.hotel.name || w.hotel.booking_slug}
+        </option>
+      ))}
+    </Select>
   );
 
+  const noSelf = watchlist.data && selfHotels.length === 0;
+  const mappedCount = CANONICAL_PMS_COLUMNS.filter((c) => mapping[c]).length;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {canWrite && (
         <Card
-          title="Nhập dữ liệu occupancy từ PMS (CSV/Excel)"
+          padded={false}
+          title="Nhập công suất từ PMS"
+          description="Tải tệp xuất từ PMS (ezCloud, Newway…) để đặt công suất thật của bạn cạnh tình trạng phòng của đối thủ trên Tổng quan."
           actions={
-            <Button size="sm" busy={template.busy} onClick={() => void template.run()}>
+            <Button size="sm" busy={template.busy} icon={<IconDownload size={15} />} onClick={() => void template.run()}>
               Tải template CSV
             </Button>
           }
         >
-          <ErrorBox error={template.error} className="mb-3" />
-          <div className="flex flex-wrap items-end gap-3">
-            {hotelSelect}
-            <Field label="Tệp CSV / Excel">
-              <input type="file" accept=".csv,.xlsx,.xls,text/csv" onChange={onFile} className="text-sm file:mr-2 file:rounded file:border file:border-slate-300 file:bg-white file:px-2 file:py-1 file:text-xs" />
-            </Field>
-          </div>
-          {selfHotels.length === 0 && watchlist.data && <p className="mt-2 text-xs text-amber-700">Cần thêm khách sạn của bạn (vai trò “Khách sạn của bạn”) ở tab Watchlist trước khi nhập PMS.</p>}
-          <ErrorBox error={doPreview.error} className="mt-3" />
-          {doPreview.busy && <Skeleton rows={3} className="mt-3" />}
+          {template.error && <ErrorBox error={template.error} className="mx-5 mt-4" />}
+          <Step n={1} title="Chọn khách sạn và tệp" active>
+            {noSelf ? (
+              <div className="flex items-start gap-2.5 rounded-lg border border-[#f3dc9a] bg-warning-soft px-3.5 py-2.5 text-sm text-warning-deep">
+                <IconAlert size={16} className="mt-px shrink-0" />
+                <span>
+                  Cần thêm khách sạn của bạn (vai trò “Khách sạn của bạn”) ở tab{" "}
+                  <a href="/settings?tab=watchlist" className="font-semibold underline">
+                    Khách sạn
+                  </a>{" "}
+                  trước khi nhập PMS.
+                </span>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] md:items-start">
+                <Field label="Khách sạn của bạn" hint="Dữ liệu nhập vào gắn với khách sạn này">
+                  {hotelSelect}
+                </Field>
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-sm font-semibold text-body">Tệp dữ liệu</span>
+                  <Dropzone file={file} busy={doPreview.busy} onFile={onFile} />
+                </div>
+              </div>
+            )}
+            <ErrorBox error={doPreview.error} className="mt-3" title="Không đọc được tệp" />
+            {doPreview.busy && <Skeleton rows={2} className="mt-4" />}
+          </Step>
 
-          {preview && (
-            <div className="mt-4 space-y-4">
-              <div>
-                <h3 className="mb-1 text-sm font-semibold">Ánh xạ cột</h3>
-                <p className="mb-2 text-xs text-slate-500">
-                  Chọn cột trong tệp tương ứng với từng cột chuẩn. Ánh xạ được lưu theo tenant và dùng cho các lần nhập sau. Bắt buộc: {PMS_COLUMN_LABEL.stay_date}.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  {CANONICAL_PMS_COLUMNS.map((col) => (
-                    <Field key={col} label={PMS_COLUMN_LABEL[col]}>
-                      <Select value={mapping[col] ?? ""} onChange={(e) => setMapping({ ...mapping, [col]: e.target.value })}>
-                        <option value="">— Bỏ qua —</option>
+          <Step
+            n={2}
+            title="Ánh xạ cột"
+            active={!!preview}
+            hint={
+              preview
+                ? `Chọn cột trong tệp tương ứng với từng cột chuẩn (${mappedCount}/${CANONICAL_PMS_COLUMNS.length} đã chọn). Ánh xạ được lưu và dùng lại cho các lần nhập sau.`
+                : "Chọn tệp để hệ thống gợi ý cột tương ứng."
+            }
+          >
+            {preview && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {CANONICAL_PMS_COLUMNS.map((col) => {
+                  const required = col === "stay_date";
+                  const missing = required && !mapping[col];
+                  return (
+                    <Field
+                      key={col}
+                      label={
+                        <span className="flex items-center gap-1.5">
+                          {PMS_COLUMN_LABEL[col]}
+                          {required && <span className="rounded bg-brand-soft px-1.5 text-2xs font-bold text-brand-hover">Bắt buộc</span>}
+                        </span>
+                      }
+                    >
+                      <Select
+                        value={mapping[col] ?? ""}
+                        onChange={(e) => setMapping({ ...mapping, [col]: e.target.value })}
+                        aria-invalid={missing || undefined}
+                        className={cx(missing && "border-danger", !mapping[col] && "text-faint")}
+                      >
+                        <option value="">Bỏ qua</option>
                         {preview.columns.map((c) => (
                           <option key={c} value={c}>
                             {c}
@@ -163,81 +309,122 @@ export function PmsTab() {
                         ))}
                       </Select>
                     </Field>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-              <div>
-                <h3 className="mb-1 text-sm font-semibold">
-                  Xem trước ({preview.sample.length} dòng đầu) · {fmtInt(preview.parsed_ok)} dòng đọc được với ánh xạ hiện lưu
-                </h3>
-                <Table dense>
-                  <thead>
-                    <tr>
-                      {preview.columns.map((c) => (
-                        <Th key={c}>{c}</Th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.sample.map((row, i) => (
-                      <tr key={i}>
+            )}
+          </Step>
+
+          <Step
+            n={3}
+            title="Xem trước và nhập"
+            active={!!preview}
+            hint={
+              preview ? (
+                <>
+                  {preview.sample.length} dòng đầu của tệp ·{" "}
+                  <span className="font-semibold text-ink tabular">{fmtInt(preview.parsed_ok)}</span> dòng đọc được với ánh xạ đang lưu
+                </>
+              ) : (
+                "Kiểm tra vài dòng đầu trước khi nhập."
+              )
+            }
+          >
+            {preview && (
+              <div className="space-y-4">
+                <div className="overflow-hidden rounded-lg border border-line">
+                  <Table dense>
+                    <thead>
+                      <tr>
                         {preview.columns.map((c) => (
-                          <Td key={c} className="whitespace-nowrap">
-                            {cellText(row[c])}
-                          </Td>
+                          <Th key={c}>{c}</Th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {preview.sample.map((row, i) => (
+                        <tr key={i}>
+                          {preview.columns.map((c) => (
+                            <Td key={c} className="whitespace-nowrap text-sm tabular">
+                              {cellText(row[c])}
+                            </Td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
                 {preview.errors.length > 0 && (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-rose-700">{preview.errors.length} lỗi khi đọc thử (theo ánh xạ đang lưu)</summary>
-                    <ErrorRows errors={preview.errors} />
+                  <details className="group rounded-lg border border-line">
+                    <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-semibold text-danger [&::-webkit-details-marker]:hidden">
+                      <span className="inline-flex items-center gap-1.5">
+                        <IconAlert size={15} /> {preview.errors.length} lỗi khi đọc thử theo ánh xạ đang lưu
+                        <span className="font-normal text-muted group-open:hidden">· bấm để xem</span>
+                      </span>
+                    </summary>
+                    <div className="border-t border-line p-3">
+                      <ErrorRows errors={preview.errors} />
+                    </div>
                   </details>
                 )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="primary"
+                    busy={doImport.busy}
+                    icon={<IconUpload size={16} />}
+                    disabled={!mapping.stay_date || effectiveHotelId === null}
+                    onClick={() => void doImport.run()}
+                  >
+                    Lưu ánh xạ và nhập dữ liệu
+                  </Button>
+                  {!mapping.stay_date && <span className="text-sm text-danger">Cần chọn cột cho {PMS_COLUMN_LABEL.stay_date}.</span>}
+                  {effectiveHotelId !== null && mapping.stay_date && (
+                    <span className="text-sm text-muted">Nhập vào {hotelName(effectiveHotelId)}</span>
+                  )}
+                </div>
+                <ErrorBox error={doImport.error} title="Chưa nhập được" />
+                {result && <ImportResult result={result} />}
               </div>
-              <div className="flex items-center gap-3">
-                <Button variant="primary" busy={doImport.busy} disabled={!mapping.stay_date || effectiveHotelId === null} onClick={() => void doImport.run()}>
-                  Lưu ánh xạ và nhập dữ liệu
-                </Button>
-                {!mapping.stay_date && <span className="text-xs text-amber-700">Cần chọn cột cho {PMS_COLUMN_LABEL.stay_date}.</span>}
-              </div>
-              <ErrorBox error={doImport.error} />
-              {result && <ImportResult result={result} />}
-            </div>
-          )}
+            )}
+          </Step>
         </Card>
       )}
 
-      <Card title="Lịch sử nhập" padded={false}>
-        <ErrorBox error={imports.error} className="m-4" />
+      <Card padded={false} title="Lịch sử nhập" description={imports.data && imports.data.length > 0 ? `${imports.data.length} lần nhập gần nhất` : undefined}>
+        <ErrorBox error={imports.error} className="m-5" />
         {!imports.data ? (
-          !imports.error && <Skeleton rows={3} className="p-4" />
+          !imports.error && <Skeleton rows={3} className="p-5" />
         ) : imports.data.length === 0 ? (
-          <div className="p-4">
-            <EmptyState>Chưa nhập tệp nào.</EmptyState>
+          <div className="p-5">
+            <EmptyState icon={<IconFile />} title="Chưa nhập tệp nào" compact>
+              Nhập công suất từ PMS để Tổng quan hiện công suất thật của bạn ngay dưới dải phòng còn, cạnh các đối thủ.
+            </EmptyState>
           </div>
         ) : (
-          <Table dense>
+          <Table>
             <thead>
               <tr>
                 <Th>Thời điểm</Th>
                 <Th>Tệp</Th>
                 <Th>Khách sạn</Th>
                 <Th>Trạng thái</Th>
-                <Th right>OK / tổng</Th>
+                <Th right>Dòng thành công</Th>
                 <Th right>Lỗi</Th>
               </tr>
             </thead>
             <tbody>
               {imports.data.map((im) => (
-                <tr key={im.id} className="hover:bg-slate-50">
-                  <Td className="whitespace-nowrap">{fmtDateTime(im.created_at)}</Td>
-                  <Td className="max-w-[240px] truncate" title={im.filename}>
-                    {im.filename}
+                <tr key={im.id} className={cx(ROW_CLASS, "align-top")}>
+                  <Td className="whitespace-nowrap text-muted tabular">{fmtDateTime(im.created_at)}</Td>
+                  <Td className="max-w-[260px]">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <IconFile size={15} className="shrink-0 text-faint" />
+                      <span className="truncate font-medium text-ink" title={im.filename}>
+                        {im.filename}
+                      </span>
+                    </span>
                   </Td>
-                  <Td>{(watchlist.data ?? []).find((w) => w.hotel.id === im.hotel_id)?.label ?? (im.hotel_id === null ? "—" : `#${im.hotel_id}`)}</Td>
+                  <Td>{hotelName(im.hotel_id)}</Td>
                   <Td>
                     <Badge tone={IMPORT_STATUS_TONE[im.status] ?? "gray"}>{IMPORT_STATUS_LABEL[im.status] ?? im.status}</Badge>
                   </Td>
@@ -246,14 +433,16 @@ export function PmsTab() {
                   </Td>
                   <Td right>
                     {im.errors.length > 0 ? (
-                      <details>
-                        <summary className="cursor-pointer text-rose-700">{im.errors.length}</summary>
-                        <div className="mt-1 text-left">
+                      <details className="text-left">
+                        <summary className="cursor-pointer text-right font-semibold text-danger tabular">{im.errors.length}</summary>
+                        <div className="mt-2 min-w-[320px]">
                           <ErrorRows errors={im.errors} />
                         </div>
                       </details>
                     ) : (
-                      "0"
+                      <span className="inline-flex items-center gap-1 text-muted">
+                        <IconCheck size={14} /> 0
+                      </span>
                     )}
                   </Td>
                 </tr>
@@ -263,23 +452,32 @@ export function PmsTab() {
         )}
       </Card>
 
-      <Card title="Dữ liệu occupancy đã nhập" padded={false} actions={!canWrite ? hotelSelect : undefined}>
-        <ErrorBox error={daily.error} className="m-4" />
+      <Card
+        padded={false}
+        title="Công suất đã nhập"
+        description={daily.data && daily.data.length > 0 ? `${daily.data.length} đêm gần nhất có dữ liệu` : undefined}
+        actions={!canWrite && selfHotels.length > 1 ? hotelSelect : undefined}
+      >
+        <ErrorBox error={daily.error} className="m-5" />
         {effectiveHotelId === null ? (
-          <div className="p-4">
-            <EmptyState>Chưa có khách sạn của bạn trong watchlist.</EmptyState>
+          <div className="p-5">
+            <EmptyState icon={<IconFile />} title="Chưa có khách sạn của bạn" compact>
+              Khi có khách sạn vai trò “Khách sạn của bạn” và tệp PMS đã nhập, công suất từng đêm hiện ở đây.
+            </EmptyState>
           </div>
         ) : !daily.data ? (
-          !daily.error && <Skeleton rows={4} className="p-4" />
+          !daily.error && <Skeleton rows={4} className="p-5" />
         ) : daily.data.length === 0 ? (
-          <div className="p-4">
-            <EmptyState>Chưa có dữ liệu cho khách sạn này.</EmptyState>
+          <div className="p-5">
+            <EmptyState icon={<IconFile />} title={`Chưa có dữ liệu cho ${hotelName(effectiveHotelId)}`} compact>
+              {canWrite ? "Nhập tệp ở trên; mỗi dòng là một đêm với tổng phòng, phòng đã bán và doanh thu." : "Quản trị viên chưa nhập dữ liệu PMS cho khách sạn này."}
+            </EmptyState>
           </div>
         ) : (
           <Table dense>
             <thead>
               <tr>
-                <Th>Ngày lưu trú</Th>
+                <Th>Đêm lưu trú</Th>
                 <Th right>Tổng phòng</Th>
                 <Th right>Đã bán</Th>
                 <Th right>Còn</Th>
@@ -295,16 +493,18 @@ export function PmsTab() {
                 const stay = typeof d.stay_date === "string" ? d.stay_date : String(d.stay_date ?? "");
                 const dec = (v: unknown) => (typeof v === "string" || typeof v === "number" ? v : null);
                 return (
-                  <tr key={`${d.hotel_id}-${stay}`} className="hover:bg-slate-50">
-                    <Td className="whitespace-nowrap">{fmtDate(stay)}</Td>
+                  <tr key={`${d.hotel_id}-${stay}`} className={ROW_CLASS}>
+                    <Td className="whitespace-nowrap font-medium text-ink tabular">{fmtDate(stay)}</Td>
                     <Td right>{fmtInt(d.rooms_total)}</Td>
                     <Td right>{fmtInt(d.rooms_sold)}</Td>
                     <Td right>{fmtInt(d.rooms_available)}</Td>
-                    <Td right>{fmtPct(dec(d.occupancy_pct))}</Td>
+                    <Td right className="font-semibold text-ink">
+                      {fmtPct(dec(d.occupancy_pct))}
+                    </Td>
                     <Td right>{fmtNum(dec(d.adr))}</Td>
                     <Td right>{fmtNum(dec(d.revenue))}</Td>
-                    <Td>{d.source}</Td>
-                    <Td className="whitespace-nowrap text-slate-600">{fmtDateTime(d.imported_at)}</Td>
+                    <Td className="text-muted">{d.source}</Td>
+                    <Td className="whitespace-nowrap text-muted tabular">{fmtDateTime(d.imported_at)}</Td>
                   </tr>
                 );
               })}

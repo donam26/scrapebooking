@@ -51,6 +51,7 @@ class RatePlan:
     currency: str
     refundable: bool | None
     breakfast: bool | None
+    max_persons: int | None = None  # "Max persons" của dòng giá (Booking có dòng riêng cho 1 khách)
 
 
 @dataclass(frozen=True)

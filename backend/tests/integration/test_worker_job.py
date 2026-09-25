@@ -4,13 +4,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.clock import FixedClock
+from app.collector.booking.results import failed_result
 from app.collector.fake import FakeCollector
 from app.collector.storage import MemoryRawStore
 from app.db.models import Hotel, HotelCalendar, Probe, RoomSnapshot, ScanJob, ScanRun
-from app.domain.models import CalendarDay, CalendarResult, ProbeStatus
+from app.domain.models import CalendarDay, CalendarResult, ProbeMethod, ProbeStatus
 from app.ops.alerts import NullAlerter
 from app.repo.runs import HotelJobPlan, ScanRunRepository
-from app.worker.jobs import JobFailed, WorkerDeps, run_probe_hotel
+from app.worker.jobs import JobFailed, PermanentJobFailure, WorkerDeps, run_probe_hotel
 from tests.fakes import OFFER
 
 NOW = datetime(2026, 9, 23, 23, 5, tzinfo=UTC)
@@ -165,7 +166,9 @@ async def test_fatal_error_marks_job_failed_and_raises(db: AsyncSession) -> None
         raise AssertionError("expected JobFailed")
     job = (await db.execute(select(ScanJob))).scalar_one()
     run = (await db.execute(select(ScanRun))).scalar_one()
-    assert job.status == "failed" and run.status == "running"  # chưa phải lần cuối, run chờ retry
+    # chưa phải lần cuối: job chờ retry (không phải trạng thái cuối), run vẫn chạy
+    assert job.status == "retrying" and "db gone" in (job.error or "")
+    assert run.status == "running"
 
     try:
         await run_probe_hotel(deps, run_id, hotel_id, final_attempt=True)
@@ -174,3 +177,87 @@ async def test_fatal_error_marks_job_failed_and_raises(db: AsyncSession) -> None
     db.expire_all()
     run = (await db.execute(select(ScanRun))).scalar_one()
     assert run.status == "partial"
+
+
+async def test_other_job_finishing_does_not_close_run_while_one_waits_for_retry(
+    db: AsyncSession,
+) -> None:
+    class BrokenFor(FakeCollector):
+        def __init__(self, broken_id: int) -> None:
+            super().__init__()
+            self.broken_id = broken_id
+
+        async def fetch_calendar(self, hotel, start, days, adults):  # type: ignore[no-untyped-def]
+            if hotel.id == self.broken_id:
+                raise RuntimeError("calendar timeout")
+            return await super().fetch_calendar(hotel, start, days, adults)
+
+    h1 = Hotel(booking_url="u1", booking_slug="vn/h1", country_code="vn")
+    h2 = Hotel(booking_url="u2", booking_slug="vn/h2", country_code="vn")
+    db.add_all([h1, h2])
+    await db.flush()
+    run = await ScanRunRepository(db).create_run(
+        "k2", NOW, [HotelJobPlan(h1.id, START, 1), HotelJobPlan(h2.id, START, 1)]
+    )
+    assert run is not None
+    await db.commit()
+    run_id, broken, healthy = run.id, h1.id, h2.id
+    collector = BrokenFor(broken)
+    collector.set_calendar(healthy, _calendar((START, True, 1)))
+    collector.set_probe(healthy, START, ProbeStatus.OK, offers=(OFFER,))
+    finished: list[int] = []
+
+    async def hook(run_id_: int) -> None:
+        finished.append(run_id_)
+
+    deps = _deps(db, collector, MemoryRawStore())
+    deps.on_run_finished = hook
+
+    try:
+        await run_probe_hotel(deps, run_id, broken, final_attempt=False)
+    except JobFailed:
+        pass
+    await run_probe_hotel(deps, run_id, healthy, final_attempt=False)
+    db.expire_all()
+    assert (await db.get(ScanRun, run_id)).status == "running"  # type: ignore[union-attr]
+    assert finished == []
+
+    try:
+        await run_probe_hotel(deps, run_id, broken, final_attempt=True)
+    except JobFailed:
+        pass
+    db.expire_all()
+    assert (await db.get(ScanRun, run_id)).status == "partial"  # type: ignore[union-attr]
+    assert finished == [run_id]
+
+
+async def test_hotel_page_not_found_stops_job_early(db: AsyncSession) -> None:
+    # URL/slug sai (Booking 404): không probe tiếp từng ngày trong horizon, báo lỗi rõ ràng.
+    class NotFound(FakeCollector):
+        async def probe(self, hotel, checkin, nights, adults):  # type: ignore[no-untyped-def]
+            self.probe_calls.append((hotel.id, checkin, nights, adults))
+            return failed_result(
+                ProbeStatus.ERROR,
+                method=ProbeMethod.HTTP,
+                checkin=checkin,
+                nights=nights,
+                adults=adults,
+                error="not_found",
+                http_status=404,
+            )
+
+    run_id, hotel_id = await _seed(db, horizon=5)
+    collector = NotFound()
+    try:
+        # Lỗi vĩnh viễn: dù chưa phải lần cuối cũng không chờ arq thử lại.
+        await run_probe_hotel(
+            _deps(db, collector, MemoryRawStore()), run_id, hotel_id, final_attempt=False
+        )
+    except PermanentJobFailure as exc:
+        assert "404" in str(exc)
+    else:
+        raise AssertionError("expected PermanentJobFailure")
+    assert len(collector.probe_calls) == 1
+    db.expire_all()
+    job = (await db.execute(select(ScanJob))).scalar_one()
+    assert job.status == "failed" and "404" in (job.error or "")

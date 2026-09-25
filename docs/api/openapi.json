@@ -2415,6 +2415,29 @@
       "type": "array",
       "title": "Room Types"
      },
+     "latest_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latest Status"
+     },
+     "latest_scanned_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latest Scanned At"
+     },
      "latest": {
       "items": {
        "$ref": "#/components/schemas/RoomSnapshotOut"

@@ -1,2 +1,6 @@
+# Chỉ trang giới thiệu được lập chỉ mục; dashboard và API cần đăng nhập.
 User-agent: *
+Allow: /$
+Allow: /landing/
+Allow: /_next/
 Disallow: /

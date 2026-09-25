@@ -3,7 +3,6 @@ from datetime import timedelta
 from typing import Any
 
 from arq import Retry
-from arq.connections import RedisSettings
 
 from app.clock import SystemClock
 from app.collector.booking.browser import BrowserCollector
@@ -18,10 +17,10 @@ from app.collector.storage import S3RawStore
 from app.config import get_settings
 from app.db.engine import make_engine, make_session_factory
 from app.logging import configure_logging, get_logger
-from app.ops.alerts import TelegramAlerter
+from app.ops.alerts import LogAlerter
 from app.ops.metrics import start_metrics_server
-from app.scheduler.queue import ArqJobQueue
-from app.worker.jobs import JobFailed, WorkerDeps, run_probe_hotel
+from app.scheduler.queue import COLLECTOR_QUEUE, ArqJobQueue, worker_redis_settings
+from app.worker.jobs import JobFailed, PermanentJobFailure, WorkerDeps, run_probe_hotel
 from app.worker.session_listener import DbSessionListener
 
 log = get_logger(__name__)
@@ -79,7 +78,7 @@ async def startup(ctx: dict[str, Any]) -> None:
         page_cap=settings.page_dropdown_cap,
         default_adults=settings.default_adults,
         parser_version=PARSER_VERSION,
-        alerter=TelegramAlerter(settings.telegram_bot_token, settings.telegram_chat_id),
+        alerter=LogAlerter(),
         worker_id=worker_id,
         on_run_finished=on_run_finished,
     )
@@ -104,26 +103,19 @@ async def probe_hotel(ctx: dict[str, Any], scan_run_id: int, hotel_id: int) -> d
         summary = await run_probe_hotel(
             ctx["deps"], scan_run_id, hotel_id, final_attempt=final_attempt
         )
-    except JobFailed:
-        if not final_attempt:
+    except JobFailed as exc:
+        if not final_attempt and not isinstance(exc, PermanentJobFailure):
             raise Retry(defer=RETRY_DEFER_SECONDS) from None
         raise
     return {"probed": summary.probed, "skipped": summary.skipped, "failed": summary.failed}
-
-
-class _LazyRedisSettings:
-    """arq đọc `WorkerSettings.redis_settings` lúc chạy; đọc env muộn để import module không cần env
-    (test và công cụ khác import được mà không cần DATABASE_URL...)."""
-
-    def __get__(self, obj: object, owner: type | None = None) -> RedisSettings:
-        return RedisSettings.from_dsn(get_settings().redis_url)
 
 
 class WorkerSettings:
     functions = [probe_hotel]
     on_startup = startup
     on_shutdown = shutdown
-    redis_settings = _LazyRedisSettings()
+    redis_settings = worker_redis_settings()
+    queue_name = COLLECTOR_QUEUE
     max_jobs = 1  # một khách sạn một lúc mỗi tiến trình; scale bằng số tiến trình
     job_timeout = 3600
     max_tries = MAX_TRIES

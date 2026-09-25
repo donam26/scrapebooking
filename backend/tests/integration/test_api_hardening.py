@@ -31,6 +31,20 @@ async def test_invalid_timezone_rejected_and_country_lowercased(
     assert r.status_code == 422
 
 
+async def test_scan_times_limited_to_eight(client: AsyncClient, db: AsyncSession) -> None:
+    # Tài liệu và UI: 1–8 mốc giờ quét mỗi ngày; API cũng phải chặn.
+    await _seed(db)
+    nine = [f"{h:02d}:00" for h in range(9)]
+    await _login(client, "admin@a.com", "admin-pass-1")
+    r = await client.patch("/settings", json={"scan_times": nine})
+    assert r.status_code == 422, r.text
+    r = await client.patch("/settings", json={"scan_times": nine[:8]})
+    assert r.status_code == 200 and len(r.json()["scan_times"]) == 8
+    await _login(client, "op@x.com", "op-pass-123")
+    r = await client.post("/tenants", json={"name": "N", "scan_times": nine})
+    assert r.status_code == 422, r.text
+
+
 async def test_cannot_lock_self_or_last_operator(client: AsyncClient, db: AsyncSession) -> None:
     await _seed(db)
     await _login(client, "admin@a.com", "admin-pass-1")

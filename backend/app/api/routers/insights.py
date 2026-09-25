@@ -77,7 +77,7 @@ async def generate_insight(
         generated_at=now,
         trigger="on_demand",
         status="pending",
-        model=settings.openai_model,
+        model=settings.openrouter_model,
         prompt_version=PROMPT_VERSION,
         input_json={},
         output_json=None,

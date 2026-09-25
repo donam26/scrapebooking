@@ -1,0 +1,61 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "datsan-be",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "FRONTEND_URL=http://localhost:3002",
+        "php",
+        "datsan-be/artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8082",
+        "--no-reload"
+      ],
+      "port": 8082
+    },
+    {
+      "name": "datsan-fe",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PORT=3002",
+        "BROWSER=none",
+        "REACT_APP_API_URL=http://127.0.0.1:8082/api/v1",
+        "npm",
+        "--prefix",
+        "datsan-fe",
+        "start"
+      ],
+      "port": 3002
+    },
+    {
+      "name": "datsan-be-2",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "FRONTEND_URL=http://localhost:3003",
+        "php",
+        "datsan-be/artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8083",
+        "--no-reload"
+      ],
+      "port": 8083
+    },
+    {
+      "name": "datsan-fe-2",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PORT=3003",
+        "BROWSER=none",
+        "REACT_APP_API_URL=http://127.0.0.1:8083/api/v1",
+        "npm",
+        "--prefix",
+        "datsan-fe",
+        "start"
+      ],
+      "port": 3003
+    }
+  ]
+}

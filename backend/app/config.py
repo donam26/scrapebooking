@@ -24,8 +24,6 @@ class Settings(BaseSettings):
     run_deadline_minutes: int = 90
     default_adults: int = 2
 
-    telegram_bot_token: str = ""
-    telegram_chat_id: str = ""
     metrics_port: int = 9100
     log_level: str = "INFO"
     playwright_headless: bool = True
@@ -41,10 +39,13 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     api_port: int = 8000
 
-    # AI insight (giai đoạn 3)
-    openai_api_key: str = ""
-    openai_model: str = "gpt-6-luna"
-    openai_reasoning_effort: str = "medium"
+    # AI insight (giai đoạn 3) — OpenRouter (Chat Completions, OpenAI-compatible)
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "openai/gpt-6-luna"
+    openrouter_reasoning_effort: str = "medium"
+    openrouter_app_name: str = "scrapebooking-insight"  # header X-Title (tùy chọn)
+    openrouter_site_url: str = ""  # header HTTP-Referer (tùy chọn)
     insight_use_batch: bool = True
 
     # Backup (giai đoạn 5)

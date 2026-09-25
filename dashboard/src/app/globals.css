@@ -1,47 +1,275 @@
 @import "tailwindcss";
 
+/*
+ * Dashboard ScrapeBooking (nhóm route (app) và /login).
+ * Cùng thương hiệu với trang giới thiệu: tím than cho khung, sương tím cho nền, tím cho
+ * hành động, bốn dấu mức tin cậy cho số phòng còn. Giọng Operate: dày dữ liệu, ít trang trí.
+ */
+
 :root {
-  --background: #f5f6f8;
-  --foreground: #1a1f2b;
-  --surface: #ffffff;
-  --border: #e3e6eb;
+  --sb-night: #16123a;
+  --sb-night-2: #211a52;
+  --sb-night-3: #2d2566;
+  --sb-on-night: #ffffff;
+  --sb-on-night-soft: #d5d1ef;
+  --sb-on-night-muted: #a7a2d2;
+
+  --sb-canvas: #f4f5ff;
+  --sb-surface: #ffffff;
+  --sb-subtle: #f8f8fd;
+  --sb-sunken: #eeeef9;
+  --sb-line: #e3e1f0;
+  --sb-line-strong: #cfcce4;
+
+  --sb-ink: #1d1e20;
+  --sb-body: #36344d;
+  --sb-muted: #5e6072;
+  --sb-faint: #8a89a0;
+
+  --sb-brand: #673de6;
+  --sb-brand-hover: #5025d1;
+  --sb-brand-soft: #ebe4ff;
+  --sb-brand-softer: #f4f0ff;
+  --sb-brand-light: #8c85ff;
+
+  /* Bốn dấu mức tin cậy */
+  --sb-exact: #ffcd35;
+  --sb-exact-2: #ffe28a;
+  --sb-exact-1: #fff3cc;
+  --sb-capped: #d6cbff;
+  --sb-plum: #2f1c6a;
+
+  /* Xanh chỉ dành cho khách sạn của người xem và điều đã xác nhận */
+  --sb-yours: #00b090;
+  --sb-yours-deep: #007a63;
+  --sb-yours-soft: #ddf5ef;
+
+  --sb-danger: #c2334f;
+  --sb-danger-deep: #9b1d38;
+  --sb-danger-soft: #fdecef;
+  --sb-warning-deep: #7a5200;
+  --sb-warning-soft: #fff4d1;
+
+  --sb-shadow-card: 0 1px 2px rgba(29, 30, 32, 0.05), 0 10px 28px -18px rgba(47, 28, 106, 0.22);
+  --sb-shadow-float: 0 2px 6px rgba(22, 18, 58, 0.08), 0 24px 48px -16px rgba(22, 18, 58, 0.35);
+  --sb-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-line: var(--border);
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", sans-serif;
+  --font-sans: var(--font-app), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.4rem;
+  --text-md: 0.9375rem;
+  --text-md--line-height: 1.45rem;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.6rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+
+  --color-night: var(--sb-night);
+  --color-night-2: var(--sb-night-2);
+  --color-night-3: var(--sb-night-3);
+  --color-on-night: var(--sb-on-night);
+  --color-on-night-soft: var(--sb-on-night-soft);
+  --color-on-night-muted: var(--sb-on-night-muted);
+
+  --color-canvas: var(--sb-canvas);
+  --color-surface: var(--sb-surface);
+  --color-subtle: var(--sb-subtle);
+  --color-sunken: var(--sb-sunken);
+  --color-line: var(--sb-line);
+  --color-line-strong: var(--sb-line-strong);
+
+  --color-ink: var(--sb-ink);
+  --color-body: var(--sb-body);
+  --color-muted: var(--sb-muted);
+  --color-faint: var(--sb-faint);
+
+  --color-brand: var(--sb-brand);
+  --color-brand-hover: var(--sb-brand-hover);
+  --color-brand-soft: var(--sb-brand-soft);
+  --color-brand-softer: var(--sb-brand-softer);
+  --color-brand-light: var(--sb-brand-light);
+
+  --color-exact: var(--sb-exact);
+  --color-exact-2: var(--sb-exact-2);
+  --color-exact-1: var(--sb-exact-1);
+  --color-capped: var(--sb-capped);
+  --color-plum: var(--sb-plum);
+
+  --color-yours: var(--sb-yours);
+  --color-yours-deep: var(--sb-yours-deep);
+  --color-yours-soft: var(--sb-yours-soft);
+
+  --color-danger: var(--sb-danger);
+  --color-danger-deep: var(--sb-danger-deep);
+  --color-danger-soft: var(--sb-danger-soft);
+  --color-warning-deep: var(--sb-warning-deep);
+  --color-warning-soft: var(--sb-warning-soft);
+
+  --shadow-card: var(--sb-shadow-card);
+  --shadow-float: var(--sb-shadow-float);
+  --ease-out-expo: var(--sb-ease);
 }
 
 html {
-  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--sb-canvas);
+  color: var(--sb-body);
   font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-feature-settings: "ss01" 0;
 }
 
-/* Ô heatmap không có dữ liệu: gạch chéo nhạt */
-.cell-nodata {
-  background-color: #f3f4f6;
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 4px,
-    #d5d8de 4px 5px
-  );
+::selection {
+  background: var(--sb-brand);
+  color: #fff;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 0.6;
+:focus-visible {
+  outline: 2px solid var(--sb-brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+a {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Thanh cuộn mảnh theo bảng màu (bảng rộng cuộn ngang trong khung của nó) */
+.sb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-line-strong) transparent;
+}
+.sb-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.sb-scroll::-webkit-scrollbar-thumb {
+  background: var(--sb-line-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.sb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Bốn dấu mức tin cậy ---------- */
+
+.sb-mark-exact {
+  background: var(--sb-exact);
+  color: var(--sb-ink);
+}
+.sb-mark-exact-2 {
+  background: var(--sb-exact-2);
+  color: var(--sb-ink);
+}
+.sb-mark-exact-1 {
+  background: var(--sb-exact-1);
+  color: var(--sb-ink);
+}
+.sb-mark-capped {
+  background: repeating-linear-gradient(45deg, var(--sb-capped) 0 2px, var(--sb-brand-soft) 2px 6px);
+  color: var(--sb-ink);
+}
+.sb-mark-hidden {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px transparent;
+  outline: 1.5px dashed var(--sb-brand-light);
+  outline-offset: -1.5px;
+  color: var(--sb-muted);
+}
+.sb-mark-sold_out {
+  background: var(--sb-plum);
+  color: #fff;
+}
+.sb-mark-unknown {
+  background: var(--sb-sunken);
+  color: var(--sb-muted);
+}
+.sb-mark-nodata {
+  background: transparent;
+  color: var(--sb-line-strong);
+  box-shadow: inset 0 0 0 1px var(--sb-line);
+}
+
+/* Ô ngày có thể bấm: nhấc nhẹ khi rê */
+.sb-cell {
+  transition:
+    transform 0.18s var(--sb-ease),
+    box-shadow 0.18s var(--sb-ease);
+}
+.sb-cell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px -6px rgba(47, 28, 106, 0.55);
+}
+
+/* Mũi tên cho <select> (appearance: none) */
+.sb-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235e6072' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 10px center;
+  background-size: 16px;
+  background-repeat: no-repeat;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+@keyframes sb-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.sb-skeleton {
+  background: linear-gradient(90deg, var(--sb-sunken) 0%, #f6f5fc 50%, var(--sb-sunken) 100%);
+  background-size: 200% 100%;
+  animation: sb-shimmer 1.4s linear infinite;
+}
+
+@keyframes sb-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,0 +1,126 @@
+{
+  "outcome": "rooms",
+  "booking_hotel_id": "1191026",
+  "hotel_name": "The Reverie Saigon - The Leading Hotels of the World",
+  "csrf_token": "FIXTURE_CSRF_TOKEN",
+  "offers": [
+    {
+      "booking_room_id": "119102603",
+      "name": "Deluxe Twin Room High Floor",
+      "max_occupancy": 2,
+      "badge_count": 4,
+      "dropdown_max": 4,
+      "rates": [
+        {
+          "name": "Non-refundable",
+          "price": "8699198",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": null,
+          "max_persons": 2
+        },
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "10439037",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "119102607",
+      "name": "Deluxe King Room High Floor",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Non-refundable",
+          "price": "8699198",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": null,
+          "max_persons": 2
+        },
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "10439037",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "119102639",
+      "name": "Romance Suite High Floor with Executive Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": 3,
+      "dropdown_max": 3,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "17623551",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "119102610",
+      "name": "Executive Suite High Floor with Executive Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": 1,
+      "dropdown_max": 1,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "18421830",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "119102641",
+      "name": "Panorama Suite High Floor with Executive Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": 3,
+      "dropdown_max": 3,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "21082761",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "119102611",
+      "name": "Designer Suite with Two-way Airport Transfer and Executive Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": 1,
+      "dropdown_max": 1,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "116876277",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,227 @@
+{
+  "outcome": "rooms",
+  "booking_hotel_id": "74333",
+  "hotel_name": "Caravelle Saigon",
+  "csrf_token": "FIXTURE_CSRF_TOKEN",
+  "offers": [
+    {
+      "booking_room_id": "7433301",
+      "name": "Deluxe King Room",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation",
+          "price": "4681831",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": null,
+          "max_persons": 2
+        },
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "5462136",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433317",
+      "name": "Deluxe Twin Room",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation",
+          "price": "4681831",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": null,
+          "max_persons": 2
+        },
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "5462136",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433308",
+      "name": "Opera King Room",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation",
+          "price": "4942261",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": null,
+          "max_persons": 2
+        },
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "6105117",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433318",
+      "name": "Opera Twin Room",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation",
+          "price": "4941933",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": null,
+          "max_persons": 2
+        },
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "6104738",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433303",
+      "name": "Signature King Room - Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "6632594",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433319",
+      "name": "Signature Twin Room - Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": 5,
+      "dropdown_max": 5,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "6632594",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433320",
+      "name": "Signature Premium Room - Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "7933103",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433310",
+      "name": "Executive Suite - Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 9,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "10013916",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433304",
+      "name": "Opera View Suite - Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 8,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "11054323",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433309",
+      "name": "Signature Studio Room - Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "8713408",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7433311",
+      "name": "Heritage Suite - Lounge Access",
+      "max_occupancy": 2,
+      "badge_count": 1,
+      "dropdown_max": 1,
+      "rates": [
+        {
+          "name": "Free cancellation + breakfast",
+          "price": "12094730",
+          "currency": "VND",
+          "refundable": true,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    }
+  ]
+}

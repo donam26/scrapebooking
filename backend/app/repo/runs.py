@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Hotel, Probe, ScanJob, ScanRun
 from app.domain.models import HotelRef, ProbeStatus
 
+# Trạng thái job chưa kết thúc. "retrying": lần thử trước lỗi, arq sẽ chạy lại (Retry defer).
+PENDING_JOB_STATUSES = ("queued", "running", "retrying")
+
 
 @dataclass(frozen=True)
 class HotelJobPlan:
@@ -65,15 +68,19 @@ class ScanRunRepository:
         )
 
     async def start_job(self, scan_run_id: int, hotel_id: int, now: datetime) -> ScanJob | None:
-        """Chuyển job sang running. Trả None nếu job đã done (chạy lại không làm gì)."""
-        job = (
+        """Chuyển job sang running. Trả None nếu job đã done hoặc run đã chốt (retry arq tới muộn
+        sau hạn chót): chạy lại không làm gì."""
+        row = (
             await self._s.execute(
-                select(ScanJob).where(
-                    ScanJob.scan_run_id == scan_run_id, ScanJob.hotel_id == hotel_id
-                )
+                select(ScanJob, ScanRun.status)
+                .join(ScanRun, ScanRun.id == ScanJob.scan_run_id)
+                .where(ScanJob.scan_run_id == scan_run_id, ScanJob.hotel_id == hotel_id)
             )
-        ).scalar_one_or_none()
-        if job is None or job.status == "done":
+        ).first()
+        if row is None:
+            return None
+        job: ScanJob = row[0]
+        if job.status == "done" or row[1] != "running":
             return None
         job.status = "running"
         job.started_at = job.started_at or now
@@ -92,10 +99,17 @@ class ScanRunRepository:
         await self._s.flush()
 
     async def try_finish_run(self, scan_run_id: int, now: datetime) -> bool:
+        # Khoá dòng run: hai job cuối xong cùng lúc thì transaction sau chờ transaction trước commit
+        # rồi mới đếm, nên luôn có một bên thấy hết job đã xong và chốt run.
+        locked = await self._s.execute(
+            select(ScanRun.status).where(ScanRun.id == scan_run_id).with_for_update()
+        )
+        if locked.scalar_one_or_none() != "running":
+            return False
         pending = await self._s.execute(
             select(func.count())
             .select_from(ScanJob)
-            .where(ScanJob.scan_run_id == scan_run_id, ScanJob.status.in_(["queued", "running"]))
+            .where(ScanJob.scan_run_id == scan_run_id, ScanJob.status.in_(PENDING_JOB_STATUSES))
         )
         if pending.scalar_one() > 0:
             return False
@@ -110,9 +124,11 @@ class ScanRunRepository:
             .group_by(Probe.status)
         )
         by_status = {row[0]: row[1] for row in counts}
-        await self._s.execute(
+        # Chỉ chốt run đang chạy: job về sau (hoặc chạy lại) không chốt lần hai, không đẩy trùng
+        # analytics/cảnh báo.
+        result = await self._s.execute(
             update(ScanRun)
-            .where(ScanRun.id == scan_run_id)
+            .where(ScanRun.id == scan_run_id, ScanRun.status == "running")
             .values(
                 status="partial" if failed.scalar_one() > 0 else "completed",
                 finished_at=now,
@@ -125,7 +141,7 @@ class ScanRunRepository:
             )
         )
         await self._s.flush()
-        return True
+        return bool(getattr(result, "rowcount", 0))
 
     async def expire_runs(self, deadline: timedelta, now: datetime) -> list[int]:
         cutoff = now - deadline
@@ -136,7 +152,7 @@ class ScanRunRepository:
         for run_id in expired:
             await self._s.execute(
                 update(ScanJob)
-                .where(ScanJob.scan_run_id == run_id, ScanJob.status.in_(["queued", "running"]))
+                .where(ScanJob.scan_run_id == run_id, ScanJob.status.in_(PENDING_JOB_STATUSES))
                 .values(status="failed", finished_at=now, error="deadline")
             )
             await self.try_finish_run(run_id, now)

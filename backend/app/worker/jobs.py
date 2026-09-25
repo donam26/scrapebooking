@@ -21,8 +21,16 @@ log = get_logger(__name__)
 RunFinishedHook = Callable[[int], Awaitable[None]]
 
 
+class HotelPageNotFound(RuntimeError):
+    pass
+
+
 class JobFailed(RuntimeError):
     pass
+
+
+class PermanentJobFailure(JobFailed):
+    """Lỗi không tự hết khi thử lại (VD trang khách sạn 404): không chờ arq retry."""
 
 
 @dataclass
@@ -66,6 +74,7 @@ async def run_probe_hotel(
         await s.commit()
 
     status, error = "done", None
+    permanent = False
     try:
         calendar = await deps.collector.fetch_calendar(
             hotel, start_date, horizon, deps.default_adults
@@ -143,15 +152,23 @@ async def run_probe_hotel(
             summary.probed += 1
             if result.status in (ProbeStatus.BLOCKED, ProbeStatus.ERROR):
                 summary.failed += 1
+            if result.status == ProbeStatus.ERROR and result.error == "not_found":
+                # Trang khách sạn 404 (URL/slug sai): mọi ngày khác cũng 404, dừng thay vì quét hết.
+                raise HotelPageNotFound(f"hotel page not found (http 404): {hotel.canonical_url}")
     except Exception as exc:  # noqa: BLE001
         status, error = "failed", f"{type(exc).__name__}: {exc}"
+        permanent = isinstance(exc, HotelPageNotFound)
         log_ctx.exception("job_failed")
 
     now = deps.clock.now()
     async with deps.session_factory() as s:
         runs = ScanRunRepository(s)
-        await runs.finish_job(scan_run_id, hotel_id, status, now, error)
-        if status == "done" or final_attempt:
+        # Lỗi chưa phải lần cuối: arq sẽ chạy lại, job vẫn chờ nên run chưa được chốt.
+        job_status = (
+            "retrying" if status == "failed" and not (final_attempt or permanent) else status
+        )
+        await runs.finish_job(scan_run_id, hotel_id, job_status, now, error)
+        if job_status != "retrying":
             summary.run_finished = await runs.try_finish_run(scan_run_id, now)
         await s.commit()
         if summary.run_finished:
@@ -180,6 +197,6 @@ async def run_probe_hotel(
 
     JOBS_TOTAL.labels(status).inc()
     if status == "failed":
-        raise JobFailed(error or "unknown")
+        raise (PermanentJobFailure if permanent else JobFailed)(error or "unknown")
     log_ctx.info("job_done", probed=summary.probed, skipped=summary.skipped, failed=summary.failed)
     return summary

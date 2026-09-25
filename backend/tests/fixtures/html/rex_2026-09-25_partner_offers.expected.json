@@ -1,0 +1,127 @@
+{
+  "outcome": "rooms",
+  "booking_hotel_id": "71004",
+  "hotel_name": "Rex Hotel",
+  "csrf_token": "FIXTURE_CSRF_TOKEN",
+  "offers": [
+    {
+      "booking_room_id": "7100514",
+      "name": "Premium Twin Room",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "4000577",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7100411",
+      "name": "Rex Suite King",
+      "max_occupancy": 2,
+      "badge_count": 2,
+      "dropdown_max": 2,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "4516781",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7100515",
+      "name": "Rex Suite Twin",
+      "max_occupancy": 2,
+      "badge_count": 2,
+      "dropdown_max": 2,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "4516781",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7100412",
+      "name": "Governor Suite King",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "4774883",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7100413",
+      "name": "Executive Premium King",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "5032984",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7100516",
+      "name": "Executive Premium Twin",
+      "max_occupancy": 2,
+      "badge_count": null,
+      "dropdown_max": 10,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "5032984",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    },
+    {
+      "booking_room_id": "7100414",
+      "name": "Executive Governor Suite King",
+      "max_occupancy": 2,
+      "badge_count": 3,
+      "dropdown_max": 3,
+      "rates": [
+        {
+          "name": "Non-refundable + breakfast",
+          "price": "6388074",
+          "currency": "VND",
+          "refundable": false,
+          "breakfast": true,
+          "max_persons": 2
+        }
+      ]
+    }
+  ]
+}

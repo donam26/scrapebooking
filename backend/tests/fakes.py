@@ -66,7 +66,7 @@ OFFER = RoomOffer(
 )
 
 
-def fake_parser(html: str, expected_currency: str) -> ParsedPage:
+def fake_parser(html: str, expected_currency: str, adults: int | None = None) -> ParsedPage:
     if "ROOMS" in html:
         return ParsedPage(PageOutcome.ROOMS, "555", "Fake Hotel", "csrf-page", (OFFER,))
     if "SOLDOUT" in html:

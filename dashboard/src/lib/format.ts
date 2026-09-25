@@ -123,7 +123,6 @@ export function dateRange(startIso: string, endIso: string): string[] {
 }
 
 const dateFmt = new Intl.DateTimeFormat(LOCALE, { day: "2-digit", month: "2-digit", year: "numeric" });
-const dateShortFmt = new Intl.DateTimeFormat(LOCALE, { day: "2-digit", month: "2-digit" });
 const weekdayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: "short" });
 const dateTimeFmt = new Intl.DateTimeFormat(LOCALE, {
   day: "2-digit",
@@ -133,12 +132,6 @@ const dateTimeFmt = new Intl.DateTimeFormat(LOCALE, {
   minute: "2-digit",
 });
 const timeFmt = new Intl.DateTimeFormat(LOCALE, { hour: "2-digit", minute: "2-digit" });
-const dayTimeFmt = new Intl.DateTimeFormat(LOCALE, {
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 /** "YYYY-MM-DD" -> "24/09/2026" */
 export function fmtDate(iso: string | null | undefined): string {
@@ -147,7 +140,13 @@ export function fmtDate(iso: string | null | undefined): string {
 
 /** "YYYY-MM-DD" -> "24/09" */
 export function fmtDateShort(iso: string): string {
-  return dateShortFmt.format(parseDate(iso));
+  const d = parseDate(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** "YYYY-MM-DD" -> "T5 24/09" (CN cho chủ nhật). */
+export function fmtNight(iso: string): string {
+  return `${fmtWeekday(iso).replace("Thứ ", "T")} ${fmtDateShort(iso)}`;
 }
 
 /** "YYYY-MM-DD" -> "T5" */
@@ -167,11 +166,12 @@ export function fmtDateTime(iso: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? iso : dateTimeFmt.format(d);
 }
 
-/** ISO datetime -> "24/09 14:05" */
+/** ISO datetime -> "14:05 24/09" */
 export function fmtDayTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : dayTimeFmt.format(d);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${timeFmt.format(d)} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export function fmtTime(iso: string | null | undefined): string {
@@ -188,4 +188,72 @@ export function fmtDuration(fromIso: string | null | undefined, toIso: string | 
   const minutes = Math.round(ms / 60_000);
   if (minutes < 60) return `${minutes}p`;
   return `${Math.floor(minutes / 60)}g ${minutes % 60}p`;
+}
+
+/** Hai mốc cùng ngày (giờ trình duyệt)? */
+function sameLocalDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/** ISO datetime -> "14:06 hôm nay" / "22:05 hôm qua" / "22:05 24/09". */
+export function fmtWhen(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const t = timeFmt.format(d);
+  if (sameLocalDay(d, now)) return `${t} hôm nay`;
+  const y = new Date(now);
+  y.setDate(y.getDate() - 1);
+  if (sameLocalDay(d, y)) return `${t} hôm qua`;
+  return `${t} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Khoảng cách tới hiện tại: "3 phút trước", "2 giờ trước", "hôm qua"… */
+export function fmtAgo(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return "—";
+  const ms = now.getTime() - new Date(iso).getTime();
+  if (!Number.isFinite(ms)) return "—";
+  const m = Math.round(ms / 60_000);
+  if (m < 1) return "vừa xong";
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} giờ trước`;
+  const days = Math.round(h / 24);
+  return days === 1 ? "hôm qua" : `${days} ngày trước`;
+}
+
+/** Giờ hiện tại "HH:MM" theo múi giờ tenant. */
+function nowHHMM(timezone: string, now: Date): string {
+  try {
+    return new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+  } catch {
+    return timeFmt.format(now);
+  }
+}
+
+/** Mốc quét kế tiếp theo lịch tenant: "22:00" hoặc "06:00 ngày mai". */
+export function nextScanLabel(scanTimes: string[], timezone: string, now: Date = new Date()): string | null {
+  const times = [...scanTimes].filter(Boolean).sort();
+  if (times.length === 0) return null;
+  const cur = nowHHMM(timezone, now);
+  const next = times.find((t) => t > cur);
+  return next ?? `${times[0]} ngày mai`;
+}
+
+/** "D-0" -> "Đêm nay", "D-1" -> "Đêm mai". */
+export function fmtNightRel(daysToArrival: number | null | undefined): string | null {
+  if (daysToArrival === null || daysToArrival === undefined) return null;
+  if (daysToArrival === 0) return "Đêm nay";
+  if (daysToArrival === 1) return "Đêm mai";
+  return `Còn ${daysToArrival} ngày`;
+}
+
+/** Tên tạm từ slug Booking khi khách sạn chưa được quét: "vn/meander-saigon" -> "Meander Saigon". */
+export function prettySlug(slug: string): string {
+  const last = slug.split("/").pop() ?? slug;
+  return last
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }

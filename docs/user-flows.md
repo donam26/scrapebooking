@@ -77,4 +77,4 @@ thể khoá/hạ vai trò operator đang hoạt động cuối cùng.
 - Đổi mật khẩu chưa vô hiệu hoá phiên đang đăng nhập ở thiết bị khác (token còn hạn tối đa 12 giờ).
 - `/events?highlight=<id>` chỉ đánh dấu khi sự kiện nằm trong trang hiện tại (chưa có endpoint lấy một sự kiện).
 - Quét thủ công không chặn trùng với đợt theo lịch đang chạy.
-- Chưa có thông báo (Telegram/email) cho tenant khi có bản tin mới; mới có cảnh báo vận hành cho operator.
+- Chưa có thông báo (email/chat) cho tenant khi có bản tin mới; cảnh báo vận hành chỉ ghi log (`ops_alert`).

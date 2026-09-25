@@ -5,7 +5,6 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from arq import cron
-from arq.connections import RedisSettings
 from sqlalchemy import func, select
 
 from app.analytics.service import AnalyticsService
@@ -13,12 +12,12 @@ from app.config import get_settings
 from app.db.engine import make_engine, make_session_factory
 from app.db.models import Insight, Tenant
 from app.db.partitions import drop_room_snapshot_partitions_older_than
-from app.insight.service import InsightService, build_openai_client, daily_due_today
+from app.insight.service import InsightService, build_insight_client, daily_due_today
 from app.logging import configure_logging, get_logger
-from app.ops.alerts import TelegramAlerter
+from app.ops.alerts import LogAlerter
 from app.ops.backup import run_backup
 from app.ops.metrics import start_metrics_server
-from app.scheduler.queue import ArqJobQueue
+from app.scheduler.queue import JOBS_QUEUE, ArqJobQueue, worker_redis_settings
 
 log = get_logger(__name__)
 
@@ -30,9 +29,9 @@ async def startup(ctx: dict[str, Any]) -> None:
     ctx["settings"] = settings
     ctx["engine"] = make_engine(settings.database_url)
     ctx["session_factory"] = make_session_factory(ctx["engine"])
-    ctx["client"] = build_openai_client(settings)
+    ctx["client"] = build_insight_client(settings)
     ctx["queue"] = await ArqJobQueue.connect(settings.redis_url)
-    ctx["alerter"] = TelegramAlerter(settings.telegram_bot_token, settings.telegram_chat_id)
+    ctx["alerter"] = LogAlerter()
     log.info("jobs_worker_started")
 
 
@@ -80,12 +79,12 @@ async def generate_insight(
 MAX_DAILY_FAILURES = 2
 
 
-async def select_daily_dispatch(session: Any, now: datetime) -> list[tuple[int, str]]:
-    """Tenant đã qua insight_hour hôm nay mà chưa có bản tin daily của ngày đó
-    (đang chờ/hoàn tất), và chưa thất bại quá MAX_DAILY_FAILURES lần. Có catch-up:
-    jobs worker tắt đúng giờ thì lần cron sau vẫn đẩy."""
+async def select_daily_dispatch(session: Any, now: datetime) -> list[tuple[int, str, int]]:
+    """(tenant, request_key, số lần đã thất bại hôm nay) cho tenant đã qua insight_hour hôm nay
+    mà chưa có bản tin daily của ngày đó (đang chờ/hoàn tất), và chưa thất bại quá
+    MAX_DAILY_FAILURES lần. Có catch-up: jobs worker tắt đúng giờ thì lần cron sau vẫn đẩy."""
     tenants = list((await session.execute(select(Tenant).where(Tenant.active.is_(True)))).scalars())
-    out: list[tuple[int, str]] = []
+    out: list[tuple[int, str, int]] = []
     for d in daily_due_today(tenants, now):
         day = date.fromisoformat(d.request_key.split(":", 1)[1])
         rows = await session.execute(
@@ -100,9 +99,10 @@ async def select_daily_dispatch(session: Any, now: datetime) -> list[tuple[int, 
         by_status = {r[0]: r[1] for r in rows}
         if any(by_status.get(st) for st in ("completed", "batch_pending", "pending")):
             continue
-        if by_status.get("failed", 0) >= MAX_DAILY_FAILURES:
+        failures = by_status.get("failed", 0)
+        if failures >= MAX_DAILY_FAILURES:
             continue
-        out.append((d.tenant_id, d.request_key))
+        out.append((d.tenant_id, d.request_key, failures))
     return out
 
 
@@ -110,8 +110,8 @@ async def dispatch_daily_insights(ctx: dict[str, Any]) -> int:
     """Cron mỗi 5 phút: đẩy job daily cho tenant đã qua insight_hour và chưa có bản tin hôm nay."""
     async with ctx["session_factory"]() as s:
         due = await select_daily_dispatch(s, datetime.now(tz=UTC))
-    for tenant_id, key in due:
-        await ctx["queue"].enqueue_insight(tenant_id, "daily", key)
+    for tenant_id, key, attempt in due:
+        await ctx["queue"].enqueue_insight(tenant_id, "daily", key, attempt=attempt)
     return len(due)
 
 
@@ -146,14 +146,6 @@ async def prune_partitions(ctx: dict[str, Any]) -> list[str]:
     return dropped
 
 
-class _LazyRedisSettings:
-    """arq đọc `WorkerSettings.redis_settings` lúc chạy; đọc env muộn để import module không cần env
-    (test và công cụ khác import được mà không cần DATABASE_URL...)."""
-
-    def __get__(self, obj: object, owner: type | None = None) -> RedisSettings:
-        return RedisSettings.from_dsn(get_settings().redis_url)
-
-
 class JobsWorkerSettings:
     functions = [run_analytics, generate_insight]
     cron_jobs = [
@@ -165,7 +157,8 @@ class JobsWorkerSettings:
     ]
     on_startup = startup
     on_shutdown = shutdown
-    redis_settings = _LazyRedisSettings()
+    redis_settings = worker_redis_settings()
+    queue_name = JOBS_QUEUE
     max_jobs = 2
     job_timeout = 1800
     max_tries = 2

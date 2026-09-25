@@ -21,17 +21,23 @@ CALENDAR_QUERY = (
 )
 
 
-def build_calendar_request(pagename: str, start: date, days: int, adults: int) -> dict[str, Any]:
+def build_calendar_request(
+    country_code: str, pagename: str, start: date, days: int, adults: int
+) -> dict[str, Any]:
+    """Biến theo frontend Booking (2026-09): `pagenameDetails` thay cho `pagename`, và
+    `nbChildren`/`childrenAges` bắt buộc; dạng cũ bị VALIDATION_INVALID_TYPE_VARIABLE."""
     return {
         "operationName": "AvailabilityCalendar",
         "variables": {
             "input": {
                 "travelPurpose": 2,
-                "pagename": pagename,
+                "pagenameDetails": {"countryCode": country_code, "pagename": pagename},
                 "searchConfig": {
                     "searchConfigDate": {"startDate": start.isoformat(), "amountOfDays": days},
                     "nbAdults": adults,
                     "nbRooms": 1,
+                    "nbChildren": 0,
+                    "childrenAges": [],
                 },
             }
         },

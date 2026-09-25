@@ -225,7 +225,7 @@ async def test_daily_dispatch_catch_up_and_failure_cap(db: AsyncSession) -> None
     after = datetime(2026, 10, 4, 5, 0, tzinfo=UTC)  # 12:00 VN: đã qua giờ (catch-up)
     assert daily_due_today([tenant], before) == []
     assert await select_daily_dispatch(db, before) == []
-    assert await select_daily_dispatch(db, after) == [(tenant.id, "daily:2026-10-04")]
+    assert await select_daily_dispatch(db, after) == [(tenant.id, "daily:2026-10-04", 0)]
     # đã có bản tin daily hôm nay (batch_pending) -> không đẩy nữa
     row = Insight(
         tenant_id=tenant.id,
@@ -294,7 +294,7 @@ async def test_daily_dispatch_retries_after_single_failure(db: AsyncSession) -> 
     )
     await db.commit()
     after = datetime(2026, 10, 4, 5, 0, tzinfo=UTC)
-    assert await select_daily_dispatch(db, after) == [(tenant.id, "daily:2026-10-04")]
+    assert await select_daily_dispatch(db, after) == [(tenant.id, "daily:2026-10-04", 1)]
 
 
 async def test_snapshot_then_insight_end_to_end_with_manual_run(db: AsyncSession) -> None:

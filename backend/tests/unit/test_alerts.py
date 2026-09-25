@@ -1,14 +1,12 @@
-import json
 from datetime import UTC, datetime, timedelta
 
-import httpx
-import respx
+from structlog.testing import capture_logs
 
 from app.clock import FixedClock
 from app.ops.alerts import (
     AlertThrottle,
+    LogAlerter,
     RunStats,
-    TelegramAlerter,
     block_rate_alert,
     run_summary_alert,
 )
@@ -57,18 +55,7 @@ def test_throttle() -> None:
     assert th.should_send("other") is True
 
 
-@respx.mock
-async def test_telegram_sends_message() -> None:
-    route = respx.post("https://api.telegram.org/botTOKEN/sendMessage").mock(
-        return_value=httpx.Response(200, json={"ok": True})
-    )
-    alerter = TelegramAlerter(token="TOKEN", chat_id="42")
-    await alerter.send("hello")
-    assert route.called
-    body = json.loads(route.calls[0].request.content.decode())
-    assert body == {"chat_id": "42", "text": "hello"}
-
-
-async def test_telegram_disabled_without_token() -> None:
-    alerter = TelegramAlerter(token="", chat_id="")
-    await alerter.send("ignored")  # không ném lỗi, không gọi mạng
+async def test_log_alerter_writes_warning() -> None:
+    with capture_logs() as logs:
+        await LogAlerter().send("hello")
+    assert logs == [{"event": "ops_alert", "text": "hello", "log_level": "warning"}]

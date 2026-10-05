@@ -2,8 +2,14 @@ name: ci
 
 on:
   push:
-    branches: [main]
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend:
@@ -28,13 +34,17 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       MINIO_ENDPOINT: http://localhost:9000
       PROXY_URL_TEMPLATE: http://u-{country}-{session}:p@h:1
-      JWT_SECRET: ci-secret
+      JWT_SECRET: ci-secret-long-enough-for-startup-guard
+      PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/ms-playwright
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
       - name: Start MinIO
         # Service container không truyền được `server /data`; image giống infra/docker-compose.yml.
         run: |
@@ -44,7 +54,18 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://localhost:9000/minio/health/live && exit 0; sleep 2; done
           docker logs minio; exit 1
       - run: uv sync --frozen
-      - run: uv run playwright install --with-deps chromium
+      - name: Cache Playwright Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('backend/uv.lock') }}
+      - name: Install Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: uv run playwright install --with-deps chromium
+      - name: Install Chromium system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: uv run playwright install-deps chromium
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy app
       - run: uv run pytest -q -m "not live"
@@ -64,4 +85,30 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run i18n:check
+      - name: Generated API types match docs/api/openapi.json
+        run: npm run gen:api && git diff --exit-code -- src/lib/api-types.ts
       - run: npm run build
+
+  docker:
+    # Chỉ build để phát hiện image hỏng sớm (plans từng ghi "image chưa build lại" nhiều lần).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile.backend
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+      - name: Build dashboard image
+        uses: docker/build-push-action@v6
+        with:
+          context: dashboard
+          file: dashboard/Dockerfile
+          push: false
+          cache-from: type=gha,scope=dashboard
+          cache-to: type=gha,scope=dashboard,mode=max

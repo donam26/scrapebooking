@@ -54,30 +54,31 @@ def write_fixture(html: str, name: str) -> Path:
 
 async def capture(url: str, checkin: str, nights: str, name: str) -> None:
     from app.collector.booking.playwright_bootstrap import PlaywrightBootstrapper
-    from app.collector.booking.urls import build_hotel_url, currency_for
+    from app.collector.booking.urls import build_hotel_url, parse_url
     from app.collector.fetch import CurlFetcher
     from app.collector.proxy import StaticProxyProvider
     from app.collector.session import ScrapeSession
     from app.config import get_settings
-    from app.domain.booking_url import parse_booking_url
-    from app.domain.models import HotelRef
+    from app.domain.models import ListingRef
 
     s = get_settings()
-    ref = parse_booking_url(url)
-    hotel = HotelRef(
-        id=0, country_code=ref.country_code, slug=ref.slug, canonical_url=ref.canonical_url
+    ref = parse_url(url)
+    if ref is None:
+        raise SystemExit(f"not a Booking.com hotel URL: {url}")
+    country = ref.country_code or "vn"
+    listing = ListingRef(
+        hotel_id=0,
+        channel="booking",
+        listing_key=ref.listing_key,
+        url=ref.url,
+        country_code=country,
     )
+    # Tiền tệ cố định toàn hệ thống (SCAN_CURRENCY), giống worker.
     target = build_hotel_url(
-        hotel,
-        date.fromisoformat(checkin),
-        int(nights),
-        s.default_adults,
-        currency_for(ref.country_code),
+        listing, date.fromisoformat(checkin), int(nights), s.default_adults, s.scan_currency
     )
-    proxy = StaticProxyProvider(s.proxy_url_template).new_endpoint(ref.country_code)
-    boot = await PlaywrightBootstrapper(headless=s.playwright_headless).bootstrap(
-        proxy, ref.canonical_url
-    )
+    proxy = StaticProxyProvider(s.proxy_url_template).new_endpoint(country)
+    boot = await PlaywrightBootstrapper(headless=s.playwright_headless).bootstrap(proxy, ref.url)
     session = ScrapeSession(
         uuid.uuid4().hex[:16],
         proxy,

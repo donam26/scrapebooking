@@ -1,0 +1,23 @@
+# Build context của infra/Dockerfile.backend là thư mục gốc (`context: ..`): chỉ gửi backend/.
+.git
+.github
+.claude
+.omc
+.impeccable
+.env
+.env.*
+docs
+plans
+infra
+dashboard
+*.md
+**/__pycache__
+**/.venv
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+**/.next
+backend/tests
+backend/scripts/capture_fixture.py
+backend/scripts/explore_fixture.py

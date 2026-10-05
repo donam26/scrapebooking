@@ -4,7 +4,7 @@
 
 | Tiến trình | Lệnh | Việc làm |
 |---|---|---|
-| `migrate` | `alembic upgrade head` | Tạo/cập nhật schema (migration 0001–0007; 0007 = đa kênh). |
+| `migrate` | `alembic upgrade head` | Tạo/cập nhật schema (migration 0001–0011; 0007 = đa kênh, 0008 = thị trường/occupancy, 0010 = sự kiện địa phương, 0011 = thị trường khu vực). |
 | `scheduler` | `python -m app.scheduler` | Mỗi 60 giây: tạo scan run cho mốc giờ quét của tenant (**một run mỗi kênh**), đẩy job `probe_hotel` vào hàng đợi của kênh, đẩy lại job kẹt, chốt run quá hạn 90 phút, cảnh báo block rate theo kênh và **tự ngắt kênh** bị chặn >20%/15 phút (30 phút), kiểm tra proxy mỗi 15 phút, tạo partition tháng. |
 | `worker`, `worker-agoda`, `worker-ivivu`, `worker-tripcom` | `arq app.worker.settings.WorkerSettings` với `WORKER_CHANNEL=<kênh>` | Collector của một kênh: mỗi job = 1 listing (khách sạn × kênh), lấy calendar (nếu kênh có) rồi probe từng đêm theo tầng (0–14 đêm mọi lượt, xa hơn chỉ khi dữ liệu cũ), ghi snapshot + tín hiệu cầu, payload thô lên MinIO. Cũng chạy `verify_listing` (URL người dùng dán trỏ khách sạn nào) và `discover_listing` (tìm cùng khách sạn trên kênh này → gợi ý). Ngân sách request/phút toàn hệ thống theo kênh (`CHANNEL_BUDGETS`). Scale từng kênh: `--scale worker-agoda=N`. |
 | `jobs` | `arq app.jobs.settings.JobsWorkerSettings` | Analytics sau mỗi run (+ catch-up mỗi 30 phút), insight hằng ngày theo `insight_hour` của tenant (Batch API), insight theo yêu cầu (đồng bộ), poll batch mỗi 10 phút, backup Postgres 02:30 giờ VN, dọn partition >24 tháng ngày 1 hằng tháng. |

@@ -1,0 +1,8 @@
+vitest
+@vitest/coverage-v8
+@testing-library/react
+@testing-library/jest-dom
+@testing-library/user-event
+jsdom
+@vitejs/plugin-react
+@playwright/test

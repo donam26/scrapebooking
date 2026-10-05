@@ -1,0 +1,57 @@
+{
+  "homeLink": "OTARadar, go to Dashboard",
+  "mainNav": "Main navigation",
+  "operatorSection": "Operations",
+  "sessionError": "Could not load your session",
+  "nav": {
+    "dashboard": "Dashboard",
+    "competitors": "Competitors",
+    "availability": "Availability",
+    "rates": "Rates & pricing",
+    "terminal": "Terminal+",
+    "insights": "Briefs",
+    "runs": "Scan history",
+    "settings": "Settings",
+    "tenants": "Tenants",
+    "users": "Accounts",
+    "health": "Scraper health"
+  },
+  "tenant": {
+    "pick": "Choose tenant",
+    "pickPlaceholder": "Choose tenant…",
+    "inactive": "(off)",
+    "pickTitle": "Choose a tenant to view",
+    "pickHint": "Operator accounts view data one tenant at a time. Choose a tenant here or in the top bar.",
+    "manage": "Manage tenants"
+  },
+  "freshness": {
+    "noScan": "No scans yet",
+    "scanning": "Scanning…",
+    "scannedAt": "Scanned {when}",
+    "failed": "Last scan failed, no new data",
+    "overdue": "Missed scan · data from {ago}",
+    "next": "Next scan {when}"
+  },
+  "help": {
+    "title": "Help",
+    "data": "Data",
+    "pickTenant": "Choose a tenant to view",
+    "heatTitle": "Rooms-left colours",
+    "heatNote": "Rooms left are per channel and never added across channels. “≥N” means the channel only shows a floor.",
+    "openToday": "Open the “Today” view for phones"
+  },
+  "bell": {
+    "title": "Notifications",
+    "latest": "Latest changes",
+    "viewAll": "View all",
+    "loading": "Loading…",
+    "empty": "No changes yet",
+    "hotelFallback": "Hotel #{id}",
+    "eventLine": "{event} · night of {night}"
+  },
+  "user": {
+    "title": "Account",
+    "language": "Language",
+    "logout": "Sign out"
+  }
+}

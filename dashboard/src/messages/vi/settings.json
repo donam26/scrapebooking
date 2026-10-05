@@ -1,0 +1,427 @@
+{
+  "page": {
+    "title": "Cài đặt",
+    "subtitleWrite": "Khách sạn theo dõi, giờ quét, sự kiện địa phương, thông báo email, người dùng và dữ liệu công suất từ PMS",
+    "subtitleRead": "Xem khách sạn theo dõi, giờ quét, thông báo, người dùng và dữ liệu PMS của tenant",
+    "readOnlyNote": "Tài khoản chỉ xem: bạn xem được mọi cài đặt nhưng không thay đổi được. Liên hệ quản trị viên khách sạn nếu cần sửa.",
+    "tabs": {
+      "watchlist": "Khách sạn",
+      "market": "Thị trường",
+      "schedule": "Lịch quét",
+      "events": "Sự kiện",
+      "notifications": "Thông báo",
+      "users": "Người dùng",
+      "pms": "Nhập PMS"
+    }
+  },
+  "watchlist": {
+    "url": {
+      "empty": "Dán đường dẫn trang khách sạn trên một kênh đặt phòng.",
+      "malformed": "Đường dẫn chưa đúng dạng. Hãy sao chép nguyên địa chỉ trên thanh trình duyệt, bắt đầu bằng https://",
+      "unsupported": "Chưa hỗ trợ trang này. Các kênh đang hỗ trợ: {channels}.",
+      "notCollectable": "Chưa hỗ trợ quét {channel}. Các kênh đang hỗ trợ: {channels}."
+    },
+    "add": {
+      "title": "Thêm khách sạn",
+      "description": "Dán đường dẫn trang khách sạn trên {channels}. Hệ thống kiểm tra đường dẫn rồi tự tìm cùng khách sạn trên các kênh còn lại để bạn xác nhận.",
+      "descriptionAny": "Dán đường dẫn trang khách sạn trên một kênh đặt phòng. Hệ thống kiểm tra đường dẫn rồi tự tìm cùng khách sạn trên các kênh còn lại để bạn xác nhận.",
+      "urlLabel": "Đường dẫn khách sạn",
+      "urlPlaceholder": "Dán đường dẫn trên {channels}",
+      "urlPlaceholderAny": "https://…",
+      "role": "Vai trò",
+      "labelField": "Nhãn hiển thị (tuỳ chọn)",
+      "labelPlaceholder": "VD: Đối thủ A",
+      "submit": "Thêm khách sạn",
+      "supported": "Đang hỗ trợ: {channels}. Mỗi kênh được đếm phòng và giá riêng, không cộng giữa các kênh.",
+      "errorTitle": "Chưa thêm được khách sạn",
+      "addedOn": "Đã thêm “{name}” trên {channel}. Hệ thống đang kiểm tra đường dẫn, sau đó gợi ý cùng khách sạn trên các kênh khác ngay trong danh sách bên dưới.",
+      "added": "Đã thêm “{name}”. Hệ thống đang kiểm tra đường dẫn, sau đó gợi ý cùng khách sạn trên các kênh khác ngay trong danh sách bên dưới."
+    },
+    "listing": {
+      "confirmTitle": "Đúng là khách sạn này trên {channel}: bắt đầu quét",
+      "confirm": "Xác nhận",
+      "rejectTitle": "Không phải khách sạn này: bỏ gợi ý",
+      "reject": "Bỏ",
+      "retryTitle": "Kiểm tra lại đường dẫn trên {channel}",
+      "retry": "Thử lại",
+      "resumeTitle": "Quét lại khách sạn này trên {channel}",
+      "resume": "Quét lại",
+      "pauseLabel": "Tạm dừng quét trên {channel}",
+      "pauseTitle": "Tạm dừng quét trên {channel} (các kênh khác vẫn quét)"
+    },
+    "addListing": {
+      "label": "Đường dẫn khách sạn này trên kênh khác",
+      "placeholder": "https://www.agoda.com/vi-vn/ten-khach-san/hotel/…",
+      "submit": "Thêm kênh",
+      "replaceNote": "Đã có kênh này thì đường dẫn mới thay cho đường dẫn cũ."
+    },
+    "row": {
+      "stopped": "Ngừng quét",
+      "addedOn": "Thêm {date}",
+      "pendingFirst": "Chờ lượt quét đầu tiên",
+      "labelAria": "Nhãn hiển thị",
+      "labelPlaceholder": "Nhãn hiển thị",
+      "roleAria": "Vai trò",
+      "editAria": "Sửa {name}",
+      "stopTitle": "Ngừng quét khách sạn này trên mọi kênh (có thể bật lại bất cứ lúc nào)",
+      "resumeTitle": "Bật quét lại khách sạn này",
+      "stopAria": "Ngừng quét {name}",
+      "resumeAria": "Quét lại {name}",
+      "stop": "Ngừng quét",
+      "resume": "Quét lại",
+      "channelsAria": "Kênh của {name}",
+      "addChannel": "Thêm kênh",
+      "discoverTitle": "Tìm khách sạn này trên {channels}; kết quả là gợi ý chờ bạn xác nhận",
+      "discover": "Tìm trên kênh khác",
+      "searching": "Đang tìm trên {channels}. Gợi ý sẽ hiện ở đây trong ít phút để bạn xác nhận.",
+      "allChannels": "Khách sạn này đã có trên mọi kênh đang hỗ trợ.",
+      "dismiss": "Ẩn thông báo"
+    },
+    "list": {
+      "emptyTitle": "Chưa theo dõi khách sạn nào",
+      "emptyWrite": "Thêm khách sạn của bạn trước (vai trò “Khách sạn của bạn”), sau đó thêm các đối thủ trong cùng phân khúc. Mỗi khách sạn được đếm phòng và giá ba lần mỗi ngày trên từng kênh.",
+      "emptyRead": "Quản trị viên chưa thêm khách sạn nào để theo dõi.",
+      "title": "Danh sách theo dõi",
+      "summary": "{count, number} khách sạn, {active, number} đang được quét",
+      "checking": "Đang kiểm tra đường dẫn mới…",
+      "scanNowTitle": "Quét toàn bộ khách sạn đang theo dõi trên mọi kênh ngay, không chờ mốc giờ",
+      "scanNow": "Quét ngay",
+      "noChannelsReady": "Chưa có kênh nào sẵn sàng để quét.",
+      "scanStarted": "Đã bắt đầu quét trên {channels}. Kết quả xuất hiện ở Phòng trống sau vài phút.",
+      "scanErrorTitle": "Chưa quét được",
+      "selfTitle": "Khách sạn của bạn",
+      "selfEmpty": "Chưa có khách sạn của bạn. Thêm với vai trò “Khách sạn của bạn” để so giá với đối thủ và nhập dữ liệu PMS.",
+      "compTitle": "Đối thủ",
+      "compEmpty": "Chưa có đối thủ nào. Thêm các khách sạn cùng phân khúc mà bạn hay so giá.",
+      "legend": "Mỗi chip là một kênh: chấm xanh đang quét, chấm xanh dương đang kiểm tra hoặc là gợi ý chờ bạn xác nhận, chấm đỏ là đường dẫn lỗi. Bấm tên kênh để mở trang khách sạn trên kênh đó."
+    }
+  },
+  "market": {
+    "destType": {
+      "city": "Thành phố",
+      "district": "Quận/khu",
+      "region": "Tỉnh/vùng"
+    },
+    "listStatus": {
+      "queued": "Chờ quét",
+      "running": "Đang quét",
+      "completed": "Xong",
+      "capped": "Thiếu trang",
+      "blocked": "Bị chặn",
+      "error": "Lỗi",
+      "paused": "Tạm dừng do bị chặn"
+    },
+    "listError": {
+      "wrongDates": "Booking trả trang khác ngày yêu cầu (dấu hiệu chặn bot). Lượt quét tự thử lại sau.",
+      "blocked": "Booking chặn lượt quét danh sách; quét danh sách tạm dừng một lúc rồi tự chạy lại.",
+      "timeout": "Booking phản hồi quá chậm ở một số đêm; các đêm đó được bỏ qua, lượt sau quét lại.",
+      "network": "Lỗi mạng/proxy ở một số đêm; các đêm đó được bỏ qua, lượt sau quét lại.",
+      "stuck": "Lượt quét trước bị dừng giữa chừng; hệ thống đã quét lại từ đêm còn thiếu."
+    },
+    "config": {
+      "listNights": "Số đêm quét danh sách",
+      "listNightsHint": "Mỗi đêm 1 lượt đọc trang đầu, lấy số KS còn phòng",
+      "maxHotels": "Số KS quét chi tiết",
+      "maxHotelsHint": "Top theo số đánh giá; đọc phòng còn từng đêm",
+      "horizon": "Số đêm quét chi tiết",
+      "horizonHint": "Tối đa 90, quét theo tầng như compset",
+      "maxPages": "Giới hạn lượt đọc trang",
+      "maxPagesHint": "Trần số request mỗi lượt khám phá (1 lần/ngày)"
+    },
+    "add": {
+      "title": "Thêm khu vực thị trường",
+      "info": "Tìm theo tên thành phố hoặc quận trên Booking.com. Quận trung tâm (vài trăm KS) cho số liệu đầy đủ hơn cả thành phố (hàng nghìn chỗ ở, gồm căn hộ, homestay).",
+      "searchLabel": "Thành phố / quận",
+      "searchPlaceholder": "VD: Ho Chi Minh City, District 1, Hanoi Old Quarter",
+      "noResults": "Không thấy khu vực nào. Thử tên tiếng Anh như trên Booking.com.",
+      "properties": "{count, number} chỗ ở",
+      "bigArea": "Khu vực có {count, number} chỗ ở; Booking chỉ cho xem một phần mỗi lượt nên danh sách được ghép dần qua nhiều lượt. Cân nhắc chọn quận trung tâm.",
+      "submit": "Thêm khu vực",
+      "firstScanHint": "Lượt quét danh sách đầu tiên chạy lúc 03:00, hoặc bấm “Quét ngay” sau khi thêm."
+    },
+    "area": {
+      "description": "{type} · Booking.com · {count, number} khách sạn đã biết",
+      "scanning": "Đang quét",
+      "paused": "Tạm dừng",
+      "lastListScan": "Quét danh sách gần nhất",
+      "lastDetailScan": "Quét chi tiết gần nhất",
+      "lastRequest": "Yêu cầu quét gần nhất",
+      "notScanned": "Chưa quét",
+      "saveConfig": "Lưu cấu hình",
+      "scanNow": "Quét danh sách ngay",
+      "queued": "Đã đưa vào hàng đợi",
+      "alreadyRunning": "Lượt quét danh sách đang chạy",
+      "delete": "Xoá khu vực",
+      "deleteConfirm": "Xoá khu vực {name}? Lịch sử quét danh sách của khu vực sẽ bị xoá; dữ liệu khách sạn vẫn giữ."
+    },
+    "intro": "Quét toàn bộ khách sạn của một khu vực trên Booking.com: mỗi ngày 03:00 đọc trang kết quả cho từng đêm (số khách sạn còn phòng, giá, điểm đánh giá), 05:00 quét chi tiết các khách sạn nhiều đánh giá nhất để ước tính phòng còn và công suất cả khu vực. Dữ liệu hiện ở Terminal+ và Đối thủ › Khám phá thị trường.",
+    "emptyTitle": "Chưa có khu vực thị trường",
+    "emptyBody": "Thêm thành phố hoặc quận nơi khách sạn của bạn hoạt động để có chỉ báo thị trường cả khu vực."
+  },
+  "schedule": {
+    "tzVietnam": "Giờ Việt Nam (GMT+7)",
+    "rail": {
+      "insight": "Bản tin {time}",
+      "scan": "Lượt quét",
+      "insightLegend": "Tạo bản tin AI"
+    },
+    "times": {
+      "title": "Giờ quét trong ngày",
+      "hint": "Mỗi mốc giờ tạo một lượt quét toàn bộ khách sạn đang theo dõi, theo {timezone}. Tối đa {max} mốc.",
+      "removeAria": "Xoá mốc {time}",
+      "keepOne": "Cần giữ ít nhất một mốc quét",
+      "newAria": "Mốc giờ mới",
+      "add": "Thêm mốc",
+      "duplicate": "Đã có mốc {time}."
+    },
+    "reference": {
+      "title": "Kênh tham chiếu",
+      "description": "Phòng trống, Nhịp đặt phòng, bản tin AI và email báo cáo so bạn với đối thủ trên kênh này. Các kênh khác vẫn được quét và xem được bằng nút chọn kênh trên từng màn hình.",
+      "onlyOne": "thêm khách sạn trên kênh khác ở tab Khách sạn để có thêm lựa chọn"
+    },
+    "scope": {
+      "title": "Phạm vi quét và bản tin",
+      "horizon": "Số đêm quét tới",
+      "horizonHint": "Từ 1 đến 90 đêm, tính từ hôm nay; đêm xa được quét thưa hơn",
+      "nights": "đêm",
+      "insightHour": "Giờ tạo bản tin AI",
+      "insightHourHint": "Bản tin hằng ngày dùng lượt quét gần nhất",
+      "language": "Ngôn ngữ báo cáo",
+      "languageHint": "Ngôn ngữ của bản tin AI, email cảnh báo và báo cáo tuần. Giao diện web đổi riêng bằng nút VI/EN.",
+      "timezone": "Múi giờ",
+      "timezoneHint": "Giờ quét và giờ bản tin tính theo múi giờ này"
+    },
+    "save": "Lưu cài đặt",
+    "discard": "Bỏ thay đổi",
+    "saved": "Đã lưu",
+    "unsaved": "Có thay đổi chưa lưu",
+    "saveError": "Chưa lưu được",
+    "cardTitle": "Lịch quét và bản tin",
+    "cardDescription": "Nhịp đếm phòng mỗi ngày và giờ bản tin AI được tạo"
+  },
+  "events": {
+    "form": {
+      "name": "Tên sự kiện",
+      "namePlaceholder": "VD: Giải chạy Marathon TP.HCM",
+      "category": "Loại",
+      "start": "Từ ngày",
+      "end": "Đến ngày",
+      "uplift": "Tăng cầu dự kiến",
+      "upliftHint": "%, tuỳ chọn",
+      "note": "Ghi chú",
+      "notePlaceholder": "Địa điểm, quy mô khách dự kiến…"
+    },
+    "uplift": "{value} cầu dự kiến",
+    "deleteAria": "Xoá {name}",
+    "addTitle": "Thêm sự kiện",
+    "addInfo": "Sự kiện hiện trên lịch Terminal+ cạnh ngày lễ. Mức tăng cầu là con số bạn tự dự kiến để cả nhóm cùng thấy, hệ thống không tự đo.",
+    "listTitle": "Sự kiện địa phương",
+    "listDescription": "Lễ hội, hội nghị, giải đấu, mùa du lịch… ảnh hưởng tới cầu phòng quanh khách sạn của bạn.",
+    "emptyTitle": "Chưa có sự kiện nào",
+    "emptyBody": "Thêm các sự kiện địa phương (VD: F1, lễ hội pháo hoa, hội chợ, mùa cao điểm) để đặt cạnh dữ liệu thị trường trên lịch."
+  },
+  "notifications": {
+    "rules": {
+      "daily_insight": {
+        "title": "Bản tin sáng",
+        "describe": "Gửi bản tin AI ngay khi bản tin hằng ngày xong, kèm liên kết tới bằng chứng.",
+        "describeAt": "Gửi bản tin AI ngay khi bản tin hằng ngày xong (khoảng {hour}), kèm liên kết tới bằng chứng."
+      },
+      "weekly_report": {
+        "title": "Báo cáo tuần",
+        "describe": "Sáng thứ Hai lúc 08:00: tóm tắt 7 ngày qua của đối thủ và 14 đêm tới của bạn."
+      },
+      "competitor_sold_out": {
+        "title": "Đối thủ hết phòng",
+        "describe": "Khi một đối thủ vừa hết phòng một đêm trong <days></days> đêm tới và số đối thủ hết phòng đêm đó từ <soldOut></soldOut> trở lên."
+      },
+      "competitor_low_stock": {
+        "title": "Đối thủ sắp hết phòng",
+        "describe": "Khi một loại phòng của đối thủ còn từ 3 phòng trở xuống, cho đêm trong <days></days> đêm tới."
+      },
+      "competitor_price_drop": {
+        "title": "Đối thủ giảm giá",
+        "describe": "Khi giá thấp nhất của đối thủ giảm từ <pct></pct> cho một đêm trong <days></days> đêm tới."
+      },
+      "own_parity_gap": {
+        "title": "Khách sạn của bạn rẻ hơn hẳn trên một kênh",
+        "describe": "Khi giá thấp nhất của bạn trên một kênh thấp hơn kênh rẻ nhất còn lại từ <pct></pct> cho một đêm trong <days></days> đêm tới, so cùng cơ sở giá. Thường là kênh bán lại giá sỉ hoặc tự giảm giá."
+      }
+    },
+    "param": {
+      "aria": "{rule}: {param}",
+      "minGap": "mức chênh tối thiểu",
+      "minDrop": "mức giảm tối thiểu",
+      "minSoldOut": "số đối thủ hết phòng tối thiểu",
+      "withinDays": "số đêm tới"
+    },
+    "emailOff": "Máy chủ email chưa được cấu hình nên OTARadar chưa gửi được thư. Các thông báo vẫn được ghi ở “Đã gửi gần đây” bên dưới.",
+    "emailOffOperator": "Đặt SMTP_HOST, SMTP_FROM (và SMTP_USERNAME, SMTP_PASSWORD) cho worker jobs rồi tạo lại container.",
+    "emailOffTenant": "Liên hệ đơn vị vận hành OTARadar để bật.",
+    "rulesTitle": "Gửi gì",
+    "rulesDescription": "Cảnh báo được gom thành một email sau mỗi lượt quét, chỉ khi có thay đổi khớp với điều kiện bên dưới.",
+    "invalid": "Nhập số trong khoảng cho phép (số đêm 1–90, mức giảm hoặc chênh 3–90%, số đối thủ 1–50).",
+    "saved": "Đã lưu",
+    "recipients": {
+      "title": "Người nhận email",
+      "description": "Mỗi người nhận một email riêng, không thấy địa chỉ của nhau.",
+      "test": "Gửi thử",
+      "emailAria": "Email người nhận",
+      "emailPlaceholder": "chu.khachsan@email.vn",
+      "add": "Thêm người nhận",
+      "errorTitle": "Chưa thực hiện được",
+      "emptyTitle": "Chưa có người nhận",
+      "emptyBody": "Thêm email của chủ khách sạn hoặc người phụ trách giá để nhận cảnh báo về đối thủ và bản tin mỗi sáng.",
+      "removeAria": "Xoá {email}"
+    },
+    "test": {
+      "sent": "Đã gửi thư thử tới {count} địa chỉ. Kiểm tra cả hộp thư rác nếu chưa thấy.",
+      "notSent": "Chưa gửi được",
+      "notSentUnconfigured": "{reason}; thư thử chưa được gửi."
+    },
+    "log": {
+      "title": "Đã gửi gần đây",
+      "description": "{count} thông báo mới nhất",
+      "emptyTitle": "Chưa có thông báo nào",
+      "emptyBody": "Sau lượt quét kế tiếp có thay đổi ở đối thủ, hoặc khi bản tin sáng xong, email sẽ hiện ở đây.",
+      "time": "Thời điểm",
+      "kind": "Loại",
+      "content": "Nội dung",
+      "recipients": "Người nhận",
+      "status": "Trạng thái"
+    }
+  },
+  "users": {
+    "roleHint": {
+      "operator": "Vận hành mọi tenant",
+      "tenant_admin": "Sửa watchlist, lịch quét, người dùng, nhập PMS",
+      "viewer": "Chỉ xem số liệu và bản tin"
+    },
+    "form": {
+      "email": "Email đăng nhập",
+      "emailPlaceholder": "ten@khachsan.vn",
+      "password": "Mật khẩu",
+      "passwordHint": "Tối thiểu 8 ký tự",
+      "role": "Vai trò",
+      "tenant": "Tenant",
+      "pickTenant": "Chọn tenant…",
+      "submit": "Tạo người dùng",
+      "errorTitle": "Chưa tạo được người dùng",
+      "created": "Đã tạo tài khoản {email}. Gửi mật khẩu cho người dùng qua kênh riêng."
+    },
+    "row": {
+      "you": "(bạn)",
+      "active": "Hoạt động",
+      "locked": "Đã khoá",
+      "roleAria": "Vai trò của {email}",
+      "newPasswordAria": "Mật khẩu mới cho {email}",
+      "newPasswordPlaceholder": "Mật khẩu mới, ≥ 8 ký tự",
+      "setPassword": "Đặt",
+      "resetPassword": "Đặt lại mật khẩu",
+      "lockAccount": "Khoá tài khoản",
+      "unlockAccount": "Mở khoá tài khoản",
+      "lock": "Khoá",
+      "unlock": "Mở khoá"
+    },
+    "done": {
+      "roleChanged": "Đã đổi vai trò",
+      "passwordSet": "Đã đặt mật khẩu mới",
+      "locked": "Đã khoá tài khoản",
+      "unlocked": "Đã mở khoá"
+    },
+    "addTitle": "Thêm người dùng",
+    "addDescription": "Quản trị sửa được cài đặt; chỉ xem thì đọc số liệu và bản tin.",
+    "listTitle": "Người dùng",
+    "listSummary": "{count} tài khoản, {active} đang hoạt động",
+    "emptyTitle": "Chưa có người dùng nào",
+    "emptyWrite": "Tạo tài khoản cho đồng nghiệp ở trên để họ xem bảng giá mỗi sáng.",
+    "emptyRead": "Quản trị viên chưa thêm người dùng nào.",
+    "colEmail": "Email",
+    "colRole": "Vai trò",
+    "colStatus": "Trạng thái",
+    "colActions": "Thao tác"
+  },
+  "pms": {
+    "errors": {
+      "row": "Dòng",
+      "column": "Cột",
+      "error": "Lỗi"
+    },
+    "result": {
+      "imported": "<strong>{ok, number}</strong> / <num>{total, number}</num> dòng nhập thành công",
+      "failedRows": "{count, number} dòng lỗi",
+      "note": "Công suất đã nhập hiện trên Phòng trống, trong dải khách sạn của bạn."
+    },
+    "stepSr": "Bước {n}:",
+    "dropzone": {
+      "reading": "Đang đọc tệp…",
+      "change": "Bấm hoặc kéo tệp khác vào để đổi",
+      "dropHere": "Thả tệp vào đây",
+      "pick": "Kéo thả hoặc chọn tệp CSV/Excel",
+      "hint": "Tệp xuất công suất theo ngày từ PMS: CSV, XLSX hoặc XLS"
+    },
+    "hotelAria": "Khách sạn của bạn",
+    "noSelfOption": "Chưa có khách sạn của bạn",
+    "import": {
+      "title": "Nhập công suất từ PMS",
+      "description": "Tải tệp xuất từ PMS (ezCloud, Newway…) để đặt công suất thật của bạn cạnh tình trạng phòng của đối thủ trên Phòng trống.",
+      "template": "Tải template CSV"
+    },
+    "step1": {
+      "title": "Chọn khách sạn và tệp",
+      "noSelf": "Cần thêm khách sạn của bạn (vai trò “Khách sạn của bạn”) ở tab <link>Khách sạn</link> trước khi nhập PMS.",
+      "hotel": "Khách sạn của bạn",
+      "hotelHint": "Dữ liệu nhập vào gắn với khách sạn này",
+      "file": "Tệp dữ liệu",
+      "previewError": "Không đọc được tệp"
+    },
+    "step2": {
+      "title": "Ánh xạ cột",
+      "hint": "Chọn cột trong tệp tương ứng với từng cột chuẩn ({mapped}/{total} đã chọn). Ánh xạ được lưu và dùng lại cho các lần nhập sau.",
+      "hintEmpty": "Chọn tệp để hệ thống gợi ý cột tương ứng.",
+      "required": "Bắt buộc",
+      "skip": "Bỏ qua"
+    },
+    "step3": {
+      "title": "Xem trước và nhập",
+      "hint": "{count} dòng đầu của tệp · <b>{parsed, number}</b> dòng đọc được với ánh xạ đang lưu",
+      "hintEmpty": "Kiểm tra vài dòng đầu trước khi nhập.",
+      "previewErrors": "{count} lỗi khi đọc thử theo ánh xạ đang lưu",
+      "clickToView": "· bấm để xem",
+      "submit": "Lưu ánh xạ và nhập dữ liệu",
+      "needStayDate": "Cần chọn cột cho {column}.",
+      "importInto": "Nhập vào {hotel}",
+      "importError": "Chưa nhập được"
+    },
+    "history": {
+      "title": "Lịch sử nhập",
+      "description": "{count} lần nhập gần nhất",
+      "emptyTitle": "Chưa nhập tệp nào",
+      "emptyBody": "Nhập công suất từ PMS để Phòng trống hiện công suất thật của bạn ngay dưới dải phòng còn, cạnh các đối thủ.",
+      "time": "Thời điểm",
+      "file": "Tệp",
+      "hotel": "Khách sạn",
+      "status": "Trạng thái",
+      "okRows": "Dòng thành công",
+      "errors": "Lỗi"
+    },
+    "daily": {
+      "title": "Công suất đã nhập",
+      "description": "{count} đêm gần nhất có dữ liệu",
+      "noSelfTitle": "Chưa có khách sạn của bạn",
+      "noSelfBody": "Khi có khách sạn vai trò “Khách sạn của bạn” và tệp PMS đã nhập, công suất từng đêm hiện ở đây.",
+      "noDataTitle": "Chưa có dữ liệu cho {hotel}",
+      "noDataWrite": "Nhập tệp ở trên; mỗi dòng là một đêm với tổng phòng, phòng đã bán và doanh thu.",
+      "noDataRead": "Quản trị viên chưa nhập dữ liệu PMS cho khách sạn này.",
+      "stayDate": "Đêm lưu trú",
+      "roomsTotal": "Tổng phòng",
+      "roomsSold": "Đã bán",
+      "roomsLeft": "Còn",
+      "occupancy": "Công suất",
+      "adr": "ADR",
+      "revenue": "Doanh thu",
+      "source": "Nguồn",
+      "importedAt": "Nhập lúc"
+    }
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "tenants": {
+    "title": "Tenant",
+    "subtitle": "Mỗi tenant là một khách hàng với watchlist, lịch quét và người dùng riêng",
+    "create": "Tạo tenant",
+    "createCard": {
+      "title": "Tạo tenant mới",
+      "description": "Có thể đổi mọi giá trị sau khi tạo"
+    },
+    "list": {
+      "title": "Danh sách tenant",
+      "count": "{count, number} tenant · {active, number} đang hoạt động"
+    },
+    "empty": {
+      "title": "Chưa có tenant nào",
+      "body": "Tạo tenant cho khách hàng đầu tiên, rồi thêm người dùng và watchlist cho họ."
+    },
+    "table": {
+      "tenant": "Tenant",
+      "status": "Trạng thái",
+      "scanTimes": "Giờ quét",
+      "horizon": "Số đêm",
+      "report": "Bản tin",
+      "actions": "Thao tác"
+    },
+    "form": {
+      "name": "Tên tenant",
+      "nameHint": "Thường là tên khách sạn hoặc tập đoàn khách hàng",
+      "namePlaceholder": "VD: Rex Hotel Saigon",
+      "timezone": "Múi giờ",
+      "timezoneHint": "Giờ quét và giờ bản tin tính theo múi giờ này",
+      "scanTimes": "Giờ quét trong ngày",
+      "scanTimesHint": "HH:MM, cách nhau bằng dấu phẩy. VD: 06:00, 14:00, 22:00",
+      "horizon": "Số đêm quét tới",
+      "horizonHint": "1–90 đêm kể từ hôm nay",
+      "insightHour": "Giờ tạo bản tin AI",
+      "reportLanguage": "Ngôn ngữ báo cáo",
+      "country": "Mã nước",
+      "countryHint": "2 ký tự, dùng chọn proxy và phiên bản trang của từng kênh (VD: vn)",
+      "status": "Trạng thái",
+      "statusAria": "Trạng thái tenant",
+      "active": "Hoạt động",
+      "inactive": "Tắt (không quét)"
+    },
+    "row": {
+      "createdAt": "Tạo lúc {when}",
+      "meta": "#{id} · {timezone} · tạo {date}",
+      "active": "Hoạt động",
+      "inactive": "Tắt",
+      "nights": "{count, number} đêm",
+      "viewTitle": "Chuyển sang xem dữ liệu của tenant này",
+      "viewing": "Đang xem",
+      "view": "Xem dashboard",
+      "editTitle": "Sửa “{name}”",
+      "saveChanges": "Lưu thay đổi"
+    }
+  },
+  "users": {
+    "title": "Tài khoản",
+    "subtitle": "Toàn bộ tài khoản: đơn vị vận hành và người dùng của từng tenant",
+    "operator": "Vận hành",
+    "tenantFallback": "Tenant #{id}",
+    "create": {
+      "title": "Tạo tài khoản",
+      "description": "Mật khẩu tối thiểu 8 ký tự; gửi cho người dùng qua kênh riêng"
+    },
+    "list": {
+      "title": "Danh sách tài khoản",
+      "count": "{count, number} tài khoản · {active, number} đang hoạt động"
+    },
+    "filter": {
+      "label": "Lọc theo",
+      "aria": "Lọc theo tenant",
+      "all": "Tất cả tenant",
+      "inactive": "(tắt)"
+    },
+    "empty": {
+      "noneTitle": "Chưa có tài khoản nào",
+      "noneBody": "Tạo tài khoản đầu tiên ở khung phía trên.",
+      "noMatchTitle": "Không có tài khoản khớp bộ lọc",
+      "noMatchBody": "Chọn “Tất cả tenant” để xem mọi tài khoản."
+    },
+    "table": {
+      "email": "Email",
+      "tenant": "Tenant",
+      "role": "Vai trò",
+      "status": "Trạng thái",
+      "actions": "Thao tác"
+    }
+  },
+  "health": {
+    "title": "Sức khoẻ scraper",
+    "refresh": "Tự làm mới mỗi 30 giây",
+    "refreshAt": "Tự làm mới mỗi 30 giây · cập nhật lúc {time}",
+    "openGrafana": "Mở Grafana",
+    "scanAll": "Quét tất cả ngay",
+    "scanAllTitle": "Tạo lượt quét thủ công cho mọi tenant đang hoạt động",
+    "scanCreated": "Đã tạo {count, number} lượt quét (mỗi tenant × kênh một lượt). Tiến độ hiện trong bảng “Các lượt quét” ở lần làm mới tới.",
+    "stats": {
+      "probes": "Probe 15 phút qua",
+      "probesHint": "Số lần tải trang ngày lưu trú",
+      "blocked": "Bị chặn 15 phút qua",
+      "blockedSome": "Có probe bị chặn",
+      "blockedNone": "Không có probe bị chặn",
+      "blockRate": "Tỷ lệ chặn 15 phút",
+      "blockRateOver": "Vượt ngưỡng cảnh báo 20%",
+      "blockRateThreshold": "Ngưỡng cảnh báo 20%",
+      "sessions": "Session đang hoạt động",
+      "sessionsHint": "Phiên trình duyệt qua proxy"
+    },
+    "lastRun": "Lượt quét gần nhất",
+    "pendingAnalytics": "Chờ phân tích: {runs}",
+    "runs": {
+      "title": "Các lượt quét",
+      "description": "20 lượt gần nhất của mọi tenant",
+      "emptyTitle": "Chưa có lượt quét",
+      "emptyBody": "Lượt quét theo lịch hoặc bấm “Quét tất cả ngay” sẽ hiện ở đây.",
+      "run": "Lượt",
+      "channel": "Kênh",
+      "trigger": "Mốc",
+      "status": "Trạng thái",
+      "started": "Bắt đầu",
+      "duration": "Thời lượng",
+      "jobs": "Job",
+      "probesOk": "Probe thành công",
+      "soldOut": "Hết",
+      "blocked": "Chặn",
+      "errors": "Lỗi"
+    },
+    "sessions": {
+      "title": "Session scrape",
+      "description": "50 phiên gần nhất",
+      "emptyTitle": "Chưa có session",
+      "emptyBody": "Worker tạo session khi bắt đầu quét.",
+      "session": "Session",
+      "worker": "Worker",
+      "proxy": "Proxy",
+      "country": "Nước",
+      "status": "Trạng thái",
+      "created": "Tạo lúc",
+      "expires": "Hết hạn",
+      "requests": "Request",
+      "blocked": "Chặn",
+      "retiredAt": "thu hồi {when}"
+    },
+    "sessionStatus": {
+      "active": "Hoạt động",
+      "retired": "Đã thu hồi",
+      "blocked": "Bị chặn",
+      "expired": "Hết hạn"
+    }
+  }
+}

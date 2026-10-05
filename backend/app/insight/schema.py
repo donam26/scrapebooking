@@ -9,7 +9,7 @@ Level = Literal["high", "medium", "low"]
 
 
 class Evidence(BaseModel):
-    kind: Literal["event", "metric", "compset"]
+    kind: Literal["event", "metric", "compset", "demand"]
     ref: str
 
 
@@ -54,7 +54,7 @@ class InsightOutput(BaseModel):
 _EVIDENCE = {
     "type": "object",
     "properties": {
-        "kind": {"type": "string", "enum": ["event", "metric", "compset"]},
+        "kind": {"type": "string", "enum": ["event", "metric", "compset", "demand"]},
         "ref": {"type": "string"},
     },
     "required": ["kind", "ref"],

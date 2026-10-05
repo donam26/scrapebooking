@@ -1,0 +1,15 @@
+{
+  "justNow": "just now",
+  "minutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
+  "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+  "yesterday": "yesterday",
+  "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+  "timeToday": "{time} today",
+  "timeYesterday": "{time} yesterday",
+  "timeTomorrow": "{time} tomorrow",
+  "durationMinutes": "{minutes}m",
+  "durationHours": "{hours}h {minutes}m",
+  "tonight": "Tonight",
+  "tomorrowNight": "Tomorrow night",
+  "daysAway": "{count, plural, one {In # day} other {In # days}}"
+}

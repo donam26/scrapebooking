@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.clock import Clock
 from app.logging import get_logger
@@ -22,6 +22,53 @@ class LogAlerter:
 
     async def send(self, text: str) -> None:
         log.warning("ops_alert", text=text)
+
+
+class EmailAlerter:
+    """Ghi log như LogAlerter và gửi email tới operator (OPS_ALERT_EMAILS). Lỗi gửi chỉ ghi log:
+    cảnh báo vận hành không được làm hỏng tiến trình đang báo."""
+
+    def __init__(self, sender: "EmailSenderLike", recipients: list[str]) -> None:
+        self._sender = sender
+        self._recipients = recipients
+
+    async def send(self, text: str) -> None:
+        log.warning("ops_alert", text=text)
+        from app.notify.render import Email
+
+        first_line = text.splitlines()[0] if text else "ops alert"
+        email = Email(
+            subject=f"[ScrapeBooking ops] {first_line[:120]}",
+            text=text,
+            html=f"<pre style='font:14px/1.5 monospace'>{_escape(text)}</pre>",
+        )
+        for to in self._recipients:
+            try:
+                await self._sender.send(to, email)
+            except Exception:  # noqa: BLE001
+                log.exception("ops_alert_email_failed", to=to)
+
+
+class EmailSenderLike(Protocol):
+    @property
+    def configured(self) -> bool: ...
+
+    async def send(self, to: str, email: Any) -> None: ...
+
+
+def _escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def make_alerter(settings: Any) -> Alerter:
+    """EmailAlerter khi có SMTP và OPS_ALERT_EMAILS; không thì LogAlerter."""
+    from app.notify.email_sender import SmtpEmailSender
+
+    sender = SmtpEmailSender(settings)
+    recipients = settings.ops_alert_email_list
+    if sender.configured and recipients:
+        return EmailAlerter(sender, recipients)
+    return LogAlerter()
 
 
 class AlertThrottle:
@@ -67,7 +114,10 @@ class RunStats:
 
 
 def run_summary_alert(stats: RunStats, threshold: float = 0.9) -> str | None:
-    if stats.total_probes == 0 or stats.success_rate >= threshold:
+    if stats.total_probes == 0:
+        # Run chốt mà không quét được đêm nào (proxy hỏng, kênh chặn ngay): trước đây im lặng.
+        return f"⚠️ Scan run {stats.scan_run_id} collected nothing (0 probes)"
+    if stats.success_rate >= threshold:
         return None
     return (
         f"⚠️ Scan run {stats.scan_run_id} success {stats.success_rate:.0%}: "

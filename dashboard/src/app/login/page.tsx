@@ -1,14 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { Button, ErrorBox, Field, Input, cx } from "@/components/ui";
 import { BrandMark, IconArrowRight, IconChevronLeft, IconLock } from "@/components/icons";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/login")) return "/overview";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/login")) return "/dashboard";
   return raw;
 }
 
@@ -17,43 +19,45 @@ function safeNext(raw: string | null): string {
  * Chỉ là hình minh hoạ (aria-hidden), không phải dữ liệu thật.
  */
 type DemoCell = "e3" | "e2" | "e1" | "c" | "h" | "s";
-const DEMO_ROWS: Array<{ name: string; self?: boolean; cells: Array<[DemoCell, string]> }> = [
-  { name: "Của bạn", self: true, cells: [["e2", "5"], ["e3", "2"], ["h", ""], ["e3", "1"], ["s", "HẾT"], ["e2", "4"], ["h", ""]] },
-  { name: "Đối thủ A", cells: [["e1", "12"], ["e2", "6"], ["c", "≥"], ["e3", "3"], ["e3", "1"], ["e1", "11"], ["c", "≥"]] },
-  { name: "Đối thủ B", cells: [["h", ""], ["e3", "2"], ["s", "HẾT"], ["s", "HẾT"], ["s", "HẾT"], ["e2", "7"], ["h", ""]] },
-  { name: "Đối thủ C", cells: [["c", "≥"], ["e2", "8"], ["e2", "5"], ["e3", "2"], ["e3", "3"], ["c", "≥"], ["e1", "14"]] },
+// Ô "s" (hết phòng) hiện chữ auth.demo.soldOut.
+const DEMO_ROWS: Array<{ id: string; self?: boolean; cells: Array<[DemoCell, string]> }> = [
+  { id: "self", self: true, cells: [["e2", "5"], ["e3", "2"], ["h", ""], ["e3", "1"], ["s", ""], ["e2", "4"], ["h", ""]] },
+  { id: "A", cells: [["e1", "12"], ["e2", "6"], ["c", "≥"], ["e3", "3"], ["e3", "1"], ["e1", "11"], ["c", "≥"]] },
+  { id: "B", cells: [["h", ""], ["e3", "2"], ["s", ""], ["s", ""], ["s", ""], ["e2", "7"], ["h", ""]] },
+  { id: "C", cells: [["c", "≥"], ["e2", "8"], ["e2", "5"], ["e3", "2"], ["e3", "3"], ["c", "≥"], ["e1", "14"]] },
 ];
-const DEMO_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+const DEMO_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 const CELL_CLASS: Record<DemoCell, string> = {
-  e3: "sb-mark-exact",
-  e2: "sb-mark-exact-2",
-  e1: "sb-mark-exact-1",
+  e3: "sb-heat-1",
+  e2: "sb-heat-2",
+  e1: "sb-heat-4",
   c: "sb-mark-capped",
   h: "sb-mark-hidden",
   s: "sb-mark-sold_out",
 };
 
 function DemoBoard() {
+  const t = useTranslations("auth.demo");
   return (
     <div className="w-full max-w-[380px] rounded-xl border border-white/10 bg-white/[0.04] p-4">
-      <span className="sr-only">Minh hoạ bảng số phòng còn theo đêm, không phải dữ liệu thật.</span>
+      <span className="sr-only">{t("srLabel")}</span>
       <div aria-hidden>
         <div className="mb-1.5 grid grid-cols-[72px_repeat(7,minmax(0,1fr))] gap-1 text-center text-2xs font-semibold text-on-night-muted">
           <span />
           {DEMO_DAYS.map((d) => (
-            <span key={d} className={d === "T7" || d === "CN" ? "text-brand-light" : undefined}>
-              {d}
+            <span key={d} className={d === "sat" || d === "sun" ? "text-white" : undefined}>
+              {t(`days.${d}`)}
             </span>
           ))}
         </div>
         <div className="space-y-1">
           {DEMO_ROWS.map((r) => (
-            <div key={r.name} className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] items-center gap-1">
+            <div key={r.id} className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] items-center gap-1">
               <span className={cx("flex items-center gap-1.5 truncate text-2xs", r.self ? "font-bold text-white" : "text-on-night-soft")}>
-                {r.self && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-yours" />}
-                {r.name}
+                {r.self && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white" />}
+                {r.self ? t("self") : t("competitor", { letter: r.id })}
               </span>
-              {r.cells.map(([k, t], i) => (
+              {r.cells.map(([k, txt], i) => (
                 <span
                   key={i}
                   className={cx(
@@ -63,18 +67,18 @@ function DemoBoard() {
                     k === "h" && "!bg-transparent",
                   )}
                 >
-                  {t}
+                  {k === "s" ? t("soldOut") : txt}
                 </span>
               ))}
             </div>
           ))}
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2.5 text-2xs text-on-night-muted">
-          <span>Minh hoạ</span>
+          <span>{t("caption")}</span>
           <span className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-[3px] sb-mark-exact" /> chính xác
-            <span className="h-2.5 w-2.5 rounded-[3px] sb-mark-capped" /> ít nhất
-            <span className="h-2.5 w-2.5 rounded-[3px] sb-mark-sold_out" /> hết
+            <span className="h-2.5 w-2.5 rounded-[3px] sb-heat-1" /> {t("nearlyFull")}
+            <span className="h-2.5 w-2.5 rounded-[3px] sb-mark-capped" /> {t("atLeast")}
+            <span className="h-2.5 w-2.5 rounded-[3px] sb-mark-sold_out" /> {t("soldOutKey")}
           </span>
         </div>
       </div>
@@ -93,13 +97,15 @@ function EyeIcon({ off }: { off: boolean }) {
 }
 
 function LoginForm() {
+  const t = useTranslations("auth.login");
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Giữ lỗi gốc, dịch lúc render: đổi ngôn ngữ trên trang này thì câu lỗi đổi theo.
+  const [error, setError] = useState<unknown>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -109,7 +115,7 @@ function LoginForm() {
       await api.auth.login({ email: email.trim(), password });
       router.replace(safeNext(params.get("next")));
     } catch (err) {
-      setError(errorMessage(err));
+      setError(err);
       setBusy(false);
     }
   }
@@ -117,10 +123,10 @@ function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="w-full max-w-[380px] space-y-5" noValidate={false}>
       <div>
-        <h1 className="text-2xl font-bold tracking-[-0.015em] text-ink">Đăng nhập</h1>
-        <p className="mt-1 text-base text-muted">Dùng tài khoản đơn vị vận hành đã cấp cho khách sạn của bạn.</p>
+        <h1 className="text-2xl font-bold tracking-[-0.015em] text-ink">{t("title")}</h1>
+        <p className="mt-1 text-base text-muted">{t("subtitle")}</p>
       </div>
-      <Field label="Email" htmlFor="login-email">
+      <Field label={t("email")} htmlFor="login-email">
         <Input
           id="login-email"
           type="email"
@@ -128,13 +134,13 @@ function LoginForm() {
           inputMode="email"
           required
           autoFocus
-          placeholder="ten@khachsan.vn"
+          placeholder={t("emailPlaceholder")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="h-10"
         />
       </Field>
-      <Field label="Mật khẩu" htmlFor="login-password">
+      <Field label={t("password")} htmlFor="login-password">
         <div className="relative">
           <Input
             id="login-password"
@@ -149,8 +155,8 @@ function LoginForm() {
             type="button"
             onClick={() => setShow((v) => !v)}
             aria-pressed={show}
-            aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-            title={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            aria-label={show ? t("hidePassword") : t("showPassword")}
+            title={show ? t("hidePassword") : t("showPassword")}
             className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-muted transition-colors hover:bg-sunken hover:text-ink"
           >
             <EyeIcon off={show} />
@@ -159,14 +165,15 @@ function LoginForm() {
       </Field>
       <ErrorBox error={error} />
       <Button type="submit" variant="primary" busy={busy} className="h-10 w-full" icon={!busy ? <IconLock size={16} /> : undefined}>
-        {busy ? "Đang đăng nhập…" : "Đăng nhập"}
+        {busy ? t("submitting") : t("submit")}
       </Button>
-      <p className="border-t border-line pt-4 text-sm text-muted">Chưa có tài khoản? Liên hệ đơn vị vận hành ScrapeBooking.</p>
+      <p className="border-t border-line pt-4 text-sm text-muted">{t("noAccount")}</p>
     </form>
   );
 }
 
 export default function LoginPage() {
+  const t = useTranslations("auth.login");
   return (
     <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
       {/* Bảng thương hiệu: dải trên cùng trên điện thoại, nửa trái trên máy tính */}
@@ -174,26 +181,26 @@ export default function LoginPage() {
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(60% 50% at 85% 100%, rgba(103,61,230,0.45), transparent 70%), radial-gradient(40% 35% at 0% 0%, rgba(140,133,255,0.18), transparent 70%)" }}
+          style={{ background: "radial-gradient(60% 50% at 85% 100%, rgba(10,63,168,0.55), transparent 70%), radial-gradient(40% 35% at 0% 0%, rgba(255,255,255,0.12), transparent 70%)" }}
         />
         <div className="relative flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2.5 rounded-md focus-visible:outline-brand-light" aria-label="ScrapeBooking, về trang giới thiệu">
-            <BrandMark size={30} />
-            <span className="text-[14px] font-extrabold tracking-[0.08em] text-white">SCRAPEBOOKING</span>
+          <Link href="/" className="flex items-center gap-2.5 rounded-md focus-visible:outline-white" aria-label={t("homeLink")}>
+            <BrandMark size={30} onBlue />
+            <span className="text-[19px] font-semibold tracking-[-0.01em] text-white">OTARadar</span>
           </Link>
-          <Link href="/" className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-medium text-on-night-soft hover:text-white focus-visible:outline-brand-light">
+          <Link href="/" className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-medium text-on-night-soft hover:text-white focus-visible:outline-white">
             <IconChevronLeft size={16} />
-            <span className="hidden sm:inline">Về trang giới thiệu</span>
-            <span className="sm:hidden">Giới thiệu</span>
+            <span className="hidden sm:inline">{t("backHome")}</span>
+            <span className="sm:hidden">{t("backHomeShort")}</span>
           </Link>
         </div>
 
         <div className="relative mt-6 lg:mt-auto">
           <p className="max-w-[26ch] text-lg font-semibold leading-snug text-white [text-wrap:balance] sm:text-xl lg:text-[28px] lg:leading-[1.25] lg:tracking-[-0.015em]">
-            Số phòng còn và giá của đối thủ, trước cuộc họp giá buổi sáng.
+            {t("tagline")}
           </p>
           <p className="mt-3 hidden max-w-[44ch] text-base leading-relaxed text-on-night-soft sm:block">
-            Quét trang Booking.com ba lần mỗi ngày, mỗi con số phòng còn đều ghi rõ mức tin cậy.
+            {t("lead")}
           </p>
         </div>
 
@@ -202,16 +209,19 @@ export default function LoginPage() {
         </div>
 
         <p className="relative mt-8 hidden text-xs text-on-night-muted lg:block">
-          Không liên kết với Booking.com. Dữ liệu lấy từ trang công khai.
+          {t("disclaimer")}
         </p>
       </aside>
 
-      <main className="flex flex-1 items-start justify-center px-5 py-10 sm:px-8 lg:items-center lg:py-16">
+      <main className="relative flex flex-1 items-start justify-center px-5 py-10 sm:px-8 lg:items-center lg:py-16">
         <Suspense fallback={null}>
           <div className="w-full max-w-[380px]">
+            <div className="mb-6 flex justify-end lg:absolute lg:right-10 lg:top-8 lg:mb-0">
+              <LocaleSwitcher variant="light" />
+            </div>
             <LoginForm />
             <Link href="/" className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline lg:hidden">
-              Tìm hiểu ScrapeBooking <IconArrowRight size={14} />
+              {t("learnMore")} <IconArrowRight size={14} />
             </Link>
           </div>
         </Suspense>

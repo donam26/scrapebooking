@@ -1,0 +1,104 @@
+{
+  "eventType": {
+    "sold_out": "Hết phòng",
+    "restock": "Có phòng lại",
+    "rooms_decrease": "Giảm phòng",
+    "rooms_increase": "Tăng phòng",
+    "low_stock_enter": "Sắp hết phòng",
+    "price_up": "Tăng giá",
+    "price_down": "Giảm giá",
+    "room_type_new": "Loại phòng mới",
+    "room_type_gone": "Mất loại phòng",
+    "channel_closed": "Đóng bán trên kênh",
+    "parity_gap": "Rẻ hơn trên kênh này"
+  },
+  "listingStatus": {
+    "active": "Đang quét",
+    "unverified": "Đang kiểm tra",
+    "suggested": "Gợi ý",
+    "broken": "Lỗi đường dẫn",
+    "paused": "Tạm dừng"
+  },
+  "availability": {
+    "available": "Còn phòng",
+    "sold_out": "Hết phòng",
+    "unknown": "Không rõ"
+  },
+  "stockConfidence": {
+    "exact": "Chính xác",
+    "capped": "Ít nhất",
+    "hidden": "Ẩn",
+    "sold_out": "Hết"
+  },
+  "userRole": {
+    "operator": "Vận hành",
+    "tenant_admin": "Quản trị",
+    "viewer": "Chỉ xem"
+  },
+  "watchRole": {
+    "self": "Khách sạn của bạn",
+    "competitor": "Đối thủ"
+  },
+  "runStatus": {
+    "running": "Đang chạy",
+    "completed": "Hoàn tất",
+    "partial": "Một phần",
+    "failed": "Thất bại"
+  },
+  "insightStatus": {
+    "pending": "Đang tạo",
+    "batch_pending": "Chờ batch",
+    "completed": "Hoàn tất",
+    "failed": "Thất bại"
+  },
+  "insightTrigger": {
+    "daily": "Hằng ngày",
+    "on_demand": "Theo yêu cầu"
+  },
+  "notificationKind": {
+    "alerts": "Cảnh báo đối thủ",
+    "daily_insight": "Bản tin sáng",
+    "weekly_report": "Báo cáo tuần",
+    "test": "Email thử"
+  },
+  "notificationStatus": {
+    "sent": "Đã gửi",
+    "failed": "Gửi lỗi",
+    "sending": "Đang gửi",
+    "skipped": "Chưa gửi"
+  },
+  "notificationReason": {
+    "no_recipients": "Chưa có người nhận",
+    "smtp_not_configured": "Máy chủ email chưa được cấu hình",
+    "send_failed": "Máy chủ email từ chối, sẽ thử lại",
+    "no_matches": "Không có thay đổi khớp quy tắc",
+    "disabled": "Loại thông báo đang tắt"
+  },
+  "importStatus": {
+    "completed": "Hoàn tất",
+    "partial": "Một phần",
+    "failed": "Thất bại"
+  },
+  "level": {
+    "high": "Cao",
+    "medium": "Trung bình",
+    "low": "Thấp"
+  },
+  "pmsColumn": {
+    "stay_date": "Ngày lưu trú",
+    "rooms_total": "Tổng phòng",
+    "rooms_sold": "Phòng đã bán",
+    "rooms_available": "Phòng còn",
+    "occupancy_pct": "Công suất (%)",
+    "adr": "ADR",
+    "revenue": "Doanh thu"
+  },
+  "heatLevel": {
+    "soldOut": "Hết phòng",
+    "veryFew": "Rất ít (≤3)",
+    "few": "Ít (4–10)",
+    "some": "Vừa (11–20)",
+    "many": "Khá (21–30)",
+    "plenty": "Nhiều (>30)"
+  }
+}

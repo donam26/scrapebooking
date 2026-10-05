@@ -1,12 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, type DragEvent, type ReactNode } from "react";
 import { api, type PmsImportOut, type PreviewOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { translateError } from "@/lib/errors";
-import { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct } from "@/lib/format";
-import { CANONICAL_PMS_COLUMNS, IMPORT_STATUS_LABEL, IMPORT_STATUS_TONE, PMS_COLUMN_LABEL } from "@/lib/labels";
+import { useErrorMessage } from "@/lib/errors";
+import { hotelTitle } from "@/lib/channels";
+import { useFmt, type Fmt } from "@/lib/format";
+import { CANONICAL_PMS_COLUMNS, IMPORT_STATUS_TONE, useLabel } from "@/lib/labels";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, ROW_CLASS, Select, Skeleton, Table, Td, Th, cx } from "@/components/ui";
 import { IconAlert, IconCheck, IconDownload, IconFile, IconUpload } from "@/components/icons";
 
@@ -18,22 +20,25 @@ function cellText(v: unknown): string {
   return String(v);
 }
 
-function fmtBytes(n: number): string {
+function fmtBytes(n: number, fmtNum: Fmt["fmtNum"]): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${fmtNum(n / 1024, 0)} KB`;
   return `${fmtNum(n / (1024 * 1024), 1)} MB`;
 }
 
 function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
+  const t = useTranslations("settings.pms.errors");
+  const label = useLabel();
+  const errorText = useErrorMessage();
   if (errors.length === 0) return null;
   return (
     <div className="overflow-hidden rounded-lg border border-line">
       <Table dense>
         <thead>
           <tr>
-            <Th right>Dòng</Th>
-            <Th>Cột</Th>
-            <Th>Lỗi</Th>
+            <Th right>{t("row")}</Th>
+            <Th>{t("column")}</Th>
+            <Th>{t("error")}</Th>
           </tr>
         </thead>
         <tbody>
@@ -44,8 +49,8 @@ function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
                 <Td right className="w-16 text-muted">
                   {cellText(e.row)}
                 </Td>
-                <Td className="whitespace-nowrap text-sm">{e.column ? (PMS_COLUMN_LABEL[cellText(e.column)] ?? cellText(e.column)) : "—"}</Td>
-                <Td className="text-sm text-danger-deep">{translateError(cellText(e.message))}</Td>
+                <Td className="whitespace-nowrap text-sm">{e.column ? label("pmsColumn", cellText(e.column)) : "—"}</Td>
+                <Td className="text-sm text-danger-deep">{errorText(cellText(e.message))}</Td>
               </tr>
             );
           })}
@@ -56,16 +61,23 @@ function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
 }
 
 function ImportResult({ result }: { result: PmsImportOut }) {
+  const t = useTranslations("settings.pms.result");
+  const label = useLabel();
   return (
     <div className="space-y-3 rounded-lg bg-subtle p-4">
       <div className="flex flex-wrap items-center gap-3 text-base">
-        <Badge tone={IMPORT_STATUS_TONE[result.status] ?? "gray"}>{IMPORT_STATUS_LABEL[result.status] ?? result.status}</Badge>
+        <Badge tone={IMPORT_STATUS_TONE[result.status] ?? "gray"}>{label("importStatus", result.status)}</Badge>
         <span className="text-body">
-          <span className="font-bold text-ink tabular">{fmtInt(result.ok_count)}</span> / <span className="tabular">{fmtInt(result.row_count)}</span> dòng nhập thành công
+          {t.rich("imported", {
+            ok: result.ok_count,
+            total: result.row_count,
+            strong: (c) => <span className="font-bold text-ink tabular">{c}</span>,
+            num: (c) => <span className="tabular">{c}</span>,
+          })}
         </span>
-        {result.errors.length > 0 && <span className="text-danger tabular">{fmtInt(result.errors.length)} dòng lỗi</span>}
+        {result.errors.length > 0 && <span className="text-danger tabular">{t("failedRows", { count: result.errors.length })}</span>}
       </div>
-      {result.status !== "failed" && <p className="text-sm text-muted">Công suất đã nhập hiện trên Tổng quan, trong dải khách sạn của bạn.</p>}
+      {result.status !== "failed" && <p className="text-sm text-muted">{t("note")}</p>}
       <ErrorRows errors={result.errors} />
     </div>
   );
@@ -83,6 +95,7 @@ function downloadText(filename: string, text: string) {
 
 /** Bước trong quy trình nhập: số thứ tự có nghĩa vì phải làm lần lượt. */
 function Step({ n, title, hint, active, children }: { n: number; title: string; hint?: ReactNode; active: boolean; children?: ReactNode }) {
+  const t = useTranslations("settings.pms");
   return (
     <section className={cx("border-t border-line px-5 py-5 first:border-t-0", !active && "bg-subtle/60")}>
       <div className="flex items-start gap-3">
@@ -97,7 +110,7 @@ function Step({ n, title, hint, active, children }: { n: number; title: string; 
         </span>
         <div className="min-w-0 flex-1">
           <h3 className={cx("text-base font-bold", active ? "text-ink" : "text-muted")}>
-            <span className="sr-only">Bước {n}: </span>
+            <span className="sr-only">{t("stepSr", { n })} </span>
             {title}
           </h3>
           {hint && <div className="mt-0.5 text-sm text-muted">{hint}</div>}
@@ -110,6 +123,8 @@ function Step({ n, title, hint, active, children }: { n: number; title: string; 
 
 function Dropzone({ file, busy, onFile }: { file: File | null; busy: boolean; onFile: (f: File | null) => void }) {
   const [over, setOver] = useState(false);
+  const t = useTranslations("settings.pms.dropzone");
+  const { fmtNum } = useFmt();
   function onDrop(e: DragEvent<HTMLLabelElement>) {
     e.preventDefault();
     setOver(false);
@@ -148,13 +163,13 @@ function Dropzone({ file, busy, onFile }: { file: File | null; busy: boolean; on
             {file.name}
           </span>
           <span className="block text-sm text-muted tabular">
-            {fmtBytes(file.size)} · {busy ? "Đang đọc tệp…" : "Bấm hoặc kéo tệp khác vào để đổi"}
+            {fmtBytes(file.size, fmtNum)} · {busy ? t("reading") : t("change")}
           </span>
         </span>
       ) : (
         <span className="min-w-0 flex-1">
-          <span className="block text-base font-semibold text-ink">{over ? "Thả tệp vào đây" : "Kéo thả hoặc chọn tệp CSV/Excel"}</span>
-          <span className="block text-sm text-muted">Tệp xuất công suất theo ngày từ PMS: CSV, XLSX hoặc XLS</span>
+          <span className="block text-base font-semibold text-ink">{over ? t("dropHere") : t("pick")}</span>
+          <span className="block text-sm text-muted">{t("hint")}</span>
         </span>
       )}
     </label>
@@ -163,6 +178,9 @@ function Dropzone({ file, busy, onFile }: { file: File | null; busy: boolean; on
 
 export function PmsTab() {
   const { canWrite } = useSession();
+  const t = useTranslations("settings.pms");
+  const label = useLabel();
+  const { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct } = useFmt();
   const watchlist = useApi("watchlist:active", () => api.watchlist.list(false));
   const selfHotels = (watchlist.data ?? []).filter((w) => w.role === "self");
   const [hotelId, setHotelId] = useState<string>("");
@@ -206,21 +224,21 @@ export function PmsTab() {
   const hotelName = (id: number | null) => {
     if (id === null) return "—";
     const w = (watchlist.data ?? []).find((x) => x.hotel.id === id);
-    return w ? w.label || w.hotel.name || w.hotel.booking_slug : `#${id}`;
+    return w ? hotelTitle(w.hotel, w.label) : `#${id}`;
   };
 
   const hotelSelect = (
     <Select
-      aria-label="Khách sạn của bạn"
+      aria-label={t("hotelAria")}
       value={effectiveHotelId ?? ""}
       onChange={(e) => setHotelId(e.target.value)}
       disabled={selfHotels.length === 0}
       className="min-w-[220px]"
     >
-      {selfHotels.length === 0 && <option value="">Chưa có khách sạn của bạn</option>}
+      {selfHotels.length === 0 && <option value="">{t("noSelfOption")}</option>}
       {selfHotels.map((w) => (
         <option key={w.hotel.id} value={w.hotel.id}>
-          {w.label || w.hotel.name || w.hotel.booking_slug}
+          {hotelTitle(w.hotel, w.label)}
         </option>
       ))}
     </Select>
@@ -234,51 +252,49 @@ export function PmsTab() {
       {canWrite && (
         <Card
           padded={false}
-          title="Nhập công suất từ PMS"
-          description="Tải tệp xuất từ PMS (ezCloud, Newway…) để đặt công suất thật của bạn cạnh tình trạng phòng của đối thủ trên Tổng quan."
+          title={t("import.title")}
+          description={t("import.description")}
           actions={
             <Button size="sm" busy={template.busy} icon={<IconDownload size={15} />} onClick={() => void template.run()}>
-              Tải template CSV
+              {t("import.template")}
             </Button>
           }
         >
           {template.error && <ErrorBox error={template.error} className="mx-5 mt-4" />}
-          <Step n={1} title="Chọn khách sạn và tệp" active>
+          <Step n={1} title={t("step1.title")} active>
             {noSelf ? (
-              <div className="flex items-start gap-2.5 rounded-lg border border-[#f3dc9a] bg-warning-soft px-3.5 py-2.5 text-sm text-warning-deep">
+              <div className="flex items-start gap-2.5 rounded-lg border border-[#fcd34d] bg-warning-soft px-3.5 py-2.5 text-sm text-warning-deep">
                 <IconAlert size={16} className="mt-px shrink-0" />
                 <span>
-                  Cần thêm khách sạn của bạn (vai trò “Khách sạn của bạn”) ở tab{" "}
-                  <a href="/settings?tab=watchlist" className="font-semibold underline">
-                    Khách sạn
-                  </a>{" "}
-                  trước khi nhập PMS.
+                  {t.rich("step1.noSelf", {
+                    link: (c) => (
+                      <a href="/settings?tab=watchlist" className="font-semibold underline">
+                        {c}
+                      </a>
+                    ),
+                  })}
                 </span>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] md:items-start">
-                <Field label="Khách sạn của bạn" hint="Dữ liệu nhập vào gắn với khách sạn này">
+                <Field label={t("step1.hotel")} hint={t("step1.hotelHint")}>
                   {hotelSelect}
                 </Field>
                 <div className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-sm font-semibold text-body">Tệp dữ liệu</span>
+                  <span className="text-sm font-semibold text-body">{t("step1.file")}</span>
                   <Dropzone file={file} busy={doPreview.busy} onFile={onFile} />
                 </div>
               </div>
             )}
-            <ErrorBox error={doPreview.error} className="mt-3" title="Không đọc được tệp" />
+            <ErrorBox error={doPreview.error} className="mt-3" title={t("step1.previewError")} />
             {doPreview.busy && <Skeleton rows={2} className="mt-4" />}
           </Step>
 
           <Step
             n={2}
-            title="Ánh xạ cột"
+            title={t("step2.title")}
             active={!!preview}
-            hint={
-              preview
-                ? `Chọn cột trong tệp tương ứng với từng cột chuẩn (${mappedCount}/${CANONICAL_PMS_COLUMNS.length} đã chọn). Ánh xạ được lưu và dùng lại cho các lần nhập sau.`
-                : "Chọn tệp để hệ thống gợi ý cột tương ứng."
-            }
+            hint={preview ? t("step2.hint", { mapped: mappedCount, total: CANONICAL_PMS_COLUMNS.length }) : t("step2.hintEmpty")}
           >
             {preview && (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -290,8 +306,8 @@ export function PmsTab() {
                       key={col}
                       label={
                         <span className="flex items-center gap-1.5">
-                          {PMS_COLUMN_LABEL[col]}
-                          {required && <span className="rounded bg-brand-soft px-1.5 text-2xs font-bold text-brand-hover">Bắt buộc</span>}
+                          {label("pmsColumn", col)}
+                          {required && <span className="rounded bg-brand-soft px-1.5 text-2xs font-bold text-brand-hover">{t("step2.required")}</span>}
                         </span>
                       }
                     >
@@ -301,7 +317,7 @@ export function PmsTab() {
                         aria-invalid={missing || undefined}
                         className={cx(missing && "border-danger", !mapping[col] && "text-faint")}
                       >
-                        <option value="">Bỏ qua</option>
+                        <option value="">{t("step2.skip")}</option>
                         {preview.columns.map((c) => (
                           <option key={c} value={c}>
                             {c}
@@ -317,17 +333,16 @@ export function PmsTab() {
 
           <Step
             n={3}
-            title="Xem trước và nhập"
+            title={t("step3.title")}
             active={!!preview}
             hint={
-              preview ? (
-                <>
-                  {preview.sample.length} dòng đầu của tệp ·{" "}
-                  <span className="font-semibold text-ink tabular">{fmtInt(preview.parsed_ok)}</span> dòng đọc được với ánh xạ đang lưu
-                </>
-              ) : (
-                "Kiểm tra vài dòng đầu trước khi nhập."
-              )
+              preview
+                ? t.rich("step3.hint", {
+                    count: preview.sample.length,
+                    parsed: preview.parsed_ok,
+                    b: (c) => <span className="font-semibold text-ink tabular">{c}</span>,
+                  })
+                : t("step3.hintEmpty")
             }
           >
             {preview && (
@@ -358,8 +373,8 @@ export function PmsTab() {
                   <details className="group rounded-lg border border-line">
                     <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-semibold text-danger [&::-webkit-details-marker]:hidden">
                       <span className="inline-flex items-center gap-1.5">
-                        <IconAlert size={15} /> {preview.errors.length} lỗi khi đọc thử theo ánh xạ đang lưu
-                        <span className="font-normal text-muted group-open:hidden">· bấm để xem</span>
+                        <IconAlert size={15} /> {t("step3.previewErrors", { count: preview.errors.length })}
+                        <span className="font-normal text-muted group-open:hidden">{t("step3.clickToView")}</span>
                       </span>
                     </summary>
                     <div className="border-t border-line p-3">
@@ -375,14 +390,14 @@ export function PmsTab() {
                     disabled={!mapping.stay_date || effectiveHotelId === null}
                     onClick={() => void doImport.run()}
                   >
-                    Lưu ánh xạ và nhập dữ liệu
+                    {t("step3.submit")}
                   </Button>
-                  {!mapping.stay_date && <span className="text-sm text-danger">Cần chọn cột cho {PMS_COLUMN_LABEL.stay_date}.</span>}
+                  {!mapping.stay_date && <span className="text-sm text-danger">{t("step3.needStayDate", { column: label("pmsColumn", "stay_date") })}</span>}
                   {effectiveHotelId !== null && mapping.stay_date && (
-                    <span className="text-sm text-muted">Nhập vào {hotelName(effectiveHotelId)}</span>
+                    <span className="text-sm text-muted">{t("step3.importInto", { hotel: hotelName(effectiveHotelId) })}</span>
                   )}
                 </div>
-                <ErrorBox error={doImport.error} title="Chưa nhập được" />
+                <ErrorBox error={doImport.error} title={t("step3.importError")} />
                 {result && <ImportResult result={result} />}
               </div>
             )}
@@ -390,26 +405,26 @@ export function PmsTab() {
         </Card>
       )}
 
-      <Card padded={false} title="Lịch sử nhập" description={imports.data && imports.data.length > 0 ? `${imports.data.length} lần nhập gần nhất` : undefined}>
+      <Card padded={false} title={t("history.title")} description={imports.data && imports.data.length > 0 ? t("history.description", { count: imports.data.length }) : undefined}>
         <ErrorBox error={imports.error} className="m-5" />
         {!imports.data ? (
           !imports.error && <Skeleton rows={3} className="p-5" />
         ) : imports.data.length === 0 ? (
           <div className="p-5">
-            <EmptyState icon={<IconFile />} title="Chưa nhập tệp nào" compact>
-              Nhập công suất từ PMS để Tổng quan hiện công suất thật của bạn ngay dưới dải phòng còn, cạnh các đối thủ.
+            <EmptyState icon={<IconFile />} title={t("history.emptyTitle")} compact>
+              {t("history.emptyBody")}
             </EmptyState>
           </div>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Thời điểm</Th>
-                <Th>Tệp</Th>
-                <Th>Khách sạn</Th>
-                <Th>Trạng thái</Th>
-                <Th right>Dòng thành công</Th>
-                <Th right>Lỗi</Th>
+                <Th>{t("history.time")}</Th>
+                <Th>{t("history.file")}</Th>
+                <Th>{t("history.hotel")}</Th>
+                <Th>{t("history.status")}</Th>
+                <Th right>{t("history.okRows")}</Th>
+                <Th right>{t("history.errors")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -426,7 +441,7 @@ export function PmsTab() {
                   </Td>
                   <Td>{hotelName(im.hotel_id)}</Td>
                   <Td>
-                    <Badge tone={IMPORT_STATUS_TONE[im.status] ?? "gray"}>{IMPORT_STATUS_LABEL[im.status] ?? im.status}</Badge>
+                    <Badge tone={IMPORT_STATUS_TONE[im.status] ?? "gray"}>{label("importStatus", im.status)}</Badge>
                   </Td>
                   <Td right>
                     {fmtInt(im.ok_count)} / {fmtInt(im.row_count)}
@@ -454,38 +469,38 @@ export function PmsTab() {
 
       <Card
         padded={false}
-        title="Công suất đã nhập"
-        description={daily.data && daily.data.length > 0 ? `${daily.data.length} đêm gần nhất có dữ liệu` : undefined}
+        title={t("daily.title")}
+        description={daily.data && daily.data.length > 0 ? t("daily.description", { count: daily.data.length }) : undefined}
         actions={!canWrite && selfHotels.length > 1 ? hotelSelect : undefined}
       >
         <ErrorBox error={daily.error} className="m-5" />
         {effectiveHotelId === null ? (
           <div className="p-5">
-            <EmptyState icon={<IconFile />} title="Chưa có khách sạn của bạn" compact>
-              Khi có khách sạn vai trò “Khách sạn của bạn” và tệp PMS đã nhập, công suất từng đêm hiện ở đây.
+            <EmptyState icon={<IconFile />} title={t("daily.noSelfTitle")} compact>
+              {t("daily.noSelfBody")}
             </EmptyState>
           </div>
         ) : !daily.data ? (
           !daily.error && <Skeleton rows={4} className="p-5" />
         ) : daily.data.length === 0 ? (
           <div className="p-5">
-            <EmptyState icon={<IconFile />} title={`Chưa có dữ liệu cho ${hotelName(effectiveHotelId)}`} compact>
-              {canWrite ? "Nhập tệp ở trên; mỗi dòng là một đêm với tổng phòng, phòng đã bán và doanh thu." : "Quản trị viên chưa nhập dữ liệu PMS cho khách sạn này."}
+            <EmptyState icon={<IconFile />} title={t("daily.noDataTitle", { hotel: hotelName(effectiveHotelId) })} compact>
+              {canWrite ? t("daily.noDataWrite") : t("daily.noDataRead")}
             </EmptyState>
           </div>
         ) : (
           <Table dense>
             <thead>
               <tr>
-                <Th>Đêm lưu trú</Th>
-                <Th right>Tổng phòng</Th>
-                <Th right>Đã bán</Th>
-                <Th right>Còn</Th>
-                <Th right>Công suất</Th>
-                <Th right>ADR</Th>
-                <Th right>Doanh thu</Th>
-                <Th>Nguồn</Th>
-                <Th>Nhập lúc</Th>
+                <Th>{t("daily.stayDate")}</Th>
+                <Th right>{t("daily.roomsTotal")}</Th>
+                <Th right>{t("daily.roomsSold")}</Th>
+                <Th right>{t("daily.roomsLeft")}</Th>
+                <Th right>{t("daily.occupancy")}</Th>
+                <Th right>{t("daily.adr")}</Th>
+                <Th right>{t("daily.revenue")}</Th>
+                <Th>{t("daily.source")}</Th>
+                <Th>{t("daily.importedAt")}</Th>
               </tr>
             </thead>
             <tbody>

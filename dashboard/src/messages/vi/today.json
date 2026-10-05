@@ -1,0 +1,43 @@
+{
+  "title": "Hôm nay",
+  "scannedAt": "Quét lúc {when}",
+  "hotelFallback": "Khách sạn #{id}",
+  "status": {
+    "noData": "Chưa có dữ liệu",
+    "soldOut": "Hết phòng",
+    "unknown": "Không đọc được",
+    "available": "Còn phòng",
+    "roomsLeft": "Còn {count} phòng"
+  },
+  "empty": {
+    "title": "Chưa theo dõi khách sạn nào",
+    "add": "Thêm khách sạn",
+    "body": "Thêm khách sạn của bạn và các đối thủ, lượt quét kế tiếp sẽ điền màn này."
+  },
+  "tonight": {
+    "aria": "Đêm nay",
+    "hotelTonight": "{name} · đêm nay",
+    "lowestRate": "Giá thấp nhất",
+    "noSelf": "Chưa có khách sạn của bạn trong danh sách theo dõi nên chưa so được với đối thủ."
+  },
+  "suggestions": {
+    "title": "Gợi ý giá",
+    "description": "{count} đêm trong {days} đêm tới"
+  },
+  "nights": {
+    "title": "{days} đêm tới",
+    "compSoldOut": "{soldOut}/{observed} đối thủ hết phòng",
+    "noComp": "Chưa có số đối thủ",
+    "vsMedian": "so trung vị {pct}"
+  },
+  "changes": {
+    "title": "Thay đổi 24 giờ qua",
+    "allEvents": "Mọi sự kiện",
+    "empty": "Không có thay đổi nào trong 24 giờ qua."
+  },
+  "brief": {
+    "title": "Bản tin AI mới nhất",
+    "read": "Đọc bản tin",
+    "noSummary": "Bản tin không có phần tóm tắt."
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "description": "Competitor room availability and rates on Booking.com, Agoda, iVIVU and Trip.com, updated three times a day",
+    "manifestDescription": "Competitor room availability and rates, updated three times a day"
+  },
+  "language": {
+    "label": "Language",
+    "switchTo": "Switch to {name}"
+  },
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add",
+    "retry": "Retry",
+    "back": "Back",
+    "search": "Search",
+    "viewAll": "View all",
+    "confirm": "Confirm"
+  },
+  "status": {
+    "loading": "Loading",
+    "noData": "No data yet",
+    "on": "On",
+    "off": "Off"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The link is wrong or the page has moved.",
+    "toDashboard": "Go to Dashboard",
+    "toHome": "Home page"
+  },
+  "errorPage": {
+    "title": "Something went wrong showing this page",
+    "body": "Try again. If it keeps happening, send your OTARadar provider the error code below.",
+    "code": "Error code: {digest}",
+    "retry": "Try again",
+    "toDashboard": "Go to Dashboard"
+  }
+}

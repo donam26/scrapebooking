@@ -1,0 +1,61 @@
+{
+  "nightReason": {
+    "rankCheapest": "cheapest of {total}",
+    "rankPriciest": "most expensive of {total}",
+    "rank": "{rank, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} cheapest of {total}",
+    "vsMedianLevel": "in line with the median",
+    "vsMedianBelow": "{pct}% below the median",
+    "vsMedianAbove": "{pct}% above the median",
+    "soldOut": "{soldOut}/{observed} competitors sold out",
+    "yourPrice": "your rate {vs}",
+    "yourPriceRank": "your rate {vs}, {rank}",
+    "holiday": "falls on {holiday}"
+  },
+  "marketMetrics": {
+    "demand": {
+      "low": "Low",
+      "moderate": "Moderate",
+      "high": "High"
+    },
+    "position": {
+      "level": "In line with market",
+      "below": "Below market",
+      "above": "Above market"
+    }
+  },
+  "market": {
+    "paceFlat": "flat vs last year",
+    "paceUp": "+{pts} pts",
+    "paceDown": "−{pts} pts",
+    "suggestion": {
+      "raise": "Room to raise rate",
+      "hold": "Hold rate",
+      "lower": "Review rate"
+    },
+    "noChange": "No change",
+    "soldOut": "Sold out",
+    "notEnoughData": "Not enough data"
+  },
+  "channels": {
+    "windowDays": "the past {count} days",
+    "windowHours": "the past {count, plural, one {hour} other {# hours}}",
+    "bookingsWindow": "booked {count, plural, one {once} other {# times}} in {window}",
+    "bookingsToday": "booked {count, plural, one {once} other {# times}} today",
+    "lastBookedHours": "last booked {count, plural, one {# hour} other {# hours}} ago",
+    "lastBookedMinutes": "last booked {count, plural, one {# minute} other {# minutes}} ago",
+    "roomsSold": "{count, plural, one {# room} other {# rooms}} sold in {window}",
+    "bookingsMonthWindow": "{count, plural, one {# booking} other {# bookings}} in {window}",
+    "bookingsMonth": "{count, plural, one {# booking} other {# bookings}} this month",
+    "highDemandNight": "high demand for the night of {night}",
+    "highDemand": "in high demand"
+  },
+  "localEvents": {
+    "category": {
+      "festival": "Festival",
+      "mice": "Conference (MICE)",
+      "sports": "Sports",
+      "season": "Season",
+      "other": "Other"
+    }
+  }
+}

@@ -1,7 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
+import structlog
 from structlog.testing import capture_logs
 
+import app.ops.alerts as alerts_module
 from app.clock import FixedClock
 from app.ops.alerts import (
     AlertThrottle,
@@ -42,7 +45,9 @@ def test_run_summary_alert() -> None:
 
 
 def test_run_summary_alert_empty_run() -> None:
-    assert run_summary_alert(RunStats(3, 0, 0, 0, 0, 0)) is None
+    # Run chốt mà không thu được probe nào (proxy hỏng, kênh chặn từ đầu) là sự cố cần báo.
+    msg = run_summary_alert(RunStats(3, 0, 0, 0, 0, 0))
+    assert msg is not None and "run 3" in msg and "0 probes" in msg
 
 
 def test_throttle() -> None:
@@ -55,7 +60,11 @@ def test_throttle() -> None:
     assert th.should_send("other") is True
 
 
-async def test_log_alerter_writes_warning() -> None:
+async def test_log_alerter_writes_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Logger của module có thể đã được structlog cache (cache_logger_on_first_use) với danh sách
+    # processors cũ nếu test trước gọi configure_logging() lần nữa (app lifespan); capture_logs
+    # chỉ sửa danh sách hiện tại, nên dùng một proxy mới chưa cache.
+    monkeypatch.setattr(alerts_module, "log", structlog.get_logger("app.ops.alerts"))
     with capture_logs() as logs:
         await LogAlerter().send("hello")
     assert logs == [{"event": "ops_alert", "text": "hello", "log_level": "warning"}]

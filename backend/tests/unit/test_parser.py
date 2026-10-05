@@ -29,11 +29,11 @@ def _load(fixtures_dir: Path, name: str) -> str:
 def test_reverie_room_types_badges_and_dropdowns(fixtures_dir: Path) -> None:
     page = parse_hotel_page(_load(fixtures_dir, "reverie_2026-10-10"), "VND", adults=2)
     assert page.outcome == PageOutcome.ROOMS
-    assert page.booking_hotel_id == "1191026"
+    assert page.external_id == "1191026"
     assert page.hotel_name == "The Reverie Saigon - The Leading Hotels of the World"
     assert page.csrf_token
     # Mỗi loại phòng một offer (ô loại phòng thật là <th rowspan=…>, không phải <td>).
-    assert [(o.booking_room_id, o.badge_count, o.dropdown_max) for o in page.offers] == [
+    assert [(o.external_room_id, o.badge_count, o.dropdown_max) for o in page.offers] == [
         ("119102603", 2, 2),  # "We have 2 left"
         ("119102607", None, 10),  # không có nhãn, dropdown chạm trần
         ("119102604", 5, 5),
@@ -75,7 +75,7 @@ def test_without_party_size_all_rates_kept(fixtures_dir: Path) -> None:
 
 def test_park_hyatt_nine_room_types(fixtures_dir: Path) -> None:
     page = parse_hotel_page(_load(fixtures_dir, "park-hyatt_2026-11-05"), "VND", adults=2)
-    assert page.outcome == PageOutcome.ROOMS and page.booking_hotel_id == "345986"
+    assert page.outcome == PageOutcome.ROOMS and page.external_id == "345986"
     assert page.hotel_name == "Park Hyatt Saigon"
     assert [(o.name, o.badge_count, o.dropdown_max, o.min_price) for o in page.offers] == [
         ("Twin Room", 5, 5, Decimal("10650000")),
@@ -113,7 +113,7 @@ def test_partner_offers_are_not_the_hotels_own_rooms(fixtures_dir: Path) -> None
     # lấy từ dòng giá của chính khách sạn (trước đây cả nhóm bị gán ID "bbasic").
     page = parse_hotel_page(_load(fixtures_dir, "rex_2026-09-25_partner_offers"), "VND", adults=2)
     assert [
-        (o.booking_room_id, o.badge_count, o.dropdown_max, o.min_price) for o in page.offers
+        (o.external_room_id, o.badge_count, o.dropdown_max, o.min_price) for o in page.offers
     ] == [
         ("7100514", None, 10, Decimal("4000577")),  # không phải giá đối tác 3588262
         ("7100411", 2, 2, Decimal("4516781")),
@@ -129,7 +129,7 @@ def test_partner_offers_are_not_the_hotels_own_rooms(fixtures_dir: Path) -> None
 def test_caravelle_skips_partner_only_group(fixtures_dir: Path) -> None:
     page = parse_hotel_page(_load(fixtures_dir, "caravelle_2026-10-10"), "VND", adults=2)
     assert [
-        (o.booking_room_id, o.badge_count, o.dropdown_max, o.min_price) for o in page.offers
+        (o.external_room_id, o.badge_count, o.dropdown_max, o.min_price) for o in page.offers
     ] == [
         ("7433301", None, 10, Decimal("4681831")),
         ("7433317", None, 10, Decimal("4681831")),
@@ -150,7 +150,7 @@ def test_real_sold_out_page(fixtures_dir: Path) -> None:
     page = parse_hotel_page(_load(fixtures_dir, "jovia_sold_out_2026-10-03"), "VND", adults=2)
     assert page.outcome == PageOutcome.SOLD_OUT
     assert page.offers == ()
-    assert page.hotel_name == "Jovia Hotel" and page.booking_hotel_id == "9467659"
+    assert page.hotel_name == "Jovia Hotel" and page.external_id == "9467659"
 
 
 def test_page_whose_dates_were_dropped_is_not_sold_out(fixtures_dir: Path) -> None:
@@ -187,3 +187,47 @@ def test_golden(fixtures_dir: Path, name: str) -> None:
     expected_path = fixtures_dir / "html" / f"{name}.expected.json"
     page = parse_hotel_page(_load(fixtures_dir, name), expected_currency="VND", adults=2)
     assert page_to_dict(page) == json.loads(expected_path.read_text(encoding="utf-8"))
+
+
+def test_price_standard_fields_taxes_original_and_promo(fixtures_dir: Path) -> None:
+    # Chuẩn giá D3. Reverie: "Includes taxes and charges", không giá gạch, không nhãn KM.
+    reverie = parse_hotel_page(_load(fixtures_dir, "reverie_2026-10-10"), "VND", adults=2)
+    rate = reverie.offers[0].rates[0]
+    assert (rate.taxes_included, rate.price_original, rate.promo_label) == (True, None, None)
+    # Caravelle: "+VND 576,690 taxes and charges" → giá chưa gồm thuế.
+    caravelle = parse_hotel_page(_load(fixtures_dir, "caravelle_2026-10-10"), "VND", adults=2)
+    assert {r.taxes_included for o in caravelle.offers for r in o.rates} == {False}
+    # Rex: giá gạch data-strikethrough-value="9303668", nhãn có tên "Getaway Deal" thắng "57% off".
+    rex = parse_hotel_page(_load(fixtures_dir, "rex_2026-09-25_partner_offers"), "VND", adults=2)
+    rate = rex.offers[0].rates[0]
+    assert (rate.price, rate.price_original, rate.promo_label) == (
+        Decimal("4000577"),
+        Decimal("9303668"),
+        "Getaway Deal",
+    )
+    # Giờ chót: chỉ có nhãn phần trăm thì lấy nhãn đó.
+    last = parse_hotel_page(
+        _load(fixtures_dir, "reverie_2026-09-25_last_minute"), "VND", adults=2
+    ).offers[0]
+    assert [(r.price_original, r.promo_label) for r in last.rates] == [
+        (Decimal("9157050"), "5% off"),
+        (Decimal("10988460"), "5% off"),
+    ]
+    assert all(o.stock_scope == "room_type" for o in rex.offers)
+
+
+def test_original_price_not_above_current_is_ignored() -> None:
+    html = (
+        '<table id="hprt-table"><tbody><tr data-block-id="111_1_2_0">'
+        '<th class="hprt-table-cell-roomtype"><a class="hprt-roomtype-link" data-room-id="111">'
+        '<span class="hprt-roomtype-icon-link">Deluxe</span></a></th>'
+        '<td class="hprt-table-cell-occupancy">Max persons: 2</td>'
+        '<td class="hprt-table-cell-price"><span class="prco-valign-middle-helper">VND 1,000,000</span>'
+        '<span class="bui-price-display__original">VND 1,000,000</span>'
+        '<div class="prd-taxes-and-fees-under-price">Includes taxes and charges</div></td>'
+        '<td class="hprt-table-cell-conditions">Non-refundable</td>'
+        '<td><select class="hprt-nos-select"><option value="3">3</option></select></td>'
+        "</tr></tbody></table>"
+    )
+    rate = parse_hotel_page(html, "VND", adults=2).offers[0].rates[0]
+    assert rate.price_original is None and rate.taxes_included is True

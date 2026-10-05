@@ -38,10 +38,38 @@ class WatchRow:
     hotel_id: int
     horizon_days: int
     timezone: str
+    channel: str = "booking"  # một dòng mỗi listing đang quét (khách sạn × kênh)
 
 
 def trigger_key(at: datetime) -> str:
     return at.astimezone(UTC).strftime("%Y-%m-%dT%H:%M")
+
+
+def channel_trigger_key(key: str, channel: str) -> str:
+    """Mỗi mốc giờ một run cho mỗi kênh (D9): kênh chậm/bị chặn không kéo trễ kênh khác."""
+    return f"{key}:{channel}"
+
+
+def rows_by_channel(rows: Iterable[WatchRow]) -> dict[str, list[WatchRow]]:
+    out: dict[str, list[WatchRow]] = {}
+    for row in rows:
+        out.setdefault(row.channel, []).append(row)
+    return dict(sorted(out.items()))
+
+
+def _slots(tenant: TenantSchedule, now: datetime) -> list[datetime]:
+    """Mốc quét (UTC) của tenant trong hôm nay và hôm qua theo giờ địa phương."""
+    tz = safe_zone(tenant.timezone)
+    if tz is None:
+        return []
+    local_today = now.astimezone(tz).date()
+    out: list[datetime] = []
+    for day_offset in (0, -1):
+        local_date = local_today + timedelta(days=day_offset)
+        for scan_time in tenant.scan_times:
+            hh, mm = (int(x) for x in scan_time.split(":"))
+            out.append(datetime.combine(local_date, time(hh, mm), tzinfo=tz).astimezone(UTC))
+    return out
 
 
 def compute_triggers(
@@ -50,22 +78,27 @@ def compute_triggers(
     """Mốc giờ quét của mọi tenant rơi vào (now - lookback, now], gom theo phút UTC."""
     buckets: dict[str, tuple[datetime, set[int]]] = {}
     for tenant in tenants:
-        tz = safe_zone(tenant.timezone)
-        if tz is None:
-            continue
-        local_today = now.astimezone(tz).date()
-        for day_offset in (0, -1):
-            local_date = local_today + timedelta(days=day_offset)
-            for scan_time in tenant.scan_times:
-                hh, mm = (int(x) for x in scan_time.split(":"))
-                at = datetime.combine(local_date, time(hh, mm), tzinfo=tz).astimezone(UTC)
-                if now - lookback < at <= now:
-                    key = trigger_key(at)
-                    buckets.setdefault(key, (at, set()))[1].add(tenant.id)
+        for at in _slots(tenant, now):
+            if now - lookback < at <= now:
+                buckets.setdefault(trigger_key(at), (at, set()))[1].add(tenant.id)
     return sorted(
         (Trigger(key, at, tuple(sorted(ids))) for key, (at, ids) in buckets.items()),
         key=lambda t: t.at,
     )
+
+
+def missed_slots(
+    tenants: Iterable[TenantSchedule], now: datetime, lookback: timedelta
+) -> dict[int, datetime]:
+    """tenant_id -> mốc quét gần nhất của tenant, với tenant mà mốc đó đã ra khỏi cửa sổ
+    (now - lookback, now] của `compute_triggers`. Sau một quãng scheduler không chạy, đây là mốc
+    có thể đã bị lỡ; mốc cũ hơn không cần bù vì mốc gần nhất đã thay thế."""
+    out: dict[int, datetime] = {}
+    for tenant in tenants:
+        latest = max((at for at in _slots(tenant, now) if at <= now), default=None)
+        if latest is not None and latest <= now - lookback:
+            out[tenant.id] = latest
+    return out
 
 
 def build_hotel_plans(rows: Iterable[WatchRow], trigger_at: datetime) -> list[HotelJobPlan]:

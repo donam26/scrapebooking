@@ -1,57 +1,70 @@
 @import "tailwindcss";
 
 /*
- * Dashboard ScrapeBooking (nhóm route (app) và /login).
- * Cùng thương hiệu với trang giới thiệu: tím than cho khung, sương tím cho nền, tím cho
- * hành động, bốn dấu mức tin cậy cho số phòng còn. Giọng Operate: dày dữ liệu, ít trang trí.
+ * Dashboard OTARadar (nhóm route (app) và /login).
+ * Theo giao diện mẫu khách hàng: thanh trên xanh #0062ff, hàng tab trắng, nền xám xanh nhạt,
+ * thẻ trắng viền mảnh, tiêu đề thẻ in hoa. Màu nhiệt (đỏ → xanh lá) cho số phòng còn.
  */
 
 :root {
-  --sb-night: #16123a;
-  --sb-night-2: #211a52;
-  --sb-night-3: #2d2566;
+  /* Khung xanh (thanh trên, đăng nhập) */
+  --sb-night: #0062ff;
+  --sb-night-2: #0050d6;
+  --sb-night-3: #0a3fa8;
   --sb-on-night: #ffffff;
-  --sb-on-night-soft: #d5d1ef;
-  --sb-on-night-muted: #a7a2d2;
+  --sb-on-night-soft: #e3edff;
+  --sb-on-night-muted: #b8d0ff;
 
-  --sb-canvas: #f4f5ff;
+  --sb-canvas: #f5f6fa;
   --sb-surface: #ffffff;
-  --sb-subtle: #f8f8fd;
-  --sb-sunken: #eeeef9;
-  --sb-line: #e3e1f0;
-  --sb-line-strong: #cfcce4;
+  --sb-subtle: #f8f9fb;
+  --sb-sunken: #f0f2f6;
+  --sb-line: #e6e8ef;
+  --sb-line-strong: #d3d8e2;
 
-  --sb-ink: #1d1e20;
-  --sb-body: #36344d;
-  --sb-muted: #5e6072;
-  --sb-faint: #8a89a0;
+  --sb-ink: #111827;
+  --sb-body: #374151;
+  --sb-muted: #6b7280;
+  --sb-faint: #9ca3af;
 
-  --sb-brand: #673de6;
-  --sb-brand-hover: #5025d1;
-  --sb-brand-soft: #ebe4ff;
-  --sb-brand-softer: #f4f0ff;
-  --sb-brand-light: #8c85ff;
+  --sb-brand: #0062ff;
+  --sb-brand-hover: #0050d6;
+  --sb-brand-soft: #e1ecff;
+  --sb-brand-softer: #f0f5ff;
+  --sb-brand-light: #5b9bff;
 
-  /* Bốn dấu mức tin cậy */
-  --sb-exact: #ffcd35;
-  --sb-exact-2: #ffe28a;
-  --sb-exact-1: #fff3cc;
-  --sb-capped: #d6cbff;
-  --sb-plum: #2f1c6a;
+  /* Thang nhiệt số phòng còn: hết (đỏ) → rất ít → ít → vừa → khá → nhiều (xanh lá) */
+  --sb-heat-0: #dc2626;
+  --sb-heat-1: #f97316;
+  --sb-heat-2: #fbbf24;
+  --sb-heat-3: #fde68a;
+  --sb-heat-4: #bbf7d0;
+  --sb-heat-5: #4ade80;
 
-  /* Xanh chỉ dành cho khách sạn của người xem và điều đã xác nhận */
-  --sb-yours: #00b090;
-  --sb-yours-deep: #007a63;
-  --sb-yours-soft: #ddf5ef;
+  /* Giữ tên cũ cho dấu mức tin cậy, đổi sang thang nhiệt */
+  --sb-exact: #fbbf24;
+  --sb-exact-2: #fde68a;
+  --sb-exact-1: #fef3c7;
+  --sb-capped: #c7dbff;
+  --sb-plum: #dc2626;
 
-  --sb-danger: #c2334f;
-  --sb-danger-deep: #9b1d38;
-  --sb-danger-soft: #fdecef;
-  --sb-warning-deep: #7a5200;
-  --sb-warning-soft: #fff4d1;
+  /* Xanh lá: tốt, đã xác nhận, thị trường thấp */
+  --sb-yours: #16a34a;
+  --sb-yours-deep: #15803d;
+  --sb-yours-soft: #dcfce7;
 
-  --sb-shadow-card: 0 1px 2px rgba(29, 30, 32, 0.05), 0 10px 28px -18px rgba(47, 28, 106, 0.22);
-  --sb-shadow-float: 0 2px 6px rgba(22, 18, 58, 0.08), 0 24px 48px -16px rgba(22, 18, 58, 0.35);
+  /* Cam: cầu cao, cảnh báo */
+  --sb-hot: #ea7317;
+  --sb-hot-soft: #ffedd5;
+
+  --sb-danger: #dc2626;
+  --sb-danger-deep: #b91c1c;
+  --sb-danger-soft: #fee2e2;
+  --sb-warning-deep: #b45309;
+  --sb-warning-soft: #fef3c7;
+
+  --sb-shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --sb-shadow-float: 0 4px 12px rgba(17, 24, 39, 0.08), 0 16px 40px -12px rgba(17, 24, 39, 0.22);
   --sb-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -106,6 +119,15 @@
   --color-exact-1: var(--sb-exact-1);
   --color-capped: var(--sb-capped);
   --color-plum: var(--sb-plum);
+
+  --color-heat-0: var(--sb-heat-0);
+  --color-heat-1: var(--sb-heat-1);
+  --color-heat-2: var(--sb-heat-2);
+  --color-heat-3: var(--sb-heat-3);
+  --color-heat-4: var(--sb-heat-4);
+  --color-heat-5: var(--sb-heat-5);
+  --color-hot: var(--sb-hot);
+  --color-hot-soft: var(--sb-hot-soft);
 
   --color-yours: var(--sb-yours);
   --color-yours-deep: var(--sb-yours-deep);
@@ -174,34 +196,45 @@ a {
   background: transparent;
 }
 
-/* ---------- Bốn dấu mức tin cậy ---------- */
+/* ---------- Thang nhiệt số phòng còn (giữ tên lớp mức tin cậy cũ) ---------- */
 
+.sb-heat-0,
+.sb-mark-sold_out {
+  background: var(--sb-heat-0);
+  color: #fff;
+}
+.sb-heat-1,
 .sb-mark-exact {
-  background: var(--sb-exact);
-  color: var(--sb-ink);
+  background: var(--sb-heat-1);
+  color: #fff;
 }
+.sb-heat-2,
 .sb-mark-exact-2 {
-  background: var(--sb-exact-2);
-  color: var(--sb-ink);
+  background: var(--sb-heat-2);
+  color: #422006;
 }
+.sb-heat-3,
 .sb-mark-exact-1 {
-  background: var(--sb-exact-1);
-  color: var(--sb-ink);
+  background: var(--sb-heat-3);
+  color: #713f12;
+}
+.sb-heat-4 {
+  background: var(--sb-heat-4);
+  color: #14532d;
+}
+.sb-heat-5 {
+  background: var(--sb-heat-5);
+  color: #14532d;
 }
 .sb-mark-capped {
-  background: repeating-linear-gradient(45deg, var(--sb-capped) 0 2px, var(--sb-brand-soft) 2px 6px);
+  background: repeating-linear-gradient(45deg, var(--sb-capped) 0 2px, var(--sb-brand-softer) 2px 6px);
   color: var(--sb-ink);
 }
 .sb-mark-hidden {
   background: #fff;
-  box-shadow: inset 0 0 0 1.5px transparent;
   outline: 1.5px dashed var(--sb-brand-light);
   outline-offset: -1.5px;
   color: var(--sb-muted);
-}
-.sb-mark-sold_out {
-  background: var(--sb-plum);
-  color: #fff;
 }
 .sb-mark-unknown {
   background: var(--sb-sunken);
@@ -212,6 +245,11 @@ a {
   color: var(--sb-line-strong);
   box-shadow: inset 0 0 0 1px var(--sb-line);
 }
+/* Đêm sau phạm vi quét: chưa tới lượt được quét, khác với "chưa có dữ liệu" */
+.sb-mark-beyond {
+  background: repeating-linear-gradient(-45deg, var(--sb-line) 0 1px, transparent 1px 5px);
+  color: var(--sb-line-strong);
+}
 
 /* Ô ngày có thể bấm: nhấc nhẹ khi rê */
 .sb-cell {
@@ -221,12 +259,12 @@ a {
 }
 .sb-cell:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 12px -6px rgba(47, 28, 106, 0.55);
+  box-shadow: 0 6px 12px -6px rgba(17, 24, 39, 0.45);
 }
 
 /* Mũi tên cho <select> (appearance: none) */
 .sb-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235e6072' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-position: right 10px center;
   background-size: 16px;
   background-repeat: no-repeat;
@@ -247,7 +285,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   }
 }
 .sb-skeleton {
-  background: linear-gradient(90deg, var(--sb-sunken) 0%, #f6f5fc 50%, var(--sb-sunken) 100%);
+  background: linear-gradient(90deg, var(--sb-sunken) 0%, #f7f8fb 50%, var(--sb-sunken) 100%);
   background-size: 200% 100%;
   animation: sb-shimmer 1.4s linear infinite;
 }

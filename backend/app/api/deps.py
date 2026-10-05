@@ -8,12 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import COOKIE_NAME, InvalidToken, Principal, decode_token
 from app.config import Settings, get_settings
 from app.db.models import TenantHotel, User
+from app.i18n import parse_accept_language
 
 
 class ApiQueue(Protocol):
     async def enqueue_insight(self, tenant_id: int, trigger: str, request_key: str) -> None: ...
     async def enqueue_analytics(self, scan_run_id: int) -> None: ...
-    async def enqueue_probe(self, scan_run_id: int, hotel_id: int) -> None: ...
+    async def enqueue_probe(self, scan_run_id: int, hotel_id: int, channel: str) -> None: ...
+    async def enqueue_verify(self, listing_id: int, channel: str) -> None: ...
+    async def enqueue_discover(self, hotel_id: int, channel: str) -> None: ...
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -34,6 +37,15 @@ def get_queue(request: Request) -> ApiQueue | None:
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+
+
+def get_locale(request: Request) -> str:
+    """Ngôn ngữ của chữ API sinh ra: proxy /api của dashboard đặt `Accept-Language` theo cookie.
+    Đọc qua Request (không khai Header) để OpenAPI không đổi."""
+    return parse_accept_language(request.headers.get("accept-language"))
+
+
+LocaleDep = Annotated[str, Depends(get_locale)]
 
 
 async def get_principal(request: Request, settings: SettingsDep, session: SessionDep) -> Principal:

@@ -1,0 +1,68 @@
+{
+  "page": {
+    "title": "Rates & pricing",
+    "nights": "Next {count, plural, one {# night} other {# nights}}",
+    "channel": "Channel <b>{channel}</b>",
+    "scannedAt": "Scanned {when}",
+    "emptyTitle": "No hotels tracked yet",
+    "emptyBody": "Add hotels in <link>Settings › Hotels</link>.",
+    "analysis": "Rate analysis",
+    "analysisInfo": "Lowest rate per night on the selected channel, including taxes, fees and any promotions the channel applies automatically.",
+    "view": "View",
+    "views": {
+      "trends": "Trends",
+      "positioning": "Positioning",
+      "heatmap": "Heatmap"
+    }
+  },
+  "kpi": {
+    "marketAvg": "Market average",
+    "marketAvgSub": "Avg competitor rate tonight",
+    "lowest": "Lowest",
+    "highest": "Highest",
+    "yourRate": "Your rate",
+    "notComparable": "Not comparable yet",
+    "noOwnHotel": "Your hotel hasn't been added yet"
+  },
+  "intel": {
+    "title": "Competitive intelligence",
+    "info": "Compared on {channel}. Rank 1 is the cheapest of the hotels with a rate tonight.",
+    "cheaperNights": "Nights you're cheaper than the market ({count, plural, one {# night} other {# nights}})",
+    "undercut": "Competitors cheaper than you tonight",
+    "spread": "Competitor rate spread tonight",
+    "rank": "Your rate rank tonight"
+  },
+  "trends": {
+    "title": "Rate trends — next {count, plural, one {# night} other {# nights}}",
+    "info": "Lowest rate per night for each hotel on the selected channel. Market = average of competitor rates.",
+    "market": "Market",
+    "empty": "No rates for these nights yet",
+    "all": "All",
+    "none": "None"
+  },
+  "positioning": {
+    "indexTitle": "Your rate index",
+    "indexInfo": "Your rate divided by the competitor median rate × 100. Below 100 is cheaper than the median, above 100 is more expensive.",
+    "base": "Competitor median = 100",
+    "index": "Your rate index",
+    "emptyPrices": "Not enough rates to compare",
+    "emptyOwn": "Your hotel isn't on the watchlist yet",
+    "rankTitle": "Rate rank by night",
+    "night": "Night",
+    "yourRate": "Your rate",
+    "compMedian": "Competitor median",
+    "compLowest": "Competitor lowest",
+    "diff": "Difference",
+    "rank": "Rank",
+    "soldOut": "Sold out"
+  },
+  "heatmap": {
+    "title": "Rate heatmap",
+    "info": "Lowest rate per hotel per night (abbreviated: 3.6 = 3,600,000). Green is cheaper than the average competitor rate that night, orange is more expensive.",
+    "hotel": "Hotel",
+    "soldOut": "Sold out",
+    "soldOutShort": "Full",
+    "noPrice": "No rate",
+    "note": "Unit: millions of VND. Dark green ≥15% cheaper, light green 5–15% cheaper, yellow in line with the market, orange more expensive."
+  }
+}

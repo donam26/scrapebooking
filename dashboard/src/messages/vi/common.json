@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "description": "Số phòng còn và giá của đối thủ trên Booking.com, Agoda, iVIVU, Trip.com, cập nhật ba lần mỗi ngày",
+    "manifestDescription": "Số phòng còn và giá của đối thủ, cập nhật ba lần mỗi ngày"
+  },
+  "language": {
+    "label": "Ngôn ngữ",
+    "switchTo": "Chuyển sang {name}"
+  },
+  "actions": {
+    "save": "Lưu",
+    "saving": "Đang lưu…",
+    "cancel": "Huỷ",
+    "close": "Đóng",
+    "edit": "Sửa",
+    "delete": "Xoá",
+    "add": "Thêm",
+    "retry": "Thử lại",
+    "back": "Quay lại",
+    "search": "Tìm",
+    "viewAll": "Xem tất cả",
+    "confirm": "Xác nhận"
+  },
+  "status": {
+    "loading": "Đang tải",
+    "noData": "Chưa có dữ liệu",
+    "on": "Bật",
+    "off": "Tắt"
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "body": "Đường dẫn không đúng hoặc trang đã được chuyển đi.",
+    "toDashboard": "Về Bảng điều khiển",
+    "toHome": "Trang giới thiệu"
+  },
+  "errorPage": {
+    "title": "Có lỗi khi hiển thị trang",
+    "body": "Thử tải lại. Nếu lỗi lặp lại, hãy báo đơn vị vận hành kèm mã lỗi bên dưới.",
+    "code": "Mã lỗi: {digest}",
+    "retry": "Thử lại",
+    "toDashboard": "Về Bảng điều khiển"
+  }
+}

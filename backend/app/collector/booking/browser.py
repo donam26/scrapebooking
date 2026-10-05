@@ -11,9 +11,9 @@ from app.collector.booking.playwright_bootstrap import (
 )
 from app.collector.booking.results import failed_result, probe_result_from_page
 from app.collector.booking.selectors import dates_dropped, shown_other_checkin
-from app.collector.booking.urls import build_hotel_url, currency_for
+from app.collector.booking.urls import build_hotel_url
 from app.collector.proxy import ProxyProvider
-from app.domain.models import CalendarResult, HotelRef, ProbeMethod, ProbeResult, ProbeStatus
+from app.domain.models import CalendarResult, ListingRef, ProbeMethod, ProbeResult, ProbeStatus
 from app.logging import get_logger
 
 log = get_logger(__name__)
@@ -23,19 +23,26 @@ class BrowserCollector:
     """Provider dự phòng: render toàn phần bằng Chromium cho một probe. Mỗi probe một IP mới."""
 
     def __init__(
-        self, proxy_provider: ProxyProvider, headless: bool = True, timeout_ms: int = 45_000
+        self,
+        proxy_provider: ProxyProvider,
+        headless: bool = True,
+        timeout_ms: int = 45_000,
+        currency: str = "VND",
     ) -> None:
         self._proxies = proxy_provider
         self._headless = headless
         self._timeout_ms = timeout_ms
+        self._currency = currency
 
     async def fetch_calendar(
-        self, hotel: HotelRef, start: date, days: int, adults: int
+        self, hotel: ListingRef, start: date, days: int, adults: int
     ) -> CalendarResult:
         return CalendarResult(ok=False, error="browser collector does not fetch calendars")
 
-    async def probe(self, hotel: HotelRef, checkin: date, nights: int, adults: int) -> ProbeResult:
-        currency = currency_for(hotel.country_code)
+    async def probe(
+        self, hotel: ListingRef, checkin: date, nights: int, adults: int
+    ) -> ProbeResult:
+        currency = self._currency
         url = build_hotel_url(hotel, checkin, nights, adults, currency)
         proxy = self._proxies.new_endpoint(hotel.country_code)
         t0 = time.monotonic()

@@ -1,5 +1,6 @@
 """Worker `jobs` (arq): analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu,
-poll Batch API, backup đêm, dọn partition. Tách khỏi worker collector để không chặn probe."""
+poll Batch API, gửi thông báo email, backup đêm, dọn partition. Tách khỏi worker collector để
+không chặn probe."""
 
 from datetime import UTC, date, datetime
 from typing import Any
@@ -14,7 +15,10 @@ from app.db.models import Insight, Tenant
 from app.db.partitions import drop_room_snapshot_partitions_older_than
 from app.insight.service import InsightService, build_insight_client, daily_due_today
 from app.logging import configure_logging, get_logger
-from app.ops.alerts import LogAlerter
+from app.market.jobs import estimate_occupancy_catch_up
+from app.notify.email_sender import SmtpEmailSender
+from app.notify.service import NotificationService
+from app.ops.alerts import make_alerter
 from app.ops.backup import run_backup
 from app.ops.metrics import start_metrics_server
 from app.scheduler.queue import JOBS_QUEUE, ArqJobQueue, worker_redis_settings
@@ -31,8 +35,9 @@ async def startup(ctx: dict[str, Any]) -> None:
     ctx["session_factory"] = make_session_factory(ctx["engine"])
     ctx["client"] = build_insight_client(settings)
     ctx["queue"] = await ArqJobQueue.connect(settings.redis_url)
-    ctx["alerter"] = LogAlerter()
-    log.info("jobs_worker_started")
+    ctx["alerter"] = make_alerter(settings)
+    ctx["email_sender"] = SmtpEmailSender(settings)
+    log.info("jobs_worker_started", email_configured=ctx["email_sender"].configured)
 
 
 async def shutdown(ctx: dict[str, Any]) -> None:
@@ -123,6 +128,22 @@ async def poll_insight_batches(ctx: dict[str, Any]) -> int:
     return n
 
 
+async def dispatch_notifications(ctx: dict[str, Any]) -> dict[str, int]:
+    """Cron mỗi 5 phút: cảnh báo đối thủ sau lượt quét đã analytics, bản tin sáng, báo cáo tuần
+    (thứ Hai 08:00 giờ tenant), thử lại email lỗi. Idempotent nhờ outbox
+    (`notifications.dedupe_key`), nên tự bù khi worker tắt một lúc."""
+    async with ctx["session_factory"]() as s:
+        svc = NotificationService(s, ctx["email_sender"], ctx["settings"])
+        report = await svc.dispatch_due()
+        await s.commit()
+    return {
+        "alerts": report.alerts,
+        "insights": report.insights,
+        "weekly": report.weekly,
+        "retried": report.retried,
+    }
+
+
 async def nightly_backup(ctx: dict[str, Any]) -> str:
     try:
         key, deleted = await run_backup(ctx["settings"])
@@ -152,6 +173,8 @@ class JobsWorkerSettings:
         cron(dispatch_daily_insights, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
         cron(poll_insight_batches, minute={2, 12, 22, 32, 42, 52}),
         cron(analytics_catch_up, minute={7, 37}),
+        cron(estimate_occupancy_catch_up, minute={4, 14, 24, 34, 44, 54}),
+        cron(dispatch_notifications, minute={1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56}),
         cron(nightly_backup, hour={19}, minute={30}),  # 02:30 giờ Việt Nam
         cron(prune_partitions, day={1}, hour={20}, minute={0}),
     ]

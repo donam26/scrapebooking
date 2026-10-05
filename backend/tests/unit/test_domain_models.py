@@ -5,7 +5,7 @@ from app.domain.models import RatePlan, RoomOffer
 
 def _offer(*rates: RatePlan) -> RoomOffer:
     return RoomOffer(
-        booking_room_id="123",
+        external_room_id="123",
         name="Deluxe",
         max_occupancy=2,
         badge_count=None,

@@ -1,0 +1,132 @@
+{
+  "ui": {
+    "infoTip": "Giải thích",
+    "breadcrumbs": "Đường dẫn"
+  },
+  "eventTable": {
+    "soldOut": "Còn phòng → Hết phòng",
+    "restock": "Hết phòng → Còn phòng",
+    "stillSelling": "{channels} vẫn bán",
+    "otherChannelsSelling": "Kênh khác vẫn bán",
+    "roomTypeNewRooms": "Mở bán, còn {rooms}",
+    "roomTypeNew": "Mở bán",
+    "roomTypeGoneRooms": "Ngừng bán (trước đó {rooms})",
+    "roomTypeGone": "Ngừng bán",
+    "rooms": "{count, number} phòng",
+    "roomsFloor": "≥{count, number} phòng",
+    "roomsChange": "{from} → {to} {count, plural, other {phòng}}",
+    "confidenceTitle": "Mức tin cậy của số phòng",
+    "confidenceLevel": "Tin cậy {level}",
+    "hotelFallback": "Khách sạn #{id}",
+    "vsChannel": "so với {channel}",
+    "wholeHotel": "Toàn khách sạn",
+    "observedOn": "Quan sát trên {channel}",
+    "openNight": "Mở chi tiết đêm này",
+    "night": "Đêm {night}",
+    "empty": "Không có sự kiện nào trong khoảng đã chọn.",
+    "run": "Lượt quét {when}",
+    "changes": "{count} thay đổi"
+  },
+  "marks": {
+    "beyond": "Ngoài phạm vi quét",
+    "noData": "Chưa có dữ liệu",
+    "soldOutShort": "HẾT",
+    "soldOut": "Hết phòng",
+    "unknown": "Không đọc được (bị chặn hoặc lỗi)",
+    "hiddenChannel": "Còn phòng, kênh không lộ số",
+    "hiddenUnknown": "Còn phòng, không rõ số",
+    "exactChannel": "Còn {count} phòng (kênh báo chính xác)",
+    "exact": "Còn {count} phòng (chính xác)",
+    "cappedRate": "Còn ít nhất {count, number} phòng (kênh chỉ báo số phòng còn ở mức giá rẻ nhất)",
+    "capped": "Còn ít nhất {count, number} phòng",
+    "cappedSome": "Còn ít nhất vài phòng",
+    "chip": {
+      "exact": "Chính xác",
+      "capped": "Ít nhất",
+      "hidden": "Ẩn số",
+      "sold_out": "Hết phòng",
+      "unknown": "Không rõ",
+      "nodata": "Chưa có",
+      "rate": "Theo giá"
+    },
+    "legend": {
+      "hotelExact": "Số phòng kênh báo chính xác: đỏ/cam là sắp kín, xanh là còn nhiều",
+      "hidden": "Còn phòng, không lộ số",
+      "soldOut": "Hết phòng",
+      "unknown": "Không đọc được",
+      "notScanned": "Chưa quét",
+      "roomExact": "Chính xác (“Chỉ còn 2 phòng”)",
+      "roomCapped": "Ít nhất N (kênh chỉ lộ mức sàn)"
+    }
+  },
+  "gauge": {
+    "outOf100": "{value} trên 100"
+  },
+  "lineChart": {
+    "point": "{name}: {value} lúc {x}",
+    "pointFloor": "{name}: ít nhất {value} lúc {x}",
+    "tooltipFloor": "Ít nhất <b>{value}</b>",
+    "floorLegend": "Chấm rỗng: ít nhất (số thật có thể cao hơn)"
+  },
+  "marketSuggestion": {
+    "confidenceHigh": "Tin cậy cao",
+    "confidenceMedium": "Tin cậy vừa",
+    "yourPrice": "Giá bạn {price}",
+    "applied": "Đã áp dụng",
+    "dismissed": "Đã bỏ qua",
+    "undo": "Hoàn tác",
+    "markApplied": "Đã áp dụng",
+    "dismiss": "Bỏ qua"
+  },
+  "priceBasis": {
+    "label": "Giá đem so",
+    "any": "Mọi giá",
+    "anyTitle": "So giá rẻ nhất của mọi gói, kể cả gói không hoàn huỷ",
+    "refundable": "Giá hoàn huỷ",
+    "refundableTitle": "Chỉ so giá rẻ nhất trong các gói có huỷ miễn phí",
+    "noun": {
+      "any": "Giá thấp nhất",
+      "refundable": "Giá hoàn huỷ thấp nhất"
+    }
+  },
+  "runSummary": {
+    "empty": "Chưa có lượt quét nào hoàn tất.",
+    "run": "Lượt quét",
+    "channel": "Kênh",
+    "finished": "Kết thúc",
+    "duration": "Thời lượng",
+    "probesOk": "Probe thành công",
+    "soldOut": "Hết phòng",
+    "blocked": "Bị chặn",
+    "errors": "Lỗi"
+  },
+  "scanHotel": {
+    "scanNow": "Quét ngay",
+    "queued": "Đã vào hàng đợi"
+  },
+  "subTabs": {
+    "label": "Mục con",
+    "tabs": {
+      "aiBriefs": "Bản tin AI",
+      "events": "Sự kiện thay đổi",
+      "compset": "Compset của bạn",
+      "market": "Khám phá thị trường"
+    }
+  },
+  "dateRange": {
+    "start": "Đêm bắt đầu",
+    "today": "Về hôm nay",
+    "nightsLabel": "Số đêm",
+    "nights": "{count} đêm"
+  },
+  "channels": {
+    "switcher": "Kênh đang xem",
+    "switcherTitle": "Số phòng còn và giá trên {channel}",
+    "suggestedMatch": "Gợi ý · khớp {score}%",
+    "openOnChannel": "Mở trang khách sạn trên {channel}",
+    "tracked": "Kênh đang theo dõi",
+    "demandTitle": "Tín hiệu nhu cầu từ kênh",
+    "demandSource": "Theo {channel}:",
+    "demandNote": "Thông điệp kênh tự hiển thị cho khách, dùng để tham khảo; không tính vào số phòng hay giá."
+  }
+}

@@ -9,16 +9,25 @@ class Stock:
     confidence: StockConfidence
 
 
-def derive_stock(badge_count: int | None, dropdown_max: int | None, page_cap: int) -> Stock:
+def derive_stock(
+    badge_count: int | None,
+    dropdown_max: int | None,
+    page_cap: int,
+    scope: str = "room_type",
+) -> Stock:
     """Suy ra số phòng còn và mức tin cậy từ hai tín hiệu thô trên trang.
 
     - badge_count: số trong "Only X rooms left", None nếu không có badge.
     - dropdown_max: giá trị lớn nhất của dropdown chọn số phòng, None nếu không có.
-    - page_cap: trần của dropdown trên trang (cấu hình PAGE_DROPDOWN_CAP).
+    - page_cap: trần của dropdown trên trang (cấu hình theo kênh).
+    - scope: phạm vi của badge (D4). "rate" ("chỉ còn 1 phòng có giá này"): loại phòng còn ít nhất
+      bấy nhiêu, không phải số chính xác → capped.
     """
     if badge_count is not None:
         if badge_count == 0:
             return Stock(0, StockConfidence.SOLD_OUT)
+        if scope == "rate":
+            return Stock(badge_count, StockConfidence.CAPPED)
         return Stock(badge_count, StockConfidence.EXACT)
     if dropdown_max is None:
         return Stock(None, StockConfidence.HIDDEN)

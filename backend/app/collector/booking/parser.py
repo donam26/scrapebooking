@@ -72,6 +72,28 @@ def _badge_count(row: Node) -> int | None:
     return int(m.group(1)) if m else None
 
 
+def _taxes_included(row: Node) -> bool | None:
+    note = _text(row.css_first(S.TAXES_NOTE)).lower()
+    if "includes taxes" in note or "including taxes" in note:
+        return True
+    if "taxes" in note and "+" in note:
+        return False
+    return None
+
+
+def _original_price(row: Node, currency: str, current: Decimal) -> Decimal | None:
+    parsed = parse_price(_text(row.css_first(S.ORIGINAL_PRICE)), currency)
+    return parsed[0] if parsed is not None and parsed[0] > current else None
+
+
+def _promo_label(row: Node) -> str | None:
+    """Tên ưu đãi ("Late Escape Deal"); nhãn chỉ có phần trăm ("40% off") xếp sau."""
+    labels = [_text(b) for b in row.css(S.DEAL_BADGE) if _text(b)]
+    named = [lb for lb in labels if "%" not in lb]
+    label = (named or labels or [""])[0]
+    return label[:64] if label else None
+
+
 def _rate_plan(row: Node, expected_currency: str, default_persons: int | None) -> RatePlan | None:
     price_node = row.css_first(S.PRICE_TEXT)
     parsed = parse_price(_text(price_node), expected_currency) if price_node is not None else None
@@ -103,6 +125,9 @@ def _rate_plan(row: Node, expected_currency: str, default_persons: int | None) -
         refundable=refundable,
         breakfast=breakfast,
         max_persons=_max_occupancy(row) or default_persons,
+        price_original=_original_price(row, currency, price),
+        taxes_included=_taxes_included(row),
+        promo_label=_promo_label(row),
     )
 
 
@@ -153,14 +178,14 @@ def parse_hotel_page(html: str, expected_currency: str, adults: int | None = Non
     giá thấp nhất so sánh được giữa các khách sạn. None: giữ mọi dòng."""
     tree = HTMLParser(html)
     hotel_id_match = S.HOTEL_ID_RE.search(html)
-    booking_hotel_id = hotel_id_match.group(1) if hotel_id_match else None
+    external_id = hotel_id_match.group(1) if hotel_id_match else None
     hotel_name = _hotel_name(tree)
     csrf = S.extract_csrf_token(html)
 
     rows = tree.css(S.ROOM_ROWS)
     if not rows:
         outcome = PageOutcome.SOLD_OUT if tree.css_first(S.SOLD_OUT_MARKERS) else PageOutcome.EMPTY
-        return ParsedPage(outcome, booking_hotel_id, hotel_name, csrf, ())
+        return ParsedPage(outcome, external_id, hotel_name, csrf, ())
 
     groups: list[dict[str, Any]] = []
     for row in rows:
@@ -195,7 +220,7 @@ def parse_hotel_page(html: str, expected_currency: str, adults: int | None = Non
         dropdowns = [d for d in (_dropdown_max(row) for row in own_rows) if d is not None]
         offers.append(
             RoomOffer(
-                booking_room_id=room_id,
+                external_room_id=room_id,
                 name=g["name"],
                 max_occupancy=g["occupancy"],
                 badge_count=badge,
@@ -204,7 +229,7 @@ def parse_hotel_page(html: str, expected_currency: str, adults: int | None = Non
             )
         )
     outcome = PageOutcome.ROOMS if offers else PageOutcome.EMPTY
-    return ParsedPage(outcome, booking_hotel_id, hotel_name, csrf, tuple(offers))
+    return ParsedPage(outcome, external_id, hotel_name, csrf, tuple(offers))
 
 
 def page_to_dict(page: ParsedPage) -> dict[str, Any]:
@@ -212,7 +237,19 @@ def page_to_dict(page: ParsedPage) -> dict[str, Any]:
     d = asdict(page)
     d["outcome"] = str(page.outcome)
     d["offers"] = [
-        {**offer, "rates": [{**rate, "price": str(rate["price"])} for rate in offer["rates"]]}
+        {
+            **offer,
+            "rates": [
+                {
+                    **rate,
+                    "price": str(rate["price"]),
+                    "price_original": (
+                        str(rate["price_original"]) if rate["price_original"] is not None else None
+                    ),
+                }
+                for rate in offer["rates"]
+            ],
+        }
         for offer in d["offers"]
     ]
     return d

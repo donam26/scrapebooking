@@ -1,0 +1,43 @@
+{
+  "title": "Today",
+  "scannedAt": "Scanned {when}",
+  "hotelFallback": "Hotel #{id}",
+  "status": {
+    "noData": "No data yet",
+    "soldOut": "Sold out",
+    "unknown": "Could not read",
+    "available": "Available",
+    "roomsLeft": "{count, plural, one {# room} other {# rooms}} left"
+  },
+  "empty": {
+    "title": "No hotels tracked yet",
+    "add": "Add hotels",
+    "body": "Add your hotel and your competitors; the next scan will fill this screen."
+  },
+  "tonight": {
+    "aria": "Tonight",
+    "hotelTonight": "{name} · tonight",
+    "lowestRate": "Lowest rate",
+    "noSelf": "Your hotel is not on the watchlist yet, so there is nothing to compare with competitors."
+  },
+  "suggestions": {
+    "title": "Rate suggestions",
+    "description": "{count, plural, one {# night} other {# nights}} in the next {days} nights"
+  },
+  "nights": {
+    "title": "Next {days} nights",
+    "compSoldOut": "{soldOut}/{observed} competitors sold out",
+    "noComp": "No competitor data yet",
+    "vsMedian": "vs median {pct}"
+  },
+  "changes": {
+    "title": "Changes in the past 24 hours",
+    "allEvents": "All events",
+    "empty": "No changes in the past 24 hours."
+  },
+  "brief": {
+    "title": "Latest AI brief",
+    "read": "Read brief",
+    "noSummary": "This brief has no summary."
+  }
+}

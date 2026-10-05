@@ -1,26 +1,33 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useSession } from "@/lib/session";
 import { Note, PageHeader, SkeletonBlock, Tabs } from "@/components/ui";
-import { IconBuilding, IconClock, IconLock, IconUpload, IconUsers } from "@/components/icons";
+import { IconBell, IconBuilding, IconCalendar, IconClock, IconLock, IconPin, IconUpload, IconUsers } from "@/components/icons";
 import { WatchlistTab } from "./watchlist-tab";
 import { ScheduleTab } from "./schedule-tab";
+import { EventsTab } from "./events-tab";
+import { MarketTab } from "./market-tab";
 import { UsersTab } from "./users-tab";
 import { PmsTab } from "./pms-tab";
+import { NotificationsTab } from "./notifications-tab";
 
-type TabKey = "watchlist" | "schedule" | "users" | "pms";
+type TabKey = "watchlist" | "market" | "schedule" | "events" | "notifications" | "users" | "pms";
 
-const TABS: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
-  { key: "watchlist", label: "Khách sạn", icon: <IconBuilding size={16} /> },
-  { key: "schedule", label: "Lịch quét", icon: <IconClock size={16} /> },
-  { key: "users", label: "Người dùng", icon: <IconUsers size={16} /> },
-  { key: "pms", label: "Nhập PMS", icon: <IconUpload size={16} /> },
+const TABS: Array<{ key: TabKey; icon: React.ReactNode }> = [
+  { key: "watchlist", icon: <IconBuilding size={16} /> },
+  { key: "market", icon: <IconPin size={16} /> },
+  { key: "schedule", icon: <IconClock size={16} /> },
+  { key: "events", icon: <IconCalendar size={16} /> },
+  { key: "notifications", icon: <IconBell size={16} /> },
+  { key: "users", icon: <IconUsers size={16} /> },
+  { key: "pms", icon: <IconUpload size={16} /> },
 ];
 
 function isTab(v: string | null): v is TabKey {
-  return v === "watchlist" || v === "schedule" || v === "users" || v === "pms";
+  return v === "watchlist" || v === "market" || v === "schedule" || v === "events" || v === "notifications" || v === "users" || v === "pms";
 }
 
 function SettingsView() {
@@ -30,6 +37,7 @@ function SettingsView() {
   const raw = params.get("tab");
   const tab: TabKey = isTab(raw) ? raw : "watchlist";
   const { canWrite } = useSession();
+  const t = useTranslations("settings.page");
 
   function setTab(next: TabKey) {
     const q = new URLSearchParams(params.toString());
@@ -42,18 +50,21 @@ function SettingsView() {
   return (
     <div className="max-w-[1100px]">
       <PageHeader
-        title="Cài đặt"
-        subtitle={canWrite ? "Khách sạn theo dõi, giờ quét, người dùng và dữ liệu công suất từ PMS" : "Xem khách sạn theo dõi, giờ quét, người dùng và dữ liệu PMS của tenant"}
+        title={t("title")}
+        subtitle={canWrite ? t("subtitleWrite") : t("subtitleRead")}
       />
       {!canWrite && (
         <Note tone="info" icon={<IconLock size={16} />} className="mb-5">
-          Tài khoản chỉ xem: bạn xem được mọi cài đặt nhưng không thay đổi được. Liên hệ quản trị viên khách sạn nếu cần sửa.
+          {t("readOnlyNote")}
         </Note>
       )}
-      <Tabs value={tab} onChange={setTab} items={TABS} />
+      <Tabs value={tab} onChange={setTab} items={TABS.map((it) => ({ ...it, label: t(`tabs.${it.key}`) }))} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "watchlist" && <WatchlistTab />}
+        {tab === "market" && <MarketTab />}
         {tab === "schedule" && <ScheduleTab />}
+        {tab === "events" && <EventsTab />}
+        {tab === "notifications" && <NotificationsTab />}
         {tab === "users" && <UsersTab />}
         {tab === "pms" && <PmsTab />}
       </div>

@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from app.domain.models import (
     CalendarResult,
-    HotelRef,
+    ListingRef,
     ProbeMethod,
     ProbeResult,
     ProbeStatus,
@@ -43,17 +43,19 @@ class FakeCollector:
             http_status=200,
             session_id="fake-session",
             duration_ms=1,
-            booking_hotel_id="999",
+            external_id="999",
             hotel_name="Fake Hotel",
         )
 
     async def fetch_calendar(
-        self, hotel: HotelRef, start: date, days: int, adults: int
+        self, hotel: ListingRef, start: date, days: int, adults: int
     ) -> CalendarResult:
         self.calendar_calls.append((hotel.id, start, days))
         return self._calendars.get(hotel.id, CalendarResult(ok=False, error="not scripted"))
 
-    async def probe(self, hotel: HotelRef, checkin: date, nights: int, adults: int) -> ProbeResult:
+    async def probe(
+        self, hotel: ListingRef, checkin: date, nights: int, adults: int
+    ) -> ProbeResult:
         self.probe_calls.append((hotel.id, checkin, nights, adults))
         scripted = self._probes.get((hotel.id, checkin))
         if scripted is None:

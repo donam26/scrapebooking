@@ -33,7 +33,7 @@ def probe_result_from_page(
         http_status=http_status,
         session_id=session_id,
         duration_ms=duration_ms,
-        booking_hotel_id=page.booking_hotel_id,
+        external_id=page.external_id,
         hotel_name=page.hotel_name,
     )
 

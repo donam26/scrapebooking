@@ -49,14 +49,36 @@ async def test_every_enqueued_job_goes_to_a_worker_that_has_the_function() -> No
 
     redis = _RecordingRedis()
     queue = ArqJobQueue(redis)  # type: ignore[arg-type]
-    await queue.enqueue_probe(1, 2)
+    await queue.enqueue_probe(1, 2, "booking")
+    await queue.enqueue_verify(5, "booking")
+    await queue.enqueue_discover(2, "booking")
     await queue.enqueue_analytics(1)
     await queue.enqueue_insight(1, "on_demand", "req1")
 
-    by_queue = {get_kwargs(w).get("queue_name"): {f.__name__ for f in w.functions} for w in WORKERS}
+    # Hàm khai báo qua arq.worker.func (số lần thử riêng) có `.name`, hàm trần có `__name__`.
+    by_queue = {
+        get_kwargs(w).get("queue_name"): {
+            getattr(f, "name", None) or f.__name__ for f in w.functions
+        }
+        for w in WORKERS
+    }
     for function, queue_name in redis.calls:
         assert queue_name in by_queue, (function, queue_name)
         assert function in by_queue[queue_name], (function, queue_name)
+
+
+async def test_collector_jobs_go_to_the_channel_queue() -> None:
+    # Mỗi kênh một hàng đợi riêng (D9): kênh bị chặn không chặn hàng đợi kênh khác.
+    redis = _RecordingRedis()
+    queue = ArqJobQueue(redis)  # type: ignore[arg-type]
+    await queue.enqueue_probe(1, 2, "agoda")
+    await queue.enqueue_verify(5, "ivivu")
+    await queue.enqueue_discover(2, "tripcom")
+    assert redis.calls == [
+        ("probe_hotel", "arq:queue:collector:agoda"),
+        ("verify_listing", "arq:queue:collector:ivivu"),
+        ("discover_listing", "arq:queue:collector:tripcom"),
+    ]
 
 
 async def test_insight_retry_gets_a_new_job_id() -> None:

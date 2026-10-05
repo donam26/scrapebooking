@@ -1,12 +1,28 @@
 from dataclasses import asdict
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Hotel, HotelCalendar, Probe, RoomSnapshot, RoomType
-from app.domain.models import CalendarResult, ProbeMethod, ProbeResult, ProbeStatus, RoomOffer
+from app.db.models import (
+    Hotel,
+    HotelCalendar,
+    Listing,
+    ListingDemandSignal,
+    Probe,
+    RoomSnapshot,
+    RoomType,
+)
+from app.domain.models import (
+    CalendarResult,
+    DemandSignal,
+    ProbeMethod,
+    ProbeResult,
+    ProbeStatus,
+    RatePlan,
+    RoomOffer,
+)
 from app.domain.stock import derive_stock
 
 TERMINAL_STATUSES = (ProbeStatus.OK, ProbeStatus.SOLD_OUT, ProbeStatus.SKIPPED_CALENDAR)
@@ -17,19 +33,22 @@ class SnapshotRepository:
         self._s = session
         self._page_cap = page_cap
 
-    async def upsert_room_type(self, hotel_id: int, offer: RoomOffer, seen_at: datetime) -> int:
+    async def upsert_room_type(
+        self, hotel_id: int, channel: str, offer: RoomOffer, seen_at: datetime
+    ) -> int:
         stmt = (
             insert(RoomType)
             .values(
                 hotel_id=hotel_id,
-                booking_room_id=offer.booking_room_id,
+                channel=channel,
+                external_room_id=offer.external_room_id,
                 name=offer.name,
                 max_occupancy=offer.max_occupancy,
                 first_seen_at=seen_at,
                 last_seen_at=seen_at,
             )
             .on_conflict_do_update(
-                index_elements=[RoomType.hotel_id, RoomType.booking_room_id],
+                index_elements=[RoomType.hotel_id, RoomType.channel, RoomType.external_room_id],
                 set_={
                     "name": offer.name,
                     "max_occupancy": offer.max_occupancy,
@@ -45,6 +64,7 @@ class SnapshotRepository:
         *,
         scan_run_id: int,
         hotel_id: int,
+        channel: str,
         stay_date: date,
         checkin: date,
         checkout: date,
@@ -64,6 +84,7 @@ class SnapshotRepository:
         values = dict(
             scan_run_id=scan_run_id,
             hotel_id=hotel_id,
+            channel=channel,
             stay_date=stay_date,
             checkin=checkin,
             checkout=checkout,
@@ -98,6 +119,7 @@ class SnapshotRepository:
         self,
         scan_run_id: int,
         hotel_id: int,
+        channel: str,
         stay_date: date,
         result: ProbeResult,
         raw_object_key: str | None,
@@ -108,6 +130,7 @@ class SnapshotRepository:
         probe_id = await self._upsert_probe(
             scan_run_id=scan_run_id,
             hotel_id=hotel_id,
+            channel=channel,
             stay_date=stay_date,
             checkin=result.checkin,
             checkout=result.checkout,
@@ -126,34 +149,82 @@ class SnapshotRepository:
         )
         await self._s.execute(delete(RoomSnapshot).where(RoomSnapshot.probe_id == probe_id))
         for offer in result.offers:
-            room_type_id = await self.upsert_room_type(hotel_id, offer, fetched_at)
-            stock = derive_stock(offer.badge_count, offer.dropdown_max, self._page_cap)
+            room_type_id = await self.upsert_room_type(hotel_id, channel, offer, fetched_at)
+            stock = derive_stock(
+                offer.badge_count, offer.dropdown_max, self._page_cap, offer.stock_scope
+            )
             self._s.add(
                 RoomSnapshot(
                     probe_id=probe_id,
                     hotel_id=hotel_id,
+                    channel=channel,
                     room_type_id=room_type_id,
                     stay_date=stay_date,
                     scanned_at=fetched_at,
                     rooms_left=stock.rooms_left,
                     stock_confidence=str(stock.confidence),
+                    stock_scope=offer.stock_scope,
                     badge_count=offer.badge_count,
                     dropdown_max=offer.dropdown_max,
                     min_price=offer.min_price,
                     min_refundable_price=offer.min_refundable_price,
                     currency=offer.currency,
-                    rates=[{**asdict(r), "price": str(r.price)} for r in offer.rates],
+                    rates=[rate_json(r) for r in offer.rates],
                 )
             )
-        if result.booking_hotel_id or result.hotel_name:
-            await self.update_hotel_identity(hotel_id, result.booking_hotel_id, result.hotel_name)
+        if result.external_id or result.hotel_name:
+            await self.update_listing_identity(
+                hotel_id, channel, result.external_id, result.hotel_name
+            )
+        await self.write_demand_signals(
+            scan_run_id, hotel_id, channel, stay_date, result.demand_signals, fetched_at
+        )
         await self._s.flush()
         return probe_id
+
+    async def write_demand_signals(
+        self,
+        scan_run_id: int,
+        hotel_id: int,
+        channel: str,
+        stay_date: date,
+        signals: tuple[DemandSignal, ...],
+        observed_at: datetime,
+    ) -> None:
+        """Tín hiệu cả khách sạn (stay_date None) lặp lại ở mọi probe của lượt: giữ một dòng mỗi
+        (run, kênh, loại). Tín hiệu theo đêm: một dòng mỗi (run, kênh, loại, đêm)."""
+        for sig in signals:
+            sig_date = sig.stay_date
+            await self._s.execute(
+                delete(ListingDemandSignal).where(
+                    ListingDemandSignal.scan_run_id == scan_run_id,
+                    ListingDemandSignal.hotel_id == hotel_id,
+                    ListingDemandSignal.channel == channel,
+                    ListingDemandSignal.kind == str(sig.kind),
+                    ListingDemandSignal.stay_date.is_(None)
+                    if sig_date is None
+                    else ListingDemandSignal.stay_date == sig_date,
+                )
+            )
+            self._s.add(
+                ListingDemandSignal(
+                    hotel_id=hotel_id,
+                    channel=channel,
+                    scan_run_id=scan_run_id,
+                    stay_date=sig_date,
+                    kind=str(sig.kind),
+                    value=sig.value,
+                    window_hours=sig.window_hours,
+                    raw_text=(sig.raw_text or "")[:500] or None,
+                    observed_at=observed_at,
+                )
+            )
 
     async def write_skipped(
         self,
         scan_run_id: int,
         hotel_id: int,
+        channel: str,
         stay_date: date,
         nights: int,
         adults: int,
@@ -162,6 +233,7 @@ class SnapshotRepository:
         probe_id = await self._upsert_probe(
             scan_run_id=scan_run_id,
             hotel_id=hotel_id,
+            channel=channel,
             stay_date=stay_date,
             checkin=stay_date,
             checkout=stay_date + timedelta(days=nights),
@@ -216,16 +288,52 @@ class SnapshotRepository:
             await self._s.execute(stmt)
         await self._s.flush()
 
-    async def update_hotel_identity(
-        self, hotel_id: int, booking_hotel_id: str | None, name: str | None
+    async def update_listing_identity(
+        self, hotel_id: int, channel: str, external_id: str | None, name: str | None
     ) -> None:
         values: dict[str, str] = {}
-        if booking_hotel_id:
-            values["booking_hotel_id"] = booking_hotel_id
+        if external_id:
+            values["external_id"] = external_id[:64]
         if name:
             values["name"] = name[:300]
         if values:
-            await self._s.execute(update(Hotel).where(Hotel.id == hotel_id).values(**values))
+            await self._s.execute(
+                update(Listing)
+                .where(Listing.hotel_id == hotel_id, Listing.channel == channel)
+                .values(**values)
+            )
+        if name:
+            # Tên khách sạn lấy từ kênh đầu tiên quét được; không ghi đè tên đã có.
+            await self._s.execute(
+                update(Hotel)
+                .where(Hotel.id == hotel_id, Hotel.name.is_(None))
+                .values(name=name[:300])
+            )
+
+    async def mark_listing_broken(self, hotel_id: int, channel: str, error: str) -> None:
+        await self._s.execute(
+            update(Listing)
+            .where(Listing.hotel_id == hotel_id, Listing.channel == channel)
+            .values(status="broken", last_error=error[:1000])
+        )
+
+    async def last_usable_probe_at(
+        self, hotel_id: int, channel: str, dates: list[date]
+    ) -> dict[date, datetime]:
+        """Lần quan sát dùng được gần nhất (ok/hết phòng) của từng đêm, mọi run của kênh."""
+        if not dates:
+            return {}
+        rows = await self._s.execute(
+            select(Probe.stay_date, func.max(Probe.fetched_at))
+            .where(
+                Probe.hotel_id == hotel_id,
+                Probe.channel == channel,
+                Probe.stay_date.in_(dates),
+                Probe.status.in_([str(s) for s in TERMINAL_STATUSES]),
+            )
+            .group_by(Probe.stay_date)
+        )
+        return {r[0]: r[1] for r in rows}
 
     async def terminal_dates(self, scan_run_id: int, hotel_id: int) -> set[date]:
         rows = await self._s.execute(
@@ -236,3 +344,11 @@ class SnapshotRepository:
             )
         )
         return {r[0] for r in rows}
+
+
+def rate_json(rate: RatePlan) -> dict[str, object]:
+    """RatePlan → JSON (Decimal thành chuỗi) để lưu `room_snapshots.rates`."""
+    d = asdict(rate)
+    d["price"] = str(rate.price)
+    d["price_original"] = str(rate.price_original) if rate.price_original is not None else None
+    return d

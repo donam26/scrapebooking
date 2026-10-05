@@ -2,13 +2,12 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { SessionProvider } from "@/lib/session";
 
+// i18n-ignore-next-line: hợp đồng thiết kế ẩn cho công cụ review, không hiển thị
 const CONTRACT = `<!--
-THESIS: Dashboard là bảng thị trường theo từng khách sạn: mỗi khách sạn một dải 30 đêm mang bốn dấu tin cậy và đường giá cùng trục; từ chối kiểu admin Tailwind mặc định với bảng số trơn, nhãn kỹ thuật lộ cho chủ khách sạn.
-OWN-WORLD: Thanh bên tím than #16123a có logo ô cửa, nền sương #f4f5ff, thẻ trắng bo 12px viền #e3e1f0, tím #673de6 chỉ cho hành động và đang chọn; vàng #ffcd35 đậm dần theo độ khan (số chính xác), sọc #d6cbff (ít nhất), viền đứt (ẩn), tím đậm #2f1c6a "HẾT"; xanh #00b090 chỉ cho khách sạn của bạn. Be Vietnam Pro, số tabular.
-STORY: Mở app → đọc đêm nay và 7 đêm tới trong một dòng → dò một đêm qua cả chồng khách sạn → bấm ô vào chi tiết đêm → đọc bản tin có bằng chứng bấm được.
-FIRST VIEWPORT: Thanh bên 248px; tiêu đề Tổng quan, độ mới dữ liệu, chọn kỳ 14/30/60 đêm; dòng tóm tắt; dải Thị trường; dải Khách sạn của bạn (chấm xanh); các dải đối thủ cùng trục ngày dính. Signature: dò một đêm, rê hoặc tab vào một cột sáng cả chồng và bảng đọc liệt kê mọi khách sạn đêm đó.
-FORM: Surface roll "Từng khách sạn một dải", vị trí 6 trong danh sách 7, seed 2dedb492.
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+THESIS: Dashboard OTARadar theo giao diện mẫu khách hàng: thanh trên xanh, hàng tab ngang, thẻ trắng tiêu đề in hoa; mỗi số đều từ dữ liệu quét thật, ước tính ghi "≈".
+OWN-WORLD: Thanh trên #0062ff có logo dấu sao, nền #f5f6fa, thẻ trắng bo 10px viền #e6e8ef; xanh #0062ff cho hành động, đang chọn và khách sạn của bạn; thang nhiệt phòng còn đỏ #dc2626 → cam → hổ phách → vàng nhạt → xanh lá #4ade80; cầu thấp xanh lá, vừa xanh dương, cao cam. Inter, số tabular.
+STORY: Mở app vào Bảng điều khiển → đọc toàn cảnh đêm nay và dự báo cầu 14 đêm → Phòng trống để dò heatmap → Giá & định giá để so giá → Terminal+ cho bối cảnh (lễ, thời tiết, nhịp đặt phòng).
+FIRST VIEWPORT: Thanh trên + 8 tab; dải đầu trang tên tab xanh và chọn kênh; lưới thẻ chỉ số; cột phải Cảnh báo, Khách sạn của bạn, Trạng thái dữ liệu.
 -->`;
 
 export default function AppLayout({ children }: { children: ReactNode }) {

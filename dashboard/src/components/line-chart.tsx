@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { useElementWidth } from "@/lib/use-width";
 import { cx } from "./ui";
@@ -52,7 +53,8 @@ function niceTicks(min: number, max: number, count = 4): number[] {
  * Biểu đồ đường SVG: nét 2px, điểm ≥ 8px có vòng nền, lưới mảnh, một trục y,
  * chú giải luôn có khi ≥ 2 series, rê chuột hiện tooltip.
  */
-export function LineChart({ series, height = 220, formatY = (v) => String(v), formatX = (v) => String(v), zeroBased = false, emptyText = "Chưa có dữ liệu", className }: Props) {
+export function LineChart({ series, height = 220, formatY = (v) => String(v), formatX = (v) => String(v), zeroBased = false, emptyText, className }: Props) {
+  const t = useTranslations();
   const id = useId();
   const ref = useRef<HTMLDivElement>(null);
   // Vẽ theo chiều rộng thật để chữ trục giữ đúng cỡ trên mọi màn hình.
@@ -62,7 +64,7 @@ export function LineChart({ series, height = 220, formatY = (v) => String(v), fo
   if (visible.length === 0) {
     return (
       <div ref={ref} className={cx("flex items-center justify-center rounded-lg bg-subtle px-4 text-center text-base text-muted", className)} style={{ height }}>
-        {emptyText}
+        {emptyText ?? t("common.status.noData")}
       </div>
     );
   }
@@ -114,7 +116,7 @@ export function LineChart({ series, height = 220, formatY = (v) => String(v), fo
             {formatX(t)}
           </text>
         ))}
-        {hovered && <line x1={sx(hovered.x)} x2={sx(hovered.x)} y1={PAD.top} y2={PAD.top + plotH} stroke="#673de6" strokeOpacity={0.3} strokeDasharray="3 3" />}
+        {hovered && <line x1={sx(hovered.x)} x2={sx(hovered.x)} y1={PAD.top} y2={PAD.top + plotH} stroke="#0062ff" strokeOpacity={0.3} strokeDasharray="3 3" />}
         {visible.map((s, si) => {
           const color = SERIES_COLORS[si % SERIES_COLORS.length];
           const d = s.points.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
@@ -137,7 +139,7 @@ export function LineChart({ series, height = 220, formatY = (v) => String(v), fo
                       onFocus={() => setHover({ si, pi })}
                       onBlur={() => setHover(null)}
                       tabIndex={0}
-                      aria-label={`${s.name}: ${p.floor ? "ít nhất " : ""}${formatY(p.y)} lúc ${formatX(p.x)}`}
+                      aria-label={t(p.floor ? "components.lineChart.pointFloor" : "components.lineChart.point", { name: s.name, value: formatY(p.y), x: formatX(p.x) })}
                     />
                   </g>
                 );
@@ -156,8 +158,12 @@ export function LineChart({ series, height = 220, formatY = (v) => String(v), fo
             {visible[hover.si].name}
           </div>
           <div className="text-muted tabular">
-            {hovered.floor ? "Ít nhất " : ""}
-            <span className="font-semibold text-ink">{formatY(hovered.y)}</span> · {formatX(hovered.x)}
+            {hovered.floor ? (
+              t.rich("components.lineChart.tooltipFloor", { value: formatY(hovered.y), b: (c) => <span className="font-semibold text-ink">{c}</span> })
+            ) : (
+              <span className="font-semibold text-ink">{formatY(hovered.y)}</span>
+            )}{" "}
+            · {formatX(hovered.x)}
           </div>
         </div>
       )}
@@ -175,7 +181,7 @@ export function LineChart({ series, height = 220, formatY = (v) => String(v), fo
               <svg width="12" height="12" aria-hidden>
                 <circle cx="6" cy="6" r="4" fill="#fff" stroke="#5e6072" strokeWidth="2" />
               </svg>
-              Chấm rỗng: ít nhất (số thật có thể cao hơn)
+              {t("components.lineChart.floorLegend")}
             </li>
           )}
         </ul>

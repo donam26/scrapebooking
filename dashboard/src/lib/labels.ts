@@ -1,4 +1,12 @@
-/** Nhãn tiếng Việt cho các mã trạng thái của backend. */
+/**
+ * Mã trạng thái của backend: danh sách mã, màu (tone) và tên kênh. Chữ hiển thị của từng mã nằm ở
+ * `src/messages/<ngôn ngữ>/labels.json`, đọc qua `useLabel()`:
+ *   const label = useLabel();  label("eventType", ev.event_type)  // mã lạ -> trả nguyên mã
+ */
+
+import { useTranslations } from "next-intl";
+import { useMemo } from "react";
+import type { Messages } from "@/messages";
 
 export const EVENT_TYPES = [
   "sold_out",
@@ -10,20 +18,10 @@ export const EVENT_TYPES = [
   "price_down",
   "room_type_new",
   "room_type_gone",
+  "channel_closed",
+  "parity_gap",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
-
-export const EVENT_TYPE_LABEL: Record<string, string> = {
-  sold_out: "Hết phòng",
-  restock: "Có phòng lại",
-  rooms_decrease: "Giảm phòng",
-  rooms_increase: "Tăng phòng",
-  low_stock_enter: "Sắp hết phòng",
-  price_up: "Tăng giá",
-  price_down: "Giảm giá",
-  room_type_new: "Loại phòng mới",
-  room_type_gone: "Mất loại phòng",
-};
 
 export type Tone = "green" | "red" | "amber" | "gray" | "blue" | "purple" | "plum";
 
@@ -37,25 +35,33 @@ export const EVENT_TYPE_TONE: Record<string, Tone> = {
   price_down: "gray",
   room_type_new: "gray",
   room_type_gone: "gray",
+  channel_closed: "amber",
+  parity_gap: "gray",
 };
 
-export const AVAILABILITY_LABEL: Record<string, string> = {
-  available: "Còn phòng",
-  sold_out: "Hết phòng",
-  unknown: "Không rõ",
+/** Tên hiển thị của kênh bán phòng (khớp `app/channels/registry.py`). */
+export const CHANNEL_LABEL: Record<string, string> = {
+  booking: "Booking.com",
+  agoda: "Agoda",
+  ivivu: "iVIVU",
+  tripcom: "Trip.com",
+  traveloka: "Traveloka",
+  mytour: "Mytour",
+  expedia: "Expedia",
+};
+
+export const LISTING_STATUS_TONE: Record<string, Tone> = {
+  active: "green",
+  unverified: "blue",
+  suggested: "purple",
+  broken: "red",
+  paused: "gray",
 };
 
 export const AVAILABILITY_TONE: Record<string, Tone> = {
   available: "blue",
   sold_out: "plum",
   unknown: "gray",
-};
-
-export const STOCK_CONFIDENCE_LABEL: Record<string, string> = {
-  exact: "Chính xác",
-  capped: "Ít nhất",
-  hidden: "Ẩn",
-  sold_out: "Hết",
 };
 
 export const STOCK_CONFIDENCE_TONE: Record<string, Tone> = {
@@ -65,36 +71,11 @@ export const STOCK_CONFIDENCE_TONE: Record<string, Tone> = {
   sold_out: "plum",
 };
 
-export const USER_ROLE_LABEL: Record<string, string> = {
-  operator: "Vận hành",
-  tenant_admin: "Quản trị",
-  viewer: "Chỉ xem",
-};
-
-export const WATCH_ROLE_LABEL: Record<string, string> = {
-  self: "Khách sạn của bạn",
-  competitor: "Đối thủ",
-};
-
-export const RUN_STATUS_LABEL: Record<string, string> = {
-  running: "Đang chạy",
-  completed: "Hoàn tất",
-  partial: "Một phần",
-  failed: "Thất bại",
-};
-
 export const RUN_STATUS_TONE: Record<string, Tone> = {
   running: "blue",
   completed: "green",
   partial: "amber",
   failed: "red",
-};
-
-export const INSIGHT_STATUS_LABEL: Record<string, string> = {
-  pending: "Đang tạo",
-  batch_pending: "Chờ batch",
-  completed: "Hoàn tất",
-  failed: "Thất bại",
 };
 
 export const INSIGHT_STATUS_TONE: Record<string, Tone> = {
@@ -104,27 +85,17 @@ export const INSIGHT_STATUS_TONE: Record<string, Tone> = {
   failed: "red",
 };
 
-export const INSIGHT_TRIGGER_LABEL: Record<string, string> = {
-  daily: "Hằng ngày",
-  on_demand: "Theo yêu cầu",
-};
-
-export const IMPORT_STATUS_LABEL: Record<string, string> = {
-  completed: "Hoàn tất",
-  partial: "Một phần",
-  failed: "Thất bại",
+export const NOTIFICATION_STATUS_TONE: Record<string, Tone> = {
+  sent: "green",
+  failed: "red",
+  sending: "blue",
+  skipped: "gray",
 };
 
 export const IMPORT_STATUS_TONE: Record<string, Tone> = {
   completed: "green",
   partial: "amber",
   failed: "red",
-};
-
-export const LEVEL_LABEL: Record<string, string> = {
-  high: "Cao",
-  medium: "Trung bình",
-  low: "Thấp",
 };
 
 export const LEVEL_TONE: Record<string, Tone> = {
@@ -150,17 +121,24 @@ export const CANONICAL_PMS_COLUMNS = [
   "revenue",
 ] as const;
 
-export const PMS_COLUMN_LABEL: Record<string, string> = {
-  stay_date: "Ngày lưu trú",
-  rooms_total: "Tổng phòng",
-  rooms_sold: "Phòng đã bán",
-  rooms_available: "Phòng còn",
-  occupancy_pct: "Công suất (%)",
-  adr: "ADR",
-  revenue: "Doanh thu",
-};
+/** Nhóm nhãn trong labels.json (eventType, runStatus, userRole…). */
+export type LabelGroup = keyof Messages["labels"];
 
-export function label(map: Record<string, string>, key: string | null | undefined): string {
-  if (!key) return "—";
-  return map[key] ?? key;
+type LabelsTranslator = ReturnType<typeof useTranslations<"labels">>;
+
+/** Hàm tra nhãn từ translator "labels" (dùng ở helper ngoài React hoặc server: getTranslations("labels")). */
+export function createLabel(t: LabelsTranslator) {
+  return (group: LabelGroup, key: string | null | undefined): string => {
+    if (!key) return "—";
+    const id = `${group}.${key}` as Parameters<LabelsTranslator>[0];
+    return t.has(id) ? t(id) : key;
+  };
+}
+
+export type LabelFn = ReturnType<typeof createLabel>;
+
+/** `label(group, code)`: nhãn theo ngôn ngữ hiện tại, "—" khi rỗng, nguyên mã khi chưa có bản dịch. */
+export function useLabel(): LabelFn {
+  const t = useTranslations("labels");
+  return useMemo(() => createLabel(t), [t]);
 }

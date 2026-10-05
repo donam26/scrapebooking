@@ -1,0 +1,132 @@
+{
+  "ui": {
+    "infoTip": "More info",
+    "breadcrumbs": "Breadcrumb"
+  },
+  "eventTable": {
+    "soldOut": "Available → Sold out",
+    "restock": "Sold out → Available",
+    "stillSelling": "Still selling on {channels}",
+    "otherChannelsSelling": "Still selling on other channels",
+    "roomTypeNewRooms": "On sale, {rooms} left",
+    "roomTypeNew": "On sale",
+    "roomTypeGoneRooms": "Off sale (was {rooms})",
+    "roomTypeGone": "Off sale",
+    "rooms": "{count, plural, one {# room} other {# rooms}}",
+    "roomsFloor": "≥{count, plural, one {# room} other {# rooms}}",
+    "roomsChange": "{from} → {to} {count, plural, one {room} other {rooms}}",
+    "confidenceTitle": "Confidence in the room count",
+    "confidenceLevel": "{level} confidence",
+    "hotelFallback": "Hotel #{id}",
+    "vsChannel": "vs {channel}",
+    "wholeHotel": "Whole hotel",
+    "observedOn": "Observed on {channel}",
+    "openNight": "Open this night",
+    "night": "Night {night}",
+    "empty": "No events in the selected period.",
+    "run": "Scan {when}",
+    "changes": "{count, plural, one {# change} other {# changes}}"
+  },
+  "marks": {
+    "beyond": "Beyond scan range",
+    "noData": "No data yet",
+    "soldOutShort": "FULL",
+    "soldOut": "Sold out",
+    "unknown": "Could not read (blocked or error)",
+    "hiddenChannel": "Available, channel hides the count",
+    "hiddenUnknown": "Available, count unknown",
+    "exactChannel": "{count, plural, one {# room} other {# rooms}} left (exact count from channel)",
+    "exact": "{count, plural, one {# room} other {# rooms}} left (exact)",
+    "cappedRate": "At least {count, plural, one {# room} other {# rooms}} left (channel only reports rooms left at the lowest rate)",
+    "capped": "At least {count, plural, one {# room} other {# rooms}} left",
+    "cappedSome": "At least a few rooms left",
+    "chip": {
+      "exact": "Exact",
+      "capped": "At least",
+      "hidden": "Hidden",
+      "sold_out": "Sold out",
+      "unknown": "Unknown",
+      "nodata": "No data",
+      "rate": "Per rate"
+    },
+    "legend": {
+      "hotelExact": "Exact rooms left from the channel: red/orange is nearly full, green has plenty",
+      "hidden": "Available, count hidden",
+      "soldOut": "Sold out",
+      "unknown": "Could not read",
+      "notScanned": "Not scanned",
+      "roomExact": "Exact (“Only 2 rooms left”)",
+      "roomCapped": "At least N (channel only shows a floor)"
+    }
+  },
+  "gauge": {
+    "outOf100": "{value} out of 100"
+  },
+  "lineChart": {
+    "point": "{name}: {value} at {x}",
+    "pointFloor": "{name}: at least {value} at {x}",
+    "tooltipFloor": "At least <b>{value}</b>",
+    "floorLegend": "Hollow dot: at least (actual number may be higher)"
+  },
+  "marketSuggestion": {
+    "confidenceHigh": "High confidence",
+    "confidenceMedium": "Medium confidence",
+    "yourPrice": "Your rate {price}",
+    "applied": "Applied",
+    "dismissed": "Dismissed",
+    "undo": "Undo",
+    "markApplied": "Mark as applied",
+    "dismiss": "Dismiss"
+  },
+  "priceBasis": {
+    "label": "Rate compared",
+    "any": "All rates",
+    "anyTitle": "Compare the lowest rate across all packages, including non-refundable ones",
+    "refundable": "Refundable",
+    "refundableTitle": "Compare only the lowest rate among packages with free cancellation",
+    "noun": {
+      "any": "Lowest rate",
+      "refundable": "Lowest refundable rate"
+    }
+  },
+  "runSummary": {
+    "empty": "No completed scans yet.",
+    "run": "Scan",
+    "channel": "Channel",
+    "finished": "Finished",
+    "duration": "Duration",
+    "probesOk": "Successful probes",
+    "soldOut": "Sold out",
+    "blocked": "Blocked",
+    "errors": "Errors"
+  },
+  "scanHotel": {
+    "scanNow": "Scan now",
+    "queued": "Queued"
+  },
+  "subTabs": {
+    "label": "Sub-sections",
+    "tabs": {
+      "aiBriefs": "AI briefs",
+      "events": "Change events",
+      "compset": "Your comp set",
+      "market": "Explore the market"
+    }
+  },
+  "dateRange": {
+    "start": "First night",
+    "today": "Back to today",
+    "nightsLabel": "Number of nights",
+    "nights": "{count, plural, one {# night} other {# nights}}"
+  },
+  "channels": {
+    "switcher": "Channel shown",
+    "switcherTitle": "Rooms left and rates on {channel}",
+    "suggestedMatch": "Suggested · {score}% match",
+    "openOnChannel": "Open the hotel page on {channel}",
+    "tracked": "Tracked channels",
+    "demandTitle": "Demand signals from channels",
+    "demandSource": "From {channel}:",
+    "demandNote": "Messages the channel shows to guests. For reference only; not counted in rooms left or rates."
+  }
+}

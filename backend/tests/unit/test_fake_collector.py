@@ -1,9 +1,10 @@
 from datetime import date
 
 from app.collector.fake import FakeCollector
-from app.domain.models import CalendarDay, CalendarResult, HotelRef, ProbeStatus
+from app.domain.models import CalendarDay, CalendarResult, ProbeStatus
+from tests.fakes import booking_listing
 
-HOTEL = HotelRef(1, "vn", "vn/x", "https://www.booking.com/hotel/vn/x.html")
+HOTEL = booking_listing()
 
 
 async def test_fake_collector_scripts_and_records() -> None:

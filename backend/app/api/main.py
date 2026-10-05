@@ -6,7 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.routers import auth, data, health, insights, pms, tenants, watchlist
+from app.api.routers import (
+    auth,
+    data,
+    export,
+    health,
+    insights,
+    market,
+    market_city,
+    notifications,
+    pms,
+    tenants,
+    watchlist,
+)
 from app.config import Settings, get_settings
 from app.db.engine import make_engine, make_session_factory
 from app.logging import configure_logging, get_logger
@@ -66,9 +78,14 @@ def create_app(
     app.include_router(auth.router)
     app.include_router(tenants.router)
     app.include_router(watchlist.router)
+    app.include_router(watchlist.channels_router)
     app.include_router(data.router)
     app.include_router(insights.router)
     app.include_router(pms.router)
+    app.include_router(notifications.router)
+    app.include_router(export.router)
+    app.include_router(market.router)
+    app.include_router(market_city.router)
     app.include_router(health.router)
 
     @app.get("/healthz", tags=["health"])

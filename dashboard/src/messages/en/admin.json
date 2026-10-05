@@ -1,0 +1,153 @@
+{
+  "tenants": {
+    "title": "Tenants",
+    "subtitle": "Each tenant is a customer with its own watchlist, scan schedule and users",
+    "create": "Create tenant",
+    "createCard": {
+      "title": "New tenant",
+      "description": "All values can be changed after creation"
+    },
+    "list": {
+      "title": "Tenants",
+      "count": "{count, plural, one {# tenant} other {# tenants}} · {active, number} active"
+    },
+    "empty": {
+      "title": "No tenants yet",
+      "body": "Create a tenant for your first customer, then add their users and watchlist."
+    },
+    "table": {
+      "tenant": "Tenant",
+      "status": "Status",
+      "scanTimes": "Scan times",
+      "horizon": "Nights",
+      "report": "Brief",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Tenant name",
+      "nameHint": "Usually the customer's hotel or hotel group name",
+      "namePlaceholder": "e.g. Rex Hotel Saigon",
+      "timezone": "Time zone",
+      "timezoneHint": "Scan times and the brief time follow this time zone",
+      "scanTimes": "Daily scan times",
+      "scanTimesHint": "HH:MM, comma-separated. e.g. 06:00, 14:00, 22:00",
+      "horizon": "Nights ahead to scan",
+      "horizonHint": "1–90 nights from today",
+      "insightHour": "AI brief time",
+      "reportLanguage": "Report language",
+      "country": "Country code",
+      "countryHint": "2 letters, used to pick the proxy and each channel's site version (e.g. vn)",
+      "status": "Status",
+      "statusAria": "Tenant status",
+      "active": "Active",
+      "inactive": "Off (no scans)"
+    },
+    "row": {
+      "createdAt": "Created {when}",
+      "meta": "#{id} · {timezone} · created {date}",
+      "active": "Active",
+      "inactive": "Off",
+      "nights": "{count, plural, one {# night} other {# nights}}",
+      "viewTitle": "Switch to this tenant's data",
+      "viewing": "Viewing",
+      "view": "View dashboard",
+      "editTitle": "Edit “{name}”",
+      "saveChanges": "Save changes"
+    }
+  },
+  "users": {
+    "title": "Accounts",
+    "subtitle": "All accounts: the operator team and each tenant's users",
+    "operator": "Operator",
+    "tenantFallback": "Tenant #{id}",
+    "create": {
+      "title": "Create account",
+      "description": "Password must be at least 8 characters; send it to the user through a separate channel"
+    },
+    "list": {
+      "title": "Accounts",
+      "count": "{count, plural, one {# account} other {# accounts}} · {active, number} active"
+    },
+    "filter": {
+      "label": "Filter by",
+      "aria": "Filter by tenant",
+      "all": "All tenants",
+      "inactive": "(off)"
+    },
+    "empty": {
+      "noneTitle": "No accounts yet",
+      "noneBody": "Create the first account in the form above.",
+      "noMatchTitle": "No accounts match the filter",
+      "noMatchBody": "Choose “All tenants” to see every account."
+    },
+    "table": {
+      "email": "Email",
+      "tenant": "Tenant",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions"
+    }
+  },
+  "health": {
+    "title": "Scraper health",
+    "refresh": "Refreshes every 30 seconds",
+    "refreshAt": "Refreshes every 30 seconds · updated at {time}",
+    "openGrafana": "Open Grafana",
+    "scanAll": "Scan all now",
+    "scanAllTitle": "Create a manual scan for every active tenant",
+    "scanCreated": "Created {count, plural, one {# scan} other {# scans}} (one per tenant × channel). Progress shows in the “Scans” table on the next refresh.",
+    "stats": {
+      "probes": "Probes, last 15 min",
+      "probesHint": "Stay-date page loads",
+      "blocked": "Blocked, last 15 min",
+      "blockedSome": "Some probes were blocked",
+      "blockedNone": "No probes blocked",
+      "blockRate": "Block rate, 15 min",
+      "blockRateOver": "Above the 20% alert threshold",
+      "blockRateThreshold": "Alert threshold 20%",
+      "sessions": "Active sessions",
+      "sessionsHint": "Browser sessions via proxy"
+    },
+    "lastRun": "Latest scan",
+    "pendingAnalytics": "Awaiting analysis: {runs}",
+    "runs": {
+      "title": "Scans",
+      "description": "Latest 20 scans across all tenants",
+      "emptyTitle": "No scans yet",
+      "emptyBody": "Scheduled scans, or ones started with “Scan all now”, will appear here.",
+      "run": "Scan",
+      "channel": "Channel",
+      "trigger": "Trigger",
+      "status": "Status",
+      "started": "Started",
+      "duration": "Duration",
+      "jobs": "Jobs",
+      "probesOk": "Successful probes",
+      "soldOut": "Sold out",
+      "blocked": "Blocked",
+      "errors": "Errors"
+    },
+    "sessions": {
+      "title": "Scrape sessions",
+      "description": "Latest 50 sessions",
+      "emptyTitle": "No sessions yet",
+      "emptyBody": "Workers create a session when a scan starts.",
+      "session": "Session",
+      "worker": "Worker",
+      "proxy": "Proxy",
+      "country": "Country",
+      "status": "Status",
+      "created": "Created",
+      "expires": "Expires",
+      "requests": "Requests",
+      "blocked": "Blocked",
+      "retiredAt": "retired {when}"
+    },
+    "sessionStatus": {
+      "active": "Active",
+      "retired": "Retired",
+      "blocked": "Blocked",
+      "expired": "Expired"
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "page": {
+    "title": "Giá & định giá",
+    "nights": "{count} đêm tới",
+    "channel": "Kênh <b>{channel}</b>",
+    "scannedAt": "Quét lúc {when}",
+    "emptyTitle": "Chưa theo dõi khách sạn nào",
+    "emptyBody": "Thêm khách sạn ở <link>Cài đặt › Khách sạn</link>.",
+    "analysis": "Phân tích giá",
+    "analysisInfo": "Giá thấp nhất mỗi đêm trên kênh đang xem, đã gồm thuế phí và khuyến mãi kênh tự áp.",
+    "view": "Cách xem",
+    "views": {
+      "trends": "Xu hướng",
+      "positioning": "Vị trí",
+      "heatmap": "Heatmap"
+    }
+  },
+  "kpi": {
+    "marketAvg": "Trung bình thị trường",
+    "marketAvgSub": "Giá TB đối thủ đêm nay",
+    "lowest": "Thấp nhất",
+    "highest": "Cao nhất",
+    "yourRate": "Giá của bạn",
+    "notComparable": "Chưa so được",
+    "noOwnHotel": "Chưa thêm khách sạn của bạn"
+  },
+  "intel": {
+    "title": "Tình báo cạnh tranh",
+    "info": "So trên {channel}. Hạng 1 là rẻ nhất trong các khách sạn có giá đêm nay.",
+    "cheaperNights": "Đêm bạn rẻ hơn thị trường ({count} đêm)",
+    "undercut": "Đối thủ rẻ hơn bạn đêm nay",
+    "spread": "Biên độ giá đối thủ đêm nay",
+    "rank": "Hạng giá của bạn đêm nay"
+  },
+  "trends": {
+    "title": "Xu hướng giá — {count} đêm tới",
+    "info": "Giá thấp nhất mỗi đêm của từng khách sạn trên kênh đang xem. Thị trường = trung bình giá các đối thủ.",
+    "market": "Thị trường",
+    "empty": "Chưa có giá cho các đêm này",
+    "all": "Tất cả",
+    "none": "Không"
+  },
+  "positioning": {
+    "indexTitle": "Chỉ số giá của bạn",
+    "indexInfo": "Giá của bạn chia trung vị giá đối thủ × 100. Dưới 100 là rẻ hơn trung vị, trên 100 là đắt hơn.",
+    "base": "Trung vị đối thủ = 100",
+    "index": "Chỉ số giá của bạn",
+    "emptyPrices": "Chưa đủ giá để so",
+    "emptyOwn": "Chưa có khách sạn của bạn trong danh sách theo dõi",
+    "rankTitle": "Hạng giá theo đêm",
+    "night": "Đêm",
+    "yourRate": "Giá của bạn",
+    "compMedian": "Trung vị đối thủ",
+    "compLowest": "Thấp nhất đối thủ",
+    "diff": "Chênh lệch",
+    "rank": "Hạng",
+    "soldOut": "Hết phòng"
+  },
+  "heatmap": {
+    "title": "Heatmap giá",
+    "info": "Giá thấp nhất từng khách sạn mỗi đêm (rút gọn: 3,6 Tr = 3.600.000). Xanh là rẻ hơn giá TB đối thủ đêm đó, cam là đắt hơn.",
+    "hotel": "Khách sạn",
+    "soldOut": "Hết phòng",
+    "soldOutShort": "Hết",
+    "noPrice": "Không có giá",
+    "note": "Đơn vị: triệu đồng. Xanh đậm rẻ hơn ≥15%, xanh nhạt rẻ hơn 5–15%, vàng ngang thị trường, cam đắt hơn."
+  }
+}

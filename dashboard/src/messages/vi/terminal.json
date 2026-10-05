@@ -1,0 +1,85 @@
+{
+  "strip": {
+    "season": "Mùa: {name}",
+    "nextHoliday": "Lễ gần nhất: {name} · {days, plural, =0 {hôm nay} other {còn # ngày}}",
+    "hotelsTracked": "{count} khách sạn theo dõi",
+    "updated": "Cập nhật {ago}",
+    "noScan": "Chưa có lượt quét",
+    "channel": "Kênh {name}"
+  },
+  "mood": {
+    "noData": "Chưa đủ số",
+    "tight": "Thị trường căng",
+    "balanced": "Thị trường cân bằng",
+    "soft": "Thị trường mềm"
+  },
+  "occGauge": "Công suất ≈",
+  "city": {
+    "title": "Thị trường {name}",
+    "info": "Công suất ước tính từ {coverage} khách sạn quét chi tiết có đủ số. Số khách sạn còn phòng là con số Booking.com báo cho đêm này. Giá TB và phân bố giá tính trên {priced} khách sạn có giá đã thấy ở trang kết quả (mẫu).",
+    "roomsLeft": "Phòng còn",
+    "roomsLeftTitle": "Tổng phòng còn của các khách sạn quét chi tiết có số chính xác",
+    "inventory": "Tổng ≈",
+    "inventoryTitle": "Tồn kho ước tính của các khách sạn đó",
+    "avgRate": "Giá TB",
+    "found": "<b>{found}</b> / {total} khách sạn còn phòng",
+    "foundOver": "<b>{found}</b> khách sạn còn phòng (Booking báo) · đã ghép danh sách {total} KS",
+    "notScanned": "Chưa quét danh sách đêm này",
+    "sampleTitle": "Giá tính trên các khách sạn đã thấy ở trang kết quả, chưa phủ hết khu vực",
+    "histogramSample": "Phân bố giá (mẫu {priced}/{found} KS)",
+    "histogramAll": "Phân bố giá ({priced} KS)",
+    "barTitle": "{range}: {count} KS",
+    "listScanned": "Quét danh sách {when}",
+    "neverScanned": "Chưa quét",
+    "explore": "Khám phá"
+  },
+  "indicator": {
+    "title": "Chỉ báo thị trường",
+    "cityTitle": "Thị trường {city}",
+    "info": "Công suất ước tính của đối thủ đêm nay (từ số phòng còn trên kênh tham chiếu), số phòng còn của các khách sạn có số chính xác và phân bố giá thấp nhất đêm nay.",
+    "roomsLeft": "Phòng còn",
+    "withRooms": "Còn phòng",
+    "avgRate": "Giá TB",
+    "distribution": "Phân bố giá đêm nay",
+    "yours": "của bạn",
+    "scannedAt": "Quét lúc {when}"
+  },
+  "weather": {
+    "title": "Thời tiết",
+    "info": "Dự báo 5 ngày tại khách sạn của bạn (OpenWeather), cập nhật mỗi 30 phút.",
+    "needsKey": "Cần cấu hình <code>OPENWEATHER_API_KEY</code>",
+    "noForecast": "Chưa có dự báo",
+    "current": "dự báo gần nhất · cảm giác {feels}° · ẩm {humidity}%",
+    "restOfToday": "{description} (các giờ còn lại hôm nay)",
+    "today": "Nay"
+  },
+  "signals": {
+    "title": "Tín hiệu đặt phòng hôm nay",
+    "info": "Số lượt đặt do kênh tự hiển thị trên trang khách sạn (ví dụ “đặt 37 lần hôm nay”), chỉ tính tín hiệu thấy trong 24 giờ qua. Đây là thông điệp marketing của kênh, không phải số đặt phòng thật.",
+    "empty": "Kênh chưa hiển thị lượt đặt cho các khách sạn đang theo dõi trong 24 giờ qua",
+    "summary": "lượt đặt hôm nay ở {hotels} khách sạn",
+    "summary24h": "lượt đặt hôm nay ở {hotels} khách sạn · {day24} trong 24 giờ",
+    "source": "(Theo {channel} công bố)"
+  },
+  "revenue": {
+    "title": "Doanh thu 14 ngày",
+    "info": "Có PMS: doanh thu đã đặt theo đêm (thiếu doanh thu thì số phòng bán × ADR). Chưa có PMS: ước tính = giá thấp nhất của bạn × công suất ước tính × số phòng thấy trên kênh, chỉ tính đêm ước tính đủ tin cậy.",
+    "empty": "Chưa đủ số để tính doanh thu 14 ngày tới.",
+    "importPms": "Nhập PMS ở Cài đặt",
+    "caption": "{source, select, pms {doanh thu đã đặt (PMS)} other {doanh thu dự kiến (ước tính)}} · {known}/14 đêm có số",
+    "barNoData": "chưa đủ số",
+    "importForActual": "Nhập PMS để có số thật"
+  },
+  "calendar": {
+    "title": "Sự kiện 12 tháng tới",
+    "info": "Ngày lễ theo nước của khách sạn (bảng tĩnh của hệ thống) và sự kiện địa phương bạn thêm ở Cài đặt › Sự kiện. % là mức tăng cầu bạn dự kiến. Bấm vào một kỳ để xem phòng trống quanh ngày đó.",
+    "kind": {
+      "tet": "Tết",
+      "holiday": "Ngày lễ",
+      "travel": "Cầu du lịch"
+    },
+    "addEvent": "+ Thêm sự kiện",
+    "month": "Th{month}",
+    "past": "{name} (đã qua)"
+  }
+}

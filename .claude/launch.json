@@ -56,6 +56,23 @@
         "start"
       ],
       "port": 3003
+    },
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PORT=3100",
+        "API_INTERNAL_URL=http://localhost:8001",
+        "npm",
+        "--prefix",
+        "dashboard",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3100"
+      ],
+      "port": 3100
     }
   ]
 }

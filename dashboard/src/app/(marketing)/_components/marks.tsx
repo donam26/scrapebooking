@@ -1,27 +1,15 @@
 import type { ReactNode, SVGProps } from "react";
 import type { Confidence } from "./demo-data";
 
-/** Logo: mặt tiền 3×2 ô cửa, hai ô sáng, cạnh chữ SCRAPEBOOKING. */
+/** Logo OTARadar: ô bo tròn với dấu sao tám cánh, cạnh chữ OTARadar (cùng logo với dashboard). */
 export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={`lp-logo ${className ?? ""}`}>
       <svg viewBox="0 0 28 28" aria-hidden="true" className="lp-logo-mark">
-        <rect x="1" y="1" width="26" height="26" rx="7" className="lp-logo-bg" />
-        {[0, 1, 2].map((c) =>
-          [0, 1].map((r) => (
-            <rect
-              key={`${c}${r}`}
-              x={6.5 + c * 5.5}
-              y={8 + r * 6.5}
-              width="4"
-              height="4.5"
-              rx="1"
-              className={(c === 1 && r === 0) || (c === 2 && r === 1) ? "lp-logo-lit" : "lp-logo-dark"}
-            />
-          )),
-        )}
+        <rect x="1" y="1" width="26" height="26" rx="6" className="lp-logo-bg" />
+        <path d="M14 7.5v13M7.5 14h13M9.4 9.4l9.2 9.2M18.6 9.4l-9.2 9.2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
       </svg>
-      <span>SCRAPEBOOKING</span>
+      <span>OTARadar</span>
     </span>
   );
 }

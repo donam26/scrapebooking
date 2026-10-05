@@ -8,16 +8,15 @@ from app.analytics.compset import compset_by_day
 from app.analytics.service import AnalyticsService
 from app.db.models import (
     AvailabilityEvent,
-    Hotel,
     HotelDateMetric,
     HotelDateSnapshot,
     OwnHotelDaily,
-    ScanRun,
     Tenant,
     TenantHotel,
 )
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
 from app.repo.snapshots import SnapshotRepository
+from tests.integration.seed import add_hotel, scan_run
 
 T0 = datetime(2026, 9, 24, 6, 0, tzinfo=UTC)
 STAY = date(2026, 10, 5)
@@ -51,35 +50,28 @@ def result(status: ProbeStatus, *offers: RoomOffer) -> ProbeResult:
 
 
 async def _hotel(db: AsyncSession, slug: str) -> int:
-    h = Hotel(
-        booking_url=f"https://www.booking.com/hotel/{slug}.html",
-        booking_slug=slug,
-        country_code="vn",
-    )
-    db.add(h)
-    await db.flush()
-    return h.id
+    return (await add_hotel(db, slug, channels=("booking", "agoda"))).id
 
 
-async def _run(db: AsyncSession, key: str, at: datetime) -> int:
-    r = ScanRun(
-        trigger_key=key,
-        scheduled_at=at,
-        started_at=at,
-        finished_at=at + timedelta(minutes=30),
-        status="completed",
-        total_probes=1,
-    )
+async def _run(db: AsyncSession, key: str, at: datetime, channel: str = "booking") -> int:
+    r = scan_run(f"{key}:{channel}", at, channel=channel, finished_at=at + timedelta(minutes=30))
+    r.total_probes = 1
     db.add(r)
     await db.flush()
     return r.id
 
 
 async def _write(
-    db: AsyncSession, run_id: int, hotel_id: int, res: ProbeResult, at: datetime, stay: date = STAY
+    db: AsyncSession,
+    run_id: int,
+    hotel_id: int,
+    res: ProbeResult,
+    at: datetime,
+    stay: date = STAY,
+    channel: str = "booking",
 ) -> None:
     await SnapshotRepository(db, page_cap=10).write_probe(
-        run_id, hotel_id, stay, res, None, "1", "vn", at
+        run_id, hotel_id, channel, stay, res, None, "1", "vn", at
     )
 
 
@@ -100,6 +92,7 @@ async def test_pipeline_over_three_runs(db: AsyncSession) -> None:
     await db.commit()
     assert (rep1.hotel_dates, rep1.events, rep1.metrics) == (1, 0, 1)
     hds = (await db.execute(select(HotelDateSnapshot))).scalar_one()
+    assert hds.channel == "booking"
     assert hds.status == "available" and hds.exact_rooms_left == 5 and hds.room_types_available == 2
     assert hds.min_price == Decimal("100.00") and hds.room_types_sold_out == 0
 
@@ -120,6 +113,7 @@ async def test_pipeline_over_three_runs(db: AsyncSession) -> None:
     )
     types = sorted(e.event_type for e in events)
     assert types == ["low_stock_enter", "price_up", "rooms_decrease"]
+    assert {e.channel for e in events} == {"booking"}
     assert rep2.events == 3
     dec = next(e for e in events if e.event_type == "rooms_decrease")
     assert dec.from_value == "5" and dec.to_value == "2" and dec.delta == Decimal("-3.00")
@@ -257,3 +251,197 @@ async def test_compset_by_day(db: AsyncSession) -> None:
     assert d.own_min_price == Decimal("150.00") and d.own_occupancy_pct == Decimal("80.00")
     assert d.price_index == Decimal("100.0")
     assert days[1].competitors_observed == 0 and days[1].median_price is None
+
+
+# ---- đa kênh ----
+
+
+async def _analyze(db: AsyncSession, run_id: int) -> int:
+    rep = await AnalyticsService(db).run(run_id)
+    await db.commit()
+    return rep.events
+
+
+async def _events(db: AsyncSession, run_id: int) -> list[AvailabilityEvent]:
+    rows = await db.execute(
+        select(AvailabilityEvent)
+        .where(AvailabilityEvent.scan_run_id == run_id)
+        .order_by(AvailabilityEvent.event_type)
+    )
+    return list(rows.scalars())
+
+
+async def test_channels_are_analyzed_separately(db: AsyncSession) -> None:
+    # Giá/số phòng trên Agoda không phải "lần trước" của Booking: không sinh sự kiện chéo nhầm.
+    hotel = await _hotel(db, "vn/a")
+    b1 = await _run(db, "b1", T0)
+    await _write(db, b1, hotel, result(ProbeStatus.OK, offer("1", 5, 5, "100")), T0)
+    a1 = await _run(db, "a1", T0 + timedelta(hours=1), "agoda")
+    await _write(
+        db,
+        a1,
+        hotel,
+        result(ProbeStatus.OK, offer("1", 2, 2, "100")),
+        T0 + timedelta(hours=1),
+        channel="agoda",
+    )
+    await db.commit()
+    assert await _analyze(db, b1) == 0
+    assert await _analyze(db, a1) == 0
+    db.expire_all()
+    metrics = (
+        await db.execute(select(HotelDateMetric).order_by(HotelDateMetric.channel))
+    ).scalars()
+    assert [(m.channel, m.exact_rooms_left) for m in metrics] == [("agoda", 2), ("booking", 5)]
+
+
+async def test_sold_out_on_one_channel_while_open_elsewhere_is_channel_closed(
+    db: AsyncSession,
+) -> None:
+    hotel = await _hotel(db, "vn/a")
+    b1 = await _run(db, "b1", T0)
+    await _write(db, b1, hotel, result(ProbeStatus.OK, offer("1", 2, 2, "100")), T0)
+    a1 = await _run(db, "a1", T0, "agoda")
+    await _write(
+        db, a1, hotel, result(ProbeStatus.OK, offer("1", 3, 3, "100")), T0, channel="agoda"
+    )
+    await db.commit()
+    await _analyze(db, b1)
+    await _analyze(db, a1)
+
+    b2 = await _run(db, "b2", T0 + timedelta(hours=8))
+    await _write(db, b2, hotel, result(ProbeStatus.SOLD_OUT), T0 + timedelta(hours=8))
+    await db.commit()
+    await _analyze(db, b2)
+    # Agoda chỉ có quan sát của mốc trước (8h): không đem so, chưa kết luận đóng kênh.
+    assert [(e.event_type, e.channel) for e in await _events(db, b2)] == [("sold_out", "booking")]
+
+    # Run Agoda cùng mốc chốt sau (30 phút): đánh giá lại, gắn channel_closed cho Booking.
+    a2 = await _run(db, "a2", T0 + timedelta(hours=8, minutes=30), "agoda")
+    await _write(
+        db,
+        a2,
+        hotel,
+        result(ProbeStatus.OK, offer("1", 3, 3, "100")),
+        T0 + timedelta(hours=8, minutes=30),
+        channel="agoda",
+    )
+    await db.commit()
+    await _analyze(db, a2)
+    closed = [e for e in await _events(db, a2) if e.event_type == "channel_closed"]
+    assert [(e.channel, e.from_value, e.to_value, e.room_type_id) for e in closed] == [
+        ("booking", "agoda", "booking", None)
+    ]
+
+
+async def test_sold_out_everywhere_is_not_channel_closed(db: AsyncSession) -> None:
+    hotel = await _hotel(db, "vn/a")
+    b1 = await _run(db, "b1", T0)
+    await _write(db, b1, hotel, result(ProbeStatus.OK, offer("1", 2, 2, "100")), T0)
+    a1 = await _run(db, "a1", T0 + timedelta(hours=7), "agoda")
+    await _write(
+        db, a1, hotel, result(ProbeStatus.SOLD_OUT), T0 + timedelta(hours=7), channel="agoda"
+    )
+    await db.commit()
+    await _analyze(db, b1)
+    await _analyze(db, a1)
+    b2 = await _run(db, "b2", T0 + timedelta(hours=8))
+    await _write(db, b2, hotel, result(ProbeStatus.SOLD_OUT), T0 + timedelta(hours=8))
+    await db.commit()
+    await _analyze(db, b2)
+    assert [e.event_type for e in await _events(db, b2)] == ["sold_out"]
+
+
+async def test_parity_gap_once_per_24h(db: AsyncSession) -> None:
+    hotel = await _hotel(db, "vn/a")
+    # Parity chỉ sinh cho khách sạn mà một tenant theo dõi là "của bạn".
+    tenant = Tenant(name="P", timezone="Asia/Ho_Chi_Minh", country_code="vn", active=True)
+    db.add(tenant)
+    await db.flush()
+    db.add(TenantHotel(tenant_id=tenant.id, hotel_id=hotel, role="self", active=True))
+    await db.flush()
+    b1 = await _run(db, "b1", T0)
+    await _write(db, b1, hotel, result(ProbeStatus.OK, offer("1", None, 10, "1000")), T0)
+    await db.commit()
+    await _analyze(db, b1)
+
+    async def agoda_run(key: str, at: datetime, price: str) -> int:
+        run = await _run(db, key, at, "agoda")
+        await _write(
+            db, run, hotel, result(ProbeStatus.OK, offer("1", None, 10, price)), at, channel="agoda"
+        )
+        await db.commit()
+        await _analyze(db, run)
+        return run
+
+    a1 = await agoda_run("a1", T0 + timedelta(hours=1), "900")
+    [gap] = await _events(db, a1)
+    assert (gap.event_type, gap.channel, gap.from_value, gap.to_value, gap.delta) == (
+        "parity_gap",
+        "agoda",
+        "booking:1000.00",
+        "900.00",
+        Decimal("-10.00"),
+    )
+    # Lượt sau trong 24h: không báo lặp lại; quá 24h thì báo lại nếu vẫn lệch.
+    a2 = await agoda_run("a2", T0 + timedelta(hours=9), "900")
+    assert [e.event_type for e in await _events(db, a2)] == []
+    # Booking cũ quá 12h không còn đem so được: đặt lại Booking mới cho lượt thứ ba.
+    b2 = await _run(db, "b2", T0 + timedelta(hours=26))
+    await _write(
+        db,
+        b2,
+        hotel,
+        result(ProbeStatus.OK, offer("1", None, 10, "1000")),
+        T0 + timedelta(hours=26),
+    )
+    await db.commit()
+    await _analyze(db, b2)
+    a3 = await agoda_run("a3", T0 + timedelta(hours=27), "900")
+    assert [e.event_type for e in await _events(db, a3)] == ["parity_gap"]
+
+
+async def test_compset_by_day_reads_one_channel(db: AsyncSession) -> None:
+    tenant = Tenant(name="T", timezone="Asia/Ho_Chi_Minh", country_code="vn", active=True)
+    db.add(tenant)
+    await db.flush()
+    own = await _hotel(db, "vn/own")
+    comp = await _hotel(db, "vn/c1")
+    db.add_all(
+        [
+            TenantHotel(tenant_id=tenant.id, hotel_id=own, role="self", active=True),
+            TenantHotel(tenant_id=tenant.id, hotel_id=comp, role="competitor", active=True),
+        ]
+    )
+    b = await _run(db, "b", T0)
+    await _write(db, b, comp, result(ProbeStatus.OK, offer("1", None, 10, "100")), T0)
+    a = await _run(db, "a", T0, "agoda")
+    await _write(db, a, comp, result(ProbeStatus.SOLD_OUT), T0, channel="agoda")
+    await db.commit()
+    await _analyze(db, b)
+    await _analyze(db, a)
+    [booking] = await compset_by_day(db, tenant.id, STAY, STAY)
+    [agoda] = await compset_by_day(db, tenant.id, STAY, STAY, channel="agoda")
+    assert (booking.competitors_sold_out, booking.min_price) == (0, Decimal("100.00"))
+    assert (agoda.competitors_sold_out, agoda.min_price) == (1, None)
+
+
+async def test_parity_gap_not_emitted_for_competitor_only_hotel(db: AsyncSession) -> None:
+    """Giá đối thủ lệch giữa kênh không sinh parity_gap (chỉ khách sạn "của bạn")."""
+    hotel = await _hotel(db, "vn/c")
+    b1 = await _run(db, "c1", T0)
+    await _write(db, b1, hotel, result(ProbeStatus.OK, offer("1", None, 10, "1000")), T0)
+    await db.commit()
+    await _analyze(db, b1)
+    a1 = await _run(db, "c1:agoda", T0 + timedelta(minutes=5), channel="agoda")
+    await _write(
+        db,
+        a1,
+        hotel,
+        result(ProbeStatus.OK, offer("1", None, 10, "800")),
+        T0 + timedelta(minutes=5),
+        channel="agoda",
+    )
+    await db.commit()
+    await _analyze(db, a1)
+    assert "parity_gap" not in [e.event_type for e in await _events(db, a1)]

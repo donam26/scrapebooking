@@ -1,15 +1,18 @@
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Hotel, Probe, ScanJob, ScanRun
-from app.domain.models import HotelRef, ProbeStatus
+from app.db.models import Hotel, Listing, Probe, ScanJob, ScanRun
+from app.domain.models import ListingRef, ProbeStatus
 
 # Trạng thái job chưa kết thúc. "retrying": lần thử trước lỗi, arq sẽ chạy lại (Retry defer).
 PENDING_JOB_STATUSES = ("queued", "running", "retrying")
+# Run quét chi tiết thị trường toàn thành phố (app/marketscan/scheduling.py): job được đẩy dần vào
+# hàng đợi (không đẩy lại hàng loạt như job "queued" quá hạn) và có hạn chót riêng, dài hơn.
+MARKET_RUN_PREFIX = "market:"
 
 
 @dataclass(frozen=True)
@@ -24,9 +27,13 @@ class ScanRunRepository:
         self._s = session
 
     async def create_run(
-        self, trigger_key: str, scheduled_at: datetime, plans: list[HotelJobPlan]
+        self,
+        trigger_key: str,
+        scheduled_at: datetime,
+        plans: list[HotelJobPlan],
+        channel: str = "booking",
     ) -> ScanRun | None:
-        """Tạo run và job. Trả None nếu trigger_key đã tồn tại (đã tạo trước đó)."""
+        """Tạo run (một kênh) và job. Trả None nếu trigger_key đã tồn tại (đã tạo trước đó)."""
         existing = await self._s.execute(
             select(ScanRun.id).where(ScanRun.trigger_key == trigger_key)
         )
@@ -38,6 +45,7 @@ class ScanRunRepository:
             started_at=scheduled_at,
             status="running",
             total_jobs=len(plans),
+            channel=channel,
         )
         self._s.add(run)
         try:
@@ -58,13 +66,37 @@ class ScanRunRepository:
         await self._s.flush()
         return run
 
-    async def load_hotel(self, hotel_id: int) -> HotelRef:
-        hotel = (await self._s.execute(select(Hotel).where(Hotel.id == hotel_id))).scalar_one()
-        return HotelRef(
-            id=hotel.id,
-            country_code=hotel.country_code,
-            slug=hotel.booking_slug,
-            canonical_url=f"https://www.booking.com/hotel/{hotel.booking_slug}.html",
+    async def load_listing(self, hotel_id: int, channel: str) -> ListingRef | None:
+        """Listing đang quét (active) của khách sạn trên kênh; None nếu đã bị xoá/tạm dừng/hỏng sau
+        khi run được tạo (job phải chốt ngay, không để run chờ tới hạn chót)."""
+        row = (
+            await self._s.execute(
+                select(Listing, Hotel.country_code)
+                .join(Hotel, Hotel.id == Listing.hotel_id)
+                .where(
+                    Listing.hotel_id == hotel_id,
+                    Listing.channel == channel,
+                    Listing.status == "active",
+                )
+            )
+        ).first()
+        if row is None:
+            return None
+        listing, country_code = row
+        return ListingRef(
+            hotel_id=hotel_id,
+            channel=channel,
+            listing_key=listing.listing_key,
+            url=listing.url,
+            country_code=country_code,
+            external_id=listing.external_id,
+        )
+
+    async def run_channel(self, scan_run_id: int) -> str:
+        return str(
+            (
+                await self._s.execute(select(ScanRun.channel).where(ScanRun.id == scan_run_id))
+            ).scalar_one()
         )
 
     async def start_job(self, scan_run_id: int, hotel_id: int, now: datetime) -> ScanJob | None:
@@ -143,11 +175,17 @@ class ScanRunRepository:
         await self._s.flush()
         return bool(getattr(result, "rowcount", 0))
 
-    async def expire_runs(self, deadline: timedelta, now: datetime) -> list[int]:
-        cutoff = now - deadline
-        rows = await self._s.execute(
-            select(ScanRun.id).where(ScanRun.status == "running", ScanRun.started_at < cutoff)
-        )
+    async def expire_runs(
+        self, deadline: timedelta, now: datetime, market_deadline: timedelta | None = None
+    ) -> list[int]:
+        is_market = ScanRun.trigger_key.startswith(MARKET_RUN_PREFIX)
+        overdue = ScanRun.started_at < now - deadline
+        if market_deadline is not None:
+            overdue = or_(
+                and_(~is_market, overdue),
+                and_(is_market, ScanRun.started_at < now - market_deadline),
+            )
+        rows = await self._s.execute(select(ScanRun.id).where(ScanRun.status == "running", overdue))
         expired = [r[0] for r in rows]
         for run_id in expired:
             await self._s.execute(
@@ -163,29 +201,55 @@ class ScanRunRepository:
             await self._s.execute(select(ScanRun).where(ScanRun.id == scan_run_id))
         ).scalar_one()
 
-    async def probe_stats_since(self, since: datetime) -> tuple[int, int]:
-        """(tổng probe có request thật, số bị chặn) kể từ `since`."""
+    async def probe_stats_since(self, since: datetime) -> dict[str, tuple[int, int]]:
+        """kênh -> (tổng probe có request thật, số bị chặn) kể từ `since`."""
         rows = await self._s.execute(
-            select(Probe.status, func.count())
+            select(Probe.channel, Probe.status, func.count())
             .where(Probe.fetched_at >= since, Probe.status != str(ProbeStatus.SKIPPED_CALENDAR))
-            .group_by(Probe.status)
+            .group_by(Probe.channel, Probe.status)
         )
-        by_status = {row[0]: row[1] for row in rows}
-        return sum(by_status.values()), by_status.get(str(ProbeStatus.BLOCKED), 0)
+        out: dict[str, tuple[int, int]] = {}
+        for channel, status, n in rows:
+            total, blocked = out.get(channel, (0, 0))
+            out[channel] = (total + n, blocked + (n if status == str(ProbeStatus.BLOCKED) else 0))
+        return out
 
-    async def stale_queued_jobs(self, queued_before: datetime) -> list[tuple[int, int]]:
-        """Job vẫn 'queued' trong run đang chạy được tạo trước `queued_before`:
-        cần đẩy lại hàng đợi."""
+    async def stale_queued_jobs(self, queued_before: datetime) -> list[tuple[int, int, str]]:
+        """(run, hotel, kênh) của job vẫn 'queued' trong run đang chạy được tạo trước
+        `queued_before`: cần đẩy lại hàng đợi của kênh."""
         rows = await self._s.execute(
-            select(ScanJob.scan_run_id, ScanJob.hotel_id)
+            select(ScanJob.scan_run_id, ScanJob.hotel_id, ScanRun.channel)
             .join(ScanRun, ScanRun.id == ScanJob.scan_run_id)
             .where(
                 ScanJob.status == "queued",
                 ScanRun.status == "running",
                 ScanRun.started_at < queued_before,
+                ~ScanRun.trigger_key.startswith(MARKET_RUN_PREFIX),
             )
         )
-        return [(r[0], r[1]) for r in rows]
+        return [(r[0], r[1], r[2]) for r in rows]
+
+    async def hotels_scanned_since(
+        self, hotel_ids: list[int], since: datetime, channel: str = "booking"
+    ) -> set[int]:
+        """Khách sạn (trong `hotel_ids`) có job chưa thất bại (đã xong, hoặc còn chờ trong run đang
+        chạy) trong một run bắt đầu từ `since` trở đi. Job thất bại (proxy lỗi, run chết quá hạn
+        chót…) không tính: khách sạn đó chưa có dữ liệu mới. Gọi sau `expire_runs` để job dở của
+        run quá hạn đã bị chốt là thất bại."""
+        if not hotel_ids:
+            return set()
+        rows = await self._s.execute(
+            select(ScanJob.hotel_id)
+            .distinct()
+            .join(ScanRun, ScanRun.id == ScanJob.scan_run_id)
+            .where(
+                ScanJob.hotel_id.in_(hotel_ids),
+                ScanRun.channel == channel,
+                ScanRun.started_at >= since,
+                ScanJob.status != "failed",
+            )
+        )
+        return {r[0] for r in rows}
 
     async def latest_finished_run_ids(self, limit: int = 1) -> list[int]:
         rows = await self._s.execute(

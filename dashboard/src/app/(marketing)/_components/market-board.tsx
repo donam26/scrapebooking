@@ -1,18 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import { useFmt } from "@/lib/format";
 import { ConfidenceSwatch } from "./marks";
-import {
-  buildDemo,
-  CONFIDENCE_LABEL,
-  EVENT_LABEL,
-  formatThousands,
-  formatVnd,
-  HOTELS,
-  plaqueText,
-  SCAN_LABELS,
-  type HotelObs,
-} from "./demo-data";
+import { buildDemo, formatThousands, HOTELS, SCAN_TIMES, type DemoHotel, type HotelObs } from "./demo-data";
 
 const LATEST = 5;
 
@@ -23,15 +15,26 @@ function cellKind(o: HotelObs): "sold_out" | "capped" | "hidden" | "exact" {
   return "exact";
 }
 
-function roomsText(o: HotelObs): string {
-  if (o.status === "sold_out") return "Hết phòng";
-  const t = plaqueText(o);
-  if (t === "CÒN") return "Còn phòng";
-  return t.startsWith("≥") ? `Còn ít nhất ${t.slice(1)} phòng` : `Còn ${t} phòng`;
+type BoardT = ReturnType<typeof useTranslations<"landing.board">>;
+
+/** Số hiển thị mức khách sạn: đúng X, ít nhất X, hoặc HẾT. */
+function plaqueText(o: HotelObs, soldOut: string, available: string): string {
+  if (o.status === "sold_out") return soldOut;
+  if (o.hasCapped || o.hasHidden) return o.known > 0 ? `≥${o.known}` : available;
+  return String(o.known);
+}
+
+function roomsText(o: HotelObs, t: BoardT): string {
+  if (o.status === "sold_out") return t("soldOut");
+  if (o.hasCapped || o.hasHidden) return o.known > 0 ? t("roomsAtLeast", { count: o.known }) : t("roomsAvailable");
+  return t("roomsLeft", { count: o.known });
 }
 
 export function MarketBoard({ startISO }: { startISO: string }) {
-  const demo = useMemo(() => buildDemo(startISO), [startISO]);
+  const t = useTranslations("landing.board");
+  const td = useTranslations("landing.demo");
+  const fmt = useFmt();
+  const demo = useMemo(() => buildDemo(startISO, fmt.fmtWeekday), [startISO, fmt]);
   const [sel, setSel] = useState<{ hotel: string; night: number }>({ hotel: "catvang", night: demo.peak });
 
   const competitors = HOTELS.filter((h) => !h.self);
@@ -42,23 +45,25 @@ export function MarketBoard({ startISO }: { startISO: string }) {
   const events = demo.events
     .filter((e) => e.hotelId === sel.hotel && e.night === sel.night)
     .sort((a, b) => b.scan - a.scan);
+  const nameOf = (h: DemoHotel) => (h.self ? td("selfHotel") : h.name);
+  const scanLabel = (scan: number) => t(scan < 3 ? "scanYesterday" : "scanToday", { time: SCAN_TIMES[scan % 3] });
 
   return (
     <div className="lp-board">
       <div className="lp-board-sheet">
         <div className="lp-board-head">
-          <span className="lp-board-title">Tổng quan · 30 đêm tới</span>
+          <span className="lp-board-title">{t("title")}</span>
           <span className="lp-board-meta">
-            <i aria-hidden="true" /> Lượt quét gần nhất: hôm nay 22:00
+            <i aria-hidden="true" /> {t("latestScan")}
           </span>
         </div>
-        <div className="lp-board-scroll" tabIndex={0} aria-label="Bảng phòng còn theo khách sạn và đêm, cuộn ngang">
+        <div className="lp-board-scroll" tabIndex={0} aria-label={t("scrollLabel")}>
           <table className="lp-grid">
-            <caption className="lp-sr">Số phòng còn của khách sạn bạn và bốn đối thủ trong 30 đêm tới (minh hoạ)</caption>
+            <caption className="lp-sr">{t("caption")}</caption>
             <thead>
               <tr>
                 <th scope="col" className="lp-grid-corner">
-                  Khách sạn
+                  {t("hotelCol")}
                 </th>
                 {demo.nights.map((n) => (
                   <th key={n.iso} scope="col" data-weekend={n.weekend} data-peak={n.index === demo.peak}>
@@ -73,7 +78,7 @@ export function MarketBoard({ startISO }: { startISO: string }) {
                 <tr key={h.id} data-self={h.self}>
                   <th scope="row">
                     {h.self && <i className="lp-self-dot" aria-hidden="true" />}
-                    {h.self ? "Của bạn" : h.name}
+                    {h.self ? t("yours") : h.name}
                   </th>
                   {demo.nights.map((n) => {
                     const o = demo.obs[h.id][n.index][LATEST];
@@ -85,10 +90,10 @@ export function MarketBoard({ startISO }: { startISO: string }) {
                           type="button"
                           className={`lp-cell lp-cell-${kind}`}
                           aria-pressed={active}
-                          aria-label={`${h.name}, đêm ${n.label}: ${roomsText(o)}`}
+                          aria-label={t("cellLabel", { hotel: nameOf(h), night: n.label, rooms: roomsText(o, t) })}
                           onClick={() => setSel({ hotel: h.id, night: n.index })}
                         >
-                          {kind === "sold_out" ? "HẾT" : o.known > 0 ? o.known : ""}
+                          {kind === "sold_out" ? td("soldOutShort") : o.known > 0 ? o.known : ""}
                         </button>
                       </td>
                     );
@@ -96,12 +101,12 @@ export function MarketBoard({ startISO }: { startISO: string }) {
                 </tr>
               ))}
               <tr className="lp-grid-band">
-                <th scope="row">Đối thủ hết phòng</th>
+                <th scope="row">{t("bandSoldOut")}</th>
                 {demo.nights.map((n) => {
                   const sold = competitors.filter((h) => demo.obs[h.id][n.index][LATEST].status === "sold_out").length;
                   return (
                     <td key={n.iso}>
-                      <span className="lp-band-meter" style={{ ["--v" as string]: sold / competitors.length }} aria-label={`${sold} trên ${competitors.length}`}>
+                      <span className="lp-band-meter" style={{ ["--v" as string]: sold / competitors.length }} aria-label={t("bandMeter", { sold, total: competitors.length })}>
                         <i />
                       </span>
                     </td>
@@ -109,14 +114,14 @@ export function MarketBoard({ startISO }: { startISO: string }) {
                 })}
               </tr>
               <tr className="lp-grid-band">
-                <th scope="row">Giá thấp nhất (nghìn ₫)</th>
+                <th scope="row">{t("bandPrice")}</th>
                 {demo.nights.map((n) => {
                   const prices = competitors
                     .map((h) => demo.obs[h.id][n.index][LATEST].price)
                     .filter((p): p is number => p != null);
                   return (
                     <td key={n.iso} className="lp-band-price">
-                      {prices.length ? formatThousands(Math.min(...prices)) : "—"}
+                      {prices.length ? formatThousands(Math.min(...prices), fmt) : "—"}
                     </td>
                   );
                 })}
@@ -126,16 +131,16 @@ export function MarketBoard({ startISO }: { startISO: string }) {
         </div>
         <ul className="lp-board-legend">
           <li>
-            <i className="lp-cell-key lp-cell-exact" aria-hidden="true" /> Chính xác: trang hiện “chỉ còn X phòng”
+            <i className="lp-cell-key lp-cell-exact" aria-hidden="true" /> {t("legend.exact")}
           </li>
           <li>
-            <i className="lp-cell-key lp-cell-capped" aria-hidden="true" /> Ít nhất: số trong ô là mức sàn
+            <i className="lp-cell-key lp-cell-capped" aria-hidden="true" /> {t("legend.capped")}
           </li>
           <li>
-            <i className="lp-cell-key lp-cell-hidden" aria-hidden="true" /> Ẩn: còn phòng, không lộ số
+            <i className="lp-cell-key lp-cell-hidden" aria-hidden="true" /> {t("legend.hidden")}
           </li>
           <li>
-            <i className="lp-cell-key lp-cell-sold_out" aria-hidden="true" /> Hết phòng
+            <i className="lp-cell-key lp-cell-sold_out" aria-hidden="true" /> {t("legend.soldOut")}
           </li>
         </ul>
       </div>
@@ -143,42 +148,42 @@ export function MarketBoard({ startISO }: { startISO: string }) {
       <aside className="lp-detail" aria-live="polite">
         <div className="lp-detail-main">
           <h3 className="lp-detail-hotel">
-            {hotel.name} <span>· đêm {nightInfo.label}</span>
+            {nameOf(hotel)} <span>{t("detailNight", { night: nightInfo.label })}</span>
           </h3>
           <p className="lp-detail-status" data-sold={obs.status === "sold_out"}>
-            {roomsText(obs)}
-            {obs.price != null && <> · từ {formatVnd(obs.price)}</>}
+            {roomsText(obs, t)}
+            {obs.price != null && <> · {t("fromPrice", { price: fmt.fmtMoney(obs.price, "VND") })}</>}
           </p>
 
           <table className="lp-types">
-            <caption className="lp-sr">Từng loại phòng ở lượt quét gần nhất</caption>
+            <caption className="lp-sr">{t("typesCaption")}</caption>
             <thead>
               <tr>
-                <th scope="col">Loại phòng</th>
-                <th scope="col">Còn</th>
-                <th scope="col">Giá / đêm</th>
+                <th scope="col">{t("colType")}</th>
+                <th scope="col">{t("colLeft")}</th>
+                <th scope="col">{t("colPrice")}</th>
               </tr>
             </thead>
             <tbody>
-              {obs.types.map((t) => (
-                <tr key={t.name} data-sold={t.confidence === "sold_out"}>
+              {obs.types.map((rt) => (
+                <tr key={rt.name} data-sold={rt.confidence === "sold_out"}>
                   <td>
-                    <span className="lp-type-name">{t.name}</span>
-                    {t.left > 0 && <span className="lp-type-plans">{t.plans.join(" · ")}</span>}
+                    <span className="lp-type-name">{td(`roomTypes.${rt.name}`)}</span>
+                    {rt.left > 0 && <span className="lp-type-plans">{rt.plans.map((p) => td(`plans.${p}`)).join(" · ")}</span>}
                   </td>
                   <td>
                     <span className="lp-type-stock">
-                      <ConfidenceSwatch kind={t.confidence} />
-                      {t.confidence === "exact" && t.shown}
-                      {t.confidence === "capped" && `≥${t.shown}`}
-                      {t.confidence === "hidden" && "Ẩn"}
-                      {t.confidence === "sold_out" && "Hết"}
+                      <ConfidenceSwatch kind={rt.confidence} />
+                      {rt.confidence === "exact" && rt.shown}
+                      {rt.confidence === "capped" && `≥${rt.shown}`}
+                      {rt.confidence === "hidden" && td("confidence.hidden")}
+                      {rt.confidence === "sold_out" && td("confidence.sold_out")}
                     </span>
-                    {t.confidence !== "sold_out" && (
-                      <span className="lp-type-conf">{CONFIDENCE_LABEL[t.confidence]}</span>
+                    {rt.confidence !== "sold_out" && (
+                      <span className="lp-type-conf">{td(`confidence.${rt.confidence}`)}</span>
                     )}
                   </td>
-                  <td className="lp-num">{formatVnd(t.price)}</td>
+                  <td className="lp-num">{fmt.fmtMoney(rt.price, "VND")}</td>
                 </tr>
               ))}
             </tbody>
@@ -186,41 +191,39 @@ export function MarketBoard({ startISO }: { startISO: string }) {
         </div>
 
         <div className="lp-history-wrap">
-          <p className="lp-detail-sub">Sáu lượt quan sát gần nhất</p>
-          <div className="lp-history" aria-label="Các lượt quan sát trước, lượt cũ in nhạt hơn">
+          <p className="lp-detail-sub">{t("historyTitle")}</p>
+          <div className="lp-history" aria-label={t("historyLabel")}>
             {history.map((o, i) => (
               <div key={i} className="lp-print" style={{ ["--gen" as string]: LATEST - i }}>
-                <span className="lp-print-val">{o.status === "sold_out" ? "HẾT" : plaqueText(o)}</span>
+                <span className="lp-print-val">{plaqueText(o, td("soldOutShort"), td("availableShort"))}</span>
                 <span className="lp-print-when">
-                  {i < 3 ? "Qua" : "Nay"}
+                  {i < 3 ? t("yesterdayShort") : t("todayShort")}
                   <br />
-                  {SCAN_LABELS[i].slice(-5)}
+                  {SCAN_TIMES[i % 3]}
                 </span>
               </div>
             ))}
           </div>
-          <p className="lp-history-note">Lượt càng cũ in càng nhạt. Tốc độ bán chỉ tính giữa hai số chính xác.</p>
+          <p className="lp-history-note">{t("historyNote")}</p>
         </div>
 
         <div className="lp-detail-events">
-          <p className="lp-detail-sub">Sự kiện của đêm này</p>
+          <p className="lp-detail-sub">{t("eventsTitle")}</p>
           {events.length === 0 ? (
-            <span className="lp-muted">Không có thay đổi đáng kể giữa các lượt quét.</span>
+            <span className="lp-muted">{t("noEvents")}</span>
           ) : (
             <ul>
               {events.slice(0, 4).map((e, i) => (
                 <li key={i}>
                   <span className="lp-event-kind" data-kind={e.kind}>
-                    {EVENT_LABEL[e.kind]}
+                    {td(`events.${e.kind}`)}
                   </span>
                   <span>
                     {e.kind === "price_down" || e.kind === "price_up"
-                      ? `${formatThousands(e.from)} → ${formatThousands(e.to)} nghìn`
-                      : e.kind === "sold_out"
-                        ? `${e.from} → 0 phòng`
-                        : `${e.from} → ${e.to} phòng`}
+                      ? t("priceChange", { from: formatThousands(e.from, fmt), to: formatThousands(e.to, fmt) })
+                      : t("roomsChange", { from: e.from ?? 0, to: e.kind === "sold_out" ? 0 : (e.to ?? 0) })}
                   </span>
-                  <span className="lp-muted">{SCAN_LABELS[e.scan]}</span>
+                  <span className="lp-muted">{scanLabel(e.scan)}</span>
                 </li>
               ))}
             </ul>

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { addDays, todayIso } from "@/lib/format";
 import { IconCalendar } from "./icons";
@@ -21,6 +22,7 @@ export function useDateRange(): { start: string; days: number; end: string; toda
 
 /** Kỳ xem: số đêm (14/30/60) + đêm bắt đầu; ghi vào URL để chia sẻ và tải lại được. */
 export function DateRangePicker({ className }: { className?: string }) {
+  const t = useTranslations("components.dateRange");
   const { start, days, today } = useDateRange();
   const router = useRouter();
   const pathname = usePathname();
@@ -44,10 +46,10 @@ export function DateRangePicker({ className }: { className?: string }) {
         <IconCalendar size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
         <input
           type="date"
-          aria-label="Đêm bắt đầu"
+          aria-label={t("start")}
           value={start}
           onChange={(e) => e.target.value && update({ start: e.target.value })}
-          className="h-9 rounded-lg border border-line-strong bg-surface pl-8 pr-2 text-base text-ink tabular transition-[border-color,box-shadow] hover:border-[#b9b5d6] focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/15"
+          className="h-9 rounded-lg border border-line-strong bg-surface pl-8 pr-2 text-base text-ink tabular transition-[border-color,box-shadow] hover:border-[#b7bfcc] focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/15"
         />
       </div>
       {start !== today && (
@@ -56,14 +58,14 @@ export function DateRangePicker({ className }: { className?: string }) {
           onClick={() => update({ start: today })}
           className="h-9 rounded-lg px-2.5 text-sm font-semibold text-brand hover:bg-brand-softer"
         >
-          Về hôm nay
+          {t("today")}
         </button>
       )}
       <Segmented
-        label="Số đêm"
+        label={t("nightsLabel")}
         value={days}
         onChange={(d) => update({ days: d })}
-        items={DAY_OPTIONS.map((d) => ({ value: d, label: `${d} đêm` }))}
+        items={DAY_OPTIONS.map((d) => ({ value: d, label: t("nights", { count: d }) }))}
       />
     </div>
   );

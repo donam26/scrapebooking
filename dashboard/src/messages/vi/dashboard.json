@@ -1,0 +1,96 @@
+{
+  "title": "Bảng điều khiển",
+  "strip": {
+    "range": "{count} đêm từ {start}",
+    "channel": "Kênh <b>{name}</b>",
+    "updated": "Cập nhật {when}"
+  },
+  "empty": {
+    "title": "Chưa theo dõi khách sạn nào",
+    "body": "Thêm khách sạn của bạn và các đối thủ ở <link>Cài đặt › Khách sạn</link>. Lượt quét kế tiếp sẽ điền bảng điều khiển."
+  },
+  "snapshot": {
+    "title": "Toàn cảnh thị trường đêm nay",
+    "info": "Các đối thủ trong compset trên kênh đang xem. Phòng còn chỉ cộng các đối thủ mà kênh báo số chính xác; giá là giá thấp nhất mỗi khách sạn.",
+    "viewAvailability": "Xem phòng trống",
+    "competitors": "đối thủ",
+    "soldOut": "hết phòng",
+    "low": "còn ≤3 phòng",
+    "roomsLeft": "phòng còn (đối thủ)",
+    "roomsLeftTitle": "Cộng từ {known}/{observed} đối thủ có số chính xác",
+    "avgRate": "giá TB compset"
+  },
+  "kpi": {
+    "compression": {
+      "title": "Mức nén compset",
+      "info": "Tỷ lệ đối thủ đã hết phòng hoặc còn ≤3 phòng đêm nay (0–100).",
+      "noData": "Chưa có"
+    },
+    "adr": {
+      "title": "ADR compset",
+      "info": "Giá phòng trung bình của đối thủ đêm nay: trung bình giá thấp nhất mỗi khách sạn trên kênh đang xem (giá niêm yết, không phải doanh thu thật).",
+      "sub": "Giá TB mỗi đêm"
+    },
+    "revpar": {
+      "title": "RevPAR compset",
+      "info": "Ước tính = ADR compset × công suất ước tính của đối thủ.",
+      "sub": "Doanh thu mỗi phòng sẵn có"
+    },
+    "occ": {
+      "title": "Công suất compset",
+      "info": "Ước tính từ số phòng còn của {count} đối thủ có đủ số trên kênh tham chiếu.",
+      "roomsLeft": "còn {count, number} phòng",
+      "notEnough": "chưa đủ số phòng"
+    }
+  },
+  "trends": {
+    "title": "Xu hướng thị trường",
+    "info": "ADR là giá TB thấp nhất của đối thủ mỗi đêm; RevPAR và công suất là ước tính từ số phòng còn.",
+    "occSeries": "Công suất ≈ %"
+  },
+  "forecast": {
+    "title": "Dự báo cầu",
+    "info": "Điểm cầu 0–100 của từng đêm: “≈” là công suất ước tính của các đối thủ (từ số phòng còn trên kênh tham chiếu); số gạch chấm là tỷ lệ đối thủ đã hết phòng khi chưa ước tính được công suất. Từ 60 là cao, 40–59 vừa, dưới 40 thấp.",
+    "cellTitle": "Điểm cầu {score} ({source, select, occ {công suất ước tính của đối thủ} other {tỷ lệ đối thủ hết phòng (chưa ước tính được công suất)}}): {level}",
+    "cellNoData": "Chưa có dữ liệu",
+    "today": "Hôm nay",
+    "noData": "Chưa có"
+  },
+  "alerts": {
+    "title": "Cảnh báo",
+    "info": "Đối thủ hết hoặc còn ≤3 phòng đêm nay, đêm trong 7 ngày tới có từ nửa đối thủ hết phòng, gợi ý giá đang chờ và lượt quét lỗi.",
+    "empty": "Không có cảnh báo nào. Thị trường đêm nay chưa có gì bất thường.",
+    "more": "và {count} cảnh báo khác",
+    "runFailed": "Lượt quét {channel} gần nhất không thu được dữ liệu",
+    "ownSoldOut": "Khách sạn của bạn đã hết phòng đêm nay",
+    "ownLow": "Khách sạn của bạn chỉ còn {count} phòng đêm nay",
+    "compSoldOut": "{name} đã hết phòng đêm nay",
+    "compLow": "{name} chỉ còn {count} phòng",
+    "tightNight": "Đêm {night}: {soldOut}/{observed} đối thủ hết phòng",
+    "suggestions": "{count} gợi ý giá đang chờ bạn xem"
+  },
+  "yourHotel": {
+    "title": "Khách sạn của bạn",
+    "empty": "Chưa có khách sạn của bạn trong danh sách theo dõi. <link>Thêm ở Cài đặt</link>",
+    "info": "Công suất lấy từ PMS khi bạn đã nhập; nếu chưa có thì là ước tính từ số phòng còn (≈). Giá là giá thấp nhất đêm nay trên kênh đang xem.",
+    "occCaption": "công suất đêm nay{source, select, pms { · PMS} est { · ước tính} other {}}",
+    "yourRate": "Giá của bạn",
+    "marketRate": "Giá TB thị trường",
+    "roomsLeft": "Phòng còn",
+    "hidden": "Không lộ số",
+    "position": "Vị trí giá"
+  },
+  "dataStatus": {
+    "title": "Trạng thái dữ liệu",
+    "info": "Lượt quét gần nhất trên mọi kênh, mốc quét kế tiếp theo lịch, số kênh có dữ liệu trong 24 giờ qua và số khách sạn đang theo dõi.",
+    "lastScan": "Lượt quét gần nhất",
+    "scanning": "Đang quét…",
+    "none": "Chưa có",
+    "nextScan": "Lượt kế tiếp",
+    "notScheduled": "Chưa đặt lịch",
+    "liveChannels": "Kênh có dữ liệu",
+    "liveChannelsValue": "{live}/{total} kênh",
+    "hotels": "Khách sạn theo dõi",
+    "overdue": "Lỡ lịch quét · dữ liệu từ {ago}"
+  }
+}

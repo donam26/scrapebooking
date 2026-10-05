@@ -6,7 +6,6 @@
  * - Operator: tự gắn `tenant_id` vào mọi endpoint theo tenant khi đã chọn tenant.
  */
 import type { components } from "./api-types";
-import { fieldLabel, translateError } from "./errors";
 
 export type Schemas = components["schemas"];
 export type UserOut = Schemas["UserOut"];
@@ -38,53 +37,49 @@ export type OwnDailyOut = Schemas["OwnDailyOut"];
 export type HealthSummaryOut = Schemas["HealthSummaryOut"];
 export type ScrapeSessionOut = Schemas["ScrapeSessionOut"];
 export type ValidationErrorItem = Schemas["ValidationError"];
+export type NotificationSettingsOut = Schemas["NotificationSettingsOut"];
+export type NotificationRuleOut = Schemas["NotificationRuleOut"];
+export type NotificationLogOut = Schemas["NotificationLogOut"];
+export type RecipientOut = Schemas["RecipientOut"];
+export type MarketPaceOut = Schemas["MarketPaceOut"];
+export type PaceNightOut = Schemas["PaceNightOut"];
+export type SuggestionOut = Schemas["SuggestionOut"];
+export type HotelOut = Schemas["HotelOut"];
+export type ListingOut = Schemas["ListingOut"];
+export type ChannelOut = Schemas["ChannelOut"];
+export type ChannelDayOut = Schemas["ChannelDayOut"];
+export type DemandSignalOut = Schemas["DemandSignalOut"];
+export type HolidayOut = Schemas["HolidayOut"];
+export type WeatherOut = Schemas["WeatherOut"];
+export type RunJobOut = Schemas["RunJobOut"];
+export type MarketOccupancyOut = Schemas["MarketOccupancyOut"];
+export type HotelOccOut = Schemas["HotelOccOut"];
+export type LocalEventOut = Schemas["LocalEventOut"];
+export type LocalEventIn = Schemas["LocalEventIn"];
+export type DestinationOut = Schemas["DestinationOut"];
+export type MarketAreaOut = Schemas["MarketAreaOut"];
+export type MarketAreaCreate = Schemas["MarketAreaCreate"];
+export type MarketAreaUpdate = Schemas["MarketAreaUpdate"];
+export type MarketCityOut = Schemas["MarketCityOut"];
+export type CityHotelOut = Schemas["CityHotelOut"];
+export type CityHotelsOut = Schemas["CityHotelsOut"];
+/** Thao tác trên một listing (kênh) của khách sạn. */
+export type ListingAction = "confirm" | "reject" | "pause" | "resume" | "retry";
 
+/**
+ * Lỗi HTTP từ backend. `message` giữ thông điệp gốc (tiếng Anh, cho log); câu hiển thị theo ngôn
+ * ngữ lấy bằng `useErrorMessage()` (lib/errors.ts) lúc render.
+ */
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: unknown;
 
   constructor(status: number, detail: unknown) {
-    super(detailToMessage(detail, status));
+    super(typeof detail === "string" && detail ? detail : `HTTP ${status}`);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
   }
-}
-
-/** Chuyển `detail` của FastAPI (chuỗi hoặc mảng lỗi validation) thành câu đọc được. */
-export function detailToMessage(detail: unknown, status?: number): string {
-  if (typeof detail === "string" && detail) return translateError(detail);
-  if (Array.isArray(detail)) {
-    const parts = detail
-      .map((item) => {
-        if (item && typeof item === "object" && "msg" in item) {
-          const v = item as ValidationErrorItem;
-          const loc = (v.loc ?? [])
-            .filter((p) => p !== "body" && p !== "query")
-            .map((p) => fieldLabel(String(p)))
-            .join(".");
-          const msg = translateError(v.msg);
-          return loc ? `${loc}: ${msg}` : msg;
-        }
-        return String(item);
-      })
-      .filter(Boolean);
-    if (parts.length) return parts.join("; ");
-  }
-  if (detail && typeof detail === "object" && "message" in detail) {
-    return String((detail as { message: unknown }).message);
-  }
-  if (status === 401) return "Phiên đăng nhập hết hạn";
-  if (status === 403) return "Bạn không có quyền thực hiện thao tác này";
-  if (status === 404) return "Không tìm thấy dữ liệu";
-  if (status === 502) return "Không kết nối được API";
-  return status ? `Lỗi HTTP ${status}` : "Lỗi không xác định";
-}
-
-export function errorMessage(err: unknown): string {
-  if (err instanceof ApiError) return err.message;
-  if (err instanceof Error) return translateError(err.message);
-  return translateError(String(err));
 }
 
 // ---- phạm vi tenant (operator) ----
@@ -96,7 +91,7 @@ export function setApiTenantScope(next: { isOperator: boolean; tenantId: number 
 }
 
 /** Endpoint không nhận tenant_id (auth, quản trị operator, health, users). */
-const TENANT_FREE = ["/auth", "/tenants", "/health", "/healthz", "/users"];
+const TENANT_FREE = ["/auth", "/tenants", "/health", "/healthz", "/users", "/channels"];
 
 function isTenantScoped(path: string): boolean {
   return !TENANT_FREE.some((p) => path === p || path.startsWith(`${p}/`));
@@ -115,6 +110,11 @@ type RequestOptions = {
   /** Không chuyển về /login khi 401 (dùng cho chính form đăng nhập). */
   noAuthRedirect?: boolean;
 };
+
+/** Đường dẫn qua proxy `/api` (kèm `tenant_id` cho operator), dùng cho liên kết tải tệp. */
+export function apiUrl(path: string, query?: Query): string {
+  return buildUrl(path, query);
+}
 
 function buildUrl(path: string, query?: Query): string {
   const params = new URLSearchParams();
@@ -163,7 +163,7 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
   });
   if (res.status === 401 && !opts.noAuthRedirect) {
     redirectToLogin();
-    throw new ApiError(401, "Phiên đăng nhập hết hạn");
+    throw new ApiError(401, "not authenticated");
   }
   if (!res.ok) {
     let detail: unknown = null;
@@ -211,15 +211,26 @@ export const api = {
     update: (hotelId: number, body: WatchItemUpdate) =>
       request<WatchItemOut>("PATCH", `/watchlist/${hotelId}`, { body }),
     remove: (hotelId: number) => request<void>("DELETE", `/watchlist/${hotelId}`),
-    /** Quét ngay toàn bộ watchlist của tenant (202; trong 10 phút trả về đợt đang chạy). */
-    scanNow: () => request<ScanRunOut>("POST", "/watchlist/scan-now"),
+    /** Quét ngay toàn bộ watchlist của tenant: mỗi kênh một lượt (202; trong 10 phút trả về đợt đang chạy). */
+    scanNow: () => request<ScanRunOut[]>("POST", "/watchlist/scan-now"),
+    /** Quét ngay một khách sạn trong watchlist (mỗi kênh đang quét một lượt nhỏ). */
+    scanHotel: (hotelId: number) => request<ScanRunOut[]>("POST", `/watchlist/${hotelId}/scan-now`),
+    /** Gắn (hoặc thay) URL một kênh cho khách sạn đã theo dõi. */
+    addListing: (hotelId: number, url: string) =>
+      request<ListingOut>("POST", `/watchlist/${hotelId}/listings`, { body: { url } }),
+    /** Xác nhận/bỏ gợi ý, tạm dừng, chạy lại, kiểm tra lại một listing; "reject" trả null. */
+    listingAction: (hotelId: number, listingId: number, action: ListingAction) =>
+      request<ListingOut | null>("PATCH", `/watchlist/${hotelId}/listings/${listingId}`, { body: { action } }),
+    /** Tìm khách sạn trên các kênh chưa có listing; kết quả về sau dưới dạng gợi ý. */
+    discover: (hotelId: number) => request<{ channels?: string[] }>("POST", `/watchlist/${hotelId}/discover`),
   },
-  overview: (query: { start?: string; end?: string }) => request<OverviewOut>("GET", "/overview", { query }),
-  hotel: (hotelId: number, query: { start?: string; end?: string; event_limit?: number }) =>
+  channels: () => request<ChannelOut[]>("GET", "/channels"),
+  overview: (query: { start?: string; end?: string; price_basis?: "any" | "refundable"; channel?: string | null }) => request<OverviewOut>("GET", "/overview", { query }),
+  hotel: (hotelId: number, query: { start?: string; end?: string; event_limit?: number; channel?: string | null }) =>
     request<HotelDetailOut>("GET", `/hotels/${hotelId}`, { query }),
-  day: (hotelId: number, stayDate: string, historyDays = 14) =>
+  day: (hotelId: number, stayDate: string, historyDays = 14, channel?: string | null) =>
     request<DayDetailOut>("GET", `/hotels/${hotelId}/dates/${stayDate}`, {
-      query: { history_days: historyDays },
+      query: { history_days: historyDays, channel },
     }),
   events: (query: {
     hotel_id?: number | null;
@@ -227,10 +238,14 @@ export const api = {
     stay_from?: string | null;
     stay_to?: string | null;
     observed_since?: string | null;
+    /** Một hoặc nhiều mã kênh, ngăn bằng dấu phẩy. */
+    channel?: string | null;
     limit?: number;
     offset?: number;
   }) => request<EventOut[]>("GET", "/events", { query }),
   runs: (limit = 10) => request<ScanRunOut[]>("GET", "/runs", { query: { limit } }),
+  /** Từng khách sạn của tenant trong một lượt quét. */
+  runJobs: (runId: number) => request<RunJobOut[]>("GET", `/runs/${runId}/jobs`),
   insights: {
     list: (limit = 30) => request<InsightOut[]>("GET", "/insights", { query: { limit } }),
     get: (id: number) => request<InsightDetailOut>("GET", `/insights/${id}`),
@@ -257,11 +272,52 @@ export const api = {
     daily: (hotelId?: number | null, limit = 120) =>
       request<OwnDailyOut[]>("GET", "/pms/daily", { query: { hotel_id: hotelId, limit } }),
   },
+  market: {
+    pace: (query: { start?: string; end?: string }) => request<MarketPaceOut>("GET", "/market/pace", { query }),
+    decide: (stayDate: string, kind: string, decision: "applied" | "dismissed") =>
+      request<SuggestionOut>("PUT", `/market/suggestions/${stayDate}/${kind}`, { body: { decision } }),
+    undo: (stayDate: string, kind: string) => request<void>("DELETE", `/market/suggestions/${stayDate}/${kind}`),
+    /** Ngày lễ theo nước của tenant (mặc định từ đầu tháng này, 12 tháng). */
+    holidays: (query: { start?: string; end?: string } = {}) => request<HolidayOut[]>("GET", "/market/holidays", { query }),
+    /** Dự báo thời tiết 5 ngày tại khách sạn của bạn (OpenWeather). */
+    weather: () => request<WeatherOut>("GET", "/market/weather"),
+    /** Công suất ước tính mới nhất của từng khách sạn theo đêm (≤ 60 đêm). */
+    occupancy: (query: { start?: string; end?: string }) => request<MarketOccupancyOut>("GET", "/market/occupancy", { query }),
+    /** Khu vực thị trường (toàn thành phố/quận) quét danh sách mọi khách sạn trên Booking. */
+    areas: {
+      search: (q: string) => request<DestinationOut[]>("GET", "/market/areas/search", { query: { q } }),
+      list: () => request<MarketAreaOut[]>("GET", "/market/areas"),
+      create: (body: MarketAreaCreate) => request<MarketAreaOut>("POST", "/market/areas", { body }),
+      update: (id: number, body: MarketAreaUpdate) => request<MarketAreaOut>("PATCH", `/market/areas/${id}`, { body }),
+      remove: (id: number) => request<void>("DELETE", `/market/areas/${id}`),
+      scanNow: (id: number) => request<{ area_id: number; enqueued: boolean; list_requested_at: string | null }>("POST", `/market/areas/${id}/scan-now`),
+    },
+    /** Chỉ báo thị trường cả khu vực cho một đêm (404 khi tenant chưa có khu vực). */
+    city: (query: { date?: string; area_id?: number } = {}) => request<MarketCityOut>("GET", "/market/city", { query }),
+    cityHotels: (query: { date?: string; area_id?: number; sort?: string; q?: string; limit?: number; offset?: number }) =>
+      request<CityHotelsOut>("GET", "/market/city/hotels", { query }),
+    events: {
+      list: (query: { start?: string; end?: string } = {}) => request<LocalEventOut[]>("GET", "/market/events", { query }),
+      create: (body: LocalEventIn) => request<LocalEventOut>("POST", "/market/events", { body }),
+      update: (id: number, body: LocalEventIn) => request<LocalEventOut>("PUT", `/market/events/${id}`, { body }),
+      remove: (id: number) => request<void>("DELETE", `/market/events/${id}`),
+    },
+  },
+  notifications: {
+    settings: () => request<NotificationSettingsOut>("GET", "/notifications/settings"),
+    addRecipient: (email: string) => request<RecipientOut>("POST", "/notifications/recipients", { body: { email } }),
+    removeRecipient: (id: number) => request<void>("DELETE", `/notifications/recipients/${id}`),
+    updateRule: (kind: string, body: { active: boolean; params: Record<string, number> }) =>
+      request<NotificationRuleOut>("PUT", `/notifications/rules/${kind}`, { body }),
+    /** Gửi email thử tới mọi người nhận (tối đa 1 lần/phút). */
+    test: () => request<NotificationLogOut>("POST", "/notifications/test"),
+    log: (limit = 30) => request<NotificationLogOut[]>("GET", "/notifications/log", { query: { limit } }),
+  },
   health: {
     summary: () => request<HealthSummaryOut>("GET", "/health/summary"),
     runs: (limit = 20) => request<ScanRunOut[]>("GET", "/health/runs", { query: { limit } }),
     sessions: (limit = 50) => request<ScrapeSessionOut[]>("GET", "/health/sessions", { query: { limit } }),
     /** Operator: quét ngay mọi tenant đang hoạt động. */
-    scanNow: () => request<ScanRunOut>("POST", "/health/scan-now"),
+    scanNow: () => request<ScanRunOut[]>("POST", "/health/scan-now"),
   },
 };

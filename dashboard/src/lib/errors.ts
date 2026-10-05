@@ -1,108 +1,191 @@
 /**
- * Dịch thông báo lỗi của backend (giữ tiếng Anh ổn định cho API/log/test) sang tiếng Việt
- * khi hiển thị. Chuỗi không khớp quy tắc nào được giữ nguyên.
+ * Dịch lỗi của backend sang ngôn ngữ đang chọn khi hiển thị.
+ *
+ * Backend giữ thông điệp lỗi tiếng Anh ổn định (API/log/test dựa vào đó); mỗi quy tắc dưới đây
+ * khớp một thông điệp và trỏ tới khoá trong `messages/<ngôn ngữ>/errors.json`. Thông điệp không
+ * khớp quy tắc nào được giữ nguyên. Thêm lỗi mới ở backend: thêm một dòng RULES + khoá ở mọi
+ * ngôn ngữ.
+ *
+ * Dùng trong component: `const errorText = useErrorMessage(); errorText(err)`.
  */
 
-const FIELD_LABEL: Record<string, string> = {
-  email: "Email",
-  password: "Mật khẩu",
-  role: "Vai trò",
-  name: "Tên",
-  timezone: "Múi giờ",
-  scan_times: "Giờ quét",
-  horizon_days: "Horizon",
-  insight_hour: "Giờ tạo bản tin",
-  insight_language: "Ngôn ngữ bản tin",
-  country_code: "Mã nước",
-  booking_url: "URL Booking.com",
-  label: "Nhãn",
-  stay_date: "Ngày lưu trú",
-  rooms_total: "Tổng phòng",
-  rooms_sold: "Phòng đã bán",
-  rooms_available: "Phòng còn",
-  occupancy_pct: "Công suất",
-  adr: "ADR",
-  revenue: "Doanh thu",
-  start: "Từ ngày",
-  end: "Đến ngày",
-};
+import { useTranslations } from "next-intl";
+import { useMemo } from "react";
+import type { Messages } from "@/messages";
 
-type Rule = [RegExp, (m: RegExpMatchArray) => string];
+type ErrorKey = keyof Omit<Messages["errors"], "fields" | "http">;
+type FieldKey = keyof Messages["errors"]["fields"];
+type Values = Record<string, string>;
+
+export type ErrorsTranslator = ReturnType<typeof useTranslations<"errors">>;
+
+type Rule = [RegExp, ErrorKey, ((m: RegExpMatchArray) => Values)?];
 
 const RULES: Rule[] = [
   // xác thực, phân quyền
-  [/^invalid credentials$/, () => "Email hoặc mật khẩu không đúng"],
-  [/^(not authenticated|invalid session)$/, () => "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại"],
-  [/^user disabled$/, () => "Tài khoản đã bị khoá"],
-  [/^operator only$/, () => "Chỉ tài khoản vận hành được thực hiện thao tác này"],
-  [/^read-only role$/, () => "Tài khoản chỉ xem không được thay đổi dữ liệu"],
-  [/^cannot access another tenant$/, () => "Không có quyền xem dữ liệu của tenant khác"],
-  [/^user has no tenant$/, () => "Tài khoản chưa được gán tenant"],
-  [/^tenant_id is required for operator$/, () => "Hãy chọn tenant ở thanh trên"],
-  [/^tenant_id required$/, () => "Hãy chọn tenant cho người dùng"],
+  [/^invalid credentials$/, "invalidCredentials"],
+  [/^(not authenticated|invalid session)$/, "sessionExpired"],
+  [/^user disabled$/, "userDisabled"],
+  [/^operator only$/, "operatorOnly"],
+  [/^read-only role$/, "readOnlyRole"],
+  [/^cannot access another tenant$/, "otherTenant"],
+  [/^user has no tenant$/, "userNoTenant"],
+  [/^tenant_id is required for operator$/, "pickTenant"],
+  [/^tenant_id required$/, "pickTenantForUser"],
   // người dùng
-  [/^email already exists$/, () => "Email đã được dùng cho tài khoản khác"],
-  [/^user not found$/, () => "Không tìm thấy người dùng"],
-  [/^cannot lock or change the role of your own account$/, () => "Không thể tự khoá hoặc tự đổi vai trò tài khoản đang đăng nhập"],
-  [/^cannot remove the last active operator$/, () => "Không thể khoá hoặc hạ vai trò operator đang hoạt động cuối cùng"],
+  [/^email already exists$/, "emailExists"],
+  [/^user not found$/, "userNotFound"],
+  [/^cannot lock or change the role of your own account$/, "selfLock"],
+  [/^cannot remove the last active operator$/, "lastOperator"],
   // tenant, lịch quét
-  [/^tenant not found$/, () => "Không tìm thấy tenant"],
-  [/^unknown timezone '(.+)'.*$/, (m) => `Múi giờ không hợp lệ: ${m[1]} (ví dụ đúng: Asia/Ho_Chi_Minh)`],
-  [/^bad time '(.+)'$/, (m) => `Giờ không hợp lệ: ${m[1]} (định dạng HH:MM)`],
-  [/^scan_times must not be empty$/, () => "Cần ít nhất một giờ quét"],
-  [/^at most (\d+) scan_times per day$/, (m) => `Tối đa ${m[1]} mốc giờ quét mỗi ngày`],
+  [/^tenant not found$/, "tenantNotFound"],
+  [/^unknown timezone '(.+)'.*$/, "unknownTimezone", (m) => ({ value: m[1] })],
+  [/^bad time '(.+)'$/, "badTime", (m) => ({ value: m[1] })],
+  [/^scan_times must not be empty$/, "scanTimesEmpty"],
+  [/^at most (\d+) scan_times per day$/, "scanTimesMax", (m) => ({ max: m[1] })],
   // watchlist, quét
-  [/^not a booking\.com url: (.*)$/, () => "URL không phải của Booking.com"],
-  [/^not a hotel page url: (.*)$/, () => "URL không phải trang khách sạn Booking.com (dạng https://www.booking.com/hotel/vn/ten-khach-san.html)"],
-  [/^hotel not in watchlist$/, () => "Khách sạn không có trong watchlist"],
-  [/^hotel not found$/, () => "Không tìm thấy khách sạn"],
-  [/^watchlist is empty$/, () => "Watchlist trống: thêm khách sạn trước"],
-  [/^job queue unavailable$/, () => "Hàng đợi xử lý không sẵn sàng, thử lại sau"],
-  [/^scan run already created$/, () => "Đợt quét vừa được tạo, thử lại sau vài giây"],
+  [/^listing not found$/, "listingNotFound"],
+  [/^only suggestions can be rejected$/, "onlySuggestions"],
+  [/^listing is not a suggestion$/, "notSuggestion"],
+  [/^unknown channel (.+)$/, "unknownChannel", (m) => ({ value: m[1] })],
+  [/^reference_channel must be one of .*$/, "referenceChannel"],
+  [/^hotel not in watchlist$/, "hotelNotInWatchlist"],
+  [/^hotel not found$/, "hotelNotFound"],
+  [/^watchlist is empty$/, "watchlistEmpty"],
+  [/^job queue unavailable$/, "queueUnavailable"],
+  [/^scan run already created$/, "scanAlreadyCreated"],
+  [/^hotel is tracked by other tenants.*$/, "hotelSharedTracked"],
+  [/^url already linked to another hotel$/, "urlLinkedElsewhere"],
+  [/^duplicate: same hotel #(\d+) on this channel \(id (.+)\)$/, "duplicateListing", (m) => ({ hotel: m[1], id: m[2] })],
+  // thị trường toàn thành phố
+  [/^proxy not configured$/, "proxyNotConfigured"],
+  [/^too many destination searches.*$/, "tooManySearches"],
+  [/^booking unreachable.*$/, "bookingUnreachable"],
+  [/^at most (\d+) market areas per tenant$/, "marketAreasMax", (m) => ({ max: m[1] })],
+  [/^market area already exists$/, "marketAreaExists"],
+  [/^market area is inactive$/, "marketAreaInactive"],
+  [/^channel paused after blocking.*$/, "channelPaused"],
+  [/^only broken listings can be retried$/, "onlyBrokenRetry"],
+  [/^hotel has no active listing$/, "noActiveListing"],
+  [/^run not found$/, "runNotFound"],
+  // thị trường, sự kiện địa phương
+  [/^range must be 1–(\d+) nights$/, "rangeNights", (m) => ({ max: m[1] })],
+  [/^range must be 1–(\d+) days$/, "rangeDays", (m) => ({ max: m[1] })],
+  [/^no such suggestion for this night anymore$/, "suggestionGone"],
+  [/^event not found$/, "eventNotFound"],
+  [/^market area not found$/, "marketAreaNotFound"],
+  [/^(?:Value error, )?end_date before start_date$/, "endBeforeStart"],
+  [/^(?:Value error, )?event longer than (\d+) days$/, "eventTooLong", (m) => ({ max: m[1] })],
+  // thông báo email
+  [/^at most (\d+) recipients$/, "recipientsMax", (m) => ({ max: m[1] })],
+  [/^recipient already exists$/, "recipientExists"],
+  [/^recipient not found$/, "recipientNotFound"],
+  [/^test email sent less than a minute ago$/, "testEmailTooSoon"],
+  [/^unknown params for (\w+): (.+)$/, "ruleUnknownParams", (m) => ({ value: m[2] })],
+  [/^(\w+) must be an integer$/, "ruleNotInteger"],
+  [/^(\w+) must be between (\d+) and (\d+)$/, "ruleRange", (m) => ({ min: m[2], max: m[3] })],
+  // tenant
+  [/^(?:Value error, )?insight_language must be one of (.+)$/, "reportLanguageInvalid", (m) => ({ value: m[1] })],
   // dữ liệu
-  [/^end before start$/, () => "Ngày kết thúc trước ngày bắt đầu"],
-  [/^range over (\d+) days$/, (m) => `Khoảng ngày tối đa ${m[1]} ngày`],
+  [/^end before start$/, "endBeforeStart"],
+  [/^range over (\d+) days$/, "rangeTooLong", (m) => ({ max: m[1] })],
   // bản tin
-  [/^insight not found$/, () => "Không tìm thấy bản tin"],
-  [/^no scan data yet.*$/, () => "Chưa có dữ liệu quét/analytics cho kỳ này"],
-  [/^no json output$/, () => "Mô hình không trả về kết quả hợp lệ"],
-  [/^schema: (.*)$/, (m) => `Kết quả mô hình sai cấu trúc: ${m[1]}`],
-  [/^timeout: .*$/, () => "Quá thời gian: bộ xử lý nền không phản hồi trong 10 phút"],
+  [/^insight not found$/, "insightNotFound"],
+  [/^no scan data yet.*$/, "noScanData"],
+  [/^no json output$/, "noJsonOutput"],
+  [/^schema: (.*)$/, "badSchema", (m) => ({ detail: m[1] })],
+  [/^timeout: .*$/, "workerTimeout"],
+  // proxy /api của Next.js không gọi được backend
+  [/^api unreachable .*$/, "apiUnreachable"],
   // PMS
-  [/^PMS data only for role=self hotel$/, () => "Chỉ nhập PMS cho khách sạn vai trò “Khách sạn của bạn”"],
-  [/^unknown columns (.*)$/, (m) => `Cột không hợp lệ: ${m[1]}`],
-  [/^unknown adapter '(.+)'$/, (m) => `Nguồn dữ liệu không hỗ trợ: ${m[1]}`],
-  [/^cannot decode file$/, () => "Không đọc được mã hoá ký tự của tệp"],
-  [/^empty file or missing header row$/, () => "Tệp rỗng hoặc thiếu dòng tiêu đề"],
-  [/^empty sheet$/, () => "Sheet đầu tiên của tệp Excel trống"],
-  [/^cannot read excel: .*$/, () => "Không đọc được tệp Excel"],
-  [/^missing mapping for (\w+)$/, (m) => `Chưa chọn cột cho ${FIELD_LABEL[m[1]] ?? m[1]}`],
-  [/^unrecognised date '?(.*?)'?$/, (m) => `Ngày không hợp lệ: ${m[1]}`],
-  [/^duplicate date (.+)$/, (m) => `Trùng ngày ${m[1]}`],
-  [/^not a number "?'?(.*?)'?"?$/, (m) => `Không phải số: ${m[1]}`],
-  [/^not an integer "?'?(.*?)'?"?$/, (m) => `Không phải số nguyên: ${m[1]}`],
-  [/^sold (\d+) > total (\d+)$/, (m) => `Phòng đã bán (${m[1]}) lớn hơn tổng phòng (${m[2]})`],
-  [/^out of range (.+)$/, (m) => `Công suất ${m[1]}% nằm ngoài 0–100`],
+  [/^PMS data only for role=self hotel$/, "pmsSelfOnly"],
+  [/^unknown columns (.*)$/, "unknownColumns", (m) => ({ value: m[1] })],
+  [/^unknown adapter '(.+)'$/, "unknownAdapter", (m) => ({ value: m[1] })],
+  [/^cannot decode file$/, "cannotDecode"],
+  [/^empty file or missing header row$/, "emptyFile"],
+  [/^empty sheet$/, "emptySheet"],
+  [/^cannot read excel: .*$/, "cannotReadExcel"],
+  [/^old excel format \(\.xls\) not supported.*$/, "oldExcel"],
+  [/^missing mapping for (\w+)$/, "missingMapping", (m) => ({ field: m[1] })],
+  [/^unrecognised date '?(.*?)'?$/, "badDate", (m) => ({ value: m[1] })],
+  [/^duplicate date (.+)$/, "duplicateDate", (m) => ({ value: m[1] })],
+  [/^not a number "?'?(.*?)'?"?$/, "notNumber", (m) => ({ value: m[1] })],
+  [/^not an integer "?'?(.*?)'?"?$/, "notInteger", (m) => ({ value: m[1] })],
+  [/^sold (\d+) > total (\d+)$/, "soldOverTotal", (m) => ({ sold: m[1], total: m[2] })],
+  [/^out of range (.+)$/, "occupancyRange", (m) => ({ value: m[1] })],
   // lỗi kiểm tra dữ liệu của FastAPI/pydantic
-  [/^Field required$/, () => "bắt buộc nhập"],
-  [/^String should have at least (\d+) characters?$/, (m) => `cần ít nhất ${m[1]} ký tự`],
-  [/^String should have at most (\d+) characters?$/, (m) => `tối đa ${m[1]} ký tự`],
-  [/^Input should be greater than or equal to (.+)$/, (m) => `phải ≥ ${m[1]}`],
-  [/^Input should be less than or equal to (.+)$/, (m) => `phải ≤ ${m[1]}`],
-  [/^value is not a valid email address.*$/, () => "email không hợp lệ"],
-  [/^String should match pattern .*$/, () => "giá trị không hợp lệ"],
+  [/^Field required$/, "fieldRequired"],
+  [/^String should have at least (\d+) characters?$/, "minLength", (m) => ({ min: m[1] })],
+  [/^String should have at most (\d+) characters?$/, "maxLength", (m) => ({ max: m[1] })],
+  [/^Input should be greater than or equal to (.+)$/, "gte", (m) => ({ value: m[1] })],
+  [/^Input should be less than or equal to (.+)$/, "lte", (m) => ({ value: m[1] })],
+  [/^value is not a valid email address.*$/, "invalidEmail"],
+  [/^String should match pattern .*$/, "invalidValue"],
 ];
 
-export function translateError(message: string): string {
+/** Tên trường của lỗi validation (`loc`) theo ngôn ngữ; trường lạ giữ nguyên tên. */
+export function fieldLabel(t: ErrorsTranslator, name: string): string {
+  const id = `fields.${name}` as `fields.${FieldKey}`;
+  return t.has(id) ? t(id) : name;
+}
+
+export function translateError(t: ErrorsTranslator, message: string): string {
   const text = message.trim();
-  for (const [re, fn] of RULES) {
+  for (const [re, key, values] of RULES) {
     const m = text.match(re);
-    if (m) return fn(m);
+    if (!m) continue;
+    const v = values?.(m) ?? {};
+    // Tên trường trong "missing mapping for X" cũng dịch theo ngôn ngữ.
+    if (v.field) v.field = fieldLabel(t, v.field);
+    return t(key, v);
   }
   return message;
 }
 
-/** Tên trường của lỗi validation (`loc`) sang nhãn tiếng Việt. */
-export function fieldLabel(name: string): string {
-  return FIELD_LABEL[name] ?? name;
+type ValidationErrorItem = { loc?: (string | number)[]; msg: string };
+
+/** `detail` của FastAPI (chuỗi hoặc mảng lỗi validation) -> câu đọc được. */
+export function detailToMessage(t: ErrorsTranslator, detail: unknown, status?: number): string {
+  if (typeof detail === "string" && detail) return translateError(t, detail);
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item) {
+          const v = item as ValidationErrorItem;
+          const loc = (v.loc ?? [])
+            .filter((p) => p !== "body" && p !== "query")
+            .map((p) => fieldLabel(t, String(p)))
+            .join(".");
+          const msg = translateError(t, v.msg);
+          return loc ? `${loc}: ${msg}` : msg;
+        }
+        return String(item);
+      })
+      .filter(Boolean);
+    if (parts.length) return parts.join("; ");
+  }
+  if (detail && typeof detail === "object" && "message" in detail) {
+    return String((detail as { message: unknown }).message);
+  }
+  if (status === 401) return t("http.401");
+  if (status === 403) return t("http.403");
+  if (status === 404) return t("http.404");
+  if (status === 502) return t("http.502");
+  return status ? t("http.other", { status }) : t("http.unknown");
+}
+
+/** Lỗi bất kỳ (ApiError, Error, chuỗi) -> câu theo ngôn ngữ. ApiError nhận diện qua `status`/`detail`. */
+export function errorText(t: ErrorsTranslator, err: unknown): string {
+  if (err && typeof err === "object" && "status" in err && "detail" in err) {
+    const e = err as { status: number; detail: unknown };
+    return detailToMessage(t, e.detail, e.status);
+  }
+  if (err instanceof Error) return translateError(t, err.message);
+  return translateError(t, String(err));
+}
+
+/** `(err) => câu lỗi` theo ngôn ngữ hiện tại; gọi lúc render để đổi ngôn ngữ là đổi theo. */
+export function useErrorMessage(): (err: unknown) => string {
+  const t = useTranslations("errors");
+  return useMemo(() => (err: unknown) => errorText(t, err), [t]);
 }

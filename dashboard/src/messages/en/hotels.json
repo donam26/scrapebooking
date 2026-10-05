@@ -1,0 +1,150 @@
+{
+  "detail": {
+    "fallbackTitle": "Hotel",
+    "crumb": "Competitors",
+    "stars": "{stars}-star",
+    "dataOn": "Data from <b>{channel}</b>",
+    "cols": {
+      "rooms": "Rooms left",
+      "price": "Lowest rate",
+      "change7d": "7-day rate change",
+      "pickup24h": "24h pickup",
+      "velocity3d": "3-day velocity",
+      "soldOutAt": "Sold out at",
+      "restockedAt": "Back in stock at",
+      "exactShare": "Exact count share",
+      "observedAt": "Observed at"
+    },
+    "rooms": {
+      "soldOut": "Sold out",
+      "unreadable": "Unreadable",
+      "none": "No data",
+      "hiddenShort": "Hidden",
+      "hidden": "Available, count hidden",
+      "count": "{count, plural, one {# room} other {# rooms}}"
+    },
+    "stats": {
+      "soldOut": "Sold-out nights",
+      "nights": "{count, plural, one {# night} other {# nights}}",
+      "soldOutHint": "Out of {count, plural, one {# night} other {# nights}} in view",
+      "tight": "Nights with ≤ 3 rooms",
+      "tightHint": "Based on exact counts from {channel}",
+      "priceRange": "Lowest rate per night",
+      "lastObserved": "Last observed",
+      "lastObservedHint": "{count, plural, one {Latest event below} other {# latest events below}}"
+    },
+    "nights": {
+      "title": "By night",
+      "description": "Click a night to see each room type and its scan history",
+      "night": "Night"
+    },
+    "events": {
+      "title": "Recent events",
+      "description": "{count, plural, one {Latest change for this hotel} other {# latest changes for this hotel}}",
+      "empty": "No changes recorded for this hotel yet."
+    }
+  },
+  "day": {
+    "fallbackTitle": "Hotel",
+    "crumb": "Competitors",
+    "nightCrumb": "Night of {night}",
+    "invalidDate": "Invalid date",
+    "title": "{weekday}, {date}",
+    "onChannel": "on {channel}",
+    "lastScan": "Last scanned {when}",
+    "market": "Market this night:",
+    "marketOn": "Market this night on {channel}:",
+    "detailOn": "Details on {channel}",
+    "roomTypeFallback": "Room type #{id}",
+    "rates": {
+      "refundable": "Refundable",
+      "nonRefundable": "Non-refundable",
+      "breakfast": "Breakfast"
+    },
+    "shortMark": {
+      "exact": "{count, plural, one {# room left} other {# rooms left}}",
+      "hidden": "Available, count hidden",
+      "soldOut": "Sold out",
+      "unknown": "Unreadable"
+    },
+    "noData": {
+      "beyondTitle": "This night is beyond the scan horizon",
+      "changeHorizon": "Change scan horizon",
+      "beyondBody": "We scan {days, plural, one {# night} other {# nights}} from today, up to the night of {horizonEnd}. The night of {night} will be scanned from {startsOn}.",
+      "pastTitle": "Past night",
+      "pastBody": "No scan recorded this night.",
+      "notCoveredTitle": "No scan has covered this night yet",
+      "scanning": "Scanning. Reload the page in a few minutes to see the results.",
+      "scanNow": "Scan now",
+      "neverScanned": "This hotel has never been scanned. The next scheduled scan will fill in the data.",
+      "endedBefore": "The hotel's last scan ({when}) only covered up to the night of {through}; this night entered the scan horizon afterwards. The next scheduled scan will fill in the data.",
+      "notRecorded": "Recent scans (up to {when}) did not capture this night."
+    },
+    "sameNight": {
+      "title": "Same night on {channel}",
+      "summary": "{soldOut}/{observed} competitors sold out · median {median}",
+      "noCompetitors": "No competitor has data for this night yet",
+      "yours": "· yours"
+    },
+    "compare": {
+      "aria": "Channel comparison for this night",
+      "title": "Channel comparison",
+      "hint": "Each channel counts rooms separately, never added together; rates are only compared across channels that include taxes and fees",
+      "viewing": "· viewing",
+      "noPrice": "No rate",
+      "cheapestHint": "Cheapest among channels with rates including taxes and fees",
+      "cheapest": "Cheapest",
+      "taxExclusive": "Excludes taxes and fees, not compared",
+      "refundableFrom": "Refundable from {price}",
+      "scannedAt": "Scanned {when}",
+      "notScanned": "Night not scanned yet"
+    },
+    "latest": {
+      "title": "Room types in the latest scan",
+      "description": "{count, plural, one {# room type} other {# room types}} on sale for 2 adults on {channel}",
+      "soldOut": "The scan at {when} found it sold out: no room types on sale. See the history below.",
+      "unknown": "The scan at {when} could not read the page (blocked or failed). See the history below.",
+      "empty": "The scan at {when} did not capture any room types.",
+      "maxGuests": "Up to {count, plural, one {# guest} other {# guests}}",
+      "refundableFrom": "Refundable from {price}",
+      "rateScoped": "“By rate”: the channel only reports rooms left at the cheapest rate, so for the whole room type it is at least N"
+    },
+    "cols": {
+      "roomType": "Room type",
+      "roomsLeft": "Rooms left",
+      "lowestPrice": "Lowest rate",
+      "rates": "Rate plans",
+      "scannedAt": "Scanned at",
+      "status": "Status",
+      "exactRooms": "Exact rooms counted",
+      "roomTypesOpenSold": "Room types open / sold out",
+      "run": "Run",
+      "refundablePrice": "Refundable rate"
+    },
+    "history": {
+      "title": "Changes across scans",
+      "lookBack": "Look back",
+      "range": "History range",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "roomsChart": "Rooms left per scan",
+      "onlyFloor": "Every room type reported <b>at least {count, plural, one {# room} other {# rooms}} left</b> in every scan. {channel} does not show exact counts, so there is no line to draw.",
+      "roomsEmpty": "No countable rooms in this period",
+      "priceChart": "Lowest rate per scan",
+      "priceChartCurrency": "Lowest rate per scan ({currency})",
+      "priceEmpty": "No rates in this period"
+    },
+    "observations": {
+      "title": "Scans of this night",
+      "description": "{count, plural, one {# scan} other {# scans}} in the last {days, plural, one {# day} other {# days}}",
+      "empty": "No scans for this night in the last {days, plural, one {# day} other {# days}}."
+    },
+    "roomHistory": {
+      "title": "Room type history <muted>({count, plural, one {# record} other {# records}})</muted>"
+    },
+    "events": {
+      "title": "Events for this night",
+      "description": "{count, plural, one {# change} other {# changes}}",
+      "empty": "No changes for this night in the selected period."
+    }
+  }
+}

@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Fragment, useState, type FormEvent } from "react";
 import { api, type TenantOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { fmtDate, fmtDateTime } from "@/lib/format";
+import { useFmt } from "@/lib/format";
+import { LOCALES, LOCALE_NAME, isLocale } from "@/i18n/config";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, PageHeader, ROW_CLASS, Segmented, Select, Skeleton, Table, Td, Th, cx } from "@/components/ui";
 import { IconArrowRight, IconBuilding, IconClose, IconPencil, IconPlus } from "@/components/icons";
 
@@ -24,7 +26,7 @@ const DEFAULT_DRAFT: Draft = {
   name: "",
   timezone: "Asia/Ho_Chi_Minh",
   scan_times: "06:00, 14:00, 22:00",
-  horizon_days: 30,
+  horizon_days: 90,
   insight_hour: "07:30",
   insight_language: "vi",
   country_code: "vn",
@@ -33,7 +35,6 @@ const DEFAULT_DRAFT: Draft = {
 
 const TIMEZONES = ["Asia/Ho_Chi_Minh", "Asia/Bangkok", "Asia/Singapore", "Asia/Jakarta", "Asia/Manila", "Asia/Kuala_Lumpur", "Asia/Tokyo", "Europe/London", "UTC"];
 
-const LANGUAGE_LABEL: Record<string, string> = { vi: "Tiếng Việt", en: "English" };
 
 function toDraft(t: TenantOut): Draft {
   return {
@@ -68,6 +69,8 @@ function TenantForm({
   onSubmit: (d: Draft) => Promise<unknown>;
   onCancel?: () => void;
 }) {
+  const t = useTranslations("admin.tenants.form");
+  const tCommon = useTranslations("common.actions");
   const [d, setD] = useState<Draft>(initial);
   const save = useMutation(onSubmit);
   const zones = TIMEZONES.includes(d.timezone) ? TIMEZONES : [d.timezone, ...TIMEZONES];
@@ -78,10 +81,10 @@ function TenantForm({
   return (
     <form onSubmit={submit} className="space-y-5">
       <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
-        <Field label="Tên tenant" hint="Thường là tên khách sạn hoặc tập đoàn khách hàng">
-          <Input required maxLength={200} value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} placeholder="VD: Rex Hotel Saigon" />
+        <Field label={t("name")} hint={t("nameHint")}>
+          <Input required maxLength={200} value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} placeholder={t("namePlaceholder")} />
         </Field>
-        <Field label="Múi giờ" hint="Giờ quét và giờ bản tin tính theo múi giờ này">
+        <Field label={t("timezone")} hint={t("timezoneHint")}>
           <Select required value={d.timezone} onChange={(e) => setD({ ...d, timezone: e.target.value })}>
             {zones.map((z) => (
               <option key={z} value={z}>
@@ -90,29 +93,26 @@ function TenantForm({
             ))}
           </Select>
         </Field>
-        <Field label="Giờ quét trong ngày" hint="HH:MM, cách nhau bằng dấu phẩy. VD: 06:00, 14:00, 22:00">
+        <Field label={t("scanTimes")} hint={t("scanTimesHint")}>
           <Input required value={d.scan_times} onChange={(e) => setD({ ...d, scan_times: e.target.value })} className="tabular" />
         </Field>
-        <Field label="Số đêm quét tới" hint="1–90 đêm kể từ hôm nay">
+        <Field label={t("horizon")} hint={t("horizonHint")}>
           <Input type="number" min={1} max={90} required value={d.horizon_days} onChange={(e) => setD({ ...d, horizon_days: Number(e.target.value) })} className="tabular" />
         </Field>
-        <Field label="Giờ tạo bản tin AI">
+        <Field label={t("insightHour")}>
           <Input type="time" required value={d.insight_hour} onChange={(e) => setD({ ...d, insight_hour: e.target.value })} className="tabular" />
         </Field>
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-body">Ngôn ngữ bản tin</span>
+          <span className="text-sm font-semibold text-body">{t("reportLanguage")}</span>
           <Segmented
-            label="Ngôn ngữ bản tin"
+            label={t("reportLanguage")}
             value={d.insight_language}
             onChange={(v) => setD({ ...d, insight_language: v })}
-            items={[
-              { value: "vi", label: "Tiếng Việt" },
-              { value: "en", label: "English" },
-            ]}
+            items={LOCALES.map((l) => ({ value: l, label: LOCALE_NAME[l] }))}
             className="self-start"
           />
         </div>
-        <Field label="Mã nước" hint="2 ký tự, dùng chọn proxy và trang Booking (VD: vn)">
+        <Field label={t("country")} hint={t("countryHint")}>
           <Input
             required
             minLength={2}
@@ -124,14 +124,14 @@ function TenantForm({
         </Field>
         {showActive && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-body">Trạng thái</span>
+            <span className="text-sm font-semibold text-body">{t("status")}</span>
             <Segmented
-              label="Trạng thái tenant"
+              label={t("statusAria")}
               value={d.active ? "1" : "0"}
               onChange={(v) => setD({ ...d, active: v === "1" })}
               items={[
-                { value: "1", label: "Hoạt động" },
-                { value: "0", label: "Tắt (không quét)" },
+                { value: "1", label: t("active") },
+                { value: "0", label: t("inactive") },
               ]}
               className="self-start"
             />
@@ -145,7 +145,7 @@ function TenantForm({
         </Button>
         {onCancel && (
           <Button variant="ghost" onClick={onCancel}>
-            Huỷ
+            {tCommon("cancel")}
           </Button>
         )}
       </div>
@@ -167,6 +167,8 @@ function TimeChips({ times }: { times: string[] }) {
 
 export default function AdminTenantsPage() {
   const router = useRouter();
+  const t = useTranslations("admin.tenants");
+  const tCommon = useTranslations("common.actions");
   const { tenantId, setTenantId, refreshTenants } = useSession();
   const list = useApi("admin:tenants", () => api.tenants.list());
   const [editing, setEditing] = useState<number | null>(null);
@@ -182,8 +184,8 @@ export default function AdminTenantsPage() {
   return (
     <>
       <PageHeader
-        title="Tenant"
-        subtitle="Mỗi tenant là một khách hàng với watchlist, lịch quét và người dùng riêng"
+        title={t("title")}
+        subtitle={t("subtitle")}
         actions={
           <Button
             variant={showCreate ? "secondary" : "primary"}
@@ -191,15 +193,15 @@ export default function AdminTenantsPage() {
             onClick={() => setShowCreate((v) => !v)}
             aria-expanded={showCreate}
           >
-            {showCreate ? "Đóng" : "Tạo tenant"}
+            {showCreate ? tCommon("close") : t("create")}
           </Button>
         }
       />
       {showCreate && (
-        <Card title="Tạo tenant mới" description="Có thể đổi mọi giá trị sau khi tạo" className="mb-6">
+        <Card title={t("createCard.title")} description={t("createCard.description")} className="mb-6">
           <TenantForm
             initial={DEFAULT_DRAFT}
-            submitLabel="Tạo tenant"
+            submitLabel={t("create")}
             onSubmit={async (d) => {
               await api.tenants.create({
                 name: d.name.trim(),
@@ -209,6 +211,7 @@ export default function AdminTenantsPage() {
                 insight_hour: d.insight_hour,
                 insight_language: d.insight_language,
                 country_code: d.country_code,
+                reference_channel: "booking",
               });
               setShowCreate(false);
               await afterChange();
@@ -220,8 +223,8 @@ export default function AdminTenantsPage() {
       <ErrorBox error={list.error} className="mb-4" />
       <Card
         padded={false}
-        title="Danh sách tenant"
-        description={list.data ? `${rows.length} tenant · ${activeCount} đang hoạt động` : undefined}
+        title={t("list.title")}
+        description={list.data ? t("list.count", { count: rows.length, active: activeCount }) : undefined}
       >
         {!list.data && !list.error ? (
           <Skeleton rows={5} className="p-5" />
@@ -229,27 +232,27 @@ export default function AdminTenantsPage() {
           <div className="p-5">
             <EmptyState
               icon={<IconBuilding />}
-              title="Chưa có tenant nào"
+              title={t("empty.title")}
               action={
                 <Button variant="primary" icon={<IconPlus size={16} />} onClick={() => setShowCreate(true)}>
-                  Tạo tenant
+                  {t("create")}
                 </Button>
               }
             >
-              Tạo tenant cho khách hàng đầu tiên, rồi thêm người dùng và watchlist cho họ.
+              {t("empty.body")}
             </EmptyState>
           </div>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Tenant</Th>
-                <Th>Trạng thái</Th>
-                <Th>Giờ quét</Th>
-                <Th right>Số đêm</Th>
-                <Th>Bản tin</Th>
+                <Th>{t("table.tenant")}</Th>
+                <Th>{t("table.status")}</Th>
+                <Th>{t("table.scanTimes")}</Th>
+                <Th right>{t("table.horizon")}</Th>
+                <Th>{t("table.report")}</Th>
                 <Th className="relative">
-                  <span className="sr-only">Thao tác</span>
+                  <span className="sr-only">{t("table.actions")}</span>
                 </Th>
               </tr>
             </thead>
@@ -263,7 +266,7 @@ export default function AdminTenantsPage() {
                   onEdit={() => setEditing(editing === t.id ? null : t.id)}
                   onView={() => {
                     setTenantId(t.id);
-                    router.push("/overview");
+                    router.push("/dashboard");
                   }}
                   onSaved={async () => {
                     setEditing(null);
@@ -294,6 +297,9 @@ function TenantRows({
   onView: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const tr = useTranslations("admin.tenants.row");
+  const tCommon = useTranslations("common.actions");
+  const { fmtDate, fmtDateTime } = useFmt();
   return (
     <Fragment>
       <tr className={cx(ROW_CLASS, selected && "bg-brand-softer hover:bg-brand-softer", !t.active && "text-muted")}>
@@ -302,30 +308,30 @@ function TenantRows({
             <span className={cx("truncate font-bold", t.active ? "text-ink" : "text-muted")}>{t.name}</span>
             <span className="shrink-0 rounded bg-sunken px-1.5 py-px text-2xs font-bold uppercase tracking-[0.04em] text-muted">{t.country_code}</span>
           </div>
-          <div className="text-xs text-muted tabular" title={`Tạo lúc ${fmtDateTime(t.created_at)}`}>
-            #{t.id} · {t.timezone} · tạo {fmtDate(t.created_at.slice(0, 10))}
+          <div className="text-xs text-muted tabular" title={tr("createdAt", { when: fmtDateTime(t.created_at) })}>
+            {tr("meta", { id: t.id, timezone: t.timezone, date: fmtDate(t.created_at.slice(0, 10)) })}
           </div>
         </Td>
         <Td>
-          <Badge tone={t.active ? "green" : "gray"}>{t.active ? "Hoạt động" : "Tắt"}</Badge>
+          <Badge tone={t.active ? "green" : "gray"}>{t.active ? tr("active") : tr("inactive")}</Badge>
         </Td>
         <Td>
           <TimeChips times={t.scan_times} />
         </Td>
         <Td right className="whitespace-nowrap">
-          {t.horizon_days} đêm
+          {tr("nights", { count: t.horizon_days })}
         </Td>
         <Td className="whitespace-nowrap">
           <span className="tabular">{t.insight_hour}</span>
-          <span className="text-muted"> · {LANGUAGE_LABEL[t.insight_language] ?? t.insight_language}</span>
+          <span className="text-muted"> · {isLocale(t.insight_language) ? LOCALE_NAME[t.insight_language] : t.insight_language}</span>
         </Td>
         <Td>
           <div className="flex justify-end gap-1">
-            <Button size="sm" variant="quiet" onClick={onView} disabled={selected} icon={selected ? undefined : <IconArrowRight size={14} />} title="Chuyển sang xem dữ liệu của tenant này">
-              {selected ? "Đang xem" : "Xem dashboard"}
+            <Button size="sm" variant="quiet" onClick={onView} disabled={selected} icon={selected ? undefined : <IconArrowRight size={14} />} title={tr("viewTitle")}>
+              {selected ? tr("viewing") : tr("view")}
             </Button>
             <Button size="sm" variant="ghost" onClick={onEdit} aria-expanded={editing} icon={editing ? <IconClose size={14} /> : <IconPencil size={14} />}>
-              {editing ? "Đóng" : "Sửa"}
+              {editing ? tCommon("close") : tCommon("edit")}
             </Button>
           </div>
         </Td>
@@ -333,10 +339,10 @@ function TenantRows({
       {editing && (
         <tr>
           <td colSpan={6} className="border-b border-line bg-subtle px-5 py-5">
-            <div className="mb-4 text-md font-bold text-ink">Sửa “{t.name}”</div>
+            <div className="mb-4 text-md font-bold text-ink">{tr("editTitle", { name: t.name })}</div>
             <TenantForm
               initial={toDraft(t)}
-              submitLabel="Lưu thay đổi"
+              submitLabel={tr("saveChanges")}
               showActive
               onSubmit={async (d) => {
                 await api.tenants.update(t.id, {

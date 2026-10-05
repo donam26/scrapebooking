@@ -1,13 +1,16 @@
 name: scrapebooking-collector
 
 # Chạy worker collector trên máy khác. `.env` trên máy này phải có DATABASE_URL, REDIS_URL,
-# MINIO_ENDPOINT trỏ về IP/hostname của máy trung tâm.
+# MINIO_ENDPOINT trỏ về IP/hostname của máy trung tâm, và WORKER_CHANNEL (booking | agoda |
+# ivivu | tripcom) chọn kênh mà máy này quét.
 services:
   worker:
     build:
       context: ..
       dockerfile: infra/Dockerfile.backend
     env_file: ../.env
+    environment:
+      WORKER_CHANNEL: ${WORKER_CHANNEL:-booking}
     command: ["arq", "app.worker.settings.WorkerSettings"]
     deploy:
       resources:

@@ -2,7 +2,8 @@ import re
 from datetime import date
 
 # 4: đối chiếu HTML thật 2026-09 (ô loại phòng <th>, "We have N left", giờ chót, Booking Basic)
-PARSER_VERSION = "4"
+# 5: chuẩn giá đa kênh (D3): cờ thuế, giá gạch, nhãn khuyến mãi
+PARSER_VERSION = "5"
 
 # Trang đã sẵn sàng (đã qua challenge) khi có một trong các phần tử này.
 READY_SELECTOR = (
@@ -62,6 +63,10 @@ PRICE_TEXT = (
     ".bui-price-display__value"
 )
 CONDITIONS_CELL = "td.hprt-table-cell-conditions"
+# "Includes taxes and charges" (VN, 2026-09) hoặc "+VND 120,000 taxes and charges".
+TAXES_NOTE = ".prd-taxes-and-fees-under-price"
+ORIGINAL_PRICE = ".bui-price-display__original, [data-strikethrough-value]"
+DEAL_BADGE = ".c-deals-container .bui-badge"
 ONLY_X_LEFT = (
     ".only_x_left, .hprt-table-cell-conditions .urgency_message, "
     "[data-testid='availability-scarcity']"

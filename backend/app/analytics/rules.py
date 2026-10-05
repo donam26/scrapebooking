@@ -29,6 +29,9 @@ class EventType(StrEnum):
     PRICE_DOWN = "price_down"
     ROOM_TYPE_NEW = "room_type_new"
     ROOM_TYPE_GONE = "room_type_gone"
+    # Chéo kênh (D4, D11)
+    CHANNEL_CLOSED = "channel_closed"  # hết trên kênh này nhưng kênh khác vẫn bán
+    PARITY_GAP = "parity_gap"  # giá kênh này thấp hơn kênh khác quá ngưỡng
 
 
 USABLE = (DateStatus.AVAILABLE, DateStatus.SOLD_OUT)
@@ -53,6 +56,8 @@ class RoomObs:
     rooms_left: int | None
     confidence: StockConfidence
     min_price: Decimal | None
+    # Giá thấp nhất trong các gói có huỷ miễn phí (None khi loại phòng không có gói nào như vậy).
+    min_refundable_price: Decimal | None = None
 
     @property
     def exact(self) -> bool:
@@ -76,6 +81,15 @@ class HotelDateObs:
     @property
     def min_price(self) -> Decimal | None:
         prices = [r.min_price for r in self.rooms.values() if r.min_price is not None]
+        return min(prices) if prices else None
+
+    @property
+    def min_refundable_price(self) -> Decimal | None:
+        prices = [
+            r.min_refundable_price
+            for r in self.rooms.values()
+            if r.min_refundable_price is not None
+        ]
         return min(prices) if prices else None
 
     @property
@@ -291,6 +305,7 @@ class MetricsDraft:
     pickup_24h: int | None
     velocity_3d: Decimal | None
     min_price: Decimal | None
+    min_refundable_price: Decimal | None
     currency: str | None
     price_change_7d_pct: Decimal | None
     availability_status: DateStatus
@@ -340,6 +355,7 @@ def compute_metrics(
         pickup_24h=pickup_24h,
         velocity_3d=velocity,
         min_price=cur.min_price if cur.usable else None,
+        min_refundable_price=cur.min_refundable_price if cur.usable else None,
         currency=cur.currency if cur.usable else None,
         price_change_7d_pct=price_change,
         availability_status=cur.status,

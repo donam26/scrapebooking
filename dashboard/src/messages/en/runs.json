@@ -1,0 +1,63 @@
+{
+  "title": "Scan history",
+  "meta": "{count, plural, one {# recent run} other {# recent runs}} across all channels",
+  "channelFilter": "Filter by channel",
+  "allChannels": "All",
+  "trigger": {
+    "manual": "Scan now",
+    "catchup": "Catch-up",
+    "scheduled": "Scheduled"
+  },
+  "kpi": {
+    "runs24h": "Scans in 24 hours",
+    "runs24hSub": "{count, plural, one {# page read} other {# page reads}}",
+    "successRate": "Success rate",
+    "successRateInfo": "Page reads that returned data (available or sold out) out of all page reads in the last 24 hours.",
+    "successRateSub": "{count, plural, one {# read with data} other {# reads with data}}",
+    "blocked": "Blocked",
+    "blockedInfo": "The channel blocked the bot (captcha, 403…). The system slows down automatically and pauses a channel when it is blocked often.",
+    "blockedSub": "page reads in 24 hours",
+    "empty": "Scans with no data",
+    "emptySub": "in 24 hours"
+  },
+  "table": {
+    "title": "Scans",
+    "info": "Click a scan to see each hotel: status, pages read, blocked, errors.",
+    "run": "Scan",
+    "channel": "Channel",
+    "trigger": "Trigger",
+    "started": "Started",
+    "duration": "Duration",
+    "status": "Status",
+    "probes": "Page reads",
+    "withData": "With data",
+    "soldOut": "Sold out",
+    "blocked": "Blocked",
+    "errors": "Errors",
+    "ratio": "Ratio",
+    "expand": "Show each hotel in scan #{id}",
+    "noData": "No data"
+  },
+  "empty": {
+    "title": "No scans yet",
+    "body": "The first scan runs on the scan schedule in Settings, or click “Scan now” in Settings › Hotels."
+  },
+  "jobs": {
+    "hotel": "Hotel",
+    "status": "Status",
+    "started": "Started",
+    "duration": "Duration",
+    "probes": "Page reads",
+    "withData": "With data",
+    "blocked": "Blocked",
+    "errors": "Errors",
+    "errorDetail": "Error details",
+    "hotelFallback": "Hotel #{id}",
+    "jobStatus": {
+      "queued": "Queued",
+      "running": "Scanning",
+      "done": "Done",
+      "failed": "Failed"
+    }
+  }
+}

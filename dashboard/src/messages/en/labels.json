@@ -1,0 +1,104 @@
+{
+  "eventType": {
+    "sold_out": "Sold out",
+    "restock": "Back in stock",
+    "rooms_decrease": "Fewer rooms",
+    "rooms_increase": "More rooms",
+    "low_stock_enter": "Almost sold out",
+    "price_up": "Price up",
+    "price_down": "Price down",
+    "room_type_new": "New room type",
+    "room_type_gone": "Room type gone",
+    "channel_closed": "Closed on channel",
+    "parity_gap": "Cheaper on this channel"
+  },
+  "listingStatus": {
+    "active": "Tracking",
+    "unverified": "Verifying",
+    "suggested": "Suggested",
+    "broken": "Broken link",
+    "paused": "Paused"
+  },
+  "availability": {
+    "available": "Available",
+    "sold_out": "Sold out",
+    "unknown": "Unknown"
+  },
+  "stockConfidence": {
+    "exact": "Exact",
+    "capped": "At least",
+    "hidden": "Hidden",
+    "sold_out": "Sold out"
+  },
+  "userRole": {
+    "operator": "Operator",
+    "tenant_admin": "Admin",
+    "viewer": "Viewer"
+  },
+  "watchRole": {
+    "self": "Your hotel",
+    "competitor": "Competitor"
+  },
+  "runStatus": {
+    "running": "Running",
+    "completed": "Completed",
+    "partial": "Partial",
+    "failed": "Failed"
+  },
+  "insightStatus": {
+    "pending": "Generating",
+    "batch_pending": "Waiting for batch",
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "insightTrigger": {
+    "daily": "Daily",
+    "on_demand": "On demand"
+  },
+  "notificationKind": {
+    "alerts": "Competitor alerts",
+    "daily_insight": "Morning brief",
+    "weekly_report": "Weekly report",
+    "test": "Test email"
+  },
+  "notificationStatus": {
+    "sent": "Sent",
+    "failed": "Failed",
+    "sending": "Sending",
+    "skipped": "Not sent"
+  },
+  "notificationReason": {
+    "no_recipients": "No recipients yet",
+    "smtp_not_configured": "Email server is not configured",
+    "send_failed": "Email server rejected it, will retry",
+    "no_matches": "No changes matched the rules",
+    "disabled": "This notification type is turned off"
+  },
+  "importStatus": {
+    "completed": "Completed",
+    "partial": "Partial",
+    "failed": "Failed"
+  },
+  "level": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "pmsColumn": {
+    "stay_date": "Stay date",
+    "rooms_total": "Total rooms",
+    "rooms_sold": "Rooms sold",
+    "rooms_available": "Rooms available",
+    "occupancy_pct": "Occupancy (%)",
+    "adr": "ADR",
+    "revenue": "Revenue"
+  },
+  "heatLevel": {
+    "soldOut": "Sold out",
+    "veryFew": "Very few (≤3)",
+    "few": "Few (4–10)",
+    "some": "Some (11–20)",
+    "many": "Many (21–30)",
+    "plenty": "Plenty (>30)"
+  }
+}

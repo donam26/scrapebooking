@@ -10,6 +10,7 @@ const sans = Be_Vietnam_Pro({
   display: "swap",
 });
 
+// i18n-ignore-next-line
 const CONTRACT = `<!--
 THESIS: Trang giới thiệu theo chuẩn landing SaaS mà người dùng chọn (tham chiếu Hostinger): khách hiểu ngay dịch vụ đếm phòng còn và giá đối thủ, thấy sản phẩm chạy thật, rồi liên hệ.
 OWN-WORLD: Nền tím than #16123a có quầng tím #673de6, nút tím #673de6 bo 8px, phần sáng #f4f5ff với thẻ trắng bo 16–24px, dấu tích xanh #00b090, dữ liệu: vàng #ffcd35 (số chính xác), tím nhạt gạch chéo (ít nhất), viền đứt (ẩn), tím đậm #2f1c6a (hết phòng). Be Vietnam Pro.

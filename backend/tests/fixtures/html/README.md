@@ -14,6 +14,8 @@ tiêu đề, ô `checkin`, thông báo hết phòng, bảng `#hprt-table`) và n
 | `reverie_2026-09-25_last_minute` | The Reverie, nhận phòng trong ngày | không có cột "Max persons" ("Sleeps: 2 adults" trong ô loại phòng), giá gạch, "Total cost to cancel", nhãn ở ô điều kiện |
 | `rex_2026-09-25_partner_offers` | Rex Hotel | dòng "Booking Basic" (`bbasic`, giá đối tác) bị bỏ, ID loại phòng lấy từ dòng giá của khách sạn |
 | `caravelle_2026-10-10` | Caravelle | nhóm chỉ có giá đối tác bị bỏ, 11 loại phòng |
+| `searchresults_hcmc_2026-10-09` | Trang kết quả tìm kiếm Ho Chi Minh City (dest_id -3730078, city), 1 đêm 09/10, 2 người lớn, VND, trang đầu; bắt 2026-10-02, chỉ giữ tiêu đề "N properties found", 25 thẻ `property-card` (bỏ svg/class) và kho Apollo rút gọn | parser thị trường toàn thành phố (`tests/unit/test_marketscan_parser.py`): kho Apollo và thẻ HTML dự phòng cho cùng kết quả |
+| `autocomplete_ho_chi_minh_city.json` | Phản hồi `accommodations.booking.com/autocomplete.json` cho "Ho Chi Minh City" (nguyên bản) | chọn địa điểm city/district/region → dest_id/dest_type |
 
 Các số kỳ vọng viết tay trong `tests/unit/test_parser.py` được trích độc lập từ HTML (không qua
 parser). File `*.expected.json` là golden sinh bằng `explore_fixture.py --emit-expected` từ chính

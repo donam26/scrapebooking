@@ -1,15 +1,32 @@
 name: scrapebooking
 
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/scrapebooking
+  REDIS_URL: redis://redis:6379/0
+  MINIO_ENDPOINT: http://minio:9000
+
 x-backend: &backend
   build:
     context: ..
     dockerfile: infra/Dockerfile.backend
   env_file: ../.env
-  environment:
-    DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/scrapebooking
-    REDIS_URL: redis://redis:6379/0
-    MINIO_ENDPOINT: http://minio:9000
+  environment: *backend-env
   restart: unless-stopped
+
+# Worker thu dữ liệu: một service mỗi kênh (WORKER_CHANNEL), mỗi kênh một hàng đợi riêng (D9).
+# Tăng thông lượng một kênh: `docker compose up -d --scale worker-agoda=2`.
+x-collector: &collector
+  <<: *backend
+  command: ["arq", "app.worker.settings.WorkerSettings"]
+  depends_on:
+    migrate: { condition: service_completed_successfully }
+    redis: { condition: service_healthy }
+    minio: { condition: service_healthy }
+  deploy:
+    resources:
+      limits:
+        memory: 1500M
+  shm_size: "512m"
 
 services:
   postgres:
@@ -65,17 +82,35 @@ services:
       redis: { condition: service_healthy }
 
   worker:
-    <<: *backend
-    command: ["arq", "app.worker.settings.WorkerSettings"]
-    depends_on:
-      migrate: { condition: service_completed_successfully }
-      redis: { condition: service_healthy }
-      minio: { condition: service_healthy }
-    deploy:
-      resources:
-        limits:
-          memory: 1500M
-    shm_size: "512m"
+    # Booking.com (tên service giữ nguyên để không đổi cấu hình giám sát cũ).
+    <<: *collector
+    environment:
+      <<: *backend-env
+      WORKER_CHANNEL: booking
+
+  worker-agoda:
+    <<: *collector
+    environment:
+      <<: *backend-env
+      WORKER_CHANNEL: agoda
+
+  worker-ivivu:
+    <<: *collector
+    environment:
+      <<: *backend-env
+      WORKER_CHANNEL: ivivu
+
+  worker-tripcom:
+    <<: *collector
+    environment:
+      <<: *backend-env
+      WORKER_CHANNEL: tripcom
+
+  worker-mytour:
+    <<: *collector
+    environment:
+      <<: *backend-env
+      WORKER_CHANNEL: mytour
 
   jobs:
     # Analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu, poll batch, backup đêm.

@@ -1,0 +1,347 @@
+{
+  "meta": {
+    "title": "OTARadar · Track competitor availability and rates on Booking.com, Agoda, iVIVU, Trip.com",
+    "description": "OTARadar reads the Booking.com, Agoda, iVIVU and Trip.com pages of your hotel and your competitors three times a day, records rooms left and rates for every night of the next 30 days, then sends you an evidence-backed morning brief.",
+    "ogTitle": "OTARadar · Know how many rooms your competitors have left before you set your rate",
+    "ogDescription": "Competitor availability and rates on Booking.com, Agoda, iVIVU and Trip.com, three times a day, 30 nights ahead."
+  },
+  "skip": "Skip to content",
+  "homeLink": "OTARadar, home",
+  "sectionsNav": "On this page",
+  "openMenu": "Open menu",
+  "nav": {
+    "why": "Why",
+    "how": "How it works",
+    "board": "30-night board",
+    "brief": "AI brief",
+    "faq": "FAQ"
+  },
+  "contactUs": "Talk to us",
+  "login": "Sign in",
+  "toDashboard": "Go to dashboard",
+  "hero": {
+    "eyebrow": "Hotel competitor tracking",
+    "title": "Know how many rooms your competitors have left before you set your rate",
+    "ticks": {
+      "rates": "Competitor availability and rates on Booking.com, Agoda, iVIVU and Trip.com, 3 times a day",
+      "events": "Sell-outs, restocks and rate changes for every night of the next 30 days",
+      "brief": "AI brief at 07:30, with evidence behind every insight"
+    },
+    "price": "<strong>Contact us for pricing</strong><span>, and we will set it up with you</span>",
+    "sample": "See the sample board",
+    "assure": "No booking channel logins needed, no software to install",
+    "trustLabel": "Service at a glance",
+    "trust": {
+      "scans": "<b>3 scans</b> a day",
+      "nights": "<b>30 nights</b> ahead, by room type",
+      "events": "<b>9 event types</b> between scans",
+      "channels": "Public data from <b>Booking.com, Agoda, iVIVU, Trip.com</b>"
+    }
+  },
+  "visual": {
+    "navOverview": "Overview",
+    "navEvents": "Events",
+    "navBrief": "Brief",
+    "brief": "The {from}–{to} weekend is filling fast: 3 of 4 competitors are sold out on {night}. Suggestion: hold rates on the rooms you have left.",
+    "pillSoldOut": "{hotel} just sold out",
+    "pillLeft": "{hotel} · {count, plural, one {# room} other {# rooms}} left",
+    "boardLabel": "Illustration: {night}, {time} scan, {sold} of {total} competitors sold out.",
+    "boardWhen": "{night} · {time} scan",
+    "boardBig": "{sold}/{total} <span>competitors sold out</span>",
+    "you": "You",
+    "briefLabel": "07:30 brief"
+  },
+  "why": {
+    "title": "Price only tells half the story",
+    "lead": "Two hotels both charge 1.2 million VND for Saturday night. One has 14 rooms left, the other has 2. From the rate alone, you can't tell whether the market is heating up or slowing down. OTARadar counts the rooms left first, then puts the rate beside them.",
+    "perNight": "/ Saturday night",
+    "roomsLabel": "{left} of {total} rooms left",
+    "calm": {
+      "name": "Hotel A",
+      "badge": "Plenty of rooms left",
+      "note": "<b>{count, plural, one {# room left.} other {# rooms left.}}</b> Demand is still slow, and competitors may cut rates soon"
+    },
+    "hot": {
+      "name": "Hotel B",
+      "badge": "Only 2 rooms left",
+      "note": "<b>{count, plural, one {# room left.} other {# rooms left.}}</b> Nearly full: a night to hold or raise your rate"
+    },
+    "confidenceTitle": "Channels don't publish room counts. We tell you exactly how sure we are.",
+    "confidence": {
+      "exact": {
+        "name": "Exact",
+        "text": "The page says “Only 2 rooms left”. An exact count, used to measure pace."
+      },
+      "capped": {
+        "name": "At least",
+        "text": "The room selector hits the page's limit. We know for certain at least that many are left."
+      },
+      "hidden": {
+        "name": "Hidden",
+        "text": "Rooms are available but the page hides the count. Recorded as available, with no guessing."
+      },
+      "sold_out": {
+        "name": "Sold out",
+        "text": "The room type disappears or shows as sold out. The calendar is read first, so this is never mistaken for a minimum-stay restriction."
+      }
+    }
+  },
+  "steps": {
+    "title": "Three laps of the market, every day",
+    "lead": "Every scan runs the same steps in the same order. Each step only uses the output of the one before, so every number on the board traces back to its source page.",
+    "calendar": {
+      "time": "06:00",
+      "title": "Open the 30-day calendar",
+      "text": "Read each hotel's calendar first: which nights are on sale and which have a minimum stay. Closed nights don't need a page load."
+    },
+    "nights": {
+      "time": "Right after",
+      "title": "Read every night",
+      "text": "Load the page for each night with the right minimum stay, recording every room type, rooms left, rate, cancellation policy and breakfast."
+    },
+    "compare": {
+      "time": "When the scan ends",
+      "title": "Compare with last time",
+      "text": "Check against the latest usable observation to catch sell-outs, restocks, shrinking availability and rate changes of 3% or more."
+    },
+    "brief": {
+      "time": "07:30",
+      "title": "Morning brief",
+      "text": "Market summary, demand signals, pricing opportunities and risks, with every insight linked to its source data."
+    },
+    "rescan": {
+      "time": "14:00 · 22:00",
+      "title": "Two more scans",
+      "text": "Keep up with nights that are selling fast. Scan times, scans per day and nights tracked can all be adjusted to your time zone."
+    }
+  },
+  "boardSection": {
+    "title": "The next 30 nights on one board",
+    "lead": "Your hotel on the top row, competitors below, the comp set band at the bottom. Click a cell to see each room type, its rate and earlier observations.",
+    "note": "Sample board with fictional hotels and figures, laid out exactly as the dashboard shows it."
+  },
+  "briefSection": {
+    "title": "The 07:30 brief only says what the data can prove",
+    "lead": "Every morning, the latest scan is combined with events from the past 24 hours and 7 days, comp set metrics, PMS occupancy and public holidays, then handed to an AI model to write the brief.",
+    "ticks": {
+      "cite": "Every insight must cite a real event or metric",
+      "dropped": "Insights without evidence are dropped and logged for you to review",
+      "onDemand": "Need it now? Generate a fresh brief from the dashboard"
+    },
+    "note": "Sample brief, built from the sample data on the board above."
+  },
+  "pms": {
+    "title": "Put your real occupancy next to the market",
+    "lead": "Import a CSV or Excel export from your PMS, whether ezCloud, Newway or any other system. When competitors are filling up and you still have plenty of rooms, that is a night to hold your rate, not sell your last rooms cheap.",
+    "ticks": {
+      "mapping": "Map your columns once, then just upload the file",
+      "errors": "Row-by-row errors: invalid dates, duplicate dates, more rooms sold than you have",
+      "reimport": "Re-importing never duplicates data"
+    },
+    "importLabel": "PMS file import result (sample)",
+    "importTitle": "PMS import result",
+    "importFile": "occupancy-october.xlsx",
+    "importSummary": "<b>30 of 31 rows valid</b>, occupancy updated for 30 nights.",
+    "colRow": "Row",
+    "colDate": "Date",
+    "colError": "Error",
+    "rowError": "Rooms sold (62) exceeds total rooms (60)"
+  },
+  "chart": {
+    "title": "Your occupancy vs the market",
+    "soldOut": "Competitors sold out",
+    "occupancy": "Occupancy from PMS",
+    "label": "Illustration: on {night}, {soldOut}% of competitors are sold out and your occupancy is {occupancy}%.",
+    "note": "Sample data"
+  },
+  "principles": {
+    "bannerLine1": "Every lit window is a room still unsold.",
+    "bannerLine2": "We count them, three times a day.",
+    "title": "Considerate collection, transparent numbers",
+    "lead": "The principles we follow when reading public data for you.",
+    "public": {
+      "title": "Public pages only",
+      "text": "We never log in to a booking channel, never use your extranet account and never collect guests' personal data."
+    },
+    "pace": {
+      "title": "A considerate pace",
+      "text": "Page loads are spaced a few seconds apart, never in bursts, and each hotel is read one page at a time."
+    },
+    "market": {
+      "title": "True local rates",
+      "text": "Pages are viewed as a guest in the hotel's own country. Rates stay in the displayed currency, never converted."
+    },
+    "archive": {
+      "title": "Source pages kept",
+      "text": "Source pages are stored for a while (30 days by default). When a channel changes its layout, the data is re-read instead of lost."
+    },
+    "limits": {
+      "title": "Clear about limits",
+      "text": "We currently track Booking.com, Agoda, iVIVU and Trip.com, counting rooms separately for each channel. Every search assumes 2 adults, so single-occupancy room types don't appear."
+    }
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "account": {
+      "q": "Does OTARadar need my Booking.com account?",
+      "a": "No. The system only reads the public pages any guest can see. Your extranet account is never involved."
+    },
+    "accuracy": {
+      "q": "How accurate are the rooms-left counts?",
+      "a": "Booking channels usually only show an exact number when few rooms are left. That is why every number in OTARadar carries a confidence level: exact, at least, hidden or sold out. Pace is only calculated from pairs of exact counts."
+    },
+    "hotels": {
+      "q": "Which hotels can I track?",
+      "a": "Any hotel with a page on Booking.com, Agoda, iVIVU or Trip.com: paste the link to add it to your list. Your own hotel sits in the same list, so it always appears next to your competitors."
+    },
+    "channels": {
+      "q": "Which channels are tracked?",
+      "a": "Booking.com, Agoda, iVIVU and Trip.com. Each channel has its own inventory, so rooms are counted per channel and never added together. Expedia and Traveloka are not supported yet."
+    },
+    "timing": {
+      "q": "How soon will I see data?",
+      "a": "The first scan runs as soon as setup is complete. Events such as sell-outs and rate changes appear from the second scan, and the brief arrives every morning at 07:30."
+    },
+    "pms": {
+      "q": "Do I have to connect a PMS?",
+      "a": "No. Without a PMS you still get the full competitor data. Importing a file from your PMS puts your real occupancy next to the market, both on the board and in the brief."
+    },
+    "team": {
+      "q": "Can my whole team use it?",
+      "a": "Yes. Admin accounts manage the watchlist, scan times and PMS imports; view-only accounts are for anyone who just needs to read the numbers."
+    },
+    "pricing": {
+      "q": "How much does it cost?",
+      "a": "Get in touch for a quote tailored to your hotel."
+    }
+  },
+  "cta": {
+    "title": "Send us your hotel's link",
+    "lead": "Add a few competitors you usually compare against. We will set up your watchlist, run the first scan and show you the market for the next 30 nights.",
+    "steps": {
+      "send": "<b>Send the links</b> for your hotel and your competitors",
+      "setup": "<b>We set up</b> your account and scan times in your time zone",
+      "read": "<b>Read the brief</b> every morning at 07:30"
+    },
+    "empty": "Contact details are coming soon."
+  },
+  "contact": {
+    "zalo": "Message on Zalo",
+    "zaloLink": "Chat with us on Zalo",
+    "phone": "Call us",
+    "email": "Email us",
+    "emailSubject": "OTARadar enquiry"
+  },
+  "footer": {
+    "tagline": "Competitor availability and rate tracking on Booking.com, Agoda, iVIVU and Trip.com for hotels in Vietnam.",
+    "linksLabel": "Footer links",
+    "contact": "Contact",
+    "disclaimer": "OTARadar is an independent service, not affiliated with Booking.com, Agoda, iVIVU or Trip.com. These names are trademarks of their respective owners.",
+    "credits": "Photos: <list></list> on Unsplash."
+  },
+  "photos": {
+    "coffee": "A Vietnamese phin coffee filter dripping on a wooden chair in the early morning sun",
+    "windows": "A building façade at night, lit windows scattered among dark ones",
+    "desk": "A wall of wooden pigeonholes behind a reception desk, a room key hanging in each, a few empty",
+    "key": "Room key number 7 with a brass tag and a green tassel",
+    "coast": "My Khe Beach, Da Nang at dusk, lined with beachfront hotels"
+  },
+  "demo": {
+    "selfHotel": "Your hotel",
+    "roomTypes": {
+      "deluxeDoubleSea": "Deluxe Double, Sea View",
+      "superiorTwin": "Superior Twin",
+      "familySuite": "Family Suite",
+      "deluxeDouble": "Deluxe Double",
+      "standardTwin": "Standard Twin",
+      "boutiqueDouble": "Boutique Double",
+      "juniorSuite": "Junior Suite",
+      "superiorDouble": "Superior Double",
+      "deluxeBalcony": "Deluxe with Balcony",
+      "premierSea": "Premier Sea View",
+      "deluxeCity": "Deluxe City View",
+      "twoBedApartment": "Two-Bedroom Apartment"
+    },
+    "plans": {
+      "freeCancellation": "Free cancellation",
+      "breakfast": "Breakfast included",
+      "nonRefundable": "Non-refundable"
+    },
+    "events": {
+      "sold_out": "Sold out",
+      "restock": "Back on sale",
+      "rooms_decrease": "Rooms down",
+      "low_stock_enter": "Almost sold out",
+      "price_down": "Rate cut",
+      "price_up": "Rate rise"
+    },
+    "confidence": {
+      "exact": "Exact",
+      "capped": "At least",
+      "hidden": "Hidden",
+      "sold_out": "Sold out"
+    },
+    "soldOutShort": "FULL",
+    "availableShort": "OPEN"
+  },
+  "board": {
+    "title": "Overview · next 30 nights",
+    "latestScan": "Latest scan: today 22:00",
+    "scrollLabel": "Rooms left by hotel and night, scrolls horizontally",
+    "caption": "Rooms left at your hotel and four competitors over the next 30 nights (sample)",
+    "hotelCol": "Hotel",
+    "yours": "Yours",
+    "cellLabel": "{hotel}, {night}: {rooms}",
+    "soldOut": "Sold out",
+    "roomsAvailable": "Rooms available",
+    "roomsAtLeast": "{count, plural, one {At least # room left} other {At least # rooms left}}",
+    "roomsLeft": "{count, plural, one {# room left} other {# rooms left}}",
+    "bandSoldOut": "Competitors sold out",
+    "bandMeter": "{sold} of {total}",
+    "bandPrice": "Lowest rate (thousand ₫)",
+    "legend": {
+      "exact": "Exact: the page shows “only X rooms left”",
+      "capped": "At least: the number is a floor",
+      "hidden": "Hidden: rooms available, count not shown",
+      "soldOut": "Sold out"
+    },
+    "detailNight": "· {night}",
+    "fromPrice": "from {price}",
+    "typesCaption": "Each room type in the latest scan",
+    "colType": "Room type",
+    "colLeft": "Left",
+    "colPrice": "Rate / night",
+    "historyTitle": "Last six observations",
+    "historyLabel": "Earlier observations, older ones printed fainter",
+    "yesterdayShort": "Yest.",
+    "todayShort": "Today",
+    "historyNote": "The older the scan, the fainter the print. Pace is only calculated between two exact counts.",
+    "eventsTitle": "Events for this night",
+    "noEvents": "No significant changes between scans.",
+    "priceChange": "{from}k → {to}k",
+    "roomsChange": "{from} → {to, plural, one {# room} other {# rooms}}",
+    "scanYesterday": "Yesterday {time}",
+    "scanToday": "Today {time}"
+  },
+  "brief": {
+    "label": "Sample brief",
+    "title": "Morning brief",
+    "weekday": "{day, select, 0 {Sunday} 1 {Monday} 2 {Tuesday} 3 {Wednesday} 4 {Thursday} 5 {Friday} other {Saturday}}",
+    "meta": "{day} · 07:30 · data up to the {scan} scan",
+    "summary": "The {eve}–{peak} weekend is filling fast: {sold} of {total} competitors are sold out on {peak}. Your hotel still has at least {known, plural, one {# room} other {# rooms}} for that night, with PMS occupancy at only {occupancy}%.",
+    "peakTitle": "{night}: the market is nearly full",
+    "confHigh": "High confidence",
+    "confMedium": "Medium confidence",
+    "peakRec": "Suggestion: hold rates on the rooms you have left, and consider raising sea-view rates before the 14:00 scan.",
+    "evidence": "Evidence",
+    "compset": "<b>Comp set</b> {sold}/{total} competitors sold out",
+    "dropTitle": "{hotel} cuts its rate {pct}% for {night}",
+    "dropRec": "Suggestion: no action yet; check the 06:00 scan to see whether other competitors follow.",
+    "dropEvidence": "<b>{hotel}</b> Rate cut {from}k → {to}k <span>{when}</span>",
+    "signals": "Demand signals",
+    "high": "High",
+    "medium": "Medium",
+    "dropped": "<b>1 insight dropped</b> because it cited no event or metric as evidence.",
+    "quality": "Data quality: {hotel} has room types known only as “at least”, so pace uses exact counts only."
+  }
+}

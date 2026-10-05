@@ -14,7 +14,7 @@ from app.clock import FixedClock
 from app.collector.fake import FakeCollector
 from app.collector.storage import MemoryRawStore
 from app.config import Settings
-from app.db.models import Hotel, Insight, ScanJob, ScanRun, Tenant, TenantHotel
+from app.db.models import Insight, ScanJob, ScanRun, Tenant, TenantHotel
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
 from app.insight.client import FakeInsightClient
 from app.insight.service import InsightService, daily_due_today
@@ -22,10 +22,12 @@ from app.jobs.settings import select_daily_dispatch
 from app.ops.alerts import NullAlerter
 from app.repo.runs import HotelJobPlan, ScanRunRepository
 from app.repo.snapshots import SnapshotRepository
+from app.scheduler.channel_pause import MemoryChannelPauses
 from app.scheduler.service import SchedulerService
 from app.worker.jobs import WorkerDeps
 from app.worker.settings import MAX_TRIES, probe_hotel
 from tests.integration.conftest import FakeQueue
+from tests.integration.seed import add_hotel
 from tests.integration.test_api import _login, _seed
 
 NOW = datetime(2026, 9, 23, 23, 2, tzinfo=UTC)
@@ -47,19 +49,21 @@ async def test_tenant_scan_now_creates_run_and_dedups(
     await _login(client, "admin@a.com", "admin-pass-1")
     r = await client.post("/watchlist/scan-now")
     assert r.status_code == 202, r.text
-    run = r.json()
+    [run] = r.json()  # watchlist chỉ có Booking: một run
     assert run["total_jobs"] == 2 and run["trigger_key"].startswith(f"manual:t{ids['t1']}:")
+    assert run["channel"] == "booking" and run["trigger_key"].endswith(":booking")
     assert sorted(queue.probes) == sorted([(run["id"], ids["own"]), (run["id"], ids["comp"])])
+    assert queue.probe_channels == ["booking", "booking"]
     # gọi lại trong 10 phút: trả đợt đang chạy, không tạo thêm
     r2 = await client.post("/watchlist/scan-now")
-    assert r2.status_code == 202 and r2.json()["id"] == run["id"]
+    assert r2.status_code == 202 and [x["id"] for x in r2.json()] == [run["id"]]
     assert len(queue.probes) == 2
     # tenant khác không nhìn thấy khách sạn của t1 trong đợt của mình
     await _login(client, "op@x.com", "op-pass-123")
     r = await client.post("/watchlist/scan-now", params={"tenant_id": ids["t2"]})
-    assert r.status_code == 202 and r.json()["total_jobs"] == 1
+    assert r.status_code == 202 and [x["total_jobs"] for x in r.json()] == [1]
     r = await client.post("/health/scan-now")
-    assert r.status_code == 202 and r.json()["total_jobs"] == 3
+    assert r.status_code == 202 and [x["total_jobs"] for x in r.json()] == [3]
 
 
 async def test_scan_now_empty_watchlist_is_422(
@@ -97,9 +101,8 @@ async def test_expired_run_is_sent_to_analytics(db: AsyncSession) -> None:
         country_code="vn",
         active=True,
     )
-    h1 = Hotel(booking_url="u", booking_slug="vn/h1", country_code="vn")
-    db.add_all([t1, h1])
-    await db.flush()
+    db.add(t1)
+    h1 = await add_hotel(db, "vn/h1")
     db.add(TenantHotel(tenant_id=t1.id, hotel_id=h1.id, role="self", active=True))
     await db.commit()
     queue = FakeSchedulerQueue()
@@ -141,16 +144,19 @@ async def test_probe_hotel_retries_then_finalizes_run(db: AsyncSession) -> None:
         async def fetch_calendar(self, hotel, start, days, adults):  # type: ignore[no-untyped-def]
             raise RuntimeError("db gone")
 
-    hotel = Hotel(booking_url="u", booking_slug="vn/h1", country_code="vn")
-    db.add(hotel)
-    await db.flush()
+    hotel = await add_hotel(db, "vn/h1")
     run = await ScanRunRepository(db).create_run(
         "k", NOW, [HotelJobPlan(hotel.id, date(2026, 9, 24), 2)]
     )
     assert run is not None
     await db.commit()
     run_id, hotel_id = run.id, hotel.id
-    ctx: dict[str, Any] = {"deps": _deps(db, BrokenCalendar()), "job_try": 1}
+    ctx: dict[str, Any] = {
+        "deps": _deps(db, BrokenCalendar()),
+        "job_try": 1,
+        "channel": "booking",
+        "pauses": MemoryChannelPauses(lambda: NOW),
+    }
     with pytest.raises(Retry):
         await probe_hotel(ctx, run_id, hotel_id)
     db.expire_all()
@@ -162,6 +168,37 @@ async def test_probe_hotel_retries_then_finalizes_run(db: AsyncSession) -> None:
     run_row = (await db.execute(select(ScanRun))).scalar_one()
     job = (await db.execute(select(ScanJob))).scalar_one()
     assert run_row.status == "partial" and job.status == "failed"
+
+
+async def test_probe_hotel_on_paused_channel_fails_job_without_requests(db: AsyncSession) -> None:
+    # Kênh đang tự ngắt (tỉ lệ chặn cao): không gửi thêm request, chốt job để run kết thúc.
+    hotel = await add_hotel(db, "vn/h1")
+    run = await ScanRunRepository(db).create_run(
+        "k:booking", NOW, [HotelJobPlan(hotel.id, date(2026, 9, 24), 2)]
+    )
+    assert run is not None
+    await db.commit()
+    run_id, hotel_id = run.id, hotel.id
+    collector = FakeCollector()
+    pauses = MemoryChannelPauses(lambda: NOW)
+    await pauses.pause("booking", 30, "block rate")
+    ctx: dict[str, Any] = {
+        "deps": _deps(db, collector),
+        "job_try": 1,
+        "channel": "booking",
+        "pauses": pauses,
+    }
+    assert await probe_hotel(ctx, run_id, hotel_id) == {
+        "probed": 0,
+        "skipped": 0,
+        "fresh": 0,
+        "failed": 0,
+    }
+    assert collector.calendar_calls == [] and collector.probe_calls == []
+    db.expire_all()
+    job = (await db.execute(select(ScanJob))).scalar_one()
+    assert (job.status, job.error) == ("failed", "channel paused (block rate)")
+    assert (await db.execute(select(ScanRun))).scalar_one().status == "partial"
 
 
 # ---- bản tin: không có dữ liệu quét ----
@@ -178,9 +215,8 @@ async def test_insight_without_scan_data_fails_fast(db: AsyncSession) -> None:
         country_code="vn",
         active=True,
     )
-    hotel = Hotel(booking_url="u", booking_slug="vn/h", country_code="vn")
-    db.add_all([tenant, hotel])
-    await db.flush()
+    db.add(tenant)
+    hotel = await add_hotel(db, "vn/h")
     db.add(TenantHotel(tenant_id=tenant.id, hotel_id=hotel.id, role="self", active=True))
     await db.commit()
     client = FakeInsightClient(
@@ -311,12 +347,11 @@ async def test_snapshot_then_insight_end_to_end_with_manual_run(db: AsyncSession
         country_code="vn",
         active=True,
     )
-    hotel = Hotel(booking_url="u", booking_slug="vn/h", country_code="vn")
-    db.add_all([tenant, hotel])
-    await db.flush()
+    db.add(tenant)
+    hotel = await add_hotel(db, "vn/h")
     db.add(TenantHotel(tenant_id=tenant.id, hotel_id=hotel.id, role="self", active=True))
     run = await ScanRunRepository(db).create_run(
-        "manual:t1:x", NOW, [HotelJobPlan(hotel.id, date(2026, 9, 24), 3)]
+        "manual:t1:x:booking", NOW, [HotelJobPlan(hotel.id, date(2026, 9, 24), 3)]
     )
     assert run is not None
     await db.commit()
@@ -334,7 +369,9 @@ async def test_snapshot_then_insight_end_to_end_with_manual_run(db: AsyncSession
         "s",
         10,
     )
-    await SnapshotRepository(db, 10).write_probe(run.id, hotel.id, stay, res, None, "1", "vn", NOW)
+    await SnapshotRepository(db, 10).write_probe(
+        run.id, hotel.id, "booking", stay, res, None, "1", "vn", NOW
+    )
     await ScanRunRepository(db).finish_job(run.id, hotel.id, "done", NOW)
     assert await ScanRunRepository(db).try_finish_run(run.id, NOW)
     await db.commit()

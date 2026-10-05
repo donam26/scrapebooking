@@ -1,15 +1,17 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.service import AnalyticsService
 from app.api.auth import hash_password
-from app.db.models import Hotel, ScanJob, ScanRun, Tenant, TenantHotel, User
+from app.db.models import ScanJob, Tenant, TenantHotel, User
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
 from app.repo.snapshots import SnapshotRepository
 from tests.integration.conftest import FakeQueue
+from tests.integration.seed import add_hotel, scan_run
 
 T0 = datetime(2026, 9, 24, 6, 0, tzinfo=UTC)
 STAY = date(2026, 10, 5)
@@ -36,11 +38,10 @@ async def _seed(db: AsyncSession) -> dict[str, int]:
         country_code="vn",
         active=True,
     )
-    own = Hotel(booking_url="u", booking_slug="vn/own", country_code="vn", name="Own Hotel")
-    comp = Hotel(booking_url="u", booking_slug="vn/comp", country_code="vn", name="Comp Hotel")
-    other = Hotel(booking_url="u", booking_slug="vn/other", country_code="vn")
-    db.add_all([t1, t2, own, comp, other])
-    await db.flush()
+    db.add_all([t1, t2])
+    own = await add_hotel(db, "vn/own", name="Own Hotel")
+    comp = await add_hotel(db, "vn/comp", name="Comp Hotel")
+    other = await add_hotel(db, "vn/other")
     db.add_all(
         [
             TenantHotel(tenant_id=t1.id, hotel_id=own.id, role="self", active=True, label="Mine"),
@@ -99,10 +100,8 @@ async def test_tenant_scoping_and_roles(client: AsyncClient, db: AsyncSession) -
     await _login(client, "view@a.com", "view-pass-1")
     r = await client.get("/watchlist")
     assert r.status_code == 200
-    assert [w["hotel"]["booking_slug"] for w in r.json()] == ["vn/own", "vn/comp"]  # self trước
-    r = await client.post(
-        "/watchlist", json={"booking_url": "https://www.booking.com/hotel/vn/new.html"}
-    )
+    assert _keys(r.json()) == ["vn/own", "vn/comp"]  # self trước
+    r = await client.post("/watchlist", json={"url": "https://www.booking.com/hotel/vn/new.html"})
     assert r.status_code == 403
     r = await client.get("/watchlist", params={"tenant_id": ids["t2"]})
     assert r.status_code == 403
@@ -115,32 +114,34 @@ async def test_tenant_scoping_and_roles(client: AsyncClient, db: AsyncSession) -
     r = await client.get("/watchlist")
     assert r.status_code == 400
     r = await client.get("/watchlist", params={"tenant_id": ids["t2"]})
-    assert r.status_code == 200 and [w["hotel"]["booking_slug"] for w in r.json()] == ["vn/other"]
+    assert r.status_code == 200 and _keys(r.json()) == ["vn/other"]
     r = await client.get("/tenants")
     assert r.status_code == 200 and len(r.json()) == 2
 
 
-async def test_watchlist_crud(client: AsyncClient, db: AsyncSession) -> None:
+async def test_watchlist_crud(client: AsyncClient, db: AsyncSession, queue: FakeQueue) -> None:
     ids = await _seed(db)
     await _login(client, "admin@a.com", "admin-pass-1")
     r = await client.post(
         "/watchlist",
         json={
-            "booking_url": "https://www.booking.com/hotel/vn/the-reverie-saigon.vi.html?aid=1",
+            "url": "https://www.booking.com/hotel/vn/the-reverie-saigon.vi.html?aid=1",
             "role": "competitor",
             "label": "Reverie",
         },
     )
     assert r.status_code == 201, r.text
     hotel_id = r.json()["hotel"]["id"]
-    assert (
-        r.json()["hotel"]["booking_slug"] == "vn/the-reverie-saigon"
-        and r.json()["label"] == "Reverie"
-    )
+    [listing] = r.json()["hotel"]["listings"]
+    assert listing["listing_key"] == "vn/the-reverie-saigon" and r.json()["label"] == "Reverie"
+    r = await client.post("/watchlist", json={"url": "https://www.booking.com/searchresults.html"})
+    assert r.status_code == 422 and "booking.com/hotel/vn" in r.json()["detail"]
     r = await client.post(
-        "/watchlist", json={"booking_url": "https://www.booking.com/searchresults.html"}
+        "/watchlist",
+        json={"url": "https://www.booking.com/searchresults.html"},
+        headers={"Accept-Language": "en-GB,en;q=0.9"},
     )
-    assert r.status_code == 422
+    assert r.status_code == 422 and r.json()["detail"].startswith("The Booking link must be")
     r = await client.patch(f"/watchlist/{hotel_id}", json={"label": "RV"})
     assert r.status_code == 200 and r.json()["label"] == "RV"
     r = await client.delete(f"/watchlist/{hotel_id}")
@@ -162,6 +163,10 @@ async def test_settings_and_users(client: AsyncClient, db: AsyncSession) -> None
     assert r.status_code == 200 and r.json()["scan_times"] == ["05:00", "13:00"]
     r = await client.patch("/settings", json={"scan_times": ["25:00"]})
     assert r.status_code == 422
+    r = await client.patch("/settings", json={"insight_language": "fr"})
+    assert r.status_code == 422 and r.json()["detail"][0]["loc"] == ["body", "insight_language"]
+    r = await client.patch("/settings", json={"insight_language": "en"})
+    assert r.status_code == 200 and r.json()["insight_language"] == "en"
     r = await client.post(
         "/users", json={"email": "new@a.com", "password": "password-1", "role": "viewer"}
     )
@@ -186,6 +191,10 @@ async def test_settings_and_users(client: AsyncClient, db: AsyncSession) -> None
     assert r.status_code == 200 and r.json()["horizon_days"] == 45
 
 
+def _keys(items: list[dict[str, object]]) -> list[str]:
+    return [w["hotel"]["listings"][0]["listing_key"] for w in items]  # type: ignore[index]
+
+
 def _offer(rid: str, badge: int | None, dropdown: int | None, price: str) -> RoomOffer:
     return RoomOffer(
         rid,
@@ -198,14 +207,8 @@ def _offer(rid: str, badge: int | None, dropdown: int | None, price: str) -> Roo
 
 
 async def _snapshot_data(db: AsyncSession, ids: dict[str, int]) -> int:
-    run = ScanRun(
-        trigger_key="r1",
-        scheduled_at=T0,
-        started_at=T0,
-        finished_at=T0 + timedelta(minutes=20),
-        status="completed",
-        total_probes=2,
-    )
+    run = scan_run("r1:booking", T0, finished_at=T0 + timedelta(minutes=20))
+    run.total_probes = 2
     db.add(run)
     await db.flush()
     repo = SnapshotRepository(db, 10)
@@ -222,10 +225,11 @@ async def _snapshot_data(db: AsyncSession, ids: dict[str, int]) -> int:
         "s",
         10,
     )
-    await repo.write_probe(run.id, ids["own"], STAY, ok, None, "1", "vn", T0)
+    await repo.write_probe(run.id, ids["own"], "booking", STAY, ok, None, "1", "vn", T0)
     await repo.write_probe(
         run.id,
         ids["comp"],
+        "booking",
         STAY,
         ProbeResult(
             ProbeStatus.SOLD_OUT,
@@ -248,14 +252,8 @@ async def _snapshot_data(db: AsyncSession, ids: dict[str, int]) -> int:
     await db.commit()
     await AnalyticsService(db).run(run.id)
     await db.commit()
-    run2 = ScanRun(
-        trigger_key="r2",
-        scheduled_at=T0 + timedelta(hours=8),
-        started_at=T0 + timedelta(hours=8),
-        finished_at=T0 + timedelta(hours=9),
-        status="completed",
-        total_probes=2,
-    )
+    run2 = scan_run("r2:booking", T0 + timedelta(hours=8), finished_at=T0 + timedelta(hours=9))
+    run2.total_probes = 2
     db.add(run2)
     await db.flush()
     ok2 = ProbeResult(
@@ -271,8 +269,12 @@ async def _snapshot_data(db: AsyncSession, ids: dict[str, int]) -> int:
         "s",
         10,
     )
-    await repo.write_probe(run2.id, ids["own"], STAY, ok2, None, "1", "vn", T0 + timedelta(hours=8))
-    await repo.write_probe(run2.id, ids["comp"], STAY, ok, None, "1", "vn", T0 + timedelta(hours=8))
+    await repo.write_probe(
+        run2.id, ids["own"], "booking", STAY, ok2, None, "1", "vn", T0 + timedelta(hours=8)
+    )
+    await repo.write_probe(
+        run2.id, ids["comp"], "booking", STAY, ok, None, "1", "vn", T0 + timedelta(hours=8)
+    )
     await db.commit()
     await AnalyticsService(db).run(run2.id)
     await db.commit()
@@ -301,7 +303,29 @@ async def test_overview_hotel_day_events(client: AsyncClient, db: AsyncSession) 
         body["compset"][0]["competitors_observed"] == 1
         and body["compset"][0]["price_index"] == "110.0"
     )
+    # Bạn 110, đối thủ 100: rẻ thứ 2 trong 2 khách sạn có giá; đêm không có giá của bạn thì không hạng
+    assert body["compset"][0]["own_rank"] == 2 and body["compset"][0]["priced_hotels"] == 2
+    assert body["compset"][1]["own_rank"] is None
+    assert body["holidays"] == []
     assert body["last_run"]["id"] == run2
+    r = await client.get("/overview", params={"start": "2026-09-01", "end": "2026-09-03"})
+    assert r.json()["holidays"] == [
+        {"date": "2026-09-02", "name": "Quốc khánh", "kind": "holiday", "group": "national_day"},
+        {
+            "date": "2026-09-03",
+            "name": "Quốc khánh (nghỉ bù)",
+            "kind": "holiday",
+            "group": "national_day",
+        },
+    ]
+    r = await client.get(
+        "/overview",
+        params={"start": "2026-09-01", "end": "2026-09-02"},
+        headers={"Accept-Language": "en"},
+    )
+    assert r.json()["holidays"] == [
+        {"date": "2026-09-02", "name": "National Day", "kind": "holiday", "group": "national_day"}
+    ]
 
     r = await client.get(
         f"/hotels/{ids['own']}", params={"start": STAY.isoformat(), "end": STAY.isoformat()}
@@ -319,6 +343,8 @@ async def test_overview_hotel_day_events(client: AsyncClient, db: AsyncSession) 
     assert len(d["room_types"]) == 1 and len(d["history"]) == 2 and len(d["latest"]) == 1
     assert d["latest"][0]["rooms_left"] == 1 and d["latest"][0]["stock_confidence"] == "exact"
     assert [o["status"] for o in d["observations"]] == ["available", "available"]
+    assert d["compset"]["own_rank"] == 2 and d["compset"]["median_price"] == "100.00"
+    assert d["holiday"] is None
 
     r = await client.get("/events", params={"event_type": "restock,rooms_decrease"})
     assert r.status_code == 200
@@ -330,6 +356,32 @@ async def test_overview_hotel_day_events(client: AsyncClient, db: AsyncSession) 
     assert r.status_code == 404
     r = await client.get("/runs")
     assert r.status_code == 200 and len(r.json()) == 2
+
+
+async def test_day_detail_latest_and_coverage_ignore_history_window(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    ids = await _seed(db)
+    await _snapshot_data(db, ids)
+    await _login(client, "view@a.com", "view-pass-1")
+    # Lâu không quét: cửa sổ 1 ngày không còn lượt nào, nhưng lần quét gần nhất vẫn hiện.
+    url = f"/hotels/{ids['own']}/dates/{STAY.isoformat()}"
+    d = (await client.get(url, params={"history_days": 1})).json()
+    assert d["history"] == [] and d["observations"] == []
+    assert d["latest_status"] == "available" and len(d["latest"]) == 1
+    assert d["latest"][0]["rooms_left"] == 1 and len(d["room_types"]) == 1
+    assert d["last_scan_at"].startswith("2026-09-24T14:00")
+    assert d["last_scan_through"] == STAY.isoformat()
+
+    # Đêm chưa từng được quét: không có dữ liệu nhưng đủ thông tin để giải thích vì sao.
+    today = datetime.now(UTC).astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).date()
+    horizon_end = (today + timedelta(days=29)).isoformat()
+    far = STAY + timedelta(days=40)
+    d = (await client.get(f"/hotels/{ids['own']}/dates/{far.isoformat()}")).json()
+    assert d["latest_status"] is None and d["latest"] == [] and d["observations"] == []
+    assert d["horizon_days"] == 30 and d["horizon_end"] == horizon_end
+    assert d["last_scan_through"] == STAY.isoformat()
+    assert (await client.get("/overview")).json()["horizon_end"] == horizon_end
 
 
 async def test_day_detail_latest_reflects_sold_out_scan(
@@ -344,14 +396,8 @@ async def test_day_detail_latest_reflects_sold_out_scan(
     assert d["latest_status"] == "available" and len(d["latest"]) == 1
     assert d["latest_scanned_at"] == d["latest"][0]["scanned_at"]
 
-    run3 = ScanRun(
-        trigger_key="r3",
-        scheduled_at=T0 + timedelta(hours=16),
-        started_at=T0 + timedelta(hours=16),
-        finished_at=T0 + timedelta(hours=17),
-        status="completed",
-        total_probes=1,
-    )
+    run3 = scan_run("r3:booking", T0 + timedelta(hours=16), finished_at=T0 + timedelta(hours=17))
+    run3.total_probes = 1
     db.add(run3)
     await db.flush()
     sold_out = ProbeResult(
@@ -368,7 +414,7 @@ async def test_day_detail_latest_reflects_sold_out_scan(
         10,
     )
     await SnapshotRepository(db, 10).write_probe(
-        run3.id, ids["own"], STAY, sold_out, None, "1", "vn", T0 + timedelta(hours=16)
+        run3.id, ids["own"], "booking", STAY, sold_out, None, "1", "vn", T0 + timedelta(hours=16)
     )
     await db.commit()
     await AnalyticsService(db).run(run3.id)
@@ -386,17 +432,13 @@ async def test_last_run_and_runs_are_scoped_to_tenant(
     # Run chung toàn hệ thống: tenant chỉ thấy run có khách sạn của mình, số liệu chỉ của mình.
     ids = await _seed(db)
     await _snapshot_data(db, ids)  # 2 run chỉ gồm khách sạn của tenant A
-    shared = ScanRun(
-        trigger_key="r3",
-        scheduled_at=T0 + timedelta(hours=16),
-        started_at=T0 + timedelta(hours=16),
-        finished_at=T0 + timedelta(hours=17),
+    shared = scan_run(
+        "r3:booking",
+        T0 + timedelta(hours=16),
         status="partial",
-        total_jobs=2,
-        total_probes=2,
-        ok_count=1,
-        blocked_count=1,
+        finished_at=T0 + timedelta(hours=17),
     )
+    shared.total_jobs, shared.total_probes, shared.ok_count, shared.blocked_count = 2, 2, 1, 1
     db.add(shared)
     await db.flush()
     db.add_all(
@@ -446,10 +488,10 @@ async def test_last_run_and_runs_are_scoped_to_tenant(
         error="blocked",
     )
     await repo.write_probe(
-        shared.id, ids["own"], STAY, ok, None, "1", "vn", T0 + timedelta(hours=16)
+        shared.id, ids["own"], "booking", STAY, ok, None, "1", "vn", T0 + timedelta(hours=16)
     )
     await repo.write_probe(
-        shared.id, ids["other"], STAY, blocked, None, "1", "vn", T0 + timedelta(hours=16)
+        shared.id, ids["other"], "booking", STAY, blocked, None, "1", "vn", T0 + timedelta(hours=16)
     )
     await db.commit()
     shared_id = shared.id
@@ -575,3 +617,103 @@ async def test_pms_template_mapping_preview_import(client: AsyncClient, db: Asyn
     assert r.status_code == 201
     r = await client.get("/pms/daily")
     assert len(r.json()) == 2
+
+
+async def test_overview_refundable_price_basis(client: AsyncClient, db: AsyncSession) -> None:
+    """Giá hoàn huỷ: bạn bán gói không hoàn huỷ 90 và gói huỷ miễn phí 120; đối thủ chỉ có gói huỷ
+    miễn phí 100. So mọi giá thì bạn rẻ hơn (90), so cùng điều kiện hoàn huỷ thì bạn đắt hơn (120)."""
+    ids = await _seed(db)
+    run = scan_run("rf:booking", T0, finished_at=T0 + timedelta(minutes=20))
+    run.total_probes = 2
+    db.add(run)
+    await db.flush()
+    repo = SnapshotRepository(db, 10)
+
+    def probe(*rates: RatePlan) -> ProbeResult:
+        offer = RoomOffer("1", "Room 1", 2, 3, 3, rates)
+        return ProbeResult(
+            ProbeStatus.OK,
+            ProbeMethod.HTTP,
+            STAY,
+            STAY + timedelta(days=1),
+            1,
+            2,
+            (offer,),
+            "<html/>",
+            200,
+            "s",
+            10,
+        )
+
+    own = probe(
+        RatePlan("Non-refundable", Decimal("90"), "VND", False, None),
+        RatePlan("Free cancellation", Decimal("120"), "VND", True, None),
+    )
+    comp = probe(RatePlan("Free cancellation", Decimal("100"), "VND", True, None))
+    await repo.write_probe(run.id, ids["own"], "booking", STAY, own, None, "1", "vn", T0)
+    await repo.write_probe(run.id, ids["comp"], "booking", STAY, comp, None, "1", "vn", T0)
+    await db.commit()
+    await AnalyticsService(db).run(run.id)
+    await db.commit()
+    await _login(client, "view@a.com", "view-pass-1")
+
+    params = {"start": STAY.isoformat(), "end": STAY.isoformat()}
+    any_ = (await client.get("/overview", params=params)).json()
+    assert any_["hotels"][0]["cells"][0]["min_price"] == "90.00"
+    assert any_["compset"][0]["price_index"] == "90.0" and any_["compset"][0]["own_rank"] == 1
+
+    ref = (await client.get("/overview", params={**params, "price_basis": "refundable"})).json()
+    assert ref["hotels"][0]["cells"][0]["min_price"] == "120.00"
+    assert ref["compset"][0]["price_index"] == "120.0" and ref["compset"][0]["own_rank"] == 2
+
+    bad = await client.get("/overview", params={**params, "price_basis": "cheapest"})
+    assert bad.status_code == 422
+
+
+async def test_export_overview_and_events_csv(client: AsyncClient, db: AsyncSession) -> None:
+    ids = await _seed(db)
+    await _snapshot_data(db, ids)
+    await _login(client, "view@a.com", "view-pass-1")
+
+    r = await client.get(
+        "/export/overview.csv", params={"start": STAY.isoformat(), "end": STAY.isoformat()}
+    )
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("text/csv")
+    assert "scrapebooking-tong-quan-2026-10-05.csv" in r.headers["content-disposition"]
+    text = r.content.decode("utf-8")
+    assert text.startswith("﻿Kênh,Khách sạn,Vai trò,Đêm,Thứ,Trạng thái")
+    lines = text.lstrip("﻿").strip().split("\r\n")
+    assert len(lines) == 3  # tiêu đề + 2 khách sạn × 1 đêm
+    assert lines[1].startswith(
+        "Booking.com,Mine,Khách sạn của bạn,2026-10-05,T2,Còn phòng,1,110,VND,0,1,100,10,2,2,"
+    )
+
+    r = await client.get("/export/events.csv", params={"event_type": "restock"})
+    assert r.status_code == 200
+    rows = r.content.decode("utf-8").lstrip("﻿").strip().split("\r\n")
+    assert rows[0].startswith("Thời điểm quan sát,Kênh,Khách sạn")
+    assert len(rows) == 2 and ",Có phòng lại," in rows[1]
+
+    r = await client.get(
+        "/export/events.csv", params={"event_type": "restock"}, headers={"Accept-Language": "en"}
+    )
+    assert "scrapebooking-events-" in r.headers["content-disposition"]
+    rows = r.content.decode("utf-8").lstrip("﻿").strip().split("\r\n")
+    assert rows[0].startswith("Observed at,Channel,Hotel") and ",Back in stock," in rows[1]
+
+    assert (
+        await client.get("/export/events.csv", params={"hotel_id": ids["other"]})
+    ).status_code == 404
+
+
+async def test_export_is_tenant_scoped(client: AsyncClient, db: AsyncSession) -> None:
+    ids = await _seed(db)
+    await _login(client, "view@a.com", "view-pass-1")
+    r = await client.get("/export/overview.csv", params={"tenant_id": ids["t2"]})
+    assert r.status_code == 403
+    await _login(client, "op@x.com", "op-pass-123")
+    r = await client.get("/export/overview.csv", params={"tenant_id": ids["t2"]})
+    body = r.content.decode("utf-8")
+    assert r.status_code == 200 and "Mine" not in body and "Comp Hotel" not in body
+    assert (await client.get("/export/events.csv")).status_code == 400  # operator phải chọn tenant

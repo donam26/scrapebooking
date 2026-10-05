@@ -1,41 +1,45 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { api, type TenantOut } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { USER_ROLE_LABEL } from "@/lib/labels";
-import { fmtWhen, nextScanLabel } from "@/lib/format";
+import { useLabel } from "@/lib/labels";
+import { channelName } from "@/lib/channels";
+import { scanCollectedNothing, scanOverdue, useFmt } from "@/lib/format";
 import { EmptyState, ErrorBox, Select, SkeletonBlock, cx } from "./ui";
-import {
-  BrandMark,
-  IconBoard,
-  IconBrief,
-  IconBuilding,
-  IconClose,
-  IconHeartbeat,
-  IconLogout,
-  IconMenu,
-  IconPulse,
-  IconSliders,
-  IconUsers,
-} from "./icons";
+import { LocaleSwitcher } from "./locale-switcher";
+import { HEAT_LEVELS } from "./marks";
+import { PopoverMenu } from "./popover-menu";
+import { BrandMark, IconBell, IconBuilding, IconHelp, IconLogout, IconUser } from "./icons";
 
-type NavItem = { href: string; label: string; icon: ReactNode; match?: (p: string) => boolean };
+/**
+ * Khung OTARadar: thanh trên xanh (logo, chọn khách sạn/tenant, trợ giúp, chuông, tài khoản)
+ * và hàng tab ngang trắng, tab đang mở gạch chân xanh.
+ */
+
+/** `key`: khoá trong shell.nav (messages/<ngôn ngữ>/shell.json). */
+type NavItem = { href: string; key: NavKey; match?: (p: string) => boolean };
+type NavKey = "dashboard" | "competitors" | "availability" | "rates" | "terminal" | "insights" | "runs" | "settings" | "tenants" | "users" | "health";
 
 const TENANT_NAV: NavItem[] = [
-  { href: "/overview", label: "Tổng quan", icon: <IconBoard />, match: (p) => p.startsWith("/overview") || p.startsWith("/hotels") },
-  { href: "/events", label: "Sự kiện", icon: <IconPulse /> },
-  { href: "/insights", label: "Bản tin AI", icon: <IconBrief /> },
-  { href: "/settings", label: "Cài đặt", icon: <IconSliders /> },
+  { href: "/dashboard", key: "dashboard", match: (p) => p === "/dashboard" || p === "/today" },
+  { href: "/competitors", key: "competitors", match: (p) => p.startsWith("/competitors") || p.startsWith("/hotels") },
+  { href: "/availability", key: "availability", match: (p) => p.startsWith("/availability") || p.startsWith("/overview") },
+  { href: "/rates", key: "rates" },
+  { href: "/terminal", key: "terminal", match: (p) => p.startsWith("/terminal") || p.startsWith("/pace") },
+  { href: "/insights", key: "insights", match: (p) => p.startsWith("/insights") || p.startsWith("/events") },
+  { href: "/runs", key: "runs" },
+  { href: "/settings", key: "settings" },
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { href: "/admin/tenants", label: "Tenant", icon: <IconBuilding /> },
-  { href: "/admin/users", label: "Tài khoản", icon: <IconUsers /> },
-  { href: "/admin/health", label: "Sức khoẻ scraper", icon: <IconHeartbeat /> },
+  { href: "/admin/tenants", key: "tenants" },
+  { href: "/admin/users", key: "users" },
+  { href: "/admin/health", key: "health" },
 ];
 
 function isActive(item: NavItem, pathname: string): boolean {
@@ -43,144 +47,224 @@ function isActive(item: NavItem, pathname: string): boolean {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-function NavLink({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
+const TOPBAR_BUTTON =
+  "grid h-9 w-9 place-items-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-white";
+
+/** Operator chọn tenant đang xem. `onBlue`: đặt trên thanh trên xanh. */
+export function TenantSwitcher({ onBlue = false, className }: { onBlue?: boolean; className?: string }) {
+  const { isOperator, tenants, tenantId, setTenantId } = useSession();
+  const t = useTranslations("shell.tenant");
+  if (!isOperator) return null;
   return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      aria-current={active ? "page" : undefined}
+    <Select
+      aria-label={t("pick")}
+      value={tenantId ?? ""}
+      onChange={(e) => setTenantId(e.target.value === "" ? null : Number(e.target.value))}
       className={cx(
-        "group flex h-10 items-center gap-3 rounded-lg px-3 text-md font-medium transition-colors duration-150",
-        "focus-visible:outline-brand-light",
-        active ? "bg-white/[0.09] text-white" : "text-on-night-soft hover:bg-white/[0.05] hover:text-white",
+        onBlue &&
+          "!h-9 max-w-[min(320px,42vw)] truncate border-white/25 bg-white/[0.12] !pr-9 font-medium text-white shadow-none [background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")] hover:border-white/45 focus:border-white focus:ring-white/25 [&>option]:text-ink",
+        className,
       )}
     >
-      <span className={cx("shrink-0 transition-colors", active ? "text-brand-light" : "text-on-night-muted group-hover:text-on-night-soft")}>{item.icon}</span>
-      <span className="truncate">{item.label}</span>
-    </Link>
+      <option value="">{t("pickPlaceholder")}</option>
+      {tenants.map((tenant) => (
+        <option key={tenant.id} value={tenant.id}>
+          {tenant.name}
+          {tenant.active ? "" : ` ${t("inactive")}`}
+        </option>
+      ))}
+    </Select>
   );
 }
 
-/** Operator chọn tenant đang xem (trên nền tím than). */
-export function TenantSwitcher({ dark = true }: { dark?: boolean }) {
-  const { isOperator, tenants, tenantId, setTenantId } = useSession();
-  if (!isOperator) return null;
+/** Tên khách sạn/tenant đang xem (người dùng tenant không đổi được). */
+function HotelPill({ name }: { name: string | undefined }) {
+  if (!name) return null;
   return (
-    <label className="block">
-      <span className={cx("mb-1.5 block text-xs font-semibold", dark ? "text-on-night-muted" : "text-body")}>Đang xem tenant</span>
-      <Select
-        aria-label="Chọn tenant"
-        value={tenantId ?? ""}
-        onChange={(e) => setTenantId(e.target.value === "" ? null : Number(e.target.value))}
-        className={cx(
-          dark &&
-            "border-white/15 bg-white/[0.06] text-white shadow-none hover:border-white/30 focus:border-brand-light focus:ring-brand-light/25 [&>option]:text-ink",
-        )}
-      >
-        <option value="">Chọn tenant…</option>
-        {tenants.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-            {t.active ? "" : " (tắt)"}
-          </option>
-        ))}
-      </Select>
-    </label>
+    <span
+      title={name}
+      className="inline-flex h-9 max-w-[min(320px,42vw)] items-center gap-2 rounded-lg border border-white/25 bg-white/[0.12] px-3 text-base font-medium text-white"
+    >
+      <IconBuilding size={16} className="shrink-0 opacity-80" />
+      <span className="truncate">{name}</span>
+    </span>
   );
 }
 
 /** Độ mới dữ liệu: lượt quét gần nhất và mốc kế tiếp theo lịch tenant. */
 function Freshness({ settings }: { settings: TenantOut | undefined }) {
+  const t = useTranslations("shell.freshness");
+  const { fmtAgo, fmtWhen, nextScanLabel } = useFmt();
   const runs = useApi("shell:runs", () => api.runs(1));
   const last = runs.data?.[0];
   const next = settings ? nextScanLabel(settings.scan_times, settings.timezone) : null;
-  if (!last && !next) return null;
+  if (!last && !next) return <div className="text-sm text-muted">{t("noScan")}</div>;
   const running = last?.status === "running";
+  const lastAt = last ? (last.finished_at ?? last.started_at) : null;
+  const failed = last !== undefined && scanCollectedNothing(last);
+  const overdue = !running && !failed && settings !== undefined && scanOverdue(lastAt, settings.scan_times);
   return (
-    <div className="rounded-lg bg-white/[0.04] px-3 py-2.5 text-xs leading-relaxed text-on-night-soft">
-      <div className="flex items-center gap-2">
-        <span aria-hidden className={cx("h-2 w-2 shrink-0 rounded-full", running ? "animate-pulse bg-exact" : "bg-yours shadow-[0_0_0_3px_rgba(0,176,144,0.18)]")} />
-        <span className="text-white">{running ? "Đang quét…" : last ? `Quét lúc ${fmtWhen(last.finished_at ?? last.started_at)}` : "Chưa có lượt quét"}</span>
+    <div className="text-sm leading-relaxed">
+      <div className="flex items-center gap-2 text-ink">
+        <span
+          aria-hidden
+          className={cx("h-2 w-2 shrink-0 rounded-full", running ? "animate-pulse bg-hot" : failed ? "bg-danger" : overdue ? "bg-hot" : "bg-yours")}
+        />
+        {running ? t("scanning") : lastAt ? t("scannedAt", { when: fmtWhen(lastAt) }) : t("noScan")}
       </div>
-      {next && <div className="mt-0.5 pl-4 text-on-night-muted">Lượt tiếp theo {next}</div>}
+      {failed && <div className="pl-4 font-semibold text-danger">{t("failed")}</div>}
+      {overdue && <div className="pl-4 font-semibold text-warning-deep">{t("overdue", { ago: fmtAgo(lastAt) })}</div>}
+      {next && <div className="pl-4 text-muted">{t("next", { when: next })}</div>}
     </div>
   );
 }
 
-function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const { user, isOperator, tenantId, logout } = useSession();
-  // Tên và lịch quét của tenant đang xem (người dùng tenant không có danh sách tenant).
-  const settings = useApi(tenantId === null ? null : "settings", () => api.settings.get());
-  const tenantName = settings.data?.name;
-  const initial = (user?.email ?? "?").slice(0, 1).toUpperCase();
-
+function HelpMenu({ settings }: { settings: TenantOut | undefined }) {
+  const { tenantId } = useSession();
+  const t = useTranslations("shell.help");
+  const label = useLabel();
   return (
-    <div className="flex h-full flex-col bg-night text-on-night-soft">
-      <div className="flex h-16 shrink-0 items-center gap-2.5 px-5">
-        <BrandMark size={28} />
-        <span className="text-[13.5px] font-extrabold tracking-[0.08em] text-white">SCRAPEBOOKING</span>
-      </div>
-
-      <div className="px-4 pb-3">
-        {isOperator ? (
-          <TenantSwitcher />
-        ) : (
-          tenantName && (
-            <div className="rounded-lg border border-white/10 px-3 py-2.5">
-              <div className="text-xs text-on-night-muted">Khách sạn</div>
-              <div className="line-clamp-2 text-md font-semibold leading-snug text-white" title={tenantName}>
-                {tenantName}
-              </div>
-            </div>
-          )
-        )}
-      </div>
-
-      <nav aria-label="Điều hướng chính" className="sb-scroll flex-1 overflow-y-auto px-3 pb-4">
-        <ul className="space-y-0.5">
-          {TENANT_NAV.map((n) => (
-            <li key={n.href}>
-              <NavLink item={n} active={isActive(n, pathname)} onNavigate={onNavigate} />
-            </li>
-          ))}
-        </ul>
-        {isOperator && (
-          <>
-            <div className="mb-1.5 mt-6 px-3 text-xs font-semibold text-on-night-muted">Vận hành</div>
-            <ul className="space-y-0.5">
-              {ADMIN_NAV.map((n) => (
-                <li key={n.href}>
-                  <NavLink item={n} active={isActive(n, pathname)} onNavigate={onNavigate} />
+    <PopoverMenu label={t("title")} button={<IconHelp size={21} />} buttonClassName={TOPBAR_BUTTON} width={340}>
+      {(close) => (
+        <div className="divide-y divide-line">
+          <div className="px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.06em] text-muted">{t("data")}</div>
+            <div className="mt-1.5">{tenantId !== null ? <Freshness settings={settings} /> : <span className="text-sm text-muted">{t("pickTenant")}</span>}</div>
+          </div>
+          <div className="px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.06em] text-muted">{t("heatTitle")}</div>
+            <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
+              {HEAT_LEVELS.map((h) => (
+                <li key={h.cls} className="flex items-center gap-2">
+                  <span aria-hidden className={cx("h-3 w-3 rounded-[3px]", h.cls)} />
+                  {label("heatLevel", h.key)}
                 </li>
               ))}
             </ul>
-          </>
-        )}
-      </nav>
+            <p className="mt-2 text-xs text-muted">{t("heatNote")}</p>
+          </div>
+          <div className="px-4 py-3 text-sm">
+            <Link href="/today" onClick={close} className="font-semibold text-brand hover:underline">
+              {t("openToday")}
+            </Link>
+          </div>
+        </div>
+      )}
+    </PopoverMenu>
+  );
+}
 
-      <div className="space-y-3 border-t border-white/[0.08] px-4 py-4">
-        {tenantId !== null && <Freshness settings={settings.data} />}
-        {user && (
-          <div className="flex items-center gap-3">
-            <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-night-3 text-sm font-bold text-white">
-              {initial}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-white" title={user.email}>
-                {user.email}
-              </div>
-              <div className="text-xs text-on-night-muted">{USER_ROLE_LABEL[user.role] ?? user.role}</div>
+/** Chuông: 8 thay đổi mới nhất (hết phòng, có lại, đổi giá…), chấm đỏ nếu có thay đổi trong 24 giờ. */
+function BellMenu() {
+  const t = useTranslations("shell.bell");
+  const label = useLabel();
+  const { fmtAgo, fmtDateShort } = useFmt();
+  const events = useApi("shell:events", () => api.events({ limit: 8 }));
+  const items = events.data ?? [];
+  const [now] = useState(() => Date.now());
+  const fresh = items.some((e) => now - new Date(e.observed_at).getTime() < 24 * 3600 * 1000);
+  return (
+    <PopoverMenu
+      label={t("title")}
+      buttonClassName={cx(TOPBAR_BUTTON, "relative")}
+      width={360}
+      button={
+        <>
+          <IconBell size={20} />
+          {fresh && <span aria-hidden className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#ff4d4f] ring-2 ring-night" />}
+        </>
+      }
+    >
+      {(close) => (
+        <div>
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.06em] text-muted">{t("latest")}</span>
+            <Link href="/events" onClick={close} className="text-sm font-semibold text-brand hover:underline">
+              {t("viewAll")}
+            </Link>
+          </div>
+          {events.error ? (
+            <ErrorBox error={events.error} className="m-3" />
+          ) : items.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted">{events.loading ? t("loading") : t("empty")}</div>
+          ) : (
+            <ul className="max-h-[360px] divide-y divide-line overflow-y-auto">
+              {items.map((e) => (
+                <li key={e.id}>
+                  <Link href={`/hotels/${e.hotel_id}/dates/${e.stay_date}`} onClick={close} className="block px-4 py-2.5 hover:bg-subtle">
+                    <div className="truncate text-sm font-semibold text-ink">{e.hotel_name ?? t("hotelFallback", { id: e.hotel_id })}</div>
+                    <div className="text-sm text-body">
+                      {t("eventLine", { event: label("eventType", e.event_type), night: fmtDateShort(e.stay_date) })}
+                    </div>
+                    <div className="text-xs text-muted">
+                      {channelName(e.channel)} · {fmtAgo(e.observed_at)}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </PopoverMenu>
+  );
+}
+
+function UserMenu() {
+  const { user, logout } = useSession();
+  const t = useTranslations("shell.user");
+  const label = useLabel();
+  if (!user) return null;
+  return (
+    <PopoverMenu
+      label={t("title")}
+      width={280}
+      buttonClassName="grid h-9 w-9 place-items-center rounded-full bg-white/[0.18] text-white transition-colors hover:bg-white/[0.28] focus-visible:outline-white"
+      button={<IconUser size={19} />}
+    >
+      {() => (
+        <div>
+          <div className="border-b border-line px-4 py-3">
+            <div className="truncate text-base font-semibold text-ink" title={user.email}>
+              {user.email}
             </div>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              title="Đăng xuất"
-              aria-label="Đăng xuất"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-on-night-muted transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-brand-light"
-            >
-              <IconLogout size={17} />
-            </button>
+            <div className="text-sm text-muted">{label("userRole", user.role)}</div>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+            <span className="text-sm text-muted">{t("language")}</span>
+            <LocaleSwitcher />
+          </div>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-base font-medium text-body hover:bg-subtle hover:text-danger"
+          >
+            <IconLogout size={17} /> {t("logout")}
+          </button>
+        </div>
+      )}
+    </PopoverMenu>
+  );
+}
+
+function TopBar() {
+  const { user, isOperator, tenantId } = useSession();
+  const settings = useApi(tenantId === null ? null : "settings", () => api.settings.get());
+  const t = useTranslations("shell");
+  return (
+    <div className="bg-night text-white">
+      <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+        <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 rounded-md focus-visible:outline-white" aria-label={t("homeLink")}>
+          <BrandMark size={30} onBlue />
+          <span className="text-[19px] font-semibold tracking-[-0.01em] max-sm:hidden">OTARadar</span>
+        </Link>
+        <div className="flex-1" />
+        {user && (isOperator ? <TenantSwitcher onBlue /> : <HotelPill name={settings.data?.name} />)}
+        {user && (
+          <div className="flex items-center gap-1 sm:gap-2">
+            <HelpMenu settings={settings.data} />
+            {tenantId !== null && <BellMenu />}
+            <UserMenu />
           </div>
         )}
       </div>
@@ -188,13 +272,58 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function ShellLoading() {
+function TabLink({ item, active }: { item: NavItem; active: boolean }) {
+  const t = useTranslations("shell.nav");
   return (
-    <div className="space-y-4" aria-busy aria-label="Đang tải">
-      <SkeletonBlock className="h-8 w-56" />
-      <SkeletonBlock className="h-4 w-80" />
-      <SkeletonBlock className="mt-6 h-24 w-full" />
-      <SkeletonBlock className="h-64 w-full" />
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={cx(
+        "relative inline-flex h-12 shrink-0 items-center whitespace-nowrap px-3.5 text-md transition-colors duration-150 sm:px-5",
+        active ? "font-semibold text-ink" : "text-body hover:text-brand",
+      )}
+    >
+      {t(item.key)}
+      {active && <span aria-hidden className="absolute inset-x-1.5 bottom-0 h-[2.5px] rounded-full bg-brand" />}
+    </Link>
+  );
+}
+
+function TabBar() {
+  const pathname = usePathname();
+  const { isOperator } = useSession();
+  const t = useTranslations("shell");
+  return (
+    <nav aria-label={t("mainNav")} className="border-b border-line bg-surface">
+      <div className="sb-scroll mx-auto flex max-w-[1600px] items-stretch overflow-x-auto px-2 sm:px-4 lg:px-6">
+        {TENANT_NAV.map((n) => (
+          <TabLink key={n.href} item={n} active={isActive(n, pathname)} />
+        ))}
+        {isOperator && (
+          <>
+            <span aria-hidden className="mx-2 my-3 w-px shrink-0 bg-line" />
+            <span className="inline-flex shrink-0 items-center px-2 text-xs font-semibold uppercase tracking-[0.06em] text-faint">{t("operatorSection")}</span>
+            {ADMIN_NAV.map((n) => (
+              <TabLink key={n.href} item={n} active={isActive(n, pathname)} />
+            ))}
+          </>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+function ShellLoading() {
+  const t = useTranslations("common.status");
+  return (
+    <div className="space-y-4" aria-busy aria-label={t("loading")}>
+      <SkeletonBlock className="h-14 w-full rounded-xl" />
+      <div className="grid gap-4 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <SkeletonBlock key={i} className="h-36 rounded-xl" />
+        ))}
+      </div>
+      <SkeletonBlock className="h-72 w-full rounded-xl" />
     </div>
   );
 }
@@ -203,44 +332,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, loading, error, isOperator, tenantId } = useSession();
   const isAdminRoute = pathname.startsWith("/admin");
-  const [drawer, setDrawer] = useState(false);
-
-  // Đóng ngăn kéo khi đổi trang; Esc để đóng.
-  const [drawerPath, setDrawerPath] = useState(pathname);
-  if (drawerPath !== pathname) {
-    setDrawerPath(pathname);
-    setDrawer(false);
-  }
-  useEffect(() => {
-    if (!drawer) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [drawer]);
+  const t = useTranslations("shell");
 
   let body: ReactNode;
   if (loading) {
     body = <ShellLoading />;
   } else if (error || !user) {
-    body = <ErrorBox error={error ?? "Không tải được phiên đăng nhập"} className="max-w-xl" />;
+    body = <ErrorBox error={error ?? t("sessionError")} className="max-w-xl" />;
   } else if (isOperator && tenantId === null && !isAdminRoute) {
     body = (
       <EmptyState
         icon={<IconBuilding />}
-        title="Chọn tenant để xem"
+        title={t("tenant.pickTitle")}
         className="mx-auto mt-10 max-w-lg border border-line bg-surface"
         action={
           <div className="flex flex-col items-center gap-3">
             <div className="w-64 text-left">
-              <TenantSwitcher dark={false} />
+              <TenantSwitcher />
             </div>
             <Link href="/admin/tenants" className="text-base font-semibold text-brand hover:underline">
-              Quản lý tenant
+              {t("tenant.manage")}
             </Link>
           </div>
         }
       >
-        Tài khoản vận hành xem dữ liệu theo từng tenant. Chọn một tenant ở đây hoặc ở thanh bên.
+        {t("tenant.pickHint")}
       </EmptyState>
     );
   } else {
@@ -248,44 +364,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen lg:pl-[248px]">
-      {/* Thanh bên cố định (máy tính) */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] lg:block">
-        <Sidebar />
-      </aside>
-
-      {/* Thanh trên + ngăn kéo (điện thoại, máy tính bảng) */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-night px-4 lg:hidden">
-        <button
-          type="button"
-          onClick={() => setDrawer(true)}
-          aria-label="Mở menu"
-          aria-expanded={drawer}
-          className="grid h-9 w-9 place-items-center rounded-lg text-white hover:bg-white/10 focus-visible:outline-brand-light"
-        >
-          <IconMenu size={20} />
-        </button>
-        <BrandMark size={24} />
-        <span className="text-[13px] font-extrabold tracking-[0.08em] text-white">SCRAPEBOOKING</span>
+    <div className="min-h-screen">
+      <header>
+        <TopBar />
+        <TabBar />
       </header>
-      {drawer && (
-        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <button type="button" aria-label="Đóng menu" className="absolute inset-0 bg-night/55 backdrop-blur-[2px]" onClick={() => setDrawer(false)} />
-          <div className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] shadow-float [animation:sb-fade-in_.2s_var(--sb-ease)]">
-            <Sidebar onNavigate={() => setDrawer(false)} />
-            <button
-              type="button"
-              onClick={() => setDrawer(false)}
-              aria-label="Đóng menu"
-              className="absolute right-3 top-3.5 grid h-9 w-9 place-items-center rounded-lg text-on-night-soft hover:bg-white/10 hover:text-white"
-            >
-              <IconClose size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <main className="mx-auto min-w-0 max-w-[1560px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{body}</main>
+      <main className="mx-auto min-w-0 max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">{body}</main>
     </div>
   );
 }

@@ -7,6 +7,9 @@
  *   CONTACT_EMAIL  email nhận yêu cầu tư vấn
  */
 
+/** Chữ của các kênh, lấy từ landing.contact (server component truyền translator vào). */
+type ContactKey = "zalo" | "zaloLink" | "phone" | "email" | "emailSubject";
+
 export type ContactChannel = {
   kind: "zalo" | "phone" | "email";
   label: string;
@@ -25,7 +28,7 @@ function formatPhone(v: string): string {
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
 }
 
-export function contactChannels(): ContactChannel[] {
+export function contactChannels(t: (key: ContactKey) => string): ContactChannel[] {
   const phone = clean(process.env.CONTACT_PHONE);
   const zalo = clean(process.env.CONTACT_ZALO);
   const email = clean(process.env.CONTACT_EMAIL);
@@ -33,15 +36,15 @@ export function contactChannels(): ContactChannel[] {
 
   if (zalo) {
     const href = /^https?:\/\//.test(zalo) ? zalo : `https://zalo.me/${zalo.replace(/\D/g, "")}`;
-    const value = /^https?:\/\//.test(zalo) ? "Nhắn tin trên Zalo" : formatPhone(zalo);
-    channels.push({ kind: "zalo", label: "Nhắn Zalo", value, href });
+    const value = /^https?:\/\//.test(zalo) ? t("zaloLink") : formatPhone(zalo);
+    channels.push({ kind: "zalo", label: t("zalo"), value, href });
   }
   if (phone) {
-    channels.push({ kind: "phone", label: "Gọi điện", value: formatPhone(phone), href: `tel:${phone.replace(/[^\d+]/g, "")}` });
+    channels.push({ kind: "phone", label: t("phone"), value: formatPhone(phone), href: `tel:${phone.replace(/[^\d+]/g, "")}` });
   }
   if (email) {
-    const subject = encodeURIComponent("Tư vấn ScrapeBooking");
-    channels.push({ kind: "email", label: "Gửi email", value: email, href: `mailto:${email}?subject=${subject}` });
+    const subject = encodeURIComponent(t("emailSubject"));
+    channels.push({ kind: "email", label: t("email"), value: email, href: `mailto:${email}?subject=${subject}` });
   }
   return channels;
 }

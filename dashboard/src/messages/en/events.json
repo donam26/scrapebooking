@@ -1,0 +1,41 @@
+{
+  "title": "Events",
+  "subtitle": "Every change between two consecutive scans on each channel: sold out, back in stock, rooms left, rates and cross-channel gaps",
+  "downloadCsv": "Download CSV",
+  "since": {
+    "h24": "24 hours",
+    "d3": "3 days",
+    "d7": "7 days",
+    "d30": "30 days",
+    "all": "All"
+  },
+  "filters": {
+    "hotel": "Hotel",
+    "allHotels": "All hotels",
+    "yours": "(yours)",
+    "inactive": "(paused)",
+    "observedWithin": "Observed within",
+    "stayNight": "Stay date",
+    "stayFrom": "Stay date from",
+    "stayTo": "Stay date to",
+    "clear": "Clear filters",
+    "channel": "Channel",
+    "eventType": "Event type",
+    "type": "Type"
+  },
+  "highlight": {
+    "text": "Highlighting event #{id} linked from the brief (if it is on this page).",
+    "clear": "Remove highlight"
+  },
+  "list": {
+    "count": "{count, plural, one {# event} other {# events}}",
+    "countMore": "{count}+ events",
+    "filtered": "Matching the current filters",
+    "newestFirst": "Newest first",
+    "prev": "Previous",
+    "next": "Next",
+    "page": "Page {page}",
+    "emptyFiltered": "No events match these filters. Try a wider time window or fewer event types.",
+    "empty": "No events yet. Events appear when two consecutive scans differ."
+  }
+}

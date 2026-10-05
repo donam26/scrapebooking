@@ -1,18 +1,21 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { api, type UserOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { USER_ROLE_LABEL } from "@/lib/labels";
+import { useLabel } from "@/lib/labels";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, ROW_CLASS, Select, Skeleton, Table, Td, Th, cx } from "@/components/ui";
 import { IconCheck, IconKey, IconLock, IconPlus, IconUsers } from "@/components/icons";
 
-const ROLE_HINT: Record<string, string> = {
-  operator: "Vận hành mọi tenant",
-  tenant_admin: "Sửa watchlist, lịch quét, người dùng, nhập PMS",
-  viewer: "Chỉ xem số liệu và bản tin",
-};
+const ROLE_HINT_KEYS = ["operator", "tenant_admin", "viewer"] as const;
+
+function isRoleHintKey(role: string): role is (typeof ROLE_HINT_KEYS)[number] {
+  return (ROLE_HINT_KEYS as readonly string[]).includes(role);
+}
+
+type DoneKey = "roleChanged" | "passwordSet" | "locked" | "unlocked";
 
 export function CreateUserForm({
   roles,
@@ -32,6 +35,8 @@ export function CreateUserForm({
   const [role, setRole] = useState(roles[0]);
   const [tenant, setTenant] = useState<string>(tenantId === null ? "" : String(tenantId));
   const [created, setCreated] = useState<string | null>(null);
+  const t = useTranslations("settings.users");
+  const label = useLabel();
   const create = useMutation(async () => {
     const tid = role === "operator" ? null : tenant ? Number(tenant) : tenantId;
     await api.users.create({ email: email.trim(), password, role, tenant_id: tid });
@@ -54,25 +59,25 @@ export function CreateUserForm({
           withTenant ? "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]" : "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]",
         )}
       >
-        <Field label="Email đăng nhập">
-          <Input type="email" required autoComplete="off" placeholder="ten@khachsan.vn" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label={t("form.email")}>
+          <Input type="email" required autoComplete="off" placeholder={t("form.emailPlaceholder")} value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
-        <Field label="Mật khẩu" hint="Tối thiểu 8 ký tự">
+        <Field label={t("form.password")} hint={t("form.passwordHint")}>
           <Input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        <Field label="Vai trò" hint={ROLE_HINT[role]}>
+        <Field label={t("form.role")} hint={isRoleHintKey(role) ? t(`roleHint.${role}`) : undefined}>
           <Select value={role} onChange={(e) => setRole(e.target.value)}>
             {roles.map((r) => (
               <option key={r} value={r}>
-                {USER_ROLE_LABEL[r] ?? r}
+                {label("userRole", r)}
               </option>
             ))}
           </Select>
         </Field>
         {withTenant && (
-          <Field label="Tenant">
+          <Field label={t("form.tenant")}>
             <Select required value={tenant} onChange={(e) => setTenant(e.target.value)}>
-              <option value="">Chọn tenant…</option>
+              <option value="">{t("form.pickTenant")}</option>
               {(tenants ?? []).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -82,13 +87,13 @@ export function CreateUserForm({
           </Field>
         )}
         <Button type="submit" variant="primary" busy={create.busy} icon={<IconPlus size={16} />} className="sm:col-span-2 sm:justify-self-start lg:col-span-1 lg:mt-[26px]">
-          Tạo người dùng
+          {t("form.submit")}
         </Button>
       </div>
-      <ErrorBox error={create.error} title="Chưa tạo được người dùng" />
+      <ErrorBox error={create.error} title={t("form.errorTitle")} />
       {created && !create.error && (
         <p role="status" className="flex items-center gap-1.5 text-sm text-yours-deep">
-          <IconCheck size={16} /> Đã tạo tài khoản {created}. Gửi mật khẩu cho người dùng qua kênh riêng.
+          <IconCheck size={16} /> {t("form.created", { email: created })}
         </p>
       )}
     </form>
@@ -112,8 +117,11 @@ export function UserRow({
 }) {
   const [resetting, setResetting] = useState(false);
   const [password, setPassword] = useState("");
-  const [done, setDone] = useState<string | null>(null);
-  const update = useMutation(async (body: Parameters<typeof api.users.update>[1], message?: string) => {
+  const [done, setDone] = useState<DoneKey | null>(null);
+  const t = useTranslations("settings.users");
+  const tc = useTranslations("common.actions");
+  const label = useLabel();
+  const update = useMutation(async (body: Parameters<typeof api.users.update>[1], message?: DoneKey) => {
     await api.users.update(user.id, body);
     setResetting(false);
     setPassword("");
@@ -138,13 +146,13 @@ export function UserRow({
             <div className="min-w-0">
               <div className={cx("truncate font-semibold", user.active ? "text-ink" : "text-muted")} title={user.email}>
                 {user.email}
-                {isSelf && <span className="ml-1.5 text-xs font-normal text-muted">(bạn)</span>}
+                {isSelf && <span className="ml-1.5 text-xs font-normal text-muted">{t("row.you")}</span>}
               </div>
               {tenantName !== undefined && <div className="truncate text-xs text-muted md:hidden">{tenantName}</div>}
               <div className="mt-1 sm:hidden">
-                <Badge tone={user.active ? "green" : "gray"}>{user.active ? "Hoạt động" : "Đã khoá"}</Badge>
+                <Badge tone={user.active ? "green" : "gray"}>{user.active ? t("row.active") : t("row.locked")}</Badge>
               </div>
-              {done && <div className="text-xs text-yours-deep">{done}</div>}
+              {done && <div className="text-xs text-yours-deep">{t(`done.${done}`)}</div>}
             </div>
           </div>
         </Td>
@@ -152,24 +160,24 @@ export function UserRow({
         <Td>
           {canWrite && !isSelf ? (
             <Select
-              aria-label={`Vai trò của ${user.email}`}
+              aria-label={t("row.roleAria", { email: user.email })}
               value={user.role}
-              onChange={(e) => void update.run({ role: e.target.value }, "Đã đổi vai trò")}
+              onChange={(e) => void update.run({ role: e.target.value }, "roleChanged")}
               disabled={update.busy}
               className="h-8 !w-[124px] shrink-0 text-sm sm:!w-[150px]"
             >
               {roles.map((r) => (
                 <option key={r} value={r}>
-                  {USER_ROLE_LABEL[r] ?? r}
+                  {label("userRole", r)}
                 </option>
               ))}
             </Select>
           ) : (
-            <span className="text-body">{USER_ROLE_LABEL[user.role] ?? user.role}</span>
+            <span className="text-body">{label("userRole", user.role)}</span>
           )}
         </Td>
         <Td className="hidden sm:table-cell">
-          <Badge tone={user.active ? "green" : "gray"}>{user.active ? "Hoạt động" : "Đã khoá"}</Badge>
+          <Badge tone={user.active ? "green" : "gray"}>{user.active ? t("row.active") : t("row.locked")}</Badge>
         </Td>
         {canWrite && (
           <Td className="w-0 whitespace-nowrap">
@@ -178,7 +186,7 @@ export function UserRow({
                 className="flex items-center justify-end gap-1.5"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void update.run({ password }, "Đã đặt mật khẩu mới");
+                  void update.run({ password }, "passwordSet");
                 }}
               >
                 <Input
@@ -186,15 +194,15 @@ export function UserRow({
                   minLength={8}
                   required
                   autoFocus
-                  aria-label={`Mật khẩu mới cho ${user.email}`}
-                  placeholder="Mật khẩu mới, ≥ 8 ký tự"
+                  aria-label={t("row.newPasswordAria", { email: user.email })}
+                  placeholder={t("row.newPasswordPlaceholder")}
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-8 w-52 text-sm"
                 />
                 <Button size="sm" type="submit" variant="primary" busy={update.busy}>
-                  Đặt
+                  {t("row.setPassword")}
                 </Button>
                 <Button
                   size="sm"
@@ -205,7 +213,7 @@ export function UserRow({
                     update.clearError();
                   }}
                 >
-                  Huỷ
+                  {tc("cancel")}
                 </Button>
               </form>
             ) : (
@@ -218,10 +226,10 @@ export function UserRow({
                     setDone(null);
                     setResetting(true);
                   }}
-                  aria-label="Đặt lại mật khẩu"
-                  title="Đặt lại mật khẩu"
+                  aria-label={t("row.resetPassword")}
+                  title={t("row.resetPassword")}
                 >
-                  <span className="hidden sm:inline">Đặt lại mật khẩu</span>
+                  <span className="hidden sm:inline">{t("row.resetPassword")}</span>
                 </Button>
                 {!isSelf && (
                   <Button
@@ -229,12 +237,12 @@ export function UserRow({
                     variant="ghost"
                     busy={update.busy}
                     icon={<IconLock size={15} />}
-                    onClick={() => void update.run({ active: !user.active }, user.active ? "Đã khoá tài khoản" : "Đã mở khoá")}
+                    onClick={() => void update.run({ active: !user.active }, user.active ? "locked" : "unlocked")}
                     className={user.active ? "hover:!bg-danger-soft hover:!text-danger" : undefined}
-                    aria-label={user.active ? "Khoá tài khoản" : "Mở khoá tài khoản"}
-                    title={user.active ? "Khoá tài khoản" : "Mở khoá tài khoản"}
+                    aria-label={user.active ? t("row.lockAccount") : t("row.unlockAccount")}
+                    title={user.active ? t("row.lockAccount") : t("row.unlockAccount")}
                   >
-                    <span className="hidden sm:inline">{user.active ? "Khoá" : "Mở khoá"}</span>
+                    <span className="hidden sm:inline">{user.active ? t("row.lock") : t("row.unlock")}</span>
                   </Button>
                 )}
               </div>
@@ -261,34 +269,35 @@ export function UsersTab() {
   // Operator xem toàn bộ /users; lọc theo tenant đang chọn.
   const users = (list.data ?? []).filter((u) => !isOperator || u.tenant_id === tenantId);
   const activeCount = users.filter((u) => u.active).length;
+  const t = useTranslations("settings.users");
   return (
     <div className="space-y-5">
       {canWrite && (
-        <Card title="Thêm người dùng" description="Quản trị sửa được cài đặt; chỉ xem thì đọc số liệu và bản tin.">
+        <Card title={t("addTitle")} description={t("addDescription")}>
           <CreateUserForm roles={TENANT_ROLES} tenantId={tenantId} onCreated={list.reload} />
         </Card>
       )}
       <ErrorBox error={list.error} />
-      <Card padded={false} title="Người dùng" description={list.data ? `${users.length} tài khoản, ${activeCount} đang hoạt động` : undefined}>
+      <Card padded={false} title={t("listTitle")} description={list.data ? t("listSummary", { count: users.length, active: activeCount }) : undefined}>
         {!list.data && !list.error ? (
           <Skeleton rows={4} className="p-5" />
         ) : users.length === 0 ? (
           <div className="p-5">
-            <EmptyState icon={<IconUsers />} title="Chưa có người dùng nào" compact>
-              {canWrite ? "Tạo tài khoản cho đồng nghiệp ở trên để họ xem bảng giá mỗi sáng." : "Quản trị viên chưa thêm người dùng nào."}
+            <EmptyState icon={<IconUsers />} title={t("emptyTitle")} compact>
+              {canWrite ? t("emptyWrite") : t("emptyRead")}
             </EmptyState>
           </div>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Email</Th>
-                <Th>Vai trò</Th>
-                <Th className="hidden sm:table-cell">Trạng thái</Th>
+                <Th>{t("colEmail")}</Th>
+                <Th>{t("colRole")}</Th>
+                <Th className="hidden sm:table-cell">{t("colStatus")}</Th>
                 {canWrite && (
                   <Th right>
                     <span className="relative">
-                      <span className="sr-only">Thao tác</span>
+                      <span className="sr-only">{t("colActions")}</span>
                     </span>
                   </Th>
                 )}

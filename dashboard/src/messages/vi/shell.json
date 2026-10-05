@@ -1,0 +1,57 @@
+{
+  "homeLink": "OTARadar, về Bảng điều khiển",
+  "mainNav": "Điều hướng chính",
+  "operatorSection": "Vận hành",
+  "sessionError": "Không tải được phiên đăng nhập",
+  "nav": {
+    "dashboard": "Bảng điều khiển",
+    "competitors": "Đối thủ",
+    "availability": "Phòng trống",
+    "rates": "Giá & định giá",
+    "terminal": "Terminal+",
+    "insights": "Bản tin",
+    "runs": "Lịch sử quét",
+    "settings": "Cài đặt",
+    "tenants": "Tenant",
+    "users": "Tài khoản",
+    "health": "Sức khoẻ scraper"
+  },
+  "tenant": {
+    "pick": "Chọn tenant",
+    "pickPlaceholder": "Chọn tenant…",
+    "inactive": "(tắt)",
+    "pickTitle": "Chọn tenant để xem",
+    "pickHint": "Tài khoản vận hành xem dữ liệu theo từng tenant. Chọn một tenant ở đây hoặc ở thanh trên.",
+    "manage": "Quản lý tenant"
+  },
+  "freshness": {
+    "noScan": "Chưa có lượt quét",
+    "scanning": "Đang quét…",
+    "scannedAt": "Quét lúc {when}",
+    "failed": "Lượt quét lỗi, không có dữ liệu mới",
+    "overdue": "Lỡ lịch quét · dữ liệu từ {ago}",
+    "next": "Lượt tiếp theo {when}"
+  },
+  "help": {
+    "title": "Trợ giúp",
+    "data": "Dữ liệu",
+    "pickTenant": "Chọn tenant để xem",
+    "heatTitle": "Màu số phòng còn",
+    "heatNote": "Số phòng còn là của từng kênh, không cộng giữa các kênh. “≥N” là kênh chỉ lộ mức sàn.",
+    "openToday": "Mở màn “Hôm nay” cho điện thoại"
+  },
+  "bell": {
+    "title": "Thông báo",
+    "latest": "Thay đổi mới nhất",
+    "viewAll": "Xem tất cả",
+    "loading": "Đang tải…",
+    "empty": "Chưa có thay đổi nào",
+    "hotelFallback": "Khách sạn #{id}",
+    "eventLine": "{event} · đêm {night}"
+  },
+  "user": {
+    "title": "Tài khoản",
+    "language": "Ngôn ngữ",
+    "logout": "Đăng xuất"
+  }
+}

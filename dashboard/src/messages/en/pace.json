@@ -1,0 +1,55 @@
+{
+  "summary": {
+    "pendingLabel": "Pending rate suggestions",
+    "pendingValue": "{count, plural, one {# night} other {# nights}}",
+    "pendingHint": "Next: {night}, {suggestion}",
+    "pendingNone": "No nights need a rate review",
+    "compSoldLabel": "Competitors' estimated occupancy, next 7 nights",
+    "compSoldNone": "Booking doesn't show enough competitor room counts yet",
+    "compSoldHint": "Average of {count, plural, one {# night} other {# nights}} with full counts",
+    "fastLabel": "Nights the market is pacing ahead",
+    "fastValue": "{count, plural, one {# night} other {# nights}}",
+    "fastHint": "{pts} pts or more, out of {count, plural, one {# comparable night} other {# comparable nights}}",
+    "fastNone": "Needs at least 2 weeks of same-weekday data to compare",
+    "pmsLabel": "Estimate vs PMS",
+    "pmsValue": "Off by {pts} pts",
+    "pmsNone": "Import PMS data in Settings to compare",
+    "pmsHint": "Average over {count, plural, one {# past night} other {# past nights}}"
+  },
+  "row": {
+    "estRange": "Estimated range {low}–{high}%",
+    "est": "est.",
+    "hotels": "{count, plural, one {# hotel} other {# hotels}}",
+    "compOccMissing": "Needs at least 2 competitors with full room counts on Booking",
+    "pickupMissing": "Needs known rooms left at both points in time",
+    "pickupNegative": "Negative: competitors released more rooms or had cancellations",
+    "paceMissingTitle": "{count, plural, one {# same-weekday night} other {# same-weekday nights}} to compare, at least 2 needed",
+    "paceMissing": "not enough history",
+    "applied": "Applied",
+    "dismissed": "Dismissed"
+  },
+  "view": {
+    "embeddedTitle": "Booking pace & rate suggestions",
+    "title": "Booking pace",
+    "subtitle": "{days, plural, one {# night} other {# nights}} from {start} · estimated from rooms left on {channel}",
+    "note": "Estimated occupancy is the share of rooms visible on Booking that are no longer for sale. Figures only appear when Booking reveals enough (at least half the rooms known for certain); direct bookings, groups and rooms not sold on Booking can't be seen.",
+    "dataSince": "Estimates available since {date}.",
+    "suggestionsTitle": "Rate suggestions",
+    "suggestionsDescription": "Based on fixed rules, with the figures behind each one. The system never changes your rates; click “Mark as applied” to record it.",
+    "suggestionsEmptyTitle": "No suggestions yet",
+    "suggestionsEmptyBody": "Suggestions appear when you're below the median while the market is tight, above it while the market is selling well, or well above it close to arrival when the market isn't tight.",
+    "decided": "Handled ({count})",
+    "nightsTitle": "By night",
+    "nightsDescription": "Market = median of competitors with full counts on Booking. Pace compares against the same weekday 1–8 weeks earlier, at the same number of days before arrival.",
+    "noEstimates": "No estimates for these nights yet. Estimates are calculated a few minutes after each scan finishes.",
+    "col": {
+      "night": "Night",
+      "you": "You",
+      "compSold": "Competitors sold",
+      "compSoldOut": "Competitors sold out",
+      "compPickup": "Competitor 7-day pickup (rooms)",
+      "pace": "Market pace vs comparable nights",
+      "suggestion": "Suggestion"
+    }
+  }
+}

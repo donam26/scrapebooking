@@ -1,11 +1,11 @@
 {
   "outcome": "rooms",
-  "booking_hotel_id": "1191026",
+  "external_id": "1191026",
   "hotel_name": "The Reverie Saigon - The Leading Hotels of the World",
   "csrf_token": "FIXTURE_CSRF_TOKEN",
   "offers": [
     {
-      "booking_room_id": "119102603",
+      "external_room_id": "119102603",
       "name": "Deluxe Twin Room High Floor",
       "max_occupancy": 2,
       "badge_count": 2,
@@ -17,7 +17,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation",
@@ -25,7 +29,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -33,7 +41,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -41,12 +53,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102607",
+      "external_room_id": "119102607",
       "name": "Deluxe King Room High Floor",
       "max_occupancy": 2,
       "badge_count": null,
@@ -58,7 +75,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation",
@@ -66,7 +87,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -74,7 +99,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -82,12 +111,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102604",
+      "external_room_id": "119102604",
       "name": "Grand Deluxe King Room High Floor",
       "max_occupancy": 2,
       "badge_count": 5,
@@ -99,7 +133,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation",
@@ -107,7 +145,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -115,7 +157,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -123,12 +169,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102605",
+      "external_room_id": "119102605",
       "name": "Grand Deluxe Twin Room High Floor",
       "max_occupancy": 2,
       "badge_count": 3,
@@ -140,7 +191,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation",
@@ -148,7 +203,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -156,7 +215,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -164,12 +227,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102606",
+      "external_room_id": "119102606",
       "name": "Panorama Deluxe Room High Floor Panoramic View",
       "max_occupancy": 2,
       "badge_count": 1,
@@ -181,7 +249,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation",
@@ -189,7 +261,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -197,7 +273,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -205,12 +285,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102609",
+      "external_room_id": "119102609",
       "name": "Junior Suite High Floor with Executive Lounge Access",
       "max_occupancy": 2,
       "badge_count": 3,
@@ -222,7 +307,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -230,12 +319,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102639",
+      "external_room_id": "119102639",
       "name": "Romance Suite High Floor with Executive Lounge Access",
       "max_occupancy": 2,
       "badge_count": 4,
@@ -247,7 +341,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -255,12 +353,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102610",
+      "external_room_id": "119102610",
       "name": "Executive Suite High Floor with Executive Lounge Access",
       "max_occupancy": 2,
       "badge_count": 3,
@@ -272,7 +375,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -280,12 +387,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102641",
+      "external_room_id": "119102641",
       "name": "Panorama Suite High Floor with Executive Lounge Access",
       "max_occupancy": 2,
       "badge_count": 4,
@@ -297,7 +409,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -305,12 +421,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "119102611",
+      "external_room_id": "119102611",
       "name": "Designer Suite with Two-way Airport Transfer and Executive Lounge Access",
       "max_occupancy": 2,
       "badge_count": 1,
@@ -322,7 +443,11 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -330,9 +455,14 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": true,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     }
   ]
 }

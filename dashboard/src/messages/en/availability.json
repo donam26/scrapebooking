@@ -1,0 +1,56 @@
+{
+  "page": {
+    "title": "Availability",
+    "subtitle": "Rooms left per hotel, by night",
+    "channel": "Channel <b>{channel}</b>",
+    "scannedAt": "Scanned {when}",
+    "downloadCsv": "Download CSV",
+    "emptyTitle": "No hotels tracked yet",
+    "emptyBody": "Add hotels in <link>Settings › Hotels</link>.",
+    "prev": "Previous",
+    "next": "Next",
+    "month": "{month, select, 1 {January} 2 {February} 3 {March} 4 {April} 5 {May} 6 {June} 7 {July} 8 {August} 9 {September} 10 {October} 11 {November} 12 {December} other {{month}}} {year}",
+    "monthRange": "{start} – {end}"
+  },
+  "heatmap": {
+    "hotel": "Hotel",
+    "today": "Today",
+    "roomNightsTitle": "Total room-nights left over {count, plural, one {# night} other {# nights}}",
+    "roomNights": "Room-nights",
+    "marketTotalTitle": "Sum of every hotel in the table, including yours",
+    "marketTotal": "Market total",
+    "occTitle": "Competitors' estimated occupancy from rooms left",
+    "occ": "Occupancy ≈ %",
+    "cellTitle": "{hotel} · {weekday} {date}: {status}",
+    "cellAria": "{hotel} {date}: {status}",
+    "sumPartial": "{known, plural, one {# cell} other {# cells}} with a count, {missing} hidden or not scanned: the total is a minimum",
+    "sumFull": "{known, plural, one {# cell} other {# cells}}, all counted",
+    "cell": {
+      "noData": "No data yet",
+      "soldOut": "Sold out",
+      "unknown": "Could not read (blocked or error)",
+      "hidden": "Available, channel hides the count",
+      "rooms": "{count, plural, one {# room} other {# rooms}} left"
+    }
+  },
+  "legend": {
+    "title": "Legend:",
+    "hidden": "Available, count hidden",
+    "notScanned": "Not scanned",
+    "trend": "▼▲ change in 24 hours"
+  },
+  "occupancy": {
+    "title": "Occupancy analysis",
+    "info": "Occupancy estimated from rooms left on the reference channel (≈); only nights with a reliable estimate are plotted (coverage ≥ 50%). The black dashed line is the competitor median; the green dashed line is your actual occupancy from PMS once imported.",
+    "compMedian": "Comp set median ≈",
+    "hotelSeries": "{name} ≈",
+    "pms": "Yours (PMS)",
+    "avg": "Avg comp set occupancy, {count, plural, one {# night} other {# nights}}",
+    "peak": "Highest",
+    "peakOn": "Highest: {night}",
+    "low": "Lowest",
+    "lowOn": "Lowest: {night}",
+    "hotFirstNight": "Hotels at ≈90%+ on the first night",
+    "empty": "Not enough data to estimate occupancy"
+  }
+}

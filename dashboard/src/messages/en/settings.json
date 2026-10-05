@@ -1,0 +1,427 @@
+{
+  "page": {
+    "title": "Settings",
+    "subtitleWrite": "Tracked hotels, scan times, local events, email notifications, users and occupancy data from your PMS",
+    "subtitleRead": "View the tenant's tracked hotels, scan times, notifications, users and PMS data",
+    "readOnlyNote": "View-only account: you can see every setting but can't change anything. Contact your hotel admin if something needs editing.",
+    "tabs": {
+      "watchlist": "Hotels",
+      "market": "Market",
+      "schedule": "Scan schedule",
+      "events": "Events",
+      "notifications": "Notifications",
+      "users": "Users",
+      "pms": "PMS import"
+    }
+  },
+  "watchlist": {
+    "url": {
+      "empty": "Paste the link to the hotel's page on a booking channel.",
+      "malformed": "That link doesn't look right. Copy the full address from your browser's address bar, starting with https://",
+      "unsupported": "This page isn't supported yet. Supported channels: {channels}.",
+      "notCollectable": "Scanning {channel} isn't supported yet. Supported channels: {channels}."
+    },
+    "add": {
+      "title": "Add hotel",
+      "description": "Paste the link to the hotel's page on {channels}. We check the link, then look for the same hotel on the other channels for you to confirm.",
+      "descriptionAny": "Paste the link to the hotel's page on a booking channel. We check the link, then look for the same hotel on the other channels for you to confirm.",
+      "urlLabel": "Hotel link",
+      "urlPlaceholder": "Paste a link from {channels}",
+      "urlPlaceholderAny": "https://…",
+      "role": "Role",
+      "labelField": "Display label (optional)",
+      "labelPlaceholder": "e.g. Competitor A",
+      "submit": "Add hotel",
+      "supported": "Supported: {channels}. Rooms and rates are counted separately on each channel, never added up across channels.",
+      "errorTitle": "Couldn't add the hotel",
+      "addedOn": "Added “{name}” on {channel}. We're checking the link, then we'll suggest the same hotel on other channels right in the list below.",
+      "added": "Added “{name}”. We're checking the link, then we'll suggest the same hotel on other channels right in the list below."
+    },
+    "listing": {
+      "confirmTitle": "Yes, this is the hotel on {channel}: start scanning",
+      "confirm": "Confirm",
+      "rejectTitle": "Not this hotel: dismiss the suggestion",
+      "reject": "Dismiss",
+      "retryTitle": "Recheck the link on {channel}",
+      "retry": "Retry",
+      "resumeTitle": "Resume scanning this hotel on {channel}",
+      "resume": "Resume",
+      "pauseLabel": "Pause scanning on {channel}",
+      "pauseTitle": "Pause scanning on {channel} (other channels keep scanning)"
+    },
+    "addListing": {
+      "label": "Link to this hotel on another channel",
+      "placeholder": "https://www.agoda.com/en-gb/hotel-name/hotel/…",
+      "submit": "Add channel",
+      "replaceNote": "If this channel is already set up, the new link replaces the old one."
+    },
+    "row": {
+      "stopped": "Not scanning",
+      "addedOn": "Added {date}",
+      "pendingFirst": "Waiting for the first scan",
+      "labelAria": "Display label",
+      "labelPlaceholder": "Display label",
+      "roleAria": "Role",
+      "editAria": "Edit {name}",
+      "stopTitle": "Stop scanning this hotel on all channels (you can turn it back on at any time)",
+      "resumeTitle": "Resume scanning this hotel",
+      "stopAria": "Stop scanning {name}",
+      "resumeAria": "Resume scanning {name}",
+      "stop": "Stop scanning",
+      "resume": "Resume",
+      "channelsAria": "Channels for {name}",
+      "addChannel": "Add channel",
+      "discoverTitle": "Look for this hotel on {channels}; results are suggestions for you to confirm",
+      "discover": "Find on other channels",
+      "searching": "Searching {channels}. Suggestions will appear here within a few minutes for you to confirm.",
+      "allChannels": "This hotel is already on every supported channel.",
+      "dismiss": "Dismiss message"
+    },
+    "list": {
+      "emptyTitle": "No hotels tracked yet",
+      "emptyWrite": "Add your own hotel first (role “Your hotel”), then add competitors in the same segment. Each hotel's rooms and rates are counted three times a day on every channel.",
+      "emptyRead": "Your admin hasn't added any hotels to track yet.",
+      "title": "Watchlist",
+      "summary": "{count, plural, one {# hotel} other {# hotels}}, {active, number} being scanned",
+      "checking": "Checking new links…",
+      "scanNowTitle": "Scan every tracked hotel on all channels now, without waiting for the next scheduled time",
+      "scanNow": "Scan now",
+      "noChannelsReady": "No channel is ready to scan yet.",
+      "scanStarted": "Scanning started on {channels}. Results appear on Availability in a few minutes.",
+      "scanErrorTitle": "Couldn't start the scan",
+      "selfTitle": "Your hotel",
+      "selfEmpty": "No hotel of your own yet. Add one with the role “Your hotel” to compare rates with competitors and import PMS data.",
+      "compTitle": "Competitors",
+      "compEmpty": "No competitors yet. Add the hotels in your segment that you usually compare rates with.",
+      "legend": "Each chip is one channel: a green dot means scanning, a blue dot means checking or a suggestion waiting for you to confirm, a red dot means a broken link. Click a channel name to open the hotel's page on that channel."
+    }
+  },
+  "market": {
+    "destType": {
+      "city": "City",
+      "district": "District",
+      "region": "Province/region"
+    },
+    "listStatus": {
+      "queued": "Queued",
+      "running": "Scanning",
+      "completed": "Done",
+      "capped": "Incomplete",
+      "blocked": "Blocked",
+      "error": "Error",
+      "paused": "Paused after a block"
+    },
+    "listError": {
+      "wrongDates": "Booking returned a page for different dates than requested (a sign of bot blocking). The scan will retry automatically.",
+      "blocked": "Booking blocked the list scan; list scanning is paused for a while and will restart automatically.",
+      "timeout": "Booking responded too slowly for some nights; those nights were skipped and will be scanned next time.",
+      "network": "Network/proxy error on some nights; those nights were skipped and will be scanned next time.",
+      "stuck": "The previous scan stopped partway; we rescanned from the first missing night."
+    },
+    "config": {
+      "listNights": "Nights in list scan",
+      "listNightsHint": "One read of the first results page per night, counting hotels with rooms left",
+      "maxHotels": "Hotels in detail scan",
+      "maxHotelsHint": "Top by review count; reads rooms left for each night",
+      "horizon": "Nights in detail scan",
+      "horizonHint": "Up to 90, scanned in tiers like the comp set",
+      "maxPages": "Page read limit",
+      "maxPagesHint": "Maximum requests per discovery run (once a day)"
+    },
+    "add": {
+      "title": "Add market area",
+      "info": "Search by city or district name on Booking.com. A central district (a few hundred hotels) gives more complete figures than a whole city (thousands of properties, including apartments and homestays).",
+      "searchLabel": "City / district",
+      "searchPlaceholder": "e.g. Ho Chi Minh City, District 1, Hanoi Old Quarter",
+      "noResults": "No areas found. Try the English name as used on Booking.com.",
+      "properties": "{count, plural, one {# property} other {# properties}}",
+      "bigArea": "This area has {count, plural, one {# property} other {# properties}}; Booking only shows part of them per scan, so the list is built up over several scans. Consider picking a central district.",
+      "submit": "Add area",
+      "firstScanHint": "The first list scan runs at 03:00, or press “Scan list now” after adding."
+    },
+    "area": {
+      "description": "{type} · Booking.com · {count, plural, one {# known hotel} other {# known hotels}}",
+      "scanning": "Scanning",
+      "paused": "Paused",
+      "lastListScan": "Last list scan",
+      "lastDetailScan": "Last detail scan",
+      "lastRequest": "Last scan request",
+      "notScanned": "Not scanned yet",
+      "saveConfig": "Save settings",
+      "scanNow": "Scan list now",
+      "queued": "Added to the queue",
+      "alreadyRunning": "A list scan is already running",
+      "delete": "Delete area",
+      "deleteConfirm": "Delete the area {name}? Its list scan history will be deleted; hotel data is kept."
+    },
+    "intro": "Scan every hotel in an area on Booking.com: every day at 03:00 we read the results pages for each night (hotels with rooms left, rates, review scores), and at 05:00 we run a detail scan of the most-reviewed hotels to estimate rooms left and occupancy for the whole area. The data appears in Terminal+ and Competitors › Explore the market.",
+    "emptyTitle": "No market areas yet",
+    "emptyBody": "Add the city or district where your hotel operates to get market indicators for the whole area."
+  },
+  "schedule": {
+    "tzVietnam": "Vietnam time (GMT+7)",
+    "rail": {
+      "insight": "Brief {time}",
+      "scan": "Scan",
+      "insightLegend": "AI brief generated"
+    },
+    "times": {
+      "title": "Scan times",
+      "hint": "Each time triggers a scan of every tracked hotel, in {timezone}. Up to {max} times.",
+      "removeAria": "Remove {time}",
+      "keepOne": "Keep at least one scan time",
+      "newAria": "New scan time",
+      "add": "Add time",
+      "duplicate": "{time} is already scheduled."
+    },
+    "reference": {
+      "title": "Reference channel",
+      "description": "Availability, booking pace, the AI brief and report emails compare you with competitors on this channel. Other channels are still scanned and can be viewed with the channel switcher on each screen.",
+      "onlyOne": "add hotels on another channel in the Hotels tab to get more options"
+    },
+    "scope": {
+      "title": "Scan range and brief",
+      "horizon": "Nights ahead to scan",
+      "horizonHint": "1 to 90 nights from today; nights further out are scanned less often",
+      "nights": "nights",
+      "insightHour": "AI brief time",
+      "insightHourHint": "The daily brief uses the latest scan",
+      "language": "Report language",
+      "languageHint": "Language of the AI brief, alert emails and weekly report. The web interface is switched separately with the VI/EN button.",
+      "timezone": "Time zone",
+      "timezoneHint": "Scan times and the brief time follow this time zone"
+    },
+    "save": "Save settings",
+    "discard": "Discard changes",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "saveError": "Couldn't save",
+    "cardTitle": "Scan schedule and brief",
+    "cardDescription": "How often rooms are counted each day and when the AI brief is generated"
+  },
+  "events": {
+    "form": {
+      "name": "Event name",
+      "namePlaceholder": "e.g. Ho Chi Minh City Marathon",
+      "category": "Type",
+      "start": "From",
+      "end": "To",
+      "uplift": "Expected demand uplift",
+      "upliftHint": "%, optional",
+      "note": "Note",
+      "notePlaceholder": "Venue, expected attendance…"
+    },
+    "uplift": "{value} expected demand",
+    "deleteAria": "Delete {name}",
+    "addTitle": "Add event",
+    "addInfo": "Events appear on the Terminal+ calendar next to public holidays. The demand uplift is your own estimate, shared so the whole team sees it; the system doesn't measure it.",
+    "listTitle": "Local events",
+    "listDescription": "Festivals, conferences, tournaments, travel seasons… that affect room demand around your hotel.",
+    "emptyTitle": "No events yet",
+    "emptyBody": "Add local events (e.g. F1, fireworks festival, trade fair, peak season) to see them next to market data on the calendar."
+  },
+  "notifications": {
+    "rules": {
+      "daily_insight": {
+        "title": "Morning brief",
+        "describe": "Send the AI brief as soon as the daily brief is ready, with links to the evidence.",
+        "describeAt": "Send the AI brief as soon as the daily brief is ready (around {hour}), with links to the evidence."
+      },
+      "weekly_report": {
+        "title": "Weekly report",
+        "describe": "Monday mornings at 08:00: a summary of competitors over the past 7 days and your next 14 nights."
+      },
+      "competitor_sold_out": {
+        "title": "Competitor sold out",
+        "describe": "When a competitor has just sold out a night within the next <days></days> nights and at least <soldOut></soldOut> competitors are sold out that night."
+      },
+      "competitor_low_stock": {
+        "title": "Competitor almost sold out",
+        "describe": "When a competitor's room type is down to 3 rooms or fewer, for a night within the next <days></days> nights."
+      },
+      "competitor_price_drop": {
+        "title": "Competitor rate drop",
+        "describe": "When a competitor's lowest rate drops by at least <pct></pct> for a night within the next <days></days> nights."
+      },
+      "own_parity_gap": {
+        "title": "Your hotel is much cheaper on one channel",
+        "describe": "When your lowest rate on one channel is at least <pct></pct> below the cheapest other channel for a night within the next <days></days> nights, on the same rate basis. Usually a wholesale reseller or a channel discounting on its own."
+      }
+    },
+    "param": {
+      "aria": "{rule}: {param}",
+      "minGap": "minimum gap",
+      "minDrop": "minimum drop",
+      "minSoldOut": "minimum competitors sold out",
+      "withinDays": "nights ahead"
+    },
+    "emailOff": "The email server isn't configured, so OTARadar can't send emails yet. Notifications are still logged under “Recently sent” below.",
+    "emailOffOperator": "Set SMTP_HOST, SMTP_FROM (and SMTP_USERNAME, SMTP_PASSWORD) for the jobs worker, then recreate the container.",
+    "emailOffTenant": "Contact the OTARadar operations team to turn it on.",
+    "rulesTitle": "What to send",
+    "rulesDescription": "Alerts are bundled into one email after each scan, only when a change matches the conditions below.",
+    "invalid": "Enter a number within the allowed range (nights 1–90, drop or gap 3–90%, competitors 1–50).",
+    "saved": "Saved",
+    "recipients": {
+      "title": "Email recipients",
+      "description": "Each recipient gets a separate email and can't see the other addresses.",
+      "test": "Send test",
+      "emailAria": "Recipient email",
+      "emailPlaceholder": "owner@yourhotel.com",
+      "add": "Add recipient",
+      "errorTitle": "Couldn't complete that",
+      "emptyTitle": "No recipients yet",
+      "emptyBody": "Add the email of the hotel owner or revenue manager to receive competitor alerts and the morning brief.",
+      "removeAria": "Remove {email}"
+    },
+    "test": {
+      "sent": "Test email sent to {count, plural, one {# address} other {# addresses}}. Check the spam folder if it hasn't arrived.",
+      "notSent": "Couldn't send",
+      "notSentUnconfigured": "{reason}; the test email wasn't sent."
+    },
+    "log": {
+      "title": "Recently sent",
+      "description": "Latest {count, plural, one {# notification} other {# notifications}}",
+      "emptyTitle": "No notifications yet",
+      "emptyBody": "After the next scan with competitor changes, or once the morning brief is ready, emails will show up here.",
+      "time": "Time",
+      "kind": "Type",
+      "content": "Content",
+      "recipients": "Recipients",
+      "status": "Status"
+    }
+  },
+  "users": {
+    "roleHint": {
+      "operator": "Operates every tenant",
+      "tenant_admin": "Edits the watchlist, scan schedule, users and PMS imports",
+      "viewer": "Views figures and briefs only"
+    },
+    "form": {
+      "email": "Login email",
+      "emailPlaceholder": "name@yourhotel.com",
+      "password": "Password",
+      "passwordHint": "At least 8 characters",
+      "role": "Role",
+      "tenant": "Tenant",
+      "pickTenant": "Choose a tenant…",
+      "submit": "Create user",
+      "errorTitle": "Couldn't create the user",
+      "created": "Account {email} created. Send the password to the user through a separate channel."
+    },
+    "row": {
+      "you": "(you)",
+      "active": "Active",
+      "locked": "Locked",
+      "roleAria": "Role of {email}",
+      "newPasswordAria": "New password for {email}",
+      "newPasswordPlaceholder": "New password, ≥ 8 characters",
+      "setPassword": "Set",
+      "resetPassword": "Reset password",
+      "lockAccount": "Lock account",
+      "unlockAccount": "Unlock account",
+      "lock": "Lock",
+      "unlock": "Unlock"
+    },
+    "done": {
+      "roleChanged": "Role changed",
+      "passwordSet": "New password set",
+      "locked": "Account locked",
+      "unlocked": "Account unlocked"
+    },
+    "addTitle": "Add user",
+    "addDescription": "Admins can change settings; view-only users see figures and briefs.",
+    "listTitle": "Users",
+    "listSummary": "{count, plural, one {# account} other {# accounts}}, {active} active",
+    "emptyTitle": "No users yet",
+    "emptyWrite": "Create accounts for your colleagues above so they can check the rate board every morning.",
+    "emptyRead": "Your admin hasn't added any users yet.",
+    "colEmail": "Email",
+    "colRole": "Role",
+    "colStatus": "Status",
+    "colActions": "Actions"
+  },
+  "pms": {
+    "errors": {
+      "row": "Row",
+      "column": "Column",
+      "error": "Error"
+    },
+    "result": {
+      "imported": "<strong>{ok, number}</strong> of <num>{total, number}</num> rows imported",
+      "failedRows": "{count, plural, one {# row} other {# rows}} with errors",
+      "note": "Imported occupancy now shows on Availability, in your hotel's row."
+    },
+    "stepSr": "Step {n}:",
+    "dropzone": {
+      "reading": "Reading file…",
+      "change": "Click or drop another file to replace it",
+      "dropHere": "Drop the file here",
+      "pick": "Drag and drop or choose a CSV/Excel file",
+      "hint": "Daily occupancy export from your PMS: CSV, XLSX or XLS"
+    },
+    "hotelAria": "Your hotel",
+    "noSelfOption": "No hotel of your own yet",
+    "import": {
+      "title": "Import occupancy from your PMS",
+      "description": "Upload an export from your PMS (ezCloud, Newway…) to put your actual occupancy next to competitors' rooms left on the Availability tab.",
+      "template": "Download CSV template"
+    },
+    "step1": {
+      "title": "Choose hotel and file",
+      "noSelf": "Add your own hotel (role “Your hotel”) in the <link>Hotels</link> tab before importing PMS data.",
+      "hotel": "Your hotel",
+      "hotelHint": "Imported data is linked to this hotel",
+      "file": "Data file",
+      "previewError": "Couldn't read the file"
+    },
+    "step2": {
+      "title": "Map columns",
+      "hint": "Pick the column in your file that matches each standard column ({mapped}/{total} mapped). The mapping is saved and reused for future imports.",
+      "hintEmpty": "Choose a file and we'll suggest the matching columns.",
+      "required": "Required",
+      "skip": "Skip"
+    },
+    "step3": {
+      "title": "Preview and import",
+      "hint": "First {count, plural, one {# row} other {# rows}} of the file · <b>{parsed, number}</b> rows readable with the saved mapping",
+      "hintEmpty": "Check the first few rows before importing.",
+      "previewErrors": "{count, plural, one {# error} other {# errors}} in a test read with the saved mapping",
+      "clickToView": "· click to view",
+      "submit": "Save mapping and import data",
+      "needStayDate": "Choose a column for {column}.",
+      "importInto": "Importing into {hotel}",
+      "importError": "Couldn't import"
+    },
+    "history": {
+      "title": "Import history",
+      "description": "Last {count, plural, one {# import} other {# imports}}",
+      "emptyTitle": "No files imported yet",
+      "emptyBody": "Import occupancy from your PMS so Availability shows your actual occupancy right below the rooms-left strip, next to competitors.",
+      "time": "Time",
+      "file": "File",
+      "hotel": "Hotel",
+      "status": "Status",
+      "okRows": "Rows imported",
+      "errors": "Errors"
+    },
+    "daily": {
+      "title": "Imported occupancy",
+      "description": "Last {count, plural, one {# night} other {# nights}} with data",
+      "noSelfTitle": "No hotel of your own yet",
+      "noSelfBody": "Once you have a hotel with the role “Your hotel” and a PMS file has been imported, occupancy for each night shows here.",
+      "noDataTitle": "No data for {hotel} yet",
+      "noDataWrite": "Import a file above; each row is one night with total rooms, rooms sold and revenue.",
+      "noDataRead": "Your admin hasn't imported PMS data for this hotel yet.",
+      "stayDate": "Stay date",
+      "roomsTotal": "Total rooms",
+      "roomsSold": "Sold",
+      "roomsLeft": "Left",
+      "occupancy": "Occupancy",
+      "adr": "ADR",
+      "revenue": "Revenue",
+      "source": "Source",
+      "importedAt": "Imported"
+    }
+  }
+}

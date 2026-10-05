@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from "@/i18n/config";
 
 /**
  * Proxy cùng origin: /api/<path> -> ${API_INTERNAL_URL}/<path>.
@@ -6,6 +7,9 @@ import type { NextRequest } from "next/server";
  * Đọc `process.env.API_INTERNAL_URL` ở mỗi request nên đổi env khi chạy container
  * là đủ, không cần build lại. Cookie httpOnly `sb_session` đi qua nguyên vẹn hai chiều,
  * body (JSON lẫn multipart) được chuyển tiếp nguyên bytes.
+ *
+ * `Accept-Language` gửi lên backend là ngôn ngữ người dùng chọn (cookie NEXT_LOCALE), không phải
+ * ngôn ngữ trình duyệt: backend dịch text nó sinh ra (lý do gợi ý giá, tên ngày lễ, CSV…) theo đó.
  */
 
 export const dynamic = "force-dynamic";
@@ -39,6 +43,8 @@ async function handle(request: NextRequest, ctx: Ctx): Promise<Response> {
   request.headers.forEach((value, key) => {
     if (!HOP_BY_HOP.has(key)) headers.set(key, value);
   });
+  const chosen = request.cookies.get(LOCALE_COOKIE)?.value;
+  headers.set("accept-language", isLocale(chosen) ? chosen : DEFAULT_LOCALE);
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
   const body = hasBody ? await request.arrayBuffer() : undefined;
@@ -55,7 +61,7 @@ async function handle(request: NextRequest, ctx: Ctx): Promise<Response> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return Response.json(
-      { detail: `Không kết nối được API (${apiBase()}): ${message}` },
+      { detail: `api unreachable (${apiBase()}): ${message}` },
       { status: 502 },
     );
   }

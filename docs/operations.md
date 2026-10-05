@@ -4,18 +4,29 @@
 
 | Tiến trình | Lệnh | Việc làm |
 |---|---|---|
-| `migrate` | `alembic upgrade head` | Tạo/cập nhật schema (migration 0001–0004). |
-| `scheduler` | `python -m app.scheduler` | Mỗi 60 giây: tạo scan run cho mốc giờ quét của tenant, đẩy job `probe_hotel`, đẩy lại job kẹt, chốt run quá hạn 90 phút, cảnh báo block rate, tạo partition tháng. |
-| `worker` | `arq app.worker.settings.WorkerSettings` | Collector: mỗi job = 1 khách sạn, lấy calendar rồi probe từng ngày (session lai Playwright + curl_cffi, fallback trình duyệt), ghi snapshot, HTML thô lên MinIO. Khi run chốt thì đẩy job analytics. Scale bằng `--scale worker=N`. |
+| `migrate` | `alembic upgrade head` | Tạo/cập nhật schema (migration 0001–0007; 0007 = đa kênh). |
+| `scheduler` | `python -m app.scheduler` | Mỗi 60 giây: tạo scan run cho mốc giờ quét của tenant (**một run mỗi kênh**), đẩy job `probe_hotel` vào hàng đợi của kênh, đẩy lại job kẹt, chốt run quá hạn 90 phút, cảnh báo block rate theo kênh và **tự ngắt kênh** bị chặn >20%/15 phút (30 phút), kiểm tra proxy mỗi 15 phút, tạo partition tháng. |
+| `worker`, `worker-agoda`, `worker-ivivu`, `worker-tripcom` | `arq app.worker.settings.WorkerSettings` với `WORKER_CHANNEL=<kênh>` | Collector của một kênh: mỗi job = 1 listing (khách sạn × kênh), lấy calendar (nếu kênh có) rồi probe từng đêm theo tầng (0–14 đêm mọi lượt, xa hơn chỉ khi dữ liệu cũ), ghi snapshot + tín hiệu cầu, payload thô lên MinIO. Cũng chạy `verify_listing` (URL người dùng dán trỏ khách sạn nào) và `discover_listing` (tìm cùng khách sạn trên kênh này → gợi ý). Ngân sách request/phút toàn hệ thống theo kênh (`CHANNEL_BUDGETS`). Scale từng kênh: `--scale worker-agoda=N`. |
 | `jobs` | `arq app.jobs.settings.JobsWorkerSettings` | Analytics sau mỗi run (+ catch-up mỗi 30 phút), insight hằng ngày theo `insight_hour` của tenant (Batch API), insight theo yêu cầu (đồng bộ), poll batch mỗi 10 phút, backup Postgres 02:30 giờ VN, dọn partition >24 tháng ngày 1 hằng tháng. |
 | `api` | `uvicorn app.api.asgi:app` | FastAPI cho dashboard và import PMS. OpenAPI tại `/docs`, Prometheus tại `/metrics`. |
 | `dashboard` | Next.js | Giao diện tenant và operator; gọi API qua rewrite `/api/*`. |
 
 Hạ tầng: Postgres 16, Redis 7 (hàng đợi arq), MinIO (HTML thô 30 ngày, backup), Prometheus + Grafana (profile monitoring).
 
-Hàng đợi arq tách riêng theo worker: `arq:queue:collector` (`probe_hotel`, tiến trình `worker`) và
-`arq:queue:jobs` (analytics, bản tin, cron, tiến trình `jobs`). Hai worker không được dùng chung một
-hàng đợi: job của hàm mà worker không có sẽ bị bỏ ("function not found").
+Hàng đợi arq tách riêng theo worker: `arq:queue:collector:<kênh>` (`probe_hotel`, `verify_listing`,
+`discover_listing` của kênh đó) và `arq:queue:jobs` (analytics, bản tin, cron, tiến trình `jobs`).
+Hai worker không được dùng chung một hàng đợi: job của hàm mà worker không có sẽ bị bỏ ("function
+not found"). Kênh không có worker chạy thì listing của kênh đó đứng ở "đang kiểm tra".
+
+**Nâng cấp lên đa kênh (0007):** migration bỏ `hotels.booking_*` (chuyển sang `listings`), nên dừng
+mọi container cũ trước khi `migrate`, rồi khởi động bản mới cùng lúc. Hàng đợi cũ
+`arq:queue:collector` không còn ai nghe: job còn `queued` được scheduler đẩy lại vào hàng đợi mới sau
+5 phút.
+
+**Proxy:** `PROXY_URL_TEMPLATE` nhận nhiều proxy cách nhau dấu phẩy (xoay vòng mỗi session mới). Dạng
+`host:port:user:pass` của nhà cung cấp viết thành `http://user:pass@host:port`. Kiểm tra:
+`uv run sb check-proxy`. Scheduler tự kiểm tra 15 phút/lần và gửi cảnh báo (email tới
+`OPS_ALERT_EMAILS` nếu đã cấu hình SMTP, luôn ghi log `ops_alert`).
 
 **Nâng cấp từ bản dùng hàng đợi mặc định `arq:queue`:** dừng `scheduler` và `api`, chờ
 `redis-cli ZCARD arq:queue` về 0 (kể cả job retry hoãn 60 giây), rồi mới deploy bản mới cho cả máy
@@ -31,7 +42,7 @@ cd backend
 uv run sb add-user ops@congty.vn --role operator          # tài khoản operator đầu tiên
 ```
 
-Sau đó vào dashboard http://localhost:3000, đăng nhập operator, tạo tenant, thêm khách sạn bằng URL Booking, tạo tài khoản `tenant_admin` cho khách hàng.
+Sau đó vào dashboard http://localhost:3000, đăng nhập operator, tạo tenant, thêm khách sạn bằng URL trang khách sạn trên Booking.com, Agoda, iVIVU hoặc Trip.com (hệ thống tự kiểm tra URL rồi gợi ý cùng khách sạn trên các kênh còn lại để xác nhận), tạo tài khoản `tenant_admin` cho khách hàng.
 
 Dữ liệu demo để thử giao diện không cần scrape: `uv run python scripts/seed_demo.py`.
 
@@ -56,16 +67,37 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 - Không có `OPENROUTER_API_KEY` thì dùng client giả (đầu ra rỗng có ghi chú) để hệ thống vẫn chạy.
 - Đổi prompt: tăng `PROMPT_VERSION`, chạy `uv run pytest tests/unit/test_insight_scenarios.py`.
 
+## 5b. Thông báo email
+
+- Cấu hình ở `.env` (worker `jobs` và `api`): `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_SECURITY` (`starttls` | `ssl` | `none`), `APP_BASE_URL` (gốc dashboard cho liên kết trong email). Để trống `SMTP_HOST` thì không gửi; nhật ký ghi `skipped` / `smtp_not_configured`. Đổi `.env` xong phải tạo lại container (`up -d --force-recreate jobs api`).
+- Cron `dispatch_notifications` (jobs, mỗi 5 phút, idempotent qua bảng `notifications.dedupe_key`):
+  - `alerts:{tenant}:{run nhỏ nhất của mốc}`: sự kiện trong **mọi run cùng mốc quét** (mỗi kênh một run; đợi đủ các kênh chốt) đã analytics (24 giờ qua), gộp cùng sự kiện trên nhiều kênh thành một dòng ("trên Booking, Agoda"), lọc theo luật của tenant (`notification_rules`, mặc định bật): hết phòng (N đêm tới, ≥ M đối thủ hết; hết trên một kênh mà kênh khác vẫn bán thì viết "đóng bán trên kênh", không viết hết phòng), sắp hết phòng, giảm giá ≥ X%, **khách sạn của bạn rẻ hơn ≥ X% trên một kênh** (`own_parity_gap`, cùng cơ sở giá đã gồm thuế). Một email gom mọi mục; không có mục thì ghi `skipped`/`no_matches` (ẩn trên dashboard).
+  - `insight:{id}`: bản tin daily `completed` trong 36 giờ qua.
+  - `weekly:{tenant}:{năm}-W{tuần}`: thứ Hai từ 08:00 giờ tenant (bù trong thứ Ba nếu worker tắt cả thứ Hai).
+  - Dòng được chèn ở trạng thái `sending` và commit trước khi gửi. Email lỗi SMTP thử lại sau 5 phút, 30 phút, 2 giờ (tối đa 4 lần); dòng `sending` quá 10 phút (worker chết giữa chừng) cũng được gửi lại. Mỗi lần thử giành dòng bằng UPDATE có điều kiện nên cron chạy chồng không gửi trùng. Email thử không được thử lại.
+  - Lỗi của một tenant (dữ liệu lạ, DB) được ghi log `notification_dispatch_failed` và bỏ qua, không chặn tenant khác.
+  - Không gửi bù: `skipped` vì chưa cấu hình SMTP hoặc chưa có người nhận là trạng thái cuối (cảnh báo chỉ có giá trị khi kịp thời).
+- Người nhận do tenant_admin quản lý ở Cài đặt › Thông báo; mỗi người nhận một email riêng. Nút "Gửi thử" giới hạn 1 lần/phút/tenant.
+- Thử cục bộ không gửi ra ngoài: `uv run --with aiosmtpd python -m aiosmtpd -n -l localhost:1025` rồi đặt `SMTP_HOST=localhost SMTP_PORT=1025 SMTP_SECURITY=none`.
+
+## 5c. Ước tính công suất và gợi ý giá (đợt 2)
+
+- Bảng `occupancy_estimates`, `occupancy_estimate_runs` (dấu đã xử lý), `price_suggestion_decisions` (migration 0008, sau 0007 đa kênh).
+- Cron `estimate_occupancy_catch_up` (jobs, phút 4/14/…/54): lượt quét đã có `hotel_date_snapshots` mà chưa có dấu → tính, mỗi lượt commit riêng, lỗi một lượt không chặn lượt khác. Tồn phòng nhìn thấy = lớn nhất trong 30 ngày (số chính xác hoặc mức sàn).
+- Tính lại toàn bộ: xoá `occupancy_estimate_runs` (và `occupancy_estimates`) rồi để cron chạy.
+- PWA: `dashboard/src/app/manifest.ts`, icon trong `public/icons/`, `src/app/icon.svg`, `src/app/apple-icon.png`; `proxy.ts` cho qua manifest/icon không cần cookie.
+
 ## 6. Lệnh vận hành (`uv run sb ...`)
 
 | Lệnh | Việc |
 |---|---|
-| `add-tenant`, `add-hotel`, `add-user` | Onboard bằng CLI (dashboard làm được việc tương tự). |
-| `scan-now [--no-enqueue]` | Tạo scan run thủ công cho mọi tenant. Trên dashboard: nút "Quét ngay" (tenant, `POST /watchlist/scan-now`) và "Quét tất cả ngay" (operator, `POST /health/scan-now`), chống trùng trong 10 phút. |
+| `add-tenant`, `add-hotel`, `add-user` | Onboard bằng CLI (dashboard làm được việc tương tự). `add-hotel <tenant> <url>` nhận URL mọi kênh hỗ trợ; listing thêm qua CLI được quét ngay (không chờ verify). |
+| `scan-now [--no-enqueue]` | Tạo scan run thủ công cho mọi tenant (một run mỗi kênh). Trên dashboard: nút "Quét ngay" (tenant, `POST /watchlist/scan-now`) và "Quét tất cả ngay" (operator, `POST /health/scan-now`), chống trùng trong 10 phút theo kênh. |
+| `check-proxy` | Gọi thử qua từng proxy, in IP ra (không in mật khẩu); mã thoát 1 nếu có proxy lỗi. |
 | `run-status --limit 5` | Trạng thái các đợt quét gần nhất. |
 | `analyze [--run-id N] [--all-pending]` | Chạy analytics tay. |
 | `insight <tenant_id> [--sync/--batch]` | Sinh bản tin tay. |
-| `reparse --since-days 30 [--no-reanalyze]` | Parse lại HTML thô sau khi đổi parser, rồi tính lại analytics cho các run bị ảnh hưởng. |
+| `reparse --since-days 30 [--no-reanalyze]` | Parse lại HTML thô **Booking** sau khi đổi parser, rồi tính lại analytics cho các run bị ảnh hưởng. Kênh khác lưu payload JSON; `parser_version` mỗi probe có dạng `<kênh>:<phiên bản>`. |
 | `ensure-partitions`, `prune-partitions --keep-months 24` | Partition `room_snapshots`. |
 | `backup-db` | pg_dump → gzip → MinIO bucket `BACKUP_BUCKET`, giữ `BACKUP_KEEP` bản. |
 
@@ -130,3 +162,4 @@ ràng buộc đã bổ sung: `docs/user-flows.md`.
 - Chạy thật giai đoạn 1 vài ngày (tiêu chí trong `docs/runbook-phase1.md`); đã chạy 3 đợt đầu với proxy dân dụng VN: 359/360 probe OK (1 lỗi 502 tạm thời, nay tự thử lại), 0 bị chặn.
 - Tư vấn pháp lý về ToS Booking.com trước khi bán cho khách hàng.
 - Adapter API cho ezCloud / Newway / Hotel Link / Smile khi được cấp quyền (interface `PmsAdapter` đã có).
+- Chọn nhà cung cấp SMTP (SES, Postmark, Brevo…), cấu hình SPF/DKIM cho tên miền gửi, điền `SMTP_*` (mục 5b).

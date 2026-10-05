@@ -27,3 +27,12 @@ def test_badge_wins_over_dropdown_when_both_present() -> None:
     stock = derive_stock(badge_count=2, dropdown_max=10, page_cap=10)
     assert stock.rooms_left == 2
     assert stock.confidence == StockConfidence.EXACT
+
+
+def test_rate_scope_badge_is_only_a_lower_bound() -> None:
+    # "Chỉ còn 1 phòng có giá này" (Trip.com, D4): loại phòng còn ít nhất 1, không phải số chính xác.
+    stock = derive_stock(badge_count=1, dropdown_max=None, page_cap=10, scope="rate")
+    assert (stock.rooms_left, stock.confidence) == (1, StockConfidence.CAPPED)
+    assert derive_stock(0, None, 10, scope="rate").confidence == StockConfidence.SOLD_OUT
+    assert derive_stock(1, None, 10, scope="room_type").confidence == StockConfidence.EXACT
+    assert derive_stock(None, 4, 10, scope="rate").confidence == StockConfidence.HIDDEN

@@ -5,7 +5,12 @@
  * 6 lượt quét (hôm qua và hôm nay lúc 06:00, 14:00, 22:00) và sự kiện giữa hai lượt.
  */
 
+import type { Fmt } from "@/lib/format";
+import type { Messages } from "@/messages";
+
 export type Confidence = "exact" | "capped" | "hidden" | "sold_out";
+export type RoomTypeKey = keyof Messages["landing"]["demo"]["roomTypes"];
+export type PlanKey = keyof Messages["landing"]["demo"]["plans"];
 
 export const SCAN_TIMES = ["06:00", "14:00", "22:00"] as const;
 export type ScanTime = (typeof SCAN_TIMES)[number];
@@ -26,87 +31,87 @@ export interface DemoHotel {
   /** Khách sạn nhỏ, giá tốt kín sớm hơn. */
   pressure: number;
   basePrice: number;
-  roomTypes: { name: string; share: number; priceMul: number; plans: string[] }[];
+  roomTypes: { name: RoomTypeKey; share: number; priceMul: number; plans: PlanKey[] }[];
 }
 
 export const HOTELS: DemoHotel[] = [
   {
     id: "self",
-    name: "Khách sạn của bạn",
+    name: "Khách sạn của bạn", // i18n-ignore: chữ hiển thị lấy ở landing.demo.selfHotel
     self: true,
     windows: 20,
     rooms: 48,
     pressure: 0.8,
     basePrice: 1_350_000,
     roomTypes: [
-      { name: "Deluxe giường đôi hướng biển", share: 0.72, priceMul: 1, plans: ["Hoàn huỷ miễn phí", "Gồm bữa sáng"] },
-      { name: "Superior hai giường", share: 0.18, priceMul: 0.86, plans: ["Không hoàn huỷ"] },
-      { name: "Suite gia đình", share: 0.1, priceMul: 1.75, plans: ["Hoàn huỷ miễn phí"] },
+      { name: "deluxeDoubleSea", share: 0.72, priceMul: 1, plans: ["freeCancellation", "breakfast"] },
+      { name: "superiorTwin", share: 0.18, priceMul: 0.86, plans: ["nonRefundable"] },
+      { name: "familySuite", share: 0.1, priceMul: 1.75, plans: ["freeCancellation"] },
     ],
   },
   {
     id: "haiau",
-    name: "Hải Âu",
+    name: "Hải Âu", // i18n-ignore
     self: false,
     windows: 16,
     rooms: 40,
     pressure: 1,
     basePrice: 1_200_000,
     roomTypes: [
-      { name: "Deluxe giường đôi", share: 0.6, priceMul: 1, plans: ["Gồm bữa sáng"] },
-      { name: "Standard hai giường", share: 0.4, priceMul: 0.85, plans: ["Không hoàn huỷ"] },
+      { name: "deluxeDouble", share: 0.6, priceMul: 1, plans: ["breakfast"] },
+      { name: "standardTwin", share: 0.4, priceMul: 0.85, plans: ["nonRefundable"] },
     ],
   },
   {
     id: "ngoclan",
-    name: "Ngọc Lan",
+    name: "Ngọc Lan", // i18n-ignore
     self: false,
     windows: 12,
     rooms: 22,
     pressure: 1.25,
     basePrice: 1_550_000,
     roomTypes: [
-      { name: "Boutique giường đôi", share: 0.7, priceMul: 1, plans: ["Hoàn huỷ miễn phí", "Gồm bữa sáng"] },
-      { name: "Junior suite", share: 0.3, priceMul: 1.45, plans: ["Gồm bữa sáng"] },
+      { name: "boutiqueDouble", share: 0.7, priceMul: 1, plans: ["freeCancellation", "breakfast"] },
+      { name: "juniorSuite", share: 0.3, priceMul: 1.45, plans: ["breakfast"] },
     ],
   },
   {
     id: "catvang",
-    name: "Cát Vàng",
+    name: "Cát Vàng", // i18n-ignore
     self: false,
     windows: 16,
     rooms: 34,
     pressure: 1.1,
     basePrice: 1_100_000,
     roomTypes: [
-      { name: "Superior giường đôi", share: 0.55, priceMul: 1, plans: ["Không hoàn huỷ"] },
-      { name: "Deluxe ban công", share: 0.45, priceMul: 1.2, plans: ["Hoàn huỷ miễn phí"] },
+      { name: "superiorDouble", share: 0.55, priceMul: 1, plans: ["nonRefundable"] },
+      { name: "deluxeBalcony", share: 0.45, priceMul: 1.2, plans: ["freeCancellation"] },
     ],
   },
   {
     id: "saobien",
-    name: "Sao Biển",
+    name: "Sao Biển", // i18n-ignore
     self: false,
     windows: 24,
     rooms: 80,
     pressure: 0.7,
     basePrice: 1_800_000,
     roomTypes: [
-      { name: "Premier hướng biển", share: 0.45, priceMul: 1, plans: ["Hoàn huỷ miễn phí", "Gồm bữa sáng"] },
-      { name: "Deluxe hướng phố", share: 0.4, priceMul: 0.82, plans: ["Gồm bữa sáng"] },
-      { name: "Căn hộ hai phòng ngủ", share: 0.15, priceMul: 2.1, plans: ["Hoàn huỷ miễn phí"] },
+      { name: "premierSea", share: 0.45, priceMul: 1, plans: ["freeCancellation", "breakfast"] },
+      { name: "deluxeCity", share: 0.4, priceMul: 0.82, plans: ["breakfast"] },
+      { name: "twoBedApartment", share: 0.15, priceMul: 2.1, plans: ["freeCancellation"] },
     ],
   },
 ];
 
 export interface RoomTypeObs {
-  name: string;
+  name: RoomTypeKey;
   left: number;
   confidence: Confidence;
   /** Con số hiển thị được: đúng X (exact), ít nhất X (capped), null (hidden). */
   shown: number | null;
   price: number | null;
-  plans: string[];
+  plans: PlanKey[];
 }
 
 export interface HotelObs {
@@ -149,17 +154,6 @@ export interface Demo {
   /** Công suất PMS của khách sạn bạn theo đêm (0..1). */
   occupancy: number[];
 }
-
-export const SCAN_LABELS = [
-  "Hôm qua 06:00",
-  "Hôm qua 14:00",
-  "Hôm qua 22:00",
-  "Hôm nay 06:00",
-  "Hôm nay 14:00",
-  "Hôm nay 22:00",
-];
-
-const WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -251,24 +245,25 @@ function toISO(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-export function buildDemo(startISO: string): Demo {
+export function buildDemo(startISO: string, weekdayOf: Fmt["fmtWeekday"]): Demo {
   const [y, m, d] = startISO.split("-").map(Number);
   const nights: DemoNight[] = Array.from({ length: 30 }, (_, i) => {
     const date = new Date(Date.UTC(y, m - 1, d + i));
     const wd = date.getUTCDay();
+    const iso = toISO(date);
     const day = `${date.getUTCDate()}/${date.getUTCMonth() + 1}`;
     return {
       index: i,
-      iso: toISO(date),
-      label: `${WEEKDAYS[wd]} ${day}`,
-      weekday: WEEKDAYS[wd],
+      iso,
+      label: `${weekdayOf(iso)} ${day}`,
+      weekday: weekdayOf(iso),
       day,
       weekend: wd === 5 || wd === 6,
     };
   });
 
   // Thứ Bảy đầu tiên cách hôm nay ít nhất 10 đêm.
-  const peak = nights.findIndex((n) => n.index >= 10 && n.weekday === "T7");
+  const peak = nights.findIndex((n) => n.index >= 10 && new Date(`${n.iso}T00:00:00Z`).getUTCDay() === 6);
 
   const demand = nights.map((n) => {
     let v = 0.28 + (n.weekend ? 0.3 : 0);
@@ -346,41 +341,8 @@ export function buildDemo(startISO: string): Demo {
   return { nights, obs, events, peak, occupancy };
 }
 
-export const EVENT_LABEL: Record<DemoEvent["kind"], string> = {
-  sold_out: "Hết phòng",
-  restock: "Có phòng lại",
-  rooms_decrease: "Giảm phòng",
-  low_stock_enter: "Sắp hết phòng",
-  price_down: "Giảm giá",
-  price_up: "Tăng giá",
-};
-
-export const CONFIDENCE_LABEL: Record<Confidence, string> = {
-  exact: "Chính xác",
-  capped: "Ít nhất",
-  hidden: "Ẩn",
-  sold_out: "Hết",
-};
-
-/** Số hiển thị mức khách sạn: đúng X, ít nhất X, hoặc HẾT. */
-export function plaqueText(o: HotelObs): string {
-  if (o.status === "sold_out") return "HẾT";
-  if (o.hasCapped || o.hasHidden) return o.known > 0 ? `≥${o.known}` : "CÒN";
-  return String(o.known);
-}
-
-export function formatVnd(v: number | null): string {
-  if (v == null) return "—";
-  return `${v.toLocaleString("vi-VN")} ₫`;
-}
-
-export function formatThousands(v: number | null): string {
-  if (v == null) return "—";
-  return Math.round(v / 1000).toLocaleString("vi-VN");
-}
-
-export function hotelName(id: string): string {
-  return HOTELS.find((h) => h.id === id)?.name ?? id;
+export function formatThousands(v: number | null, fmt: Fmt): string {
+  return fmt.fmtInt(v == null ? null : Math.round(v / 1000));
 }
 
 /** Ngày hôm nay theo giờ Việt Nam, dạng YYYY-MM-DD. */

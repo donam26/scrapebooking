@@ -20,16 +20,23 @@ from app.db.models import (
     Hotel,
     HotelDateMetric,
     HotelDateSnapshot,
+    ListingDemandSignal,
     OwnHotelDaily,
     RoomType,
     Tenant,
     TenantHotel,
 )
 from app.holidays.data import holidays_between, is_weekend
+from app.i18n import normalize_locale
 
 EVENT_LIMIT_24H = 120
 EVENT_LIMIT_7D = 200
+# Bản tin phục vụ quyết định buổi sáng: tối đa 30 đêm dù horizon quét là 90 (giữ đầu vào gọn).
+INSIGHT_MAX_DAYS = 30
+
 PRIORITY_EVENTS = (
+    "channel_closed",
+    "parity_gap",
     "sold_out",
     "restock",
     "low_stock_enter",
@@ -59,7 +66,9 @@ async def build_input(
     now = now or datetime.now(tz=UTC)
     tz = ZoneInfo(tenant.timezone)
     today = now.astimezone(tz).date()
-    start, end = today, today + timedelta(days=tenant.horizon_days - 1)
+    days_n = min(tenant.horizon_days, INSIGHT_MAX_DAYS)
+    start, end = today, today + timedelta(days=days_n - 1)
+    channel = tenant.reference_channel
 
     links = (
         await session.execute(
@@ -80,14 +89,21 @@ async def build_input(
         },
         "language": tenant.insight_language,
         "generated_at": now.isoformat(),
-        "period": {"start": start.isoformat(), "end": end.isoformat(), "days": tenant.horizon_days},
+        "reference_channel": channel,
+        "period": {"start": start.isoformat(), "end": end.isoformat(), "days": days_n},
         "hotels": [],
         "events_24h": [],
         "events_7d": [],
         "compset": [],
+        "demand_signals": [],
         "holidays": [
             {"date": h.date.isoformat(), "name": h.name}
-            for h in holidays_between(tenant.country_code, start, end + timedelta(days=7))
+            for h in holidays_between(
+                tenant.country_code,
+                start,
+                end + timedelta(days=7),
+                normalize_locale(tenant.insight_language),
+            )
         ],
         "data_quality": {},
     }
@@ -99,6 +115,7 @@ async def build_input(
             await session.execute(
                 select(HotelDateMetric).where(
                     HotelDateMetric.hotel_id.in_(hotel_ids),
+                    HotelDateMetric.channel == channel,
                     HotelDateMetric.stay_date >= start,
                     HotelDateMetric.stay_date <= end,
                 )
@@ -134,7 +151,7 @@ async def build_input(
     unknown = observed = 0
     for link, hotel in links:
         days = []
-        for i in range(tenant.horizon_days):
+        for i in range(days_n):
             d = start + timedelta(days=i)
             m: HotelDateMetric | None = by_hotel.get(hotel.id, {}).get(d)
             ref = f"metric:{hotel.id}:{d.isoformat()}"
@@ -173,7 +190,7 @@ async def build_input(
         payload["hotels"].append(
             {
                 "hotel_id": hotel.id,
-                "name": hotel.name or hotel.booking_slug,
+                "name": hotel.name or f"#{hotel.id}",
                 "label": link.label,
                 "role": link.role,
                 "days": days,
@@ -206,6 +223,7 @@ async def build_input(
                     "ref": ref,
                     "hotel_id": e.hotel_id,
                     "hotel": hotel_name,
+                    "channel": e.channel,
                     "room_type": rt_name,
                     "stay_date": e.stay_date.isoformat(),
                     "type": e.event_type,
@@ -221,7 +239,42 @@ async def build_input(
     payload["events_24h"] = await _events(now - timedelta(hours=24), EVENT_LIMIT_24H)
     payload["events_7d"] = await _events(now - timedelta(days=7), EVENT_LIMIT_7D)
 
-    for c in await compset_by_day(session, tenant.id, start, end):
+    signals = (
+        (
+            await session.execute(
+                select(ListingDemandSignal)
+                .where(
+                    ListingDemandSignal.hotel_id.in_(hotel_ids),
+                    ListingDemandSignal.observed_at >= now - timedelta(days=2),
+                )
+                .order_by(ListingDemandSignal.observed_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    seen: set[tuple[int, str, str, date | None]] = set()
+    for sig in signals:
+        key = (sig.hotel_id, sig.channel, sig.kind, sig.stay_date)
+        if key in seen:
+            continue  # chỉ giữ giá trị mới nhất mỗi (khách sạn, kênh, loại, đêm)
+        seen.add(key)
+        ref = f"demand:{sig.id}"
+        refs.add(ref)
+        payload["demand_signals"].append(
+            {
+                "ref": ref,
+                "hotel_id": sig.hotel_id,
+                "channel": sig.channel,
+                "kind": sig.kind,
+                "value": _num(sig.value),
+                "window_hours": sig.window_hours,
+                "stay_date": sig.stay_date.isoformat() if sig.stay_date else None,
+                "text": sig.raw_text,
+            }
+        )
+
+    for c in await compset_by_day(session, tenant.id, start, end, channel=channel):
         ref = f"compset:{c.stay_date.isoformat()}"
         refs.add(ref)
         payload["compset"].append(
@@ -245,7 +298,7 @@ async def build_input(
     last_obs = (
         await session.execute(
             select(func.max(HotelDateSnapshot.scanned_at)).where(
-                HotelDateSnapshot.hotel_id.in_(hotel_ids)
+                HotelDateSnapshot.hotel_id.in_(hotel_ids), HotelDateSnapshot.channel == channel
             )
         )
     ).scalar_one()

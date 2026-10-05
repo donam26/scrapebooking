@@ -1,0 +1,43 @@
+{
+  "page": {
+    "title": "Khám phá thị trường",
+    "knownHotels": "{count, number} khách sạn đã biết",
+    "availableTonight": "<b>{count, number}</b> còn phòng đêm nay",
+    "listScanned": "Quét danh sách {when}",
+    "emptyTitle": "Chưa có khu vực thị trường",
+    "emptyBody": "Chọn thành phố hoặc quận ở <link>Cài đặt › Thị trường</link> để quét danh sách mọi khách sạn trong khu vực, rồi chọn đối thủ từ đây.",
+    "searchLabel": "Tìm khách sạn",
+    "searchPlaceholder": "Tìm theo tên",
+    "search": "Tìm",
+    "sort": "Sắp xếp",
+    "sorts": {
+      "review_count": "Nhiều đánh giá",
+      "review_score": "Điểm cao",
+      "price": "Giá thấp",
+      "distance": "Gần bạn"
+    },
+    "noMatch": "Không có khách sạn nào khớp.",
+    "prev": "Trước",
+    "next": "Sau"
+  },
+  "table": {
+    "hotel": "Khách sạn",
+    "reviews": "Đánh giá",
+    "stars": "Hạng sao",
+    "distance": "Cách bạn",
+    "tonightRate": "Giá đêm nay",
+    "tonight": "Đêm nay",
+    "openOnBooking": "Mở {name} trên Booking.com",
+    "hotelFallback": "khách sạn",
+    "starsAria": "{count} sao",
+    "km": "{km} km",
+    "unknown": "Chưa rõ",
+    "available": "Còn phòng",
+    "soldOut": "Hết phòng"
+  },
+  "follow": {
+    "yours": "Của bạn",
+    "following": "Đang theo dõi",
+    "follow": "Theo dõi"
+  }
+}

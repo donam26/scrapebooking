@@ -1,0 +1,43 @@
+{
+  "page": {
+    "title": "Market explorer",
+    "knownHotels": "{count, plural, one {# known hotel} other {# known hotels}}",
+    "availableTonight": "<b>{count, number}</b> available tonight",
+    "listScanned": "List scanned {when}",
+    "emptyTitle": "No market area set",
+    "emptyBody": "Choose a city or district in <link>Settings › Market</link> to scan every hotel in the area, then pick competitors from here.",
+    "searchLabel": "Search hotels",
+    "searchPlaceholder": "Search by name",
+    "search": "Search",
+    "sort": "Sort by",
+    "sorts": {
+      "review_count": "Most reviewed",
+      "review_score": "Top rated",
+      "price": "Lowest rate",
+      "distance": "Nearest"
+    },
+    "noMatch": "No matching hotels.",
+    "prev": "Previous",
+    "next": "Next"
+  },
+  "table": {
+    "hotel": "Hotel",
+    "reviews": "Reviews",
+    "stars": "Stars",
+    "distance": "Distance",
+    "tonightRate": "Rate tonight",
+    "tonight": "Tonight",
+    "openOnBooking": "Open {name} on Booking.com",
+    "hotelFallback": "hotel",
+    "starsAria": "{count, plural, one {# star} other {# stars}}",
+    "km": "{km} km",
+    "unknown": "Unknown",
+    "available": "Available",
+    "soldOut": "Sold out"
+  },
+  "follow": {
+    "yours": "Yours",
+    "following": "Following",
+    "follow": "Follow"
+  }
+}

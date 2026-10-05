@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+import { useFmt } from "@/lib/format";
 import { buildDemo, HOTELS } from "./demo-data";
 
 const W = 720;
@@ -6,7 +8,9 @@ const PAD = { l: 8, r: 60, t: 30, b: 44 };
 
 /** Công suất PMS của bạn (đường) đặt cạnh tỷ lệ đối thủ hết phòng (cột), 30 đêm tới. */
 export function PmsChart({ startISO }: { startISO: string }) {
-  const demo = buildDemo(startISO);
+  const t = useTranslations("landing.chart");
+  const { fmtWeekday } = useFmt();
+  const demo = buildDemo(startISO, fmtWeekday);
   const competitors = HOTELS.filter((h) => !h.self);
   const n = demo.nights.length;
   const iw = W - PAD.l - PAD.r;
@@ -23,27 +27,31 @@ export function PmsChart({ startISO }: { startISO: string }) {
   return (
     <figure className="lp-pms-chart">
       <figcaption className="lp-pms-head">
-        <span className="lp-pms-title">Công suất của bạn và thị trường</span>
+        <span className="lp-pms-title">{t("title")}</span>
         <span className="lp-pms-legend">
           <span>
-            <i className="lp-key-bar" aria-hidden="true" /> Đối thủ hết phòng
+            <i className="lp-key-bar" aria-hidden="true" /> {t("soldOut")}
           </span>
           <span>
-            <i className="lp-key-line" aria-hidden="true" /> Công suất từ PMS
+            <i className="lp-key-line" aria-hidden="true" /> {t("occupancy")}
           </span>
         </span>
       </figcaption>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Minh hoạ: đêm ${demo.nights[peak].label} đối thủ hết phòng ${Math.round(share[peak] * 100)}%, công suất của bạn ${Math.round(demo.occupancy[peak] * 100)}%.`}
+        aria-label={t("label", {
+          night: demo.nights[peak].label,
+          soldOut: Math.round(share[peak] * 100),
+          occupancy: Math.round(demo.occupancy[peak] * 100),
+        })}
       >
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-          <g key={t}>
-            <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className={t === 0 ? "lp-axis-base" : "lp-axis-grid"} />
-            {t > 0 && (
-              <text x={W - 2} y={y(t) + 4} textAnchor="end" className="lp-axis">
-                {t * 100}%
+        {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+          <g key={tick}>
+            <line x1={PAD.l} x2={W - PAD.r} y1={y(tick)} y2={y(tick)} className={tick === 0 ? "lp-axis-base" : "lp-axis-grid"} />
+            {tick > 0 && (
+              <text x={W - 2} y={y(tick) + 4} textAnchor="end" className="lp-axis">
+                {tick * 100}%
               </text>
             )}
           </g>
@@ -81,7 +89,7 @@ export function PmsChart({ startISO }: { startISO: string }) {
         )}
         <line x1={px} x2={px} y1={PAD.t - 12} y2={y(share[peak])} className="lp-axis-peak" />
       </svg>
-      <p className="lp-note">Số liệu minh hoạ</p>
+      <p className="lp-note">{t("note")}</p>
     </figure>
   );
 }

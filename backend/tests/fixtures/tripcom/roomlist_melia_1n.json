@@ -1,0 +1,1037 @@
+{
+ "data": {
+  "isRoomListSoldOut": false,
+  "roomList": [
+   {
+    "key": "528714841",
+    "subRoomList": [
+     {
+      "key": "528714841",
+      "skey": "2259727100_BB22YZL-1-Z-1",
+      "sRoomId": 2259727100
+     },
+     {
+      "key": "528714841",
+      "skey": "2259727132_BB22YHD-1-Z-1",
+      "sRoomId": 2259727132
+     },
+     {
+      "key": "528714841",
+      "skey": "2259727125_BB22YZW-1-Z-1",
+      "sRoomId": 2259727125
+     },
+     {
+      "key": "528714841",
+      "skey": "2259727099_BB22YZF-E-BO-E",
+      "sRoomId": 2259727099
+     },
+     {
+      "key": "528714841",
+      "skey": "2259727119_BB22YZR-C-U-C",
+      "sRoomId": 2259727119
+     },
+     {
+      "key": "528714841",
+      "skey": "2259727119_BB22YZR-D-B5-D",
+      "sRoomId": 2259727119
+     }
+    ]
+   },
+   {
+    "key": "517430368",
+    "subRoomList": [
+     {
+      "key": "517430368",
+      "skey": "2259727109_BB22YZG-E-BO-E",
+      "sRoomId": 2259727109
+     },
+     {
+      "key": "517430368",
+      "skey": "2259727129_BB22YHB-C-U-C",
+      "sRoomId": 2259727129
+     },
+     {
+      "key": "517430368",
+      "skey": "2259727129_BB22YHB-D-B5-D",
+      "sRoomId": 2259727129
+     },
+     {
+      "key": "517430368",
+      "skey": "2259727129_BB22YHB-5-B6-5",
+      "sRoomId": 2259727129
+     },
+     {
+      "key": "517430368",
+      "skey": "2259727129_BB22YHB-E-BO-E",
+      "sRoomId": 2259727129
+     },
+     {
+      "key": "517430368",
+      "skey": "2259727115_BB22YZA-D-B5-D",
+      "sRoomId": 2259727115
+     }
+    ]
+   }
+  ],
+  "roomCount": 12,
+  "physicRoomMap": {
+   "517430368": {
+    "id": 517430368,
+    "name": "3-Bedroom The Level Villa with Lake View and Private Pool"
+   },
+   "528714841": {
+    "id": 528714841,
+    "name": "Biệt Thự 1 Phòng Ngủ Có Tầm Nhìn Ra Hồ Và Hồ Bơi Riêng"
+   }
+  },
+  "saleRoomMap": {
+   "2259727109_BB22YZG-E-BO-E": {
+    "id": 2259727109,
+    "physicalRoomId": 517430368,
+    "roomCode": "BB22YZG-E-BO-E",
+    "mealInfo": {
+     "mealType": 4,
+     "mealFlag": 1,
+     "title": "Bao gồm 6 bữa sáng tuyệt vời"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 6,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 2,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 12469135,
+     "displayPrice": "12.469.135₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 14.139.999₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "14.139.999₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "12.469.135₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "1.670.864₫",
+      "price": 1670864
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 2
+    },
+    "comparingAmount": 14139999
+   },
+   "2259727129_BB22YHB-C-U-C": {
+    "id": 2259727129,
+    "physicalRoomId": 517430368,
+    "roomCode": "BB22YHB-C-U-C",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 3 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 3,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 2,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 14320987,
+     "displayPrice": "14.320.987₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 16.239.999₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "16.239.999₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "14.320.987₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "1.919.012₫",
+      "price": 1919012
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 2
+    },
+    "comparingAmount": 16239999
+   },
+   "2259727129_BB22YHB-D-B5-D": {
+    "id": 2259727129,
+    "physicalRoomId": 517430368,
+    "roomCode": "BB22YHB-D-B5-D",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 4 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 4,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 2,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 14938270,
+     "displayPrice": "14.938.270₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 16.939.999₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "16.939.999₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "14.938.270₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "2.001.729₫",
+      "price": 2001729
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 2
+    },
+    "comparingAmount": 16939999
+   },
+   "2259727129_BB22YHB-5-B6-5": {
+    "id": 2259727129,
+    "physicalRoomId": 517430368,
+    "roomCode": "BB22YHB-5-B6-5",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 5 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 5,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 2,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 15555554,
+     "displayPrice": "15.555.554₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 17.639.999₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "17.639.999₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "15.555.554₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "2.084.445₫",
+      "price": 2084445
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 2
+    },
+    "comparingAmount": 17639999
+   },
+   "2259727129_BB22YHB-E-BO-E": {
+    "id": 2259727129,
+    "physicalRoomId": 517430368,
+    "roomCode": "BB22YHB-E-BO-E",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 6 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 6,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 2,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 16172839,
+     "displayPrice": "16.172.839₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 18.339.999₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "18.339.999₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "16.172.839₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "2.167.160₫",
+      "price": 2167160
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 2
+    },
+    "comparingAmount": 18339999
+   },
+   "2259727115_BB22YZA-D-B5-D": {
+    "id": 2259727115,
+    "physicalRoomId": 517430368,
+    "roomCode": "BB22YZA-D-B5-D",
+    "mealInfo": {
+     "mealType": 7,
+     "mealFlag": 1,
+     "title": "Ba bữa cho 4 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 4,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 2,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm ba bữa chính",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 17407408,
+     "displayPrice": "17.407.408₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 19.740.000₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "19.740.000₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "17.407.408₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "2.332.592₫",
+      "price": 2332592
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 2
+    },
+    "comparingAmount": 19740000
+   },
+   "2259727100_BB22YZL-1-Z-1": {
+    "id": 2259727100,
+    "physicalRoomId": 528714841,
+    "roomCode": "BB22YZL-1-Z-1",
+    "mealInfo": {
+     "mealType": 4,
+     "mealFlag": 1,
+     "title": "Bao gồm 2 bữa sáng tuyệt vời"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 2,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 9,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Giá thấp nhất, có bữa ăn",
+     "type": "ROOM_MIN_PRICE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 4074074,
+     "displayPrice": "4.074.074₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 4.620.000₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "4.620.000₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "4.074.074₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "545.926₫",
+      "price": 545926
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 9
+    },
+    "comparingAmount": 4620000
+   },
+   "2259727132_BB22YHD-B-9-B": {
+    "id": 2259727132,
+    "physicalRoomId": 528714841,
+    "roomCode": "BB22YHD-B-9-B",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 1 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 1,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 9,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 4691358,
+     "displayPrice": "4.691.358₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 5.320.000₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "5.320.000₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "4.691.358₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "628.642₫",
+      "price": 628642
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 9
+    },
+    "comparingAmount": 5320000
+   },
+   "2259727132_BB22YHD-1-Z-1": {
+    "id": 2259727132,
+    "physicalRoomId": 528714841,
+    "roomCode": "BB22YHD-1-Z-1",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 2 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 2,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 9,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 5308641,
+     "displayPrice": "5.308.641₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 6.019.999₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "6.019.999₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "5.308.641₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "711.358₫",
+      "price": 711358
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 9
+    },
+    "comparingAmount": 6019999
+   },
+   "2259727125_BB22YZW-1-Z-1": {
+    "id": 2259727125,
+    "physicalRoomId": 528714841,
+    "roomCode": "BB22YZW-1-Z-1",
+    "mealInfo": {
+     "mealType": 7,
+     "mealFlag": 1,
+     "title": "Ba bữa cho 2 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 2,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 9,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm ba bữa chính",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 6543210,
+     "displayPrice": "6.543.210₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 7.420.000₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "7.420.000₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "6.543.210₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "876.790₫",
+      "price": 876790
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 9
+    },
+    "comparingAmount": 7420000
+   },
+   "2259727099_BB22YZF-E-BO-E": {
+    "id": 2259727099,
+    "physicalRoomId": 528714841,
+    "roomCode": "BB22YZF-E-BO-E",
+    "mealInfo": {
+     "mealType": 4,
+     "mealFlag": 1,
+     "title": "Bao gồm 6 bữa sáng tuyệt vời"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 6,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 9,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 8024691,
+     "displayPrice": "8.024.691₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 9.100.000₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "9.100.000₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "8.024.691₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "1.075.309₫",
+      "price": 1075309
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 9
+    },
+    "comparingAmount": 9100000
+   },
+   "2259727119_BB22YZR-C-U-C": {
+    "id": 2259727119,
+    "physicalRoomId": 528714841,
+    "roomCode": "BB22YZR-C-U-C",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 3 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 3,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 9,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 9876543,
+     "displayPrice": "9.876.543₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 11.200.000₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "11.200.000₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "9.876.543₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "1.323.457₫",
+      "price": 1323457
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 9
+    },
+    "comparingAmount": 11200000
+   },
+   "2259727119_BB22YZR-D-B5-D": {
+    "id": 2259727119,
+    "physicalRoomId": 528714841,
+    "roomCode": "BB22YZR-D-B5-D",
+    "mealInfo": {
+     "mealType": 5,
+     "mealFlag": 1,
+     "title": "Bao gồm bữa sáng và bữa tối cho 4 khách"
+    },
+    "cancelInfo": {
+     "type": 5,
+     "title": "Không Hoàn Tiền"
+    },
+    "guestCountInfo": {
+     "guestCount": 4,
+     "childCount": 0
+    },
+    "xProOption": {
+     "pkType": 0,
+     "xProducts": []
+    },
+    "paymentInfo": {
+     "type": 0,
+     "subType": 1,
+     "subTitle": "Thanh Toán Trước Trực Tuyến"
+    },
+    "bookingStatusInfo": {
+     "isBooking": true,
+     "isFullRoom": false,
+     "remainRoomQuantity": 9,
+     "toLoginButton": "Xem Giá Thấp Hơn"
+    },
+    "titleInfo": {
+     "title": "Bao gồm bữa sáng và bữa tối",
+     "type": "OTHER_TITLE"
+    },
+    "discountLabels": [],
+    "priceLabelList": [],
+    "priceInfo": {
+     "price": 10493828,
+     "displayPrice": "10.493.828₫",
+     "taxText": "",
+     "deletePrice": "",
+     "deletePricewithOutCurrency": 0,
+     "currency": "VND",
+     "priceExplanation": "Tổng giá: 11.900.000₫\nbao gồm thuế & phí"
+    },
+    "totalPriceInfo": {
+     "isFreeCancel": false,
+     "total": {
+      "title": "Thanh Toán Trước Trực Tuyến",
+      "content": "11.900.000₫",
+      "localPriceDesc": ""
+     },
+     "quantityDays": {
+      "title": "1 phòng x 1 đêm",
+      "content": "10.493.828₫"
+     },
+     "payTax": {
+      "title": "Thuế & phí",
+      "content": "1.406.172₫",
+      "price": 1406172
+     },
+     "promotionItems": [],
+     "promotionTagList": []
+    },
+    "ruleInfo": {
+     "minQuantity": 1,
+     "maxQuantity": 9
+    },
+    "comparingAmount": 11900000
+   }
+  },
+  "searchBoxInfo": {
+   "checkIn": "20261015",
+   "checkOut": "20261016",
+   "adult": 2,
+   "childInfoItems": [],
+   "roomQuantity": 1
+  }
+ },
+ "ResponseStatus": {
+  "Ack": "Success",
+  "Errors": []
+ }
+}

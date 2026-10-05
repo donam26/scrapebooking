@@ -1,10 +1,12 @@
+import { useTranslations } from "next-intl";
 import Image from "next/image";
+import type { Messages } from "@/messages";
 
 export type Photo = {
   src: string;
   width: number;
   height: number;
-  alt: string;
+  alt: keyof Messages["landing"]["photos"];
   credit: string;
   creditUrl: string;
 };
@@ -23,11 +25,12 @@ export function PhotoFrame({
   position?: string;
   priority?: boolean;
 }) {
+  const t = useTranslations("landing.photos");
   return (
     <div className={`lp-photo ${className ?? ""}`}>
       <Image
         src={photo.src}
-        alt={photo.alt}
+        alt={t(photo.alt)}
         width={photo.width}
         height={photo.height}
         sizes={sizes}

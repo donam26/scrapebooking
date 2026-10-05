@@ -1,11 +1,11 @@
 {
   "outcome": "rooms",
-  "booking_hotel_id": "345986",
+  "external_id": "345986",
   "hotel_name": "Park Hyatt Saigon",
   "csrf_token": "FIXTURE_CSRF_TOKEN",
   "offers": [
     {
-      "booking_room_id": "34598617",
+      "external_room_id": "34598617",
       "name": "Twin Room",
       "max_occupancy": 2,
       "badge_count": 5,
@@ -17,7 +17,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -25,12 +29,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598621",
+      "external_room_id": "34598621",
       "name": "King Room with City View",
       "max_occupancy": 2,
       "badge_count": null,
@@ -42,7 +51,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -50,12 +63,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598622",
+      "external_room_id": "34598622",
       "name": "Twin Room with City View",
       "max_occupancy": 2,
       "badge_count": null,
@@ -67,7 +85,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -75,12 +97,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598608",
+      "external_room_id": "34598608",
       "name": "King Room with Garden View",
       "max_occupancy": 2,
       "badge_count": null,
@@ -92,7 +119,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -100,12 +131,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598611",
+      "external_room_id": "34598611",
       "name": "Twin Room with Garden View",
       "max_occupancy": 2,
       "badge_count": 4,
@@ -117,7 +153,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -125,12 +165,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598612",
+      "external_room_id": "34598612",
       "name": "Deluxe King Room",
       "max_occupancy": 2,
       "badge_count": null,
@@ -142,7 +187,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -150,12 +199,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598614",
+      "external_room_id": "34598614",
       "name": "Suite",
       "max_occupancy": 2,
       "badge_count": 2,
@@ -167,7 +221,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -175,12 +233,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598615",
+      "external_room_id": "34598615",
       "name": "Suite",
       "max_occupancy": 2,
       "badge_count": 2,
@@ -192,7 +255,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -200,12 +267,17 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "34598616",
+      "external_room_id": "34598616",
       "name": "Executive Suite",
       "max_occupancy": 2,
       "badge_count": 5,
@@ -217,7 +289,11 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -225,9 +301,14 @@
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": null,
+          "taxes_included": false,
+          "promo_label": null,
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     }
   ]
 }

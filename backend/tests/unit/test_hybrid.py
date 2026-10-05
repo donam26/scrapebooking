@@ -7,14 +7,33 @@ from app.collector.fake import FakeCollector
 from app.collector.proxy import StaticProxyProvider
 from app.collector.ratelimit import RateLimiter
 from app.collector.session import SessionManager
-from app.domain.models import HotelRef, ParsedPage, ProbeMethod, ProbeStatus
-from tests.fakes import FakeBootstrapper, FakeFetcher, any_date, fake_parser, no_sleep, resp
+from app.domain.models import ParsedPage, ProbeMethod, ProbeStatus
+from tests.fakes import (
+    FakeBootstrapper,
+    FakeFetcher,
+    any_date,
+    booking_listing,
+    fake_parser,
+    no_sleep,
+    resp,
+)
 
-HOTEL = HotelRef(1, "vn", "vn/x", "https://www.booking.com/hotel/vn/x.html")
+HOTEL = booking_listing()
+
+
+class CountingBudget:
+    def __init__(self) -> None:
+        self.acquired = 0
+
+    async def acquire(self) -> None:
+        self.acquired += 1
 
 
 def _build(
-    fetcher: FakeFetcher, fallback: FakeCollector | None = None
+    fetcher: FakeFetcher,
+    fallback: FakeCollector | None = None,
+    currency: str = "VND",
+    budget: CountingBudget | None = None,
 ) -> tuple[HybridCollector, FakeBootstrapper]:
     boot = FakeBootstrapper()
     sessions = SessionManager(
@@ -33,6 +52,8 @@ def _build(
         parser=fake_parser,
         backoff=no_sleep,
         http_retries=1,
+        currency=currency,
+        budget=budget,
     )
     return collector, boot
 
@@ -43,14 +64,30 @@ async def test_ok_page() -> None:
     r = await collector.probe(HOTEL, any_date(), nights=1, adults=2)
     assert r.status == ProbeStatus.OK
     assert r.method == ProbeMethod.HTTP
-    assert r.offers[0].booking_room_id == "101"
+    assert r.offers[0].external_room_id == "101"
     assert r.raw_html == "<html>ROOMS</html>"
     assert r.http_status == 200
-    assert r.booking_hotel_id == "555"
+    assert r.external_id == "555"
     assert len(boot.calls) == 1
     url, _ = fetcher.get_calls[0]
     assert "checkin=2026-10-05&checkout=2026-10-06" in url
     assert "selected_currency=VND" in url
+
+
+async def test_currency_is_global_setting_not_hotel_country() -> None:
+    # Tiền tệ quét là cấu hình toàn cục (SCAN_CURRENCY), không suy theo nước của khách sạn.
+    fetcher = FakeFetcher(resp(200, "<html>ROOMS</html>"))
+    collector, _ = _build(fetcher, currency="USD")
+    await collector.probe(booking_listing(slug="th/y"), any_date(), nights=1, adults=2)
+    assert "selected_currency=USD" in fetcher.get_calls[0][0]
+
+
+async def test_every_request_takes_from_channel_budget() -> None:
+    budget = CountingBudget()
+    fetcher = FakeFetcher(resp(403, ""), resp(200, "<html>ROOMS</html>"))
+    collector, _ = _build(fetcher, budget=budget)
+    await collector.probe(HOTEL, any_date(), nights=1, adults=2)
+    assert budget.acquired == 2
 
 
 async def test_page_that_dropped_requested_dates_is_soft_block() -> None:

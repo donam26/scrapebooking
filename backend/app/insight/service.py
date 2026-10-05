@@ -187,7 +187,7 @@ class InsightService:
             return row
         if not built.payload.get("data_quality", {}).get("hotel_dates_observed"):
             row.status = "failed"
-            row.error = "no scan data yet (chưa có dữ liệu quét/analytics cho kỳ này)"
+            row.error = "no scan data yet (no scan/analytics data for this period)"
             INSIGHTS_TOTAL.labels("failed").inc()
             await self._s.flush()
             return row

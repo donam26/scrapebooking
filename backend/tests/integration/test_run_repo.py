@@ -4,24 +4,30 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.models import Hotel, Probe, ScanJob, ScanRun
+from app.db.models import Probe, ScanJob, ScanRun
 from app.repo.runs import HotelJobPlan, ScanRunRepository
+from tests.integration.seed import add_hotel, add_listing
 
 NOW = datetime(2026, 9, 24, 6, 0, tzinfo=UTC)
 
 
 async def _hotels(db: AsyncSession, n: int) -> list[int]:
-    hotels = [
-        Hotel(
-            booking_url=f"https://www.booking.com/hotel/vn/h{i}.html",
-            booking_slug=f"vn/h{i}",
-            country_code="vn",
-        )
-        for i in range(n)
-    ]
-    db.add_all(hotels)
-    await db.flush()
-    return [h.id for h in hotels]
+    return [(await add_hotel(db, f"vn/h{i}")).id for i in range(n)]
+
+
+def _probe(run_id: int, hotel_id: int, stay: date, status: str, channel: str = "booking") -> Probe:
+    return Probe(
+        scan_run_id=run_id,
+        hotel_id=hotel_id,
+        channel=channel,
+        stay_date=stay,
+        checkin=stay,
+        checkout=stay + timedelta(days=1),
+        nights=1,
+        adults=2,
+        status=status,
+        fetched_at=NOW,
+    )
 
 
 async def test_create_run_with_jobs_and_idempotent_key(db: AsyncSession) -> None:
@@ -33,7 +39,7 @@ async def test_create_run_with_jobs_and_idempotent_key(db: AsyncSession) -> None
     ]
     run = await repo.create_run("2026-09-24T06:00", NOW, plans)
     await db.commit()
-    assert run is not None and run.total_jobs == 2
+    assert run is not None and run.total_jobs == 2 and run.channel == "booking"
     jobs = (await db.execute(select(ScanJob).order_by(ScanJob.hotel_id))).scalars().all()
     assert [(j.hotel_id, j.horizon_days, j.status) for j in jobs] == [
         (ids[0], 30, "queued"),
@@ -42,10 +48,31 @@ async def test_create_run_with_jobs_and_idempotent_key(db: AsyncSession) -> None
     assert await repo.create_run("2026-09-24T06:00", NOW, plans) is None
 
 
-async def test_load_hotel_ref(db: AsyncSession) -> None:
+async def test_create_run_per_channel(db: AsyncSession) -> None:
     ids = await _hotels(db, 1)
-    ref = await ScanRunRepository(db).load_hotel(ids[0])
-    assert ref.slug == "vn/h0" and ref.country_code == "vn" and ref.pagename == "h0"
+    repo = ScanRunRepository(db)
+    plans = [HotelJobPlan(ids[0], date(2026, 9, 24), 30)]
+    run = await repo.create_run("2026-09-24T06:00:agoda", NOW, plans, "agoda")
+    assert run is not None
+    assert await repo.run_channel(run.id) == "agoda"
+
+
+async def test_load_listing_ref(db: AsyncSession) -> None:
+    ids = await _hotels(db, 1)
+    agoda = await add_listing(db, ids[0], "agoda", "agoda-h0")
+    agoda.external_id = "1985199"
+    await db.flush()
+    repo = ScanRunRepository(db)
+    ref = await repo.load_listing(ids[0], "booking")
+    assert (ref.id, ref.channel, ref.listing_key, ref.country_code) == (
+        ids[0],
+        "booking",
+        "vn/h0",
+        "vn",
+    )
+    assert ref.url == "https://www.booking.com/hotel/vn/h0.html" and ref.external_id is None
+    other = await repo.load_listing(ids[0], "agoda")
+    assert (other.listing_key, other.external_id) == ("agoda-h0", "1985199")
 
 
 async def test_job_lifecycle_and_run_completion(db: AsyncSession) -> None:
@@ -64,28 +91,8 @@ async def test_job_lifecycle_and_run_completion(db: AsyncSession) -> None:
     await repo.finish_job(run.id, ids[1], "failed", NOW + timedelta(minutes=6), error="boom")
     db.add_all(
         [
-            Probe(
-                scan_run_id=run.id,
-                hotel_id=ids[0],
-                stay_date=date(2026, 10, 1),
-                checkin=date(2026, 10, 1),
-                checkout=date(2026, 10, 2),
-                nights=1,
-                adults=2,
-                status="ok",
-                fetched_at=NOW,
-            ),
-            Probe(
-                scan_run_id=run.id,
-                hotel_id=ids[0],
-                stay_date=date(2026, 10, 2),
-                checkin=date(2026, 10, 2),
-                checkout=date(2026, 10, 3),
-                nights=1,
-                adults=2,
-                status="blocked",
-                fetched_at=NOW,
-            ),
+            _probe(run.id, ids[0], date(2026, 10, 1), "ok"),
+            _probe(run.id, ids[0], date(2026, 10, 2), "blocked"),
         ]
     )
     await db.flush()
@@ -211,28 +218,24 @@ async def test_concurrent_last_jobs_still_finalize_run(db: AsyncSession) -> None
     assert (first, second) == (False, True)
 
 
-async def test_probe_stats_since(db: AsyncSession) -> None:
+async def test_probe_stats_since_per_channel(db: AsyncSession) -> None:
     ids = await _hotels(db, 1)
     repo = ScanRunRepository(db)
-    run = await repo.create_run("k", NOW, [HotelJobPlan(ids[0], date(2026, 9, 24), 30)])
-    assert run is not None
+    plans = [HotelJobPlan(ids[0], date(2026, 9, 24), 30)]
+    run = await repo.create_run("k", NOW, plans)
+    agoda = await repo.create_run("k:agoda", NOW, plans, "agoda")
+    assert run is not None and agoda is not None
     for i, status in enumerate(["ok", "ok", "blocked", "skipped_calendar"]):
-        db.add(
-            Probe(
-                scan_run_id=run.id,
-                hotel_id=ids[0],
-                stay_date=date(2026, 10, 1) + timedelta(days=i),
-                checkin=date(2026, 10, 1),
-                checkout=date(2026, 10, 2),
-                nights=1,
-                adults=2,
-                status=status,
-                fetched_at=NOW,
-            )
-        )
+        db.add(_probe(run.id, ids[0], date(2026, 10, 1) + timedelta(days=i), status))
+    for i, status in enumerate(["blocked", "blocked"]):
+        db.add(_probe(agoda.id, ids[0], date(2026, 10, 1) + timedelta(days=i), status, "agoda"))
     await db.flush()
-    total, blocked = await repo.probe_stats_since(NOW - timedelta(minutes=15))
-    assert (total, blocked) == (3, 1)  # skipped_calendar không tính vì không phải request
+    # skipped_calendar không tính vì không phải request
+    assert await repo.probe_stats_since(NOW - timedelta(minutes=15)) == {
+        "booking": (3, 1),
+        "agoda": (2, 2),
+    }
+    assert await repo.probe_stats_since(NOW + timedelta(minutes=1)) == {}
 
 
 async def test_stale_queued_jobs(db: AsyncSession) -> None:
@@ -242,5 +245,16 @@ async def test_stale_queued_jobs(db: AsyncSession) -> None:
     assert run is not None
     await repo.start_job(run.id, ids[0], NOW)
     await db.flush()
-    assert await repo.stale_queued_jobs(NOW + timedelta(minutes=6)) == [(run.id, ids[1])]
+    assert await repo.stale_queued_jobs(NOW + timedelta(minutes=6)) == [(run.id, ids[1], "booking")]
     assert await repo.stale_queued_jobs(NOW - timedelta(minutes=1)) == []
+
+
+async def test_hotels_scanned_since_is_per_channel(db: AsyncSession) -> None:
+    ids = await _hotels(db, 2)
+    repo = ScanRunRepository(db)
+    run = await repo.create_run("k:agoda", NOW, [HotelJobPlan(ids[0], NOW.date(), 30)], "agoda")
+    assert run is not None
+    since = NOW - timedelta(hours=1)
+    assert await repo.hotels_scanned_since(ids, since, "agoda") == {ids[0]}
+    assert await repo.hotels_scanned_since(ids, since, "booking") == set()
+    assert await repo.hotels_scanned_since([], since, "agoda") == set()

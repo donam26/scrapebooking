@@ -1,0 +1,97 @@
+{
+  "sections": {
+    "summary": "Summary",
+    "highlights": "Highlights",
+    "demandSignals": "Demand signals",
+    "pricing": "Pricing opportunities",
+    "risks": "Risks",
+    "dataQuality": "Data limitations",
+    "dropped": "Dropped insights"
+  },
+  "level": {
+    "confidence": "{level, select, high {High confidence} medium {Medium confidence} low {Low confidence} other {Confidence: {label}}}",
+    "demand": "{level, select, high {High demand} medium {Medium demand} low {Low demand} other {Demand: {label}}}"
+  },
+  "counts": {
+    "highlights": "{count, plural, one {# highlight} other {# highlights}}",
+    "signals": "{count, plural, one {# demand signal} other {# demand signals}}",
+    "pricing": "{count, plural, one {# pricing opportunity} other {# pricing opportunities}}",
+    "risks": "{count, plural, one {# risk} other {# risks}}"
+  },
+  "list": {
+    "title": "AI briefs",
+    "subtitle": "Generated every morning and on request. Every insight links to the underlying data as evidence.",
+    "subtitleAt": "Generated every morning at {hour} and on request. Every insight links to the underlying data as evidence.",
+    "generating": "Generating…",
+    "generate": "Generate brief now",
+    "generatingNote": "Generating a brief from the latest data. This usually takes under a minute; the list updates automatically when it is done.",
+    "emptyTitle": "No briefs yet",
+    "generateFirst": "Generate your first brief",
+    "emptyBody": "The brief reads rooms left, rates and events for your hotel and your competitors, then points out what matters with recommendations. The daily brief is generated every morning.",
+    "emptyBodyAt": "The brief reads rooms left, rates and events for your hotel and your competitors, then points out what matters with recommendations. The daily brief is generated at {hour}.",
+    "previous": "Previous briefs",
+    "briefs": "Briefs",
+    "latest": "Latest brief",
+    "dataNights": "Stay dates {period}",
+    "nights": "Stay dates {period}",
+    "noSummaryYet": "This brief has no summary yet.",
+    "noSummary": "No summary.",
+    "readFull": "Read in full",
+    "operatorOnly": "Visible to operator accounts only",
+    "tech": "{model} · {version} · {tokensIn}/{tokensOut} tokens · {cost} USD"
+  },
+  "detail": {
+    "crumb": "AI briefs",
+    "title": "Brief",
+    "titleAt": "Brief {when}",
+    "dataNights": "Stay dates {period}",
+    "pending": "Waiting for the model's response; the page refreshes every 5 seconds.",
+    "failedTitle": "Brief generation failed",
+    "toc": "In this brief",
+    "generatedAt": "Generated at",
+    "basedOnRun": "Based on scan run",
+    "model": "Model",
+    "tokens": "Tokens in / out",
+    "cost": "Cost"
+  },
+  "view": {
+    "unknownHotel": "Hotel #{id}",
+    "failed": "Brief generation failed: {error}",
+    "unknownError": "unknown error",
+    "waitingTitle": "Waiting for content",
+    "waitingBody": "The brief will appear here once the model responds. The page refreshes automatically.",
+    "night": "Night of {night}",
+    "highlightsEmpty": "No highlights with enough evidence in this period.",
+    "confidenceHint": "Confidence level of this insight",
+    "recommendation": "Recommendation",
+    "demandEmpty": "No notable demand signals.",
+    "pricingEmpty": "No evidence-backed pricing opportunities found yet.",
+    "risksEmpty": "No risks raised.",
+    "dataQualityHint": "Notes the AI adds when data is missing or uncertain",
+    "droppedHint": "The AI raised these but they had no valid evidence in the data, so they were left out of the brief.",
+    "untitled": "(untitled)"
+  },
+  "evidence": {
+    "label": "Evidence",
+    "event": "{hotel} · {type} · night of {night}",
+    "eventFallback": "Event #{id}",
+    "metric": "{hotel} · night of {night}",
+    "compset": "Market · night of {night}",
+    "demand": "Channel demand signal"
+  },
+  "fieldWords": {
+    "exactShare7d": "7-day exact count share",
+    "exactShare": "exact count share",
+    "exactRoomsLeft": "exact rooms left",
+    "priceIndex": "price index",
+    "pickup24h": "24-hour pickup",
+    "velocity3d": "3-day booking velocity",
+    "occupancy": "PMS occupancy",
+    "soldOut": "sold out",
+    "unknown": "unknown",
+    "capped": "“at least”",
+    "hidden": "hidden",
+    "exact": "exact",
+    "compset": "comp set"
+  }
+}

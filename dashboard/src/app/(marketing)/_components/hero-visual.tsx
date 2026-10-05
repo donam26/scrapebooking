@@ -1,6 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
+import { useFmt } from "@/lib/format";
 import { buildDemo, HOTELS, SCAN_TIMES, type HotelObs } from "./demo-data";
 import { IconBell, IconChart, IconChevron, IconSearch, IconSpark } from "./marks";
 import { PhotoFrame } from "./photo";
@@ -17,10 +19,12 @@ function cellKind(o: HotelObs): string {
 
 /** Ảnh ghép đầu trang: ảnh thật + các mảnh giao diện của sản phẩm nổi phía trên. */
 export function HeroVisual({ startISO }: { startISO: string }) {
-  const demo = useMemo(() => buildDemo(startISO), [startISO]);
+  const t = useTranslations("landing.visual");
+  const { fmtWeekday } = useFmt();
+  const demo = useMemo(() => buildDemo(startISO, fmtWeekday), [startISO, fmtWeekday]);
   const peak = demo.nights[demo.peak];
   const eve = demo.nights[demo.peak - 1];
-  const brief = `Cuối tuần ${eve.day}–${peak.day} đang kín nhanh: 3/4 đối thủ đã hết phòng đêm ${peak.label}. Đề xuất: giữ giá phòng còn lại.`;
+  const brief = t("brief", { from: eve.day, to: peak.day, night: peak.label });
 
   const [scan, setScan] = useState(2);
   const [typed, setTyped] = useState(brief.length);
@@ -53,6 +57,7 @@ export function HeroVisual({ startISO }: { startISO: string }) {
   const soldOut = competitors.filter((h) => demo.obs[h.id][demo.peak][s].status === "sold_out").length;
   const nights = demo.nights.slice(demo.peak - 4, demo.peak + 3);
   const catvang = demo.obs.catvang[demo.peak][s];
+  const catvangName = HOTELS.find((h) => h.id === "catvang")!.name;
 
   return (
     <div className="lp-hv">
@@ -68,9 +73,9 @@ export function HeroVisual({ startISO }: { startISO: string }) {
 
         <div className="lp-hv-nav" aria-hidden="true">
           <IconSpark />
-          <span>Tổng quan</span>
-          <span>Sự kiện</span>
-          <span>Bản tin</span>
+          <span>{t("navOverview")}</span>
+          <span>{t("navEvents")}</span>
+          <span>{t("navBrief")}</span>
           <i />
           <IconSearch />
           <IconBell />
@@ -80,20 +85,22 @@ export function HeroVisual({ startISO }: { startISO: string }) {
           <b>
             <IconBell />
           </b>
-          {catvang.status === "sold_out" ? "Cát Vàng vừa hết phòng" : `Cát Vàng · còn ${catvang.known} phòng`}
+          {catvang.status === "sold_out"
+            ? t("pillSoldOut", { hotel: catvangName })
+            : t("pillLeft", { hotel: catvangName, count: catvang.known })}
         </span>
 
-        <div className="lp-hv-board" role="img" aria-label={`Minh hoạ: đêm ${peak.label}, lượt ${SCAN_TIMES[scan]}, ${soldOut} trên 4 đối thủ hết phòng.`}>
+        <div className="lp-hv-board" role="img" aria-label={t("boardLabel", { night: peak.label, time: SCAN_TIMES[scan], sold: soldOut, total: competitors.length })}>
           <p className="lp-hv-board-when">
-            Đêm {peak.label} · lượt {SCAN_TIMES[scan]}
+            {t("boardWhen", { night: peak.label, time: SCAN_TIMES[scan] })}
           </p>
           <p className="lp-hv-board-big">
-            {soldOut}/4 <span>đối thủ hết phòng</span>
+            {t.rich("boardBig", { sold: soldOut, total: competitors.length, span: (c) => <span>{c}</span> })}
           </p>
           <div className="lp-hv-grid" aria-hidden="true">
             {HOTELS.map((h) => (
               <div key={h.id} className="lp-hv-row">
-                <span>{h.self ? "Bạn" : h.name}</span>
+                <span>{h.self ? t("you") : h.name}</span>
                 {nights.map((n) => (
                   <i
                     key={n.iso}
@@ -109,7 +116,7 @@ export function HeroVisual({ startISO }: { startISO: string }) {
 
       <div className="lp-hv-prompt">
         <p>
-          <span className="lp-hv-prompt-label">Bản tin 07:30</span>
+          <span className="lp-hv-prompt-label">{t("briefLabel")}</span>
           <span className="lp-hv-typed" aria-hidden="true">
             {brief.slice(0, typed)}
             <span className="lp-hv-caret" aria-hidden="true" />

@@ -1,6 +1,7 @@
 import asyncio
 import os
 from collections.abc import AsyncIterator
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -9,12 +10,15 @@ from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.db.partitions import ensure_room_snapshot_partitions
+
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://app:app@localhost:5432/scrapebooking_test"
 )
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 ALL_TABLES = (
+    "notifications, notification_rules, notification_recipients, listing_demand_signals, listings, "
     "availability_events, hotel_date_metrics, hotel_date_snapshots, insights, "
     "own_hotel_daily, pms_imports, pms_column_mappings, users, "
     "room_snapshots, hotel_calendars, probes, scan_jobs, scan_runs, room_types, "
@@ -50,6 +54,18 @@ def migrated_db_url() -> str:
     cfg.set_main_option("sqlalchemy.url", TEST_DB_URL)
     command.downgrade(cfg, "base")
     command.upgrade(cfg, "head")
+
+    # Migration chỉ tạo partition room_snapshots từ tháng hiện tại; dữ liệu test cố định ở
+    # 09–10/2026 nên cần partition riêng, không phụ thuộc ngày chạy hay thứ tự test.
+    async def _fixed_partitions() -> None:
+        engine = create_async_engine(TEST_DB_URL)
+        try:
+            async with engine.begin() as conn:
+                await ensure_room_snapshot_partitions(conn, first_month=date(2026, 9, 1), months=4)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(_fixed_partitions())
     return TEST_DB_URL
 
 

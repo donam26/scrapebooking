@@ -1,0 +1,63 @@
+{
+  "title": "Lịch sử quét",
+  "meta": "{count, number} lượt gần nhất trên mọi kênh",
+  "channelFilter": "Lọc theo kênh",
+  "allChannels": "Tất cả",
+  "trigger": {
+    "manual": "Quét ngay",
+    "catchup": "Bù lịch",
+    "scheduled": "Theo lịch"
+  },
+  "kpi": {
+    "runs24h": "Lượt quét 24 giờ",
+    "runs24hSub": "{count, number} lượt đọc trang",
+    "successRate": "Tỷ lệ thành công",
+    "successRateInfo": "Lượt đọc trang có dữ liệu (còn phòng hoặc hết phòng) trên tổng lượt đọc trong 24 giờ.",
+    "successRateSub": "{count, number} lượt có dữ liệu",
+    "blocked": "Bị chặn",
+    "blockedInfo": "Kênh chặn bot (captcha, 403…). Hệ thống tự giãn nhịp và tạm ngắt kênh khi bị chặn nhiều.",
+    "blockedSub": "lượt đọc trong 24 giờ",
+    "empty": "Lượt không có dữ liệu",
+    "emptySub": "trong 24 giờ"
+  },
+  "table": {
+    "title": "Các lượt quét",
+    "info": "Bấm vào một lượt để xem từng khách sạn: trạng thái, số trang đọc được, bị chặn, lỗi.",
+    "run": "Lượt",
+    "channel": "Kênh",
+    "trigger": "Kích hoạt",
+    "started": "Bắt đầu",
+    "duration": "Thời lượng",
+    "status": "Trạng thái",
+    "probes": "Đọc trang",
+    "withData": "Có dữ liệu",
+    "soldOut": "Hết phòng",
+    "blocked": "Bị chặn",
+    "errors": "Lỗi",
+    "ratio": "Tỷ lệ",
+    "expand": "Xem từng khách sạn của lượt #{id}",
+    "noData": "Không có dữ liệu"
+  },
+  "empty": {
+    "title": "Chưa có lượt quét",
+    "body": "Lượt quét đầu tiên chạy theo lịch quét ở Cài đặt, hoặc bấm “Quét ngay” trong Cài đặt › Khách sạn."
+  },
+  "jobs": {
+    "hotel": "Khách sạn",
+    "status": "Trạng thái",
+    "started": "Bắt đầu",
+    "duration": "Thời lượng",
+    "probes": "Đọc trang",
+    "withData": "Có dữ liệu",
+    "blocked": "Bị chặn",
+    "errors": "Lỗi",
+    "errorDetail": "Chi tiết lỗi",
+    "hotelFallback": "Khách sạn #{id}",
+    "jobStatus": {
+      "queued": "Chờ quét",
+      "running": "Đang quét",
+      "done": "Xong",
+      "failed": "Lỗi"
+    }
+  }
+}

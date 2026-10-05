@@ -34,7 +34,7 @@ def test_rooms_outcome_maps_to_ok() -> None:
     assert r.status == ProbeStatus.OK
     assert r.checkout == date(2026, 10, 2)
     assert r.offers == (offer,)
-    assert r.booking_hotel_id == "111"
+    assert r.external_id == "111"
     assert r.hotel_name == "Hotel X"
 
 

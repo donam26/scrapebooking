@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typer.testing import CliRunner
 
 from app.cli import app
-from app.db.models import Hotel, ScanRun, Tenant, TenantHotel, User
+from app.db.models import Hotel, Listing, ScanRun, Tenant, TenantHotel, User
 
 runner = CliRunner()
 
@@ -46,8 +46,16 @@ async def test_add_tenant_and_hotel(db: AsyncSession) -> None:
     )
     assert r.exit_code == 0, r.output
     hotel = (await db.execute(select(Hotel))).scalar_one()
+    listing = (await db.execute(select(Listing))).scalar_one()
     link = (await db.execute(select(TenantHotel))).scalar_one()
-    assert hotel.booking_slug == "vn/the-reverie-saigon" and hotel.country_code == "vn"
+    assert hotel.country_code == "vn" and listing.hotel_id == hotel.id
+    # Operator thêm qua CLI: tin URL, quét ngay (không chờ verify).
+    assert (listing.channel, listing.listing_key, listing.status) == (
+        "booking",
+        "vn/the-reverie-saigon",
+        "active",
+    )
+    assert "channel=booking key=vn/the-reverie-saigon" in r.output
     assert link.role == "competitor" and link.label == "Reverie"
 
     r = await invoke(
@@ -68,7 +76,9 @@ async def test_add_hotel_rejects_bad_url(db: AsyncSession) -> None:
     await invoke("add-tenant", "T")
     tenant = (await db.execute(select(Tenant))).scalar_one()
     r = await invoke("add-hotel", str(tenant.id), "https://www.booking.com/searchresults.html")
-    assert r.exit_code == 1 and "not a hotel page url" in r.output
+    assert r.exit_code == 1 and "booking.com/hotel/vn/ten-khach-san.html" in r.output
+    r = await invoke("add-hotel", str(tenant.id), "https://example.com/hotel/x")
+    assert r.exit_code == 1 and "Chưa hỗ trợ trang này" in r.output
 
 
 async def test_scan_now_creates_run_without_queue(db: AsyncSession) -> None:
@@ -78,7 +88,9 @@ async def test_scan_now_creates_run_without_queue(db: AsyncSession) -> None:
     r = await invoke("scan-now", "--no-enqueue")
     assert r.exit_code == 0, r.output
     run = (await db.execute(select(ScanRun))).scalar_one()
-    assert run.total_jobs == 1 and run.trigger_key.startswith("manual:")
+    assert run.total_jobs == 1 and run.channel == "booking"
+    assert run.trigger_key.startswith("manual:") and run.trigger_key.endswith(":booking")
+    assert f"scan run {run.id} [booking] created with 1 jobs" in r.output
 
 
 async def test_add_user(db: AsyncSession) -> None:

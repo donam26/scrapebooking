@@ -6,24 +6,24 @@ import typer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.registry import UnsupportedUrl, parse_listing_url
 from app.collector.booking.parser import parse_hotel_page
 from app.collector.booking.selectors import PARSER_VERSION
-from app.collector.booking.urls import currency_for
 from app.collector.storage import S3RawStore
 from app.config import get_settings
 from app.db.engine import make_engine, make_session_factory
-from app.db.models import Hotel, Probe, ScanRun, Tenant, TenantHotel
+from app.db.models import Hotel, Listing, Probe, ScanRun, Tenant, TenantHotel
 from app.db.partitions import (
     drop_room_snapshot_partitions_older_than,
     ensure_room_snapshot_partitions,
 )
-from app.domain.booking_url import BookingUrlError, parse_booking_url
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus
 from app.logging import configure_logging
 from app.repo.runs import ScanRunRepository
 from app.repo.snapshots import SnapshotRepository
-from app.scheduler.planning import WatchRow, build_hotel_plans
+from app.scheduler.planning import build_hotel_plans, channel_trigger_key, rows_by_channel
 from app.scheduler.queue import ArqJobQueue
+from app.scheduler.service import load_watch_rows
 
 app = typer.Typer(help="Vận hành hệ thống theo dõi đối thủ khách sạn")
 
@@ -73,8 +73,8 @@ def add_hotel(
     label: str | None = typer.Option(None, "--label"),
 ) -> None:
     try:
-        ref = parse_booking_url(url)
-    except BookingUrlError as exc:
+        ref = parse_listing_url(url)
+    except UnsupportedUrl as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=1) from exc
     if role not in ("self", "competitor"):
@@ -82,15 +82,33 @@ def add_hotel(
         raise typer.Exit(code=1)
 
     async def _do(s: AsyncSession) -> int:
-        hotel = (
-            await s.execute(select(Hotel).where(Hotel.booking_slug == ref.slug))
-        ).scalar_one_or_none()
-        if hotel is None:
-            hotel = Hotel(
-                booking_url=ref.canonical_url, booking_slug=ref.slug, country_code=ref.country_code
+        listing = (
+            await s.execute(
+                select(Listing).where(
+                    Listing.channel == ref.channel, Listing.listing_key == ref.listing_key
+                )
             )
+        ).scalar_one_or_none()
+        if listing is None:
+            hotel = Hotel(country_code=ref.country_code or "vn")
             s.add(hotel)
             await s.flush()
+            # Operator thêm qua CLI: tin URL, quét ngay (tên/id cập nhật từ lượt quét đầu).
+            s.add(
+                Listing(
+                    hotel_id=hotel.id,
+                    channel=ref.channel,
+                    listing_key=ref.listing_key,
+                    external_id=ref.external_id,
+                    url=ref.url,
+                    status="active",
+                )
+            )
+            await s.flush()
+        else:
+            hotel = (
+                await s.execute(select(Hotel).where(Hotel.id == listing.hotel_id))
+            ).scalar_one()
         link = (
             await s.execute(
                 select(TenantHotel).where(
@@ -109,7 +127,7 @@ def add_hotel(
         await s.commit()
         return hotel.id
 
-    typer.echo(f"hotel linked id={_run(_do)} slug={ref.slug}")
+    typer.echo(f"hotel linked id={_run(_do)} channel={ref.channel} key={ref.listing_key}")
 
 
 @app.command("add-user")
@@ -149,36 +167,45 @@ def add_user(
 def scan_now(enqueue: bool = typer.Option(True, "--enqueue/--no-enqueue")) -> None:
     """Tạo một scan run thủ công cho mọi tenant đang hoạt động và đẩy job vào hàng đợi."""
 
-    async def _do(s: AsyncSession) -> tuple[int, int] | None:
+    async def _do(s: AsyncSession) -> list[tuple[int, str, int]]:
         now = datetime.now(tz=UTC)
-        rows = await s.execute(
-            select(
-                TenantHotel.tenant_id, TenantHotel.hotel_id, Tenant.horizon_days, Tenant.timezone
-            )
-            .join(Tenant, Tenant.id == TenantHotel.tenant_id)
-            .where(TenantHotel.active.is_(True), Tenant.active.is_(True))
-        )
-        plans = build_hotel_plans([WatchRow(r[0], r[1], r[2], r[3]) for r in rows], now)
-        if not plans:
-            return None
-        run = await ScanRunRepository(s).create_run(f"manual:{now:%Y%m%dT%H%M%S}", now, plans)
-        if run is None:
-            return None
+        created: list[tuple[int, str, list[int]]] = []
+        for channel, rows in rows_by_channel(await load_watch_rows(s)).items():
+            plans = build_hotel_plans(rows, now)
+            key = channel_trigger_key(f"manual:{now:%Y%m%dT%H%M%S}", channel)
+            run = await ScanRunRepository(s).create_run(key, now, plans, channel)
+            if run is not None:
+                created.append((run.id, channel, [p.hotel_id for p in plans]))
         await s.commit()
-        if enqueue:
+        if enqueue and created:
             queue = await ArqJobQueue.connect(get_settings().redis_url)
             try:
-                for p in plans:
-                    await queue.enqueue_probe(run.id, p.hotel_id)
+                for run_id, channel, hotel_ids in created:
+                    for hotel_id in hotel_ids:
+                        await queue.enqueue_probe(run_id, hotel_id, channel)
             finally:
                 await queue.close()
-        return run.id, len(plans)
+        return [(r, c, len(h)) for r, c, h in created]
 
     result = _run(_do)
-    if result is None:
+    if not result:
         typer.echo("nothing to scan")
         raise typer.Exit(code=1)
-    typer.echo(f"scan run {result[0]} created with {result[1]} jobs (enqueued={enqueue})")
+    for run_id, channel, jobs in result:
+        typer.echo(f"scan run {run_id} [{channel}] created with {jobs} jobs (enqueued={enqueue})")
+
+
+@app.command("check-proxy")
+def check_proxy() -> None:
+    """Gọi thử dịch vụ trả IP qua từng proxy trong PROXY_URL_TEMPLATE (không in mật khẩu)."""
+    from app.ops.proxy_check import check_proxies
+
+    results = asyncio.run(check_proxies(get_settings().proxy_templates))
+    for r in results:
+        state = f"ok exit_ip={r.exit_ip}" if r.ok else f"FAIL {r.error}"
+        typer.echo(f"{r.proxy}: {state} ({r.elapsed_ms} ms)")
+    if not all(r.ok for r in results):
+        raise typer.Exit(code=1)
 
 
 @app.command("ensure-partitions")
@@ -226,11 +253,13 @@ def reparse(
             settings.minio_secret_key,
         )
         cutoff = datetime.now(tz=UTC) - timedelta(days=since_days)
+        # Parser Booking (HTML). Kênh khác lưu payload riêng: reparse theo kênh khi cần.
         probes = (
             await s.execute(
                 select(Probe, Hotel.country_code)
                 .join(Hotel, Hotel.id == Probe.hotel_id)
                 .where(
+                    Probe.channel == "booking",
                     Probe.fetched_at >= cutoff,
                     Probe.raw_object_key.is_not(None),
                     Probe.status == str(ProbeStatus.OK),
@@ -241,13 +270,13 @@ def reparse(
         repo = SnapshotRepository(s, settings.page_dropdown_cap)
         done = missing = 0
         touched_runs: set[int] = set()
-        for probe, country in probes:
+        for probe, _country in probes:
             assert probe.raw_object_key is not None
             html = await store.get_html(probe.raw_object_key)
             if html is None:
                 missing += 1
                 continue
-            page = parse_hotel_page(html, currency_for(country), probe.adults)
+            page = parse_hotel_page(html, settings.scan_currency, probe.adults)
             result = ProbeResult(
                 status=ProbeStatus.OK if page.offers else ProbeStatus.NO_ROOMS_1N,
                 method=ProbeMethod(probe.method or "http"),
@@ -260,16 +289,17 @@ def reparse(
                 http_status=probe.http_status,
                 session_id=probe.session_id,
                 duration_ms=probe.duration_ms,
-                booking_hotel_id=page.booking_hotel_id,
+                external_id=page.external_id,
                 hotel_name=page.hotel_name,
             )
             await repo.write_probe(
                 probe.scan_run_id,
                 probe.hotel_id,
+                probe.channel,
                 probe.stay_date,
                 result,
                 probe.raw_object_key,
-                PARSER_VERSION,
+                f"booking:{PARSER_VERSION}",
                 probe.proxy_country,
                 probe.fetched_at,
             )

@@ -35,7 +35,7 @@ def _validate_timezone(tz: str) -> None:
         ZoneInfo(tz)
     except (ZoneInfoNotFoundError, ValueError) as exc:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, f"unknown timezone {tz!r} (múi giờ không hợp lệ)"
+            status.HTTP_422_UNPROCESSABLE_ENTITY, f"unknown timezone {tz!r}"
         ) from exc
 
 
@@ -58,6 +58,15 @@ def _validate_tenant_fields(data: dict) -> None:  # type: ignore[type-arg]
         _validate_timezone(data["timezone"])
     if "country_code" in data:
         data["country_code"] = data["country_code"].lower()
+    if data.get("reference_channel") is not None:
+        from app.channels.registry import channels
+
+        allowed = {str(c) for c, i in channels().items() if i.collectable}
+        if data["reference_channel"] not in allowed:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"reference_channel must be one of {sorted(allowed)}",
+            )
 
 
 # ---- tenants (operator) ----

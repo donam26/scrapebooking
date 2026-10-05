@@ -1,0 +1,56 @@
+{
+  "page": {
+    "title": "Phòng trống",
+    "subtitle": "Số phòng còn của từng khách sạn theo đêm",
+    "channel": "Kênh <b>{channel}</b>",
+    "scannedAt": "Quét lúc {when}",
+    "downloadCsv": "Tải CSV",
+    "emptyTitle": "Chưa theo dõi khách sạn nào",
+    "emptyBody": "Thêm khách sạn ở <link>Cài đặt › Khách sạn</link>.",
+    "prev": "Trước",
+    "next": "Sau",
+    "month": "Tháng {month}/{year}",
+    "monthRange": "{start} — {end}"
+  },
+  "heatmap": {
+    "hotel": "Khách sạn",
+    "today": "Hôm nay",
+    "roomNightsTitle": "Tổng phòng-đêm còn trong {count} đêm",
+    "roomNights": "Phòng-đêm",
+    "marketTotalTitle": "Cộng mọi khách sạn trong bảng, gồm cả khách sạn của bạn",
+    "marketTotal": "Tổng thị trường",
+    "occTitle": "Công suất ước tính của đối thủ từ số phòng còn",
+    "occ": "Công suất ≈ %",
+    "cellTitle": "{hotel} · {weekday} {date}: {status}",
+    "cellAria": "{hotel} {date}: {status}",
+    "sumPartial": "{known} ô có số, {missing} ô không lộ số hoặc chưa quét: tổng là mức tối thiểu",
+    "sumFull": "{known} ô, đủ số",
+    "cell": {
+      "noData": "Chưa có dữ liệu",
+      "soldOut": "Hết phòng",
+      "unknown": "Không đọc được (bị chặn hoặc lỗi)",
+      "hidden": "Còn phòng, kênh không lộ số",
+      "rooms": "Còn {count} phòng"
+    }
+  },
+  "legend": {
+    "title": "Chú giải:",
+    "hidden": "Còn, không lộ số",
+    "notScanned": "Chưa quét",
+    "trend": "▼▲ thay đổi 24 giờ"
+  },
+  "occupancy": {
+    "title": "Phân tích công suất",
+    "info": "Công suất ước tính từ số phòng còn trên kênh tham chiếu (≈), chỉ vẽ đêm có ước tính đủ tin cậy (độ phủ ≥ 50%). Nét đứt đen là trung vị đối thủ; nét đứt xanh lá là công suất thật từ PMS khi bạn đã nhập.",
+    "compMedian": "Trung vị compset ≈",
+    "hotelSeries": "{name} ≈",
+    "pms": "Của bạn (PMS)",
+    "avg": "Công suất compset TB {count} đêm",
+    "peak": "Cao nhất",
+    "peakOn": "Cao nhất: {night}",
+    "low": "Thấp nhất",
+    "lowOn": "Thấp nhất: {night}",
+    "hotFirstNight": "KS ≈≥90% đêm đầu",
+    "empty": "Chưa đủ dữ liệu để ước tính công suất"
+  }
+}

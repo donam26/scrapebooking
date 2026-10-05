@@ -1,0 +1,347 @@
+{
+  "meta": {
+    "title": "OTARadar · Theo dõi phòng còn và giá đối thủ trên Booking.com, Agoda, iVIVU, Trip.com",
+    "description": "OTARadar đọc trang Booking.com, Agoda, iVIVU, Trip.com của khách sạn bạn và đối thủ ba lần mỗi ngày, ghi lại số phòng còn và giá cho từng đêm trong 30 ngày tới, rồi gửi bản tin buổi sáng có bằng chứng.",
+    "ogTitle": "OTARadar · Biết đối thủ còn mấy phòng trước khi bạn đặt giá",
+    "ogDescription": "Phòng còn và giá của đối thủ trên Booking.com, Agoda, iVIVU, Trip.com, ba lần mỗi ngày, 30 đêm phía trước."
+  },
+  "skip": "Bỏ qua tới nội dung",
+  "homeLink": "OTARadar, trang chủ",
+  "sectionsNav": "Mục trên trang",
+  "openMenu": "Mở menu",
+  "nav": {
+    "why": "Vì sao",
+    "how": "Cách hoạt động",
+    "board": "Bảng 30 đêm",
+    "brief": "Bản tin AI",
+    "faq": "Hỏi đáp"
+  },
+  "contactUs": "Liên hệ tư vấn",
+  "login": "Đăng nhập",
+  "toDashboard": "Vào dashboard",
+  "hero": {
+    "eyebrow": "Theo dõi đối thủ khách sạn",
+    "title": "Biết đối thủ còn mấy phòng trước khi bạn đặt giá",
+    "ticks": {
+      "rates": "Phòng còn và giá của đối thủ trên Booking.com, Agoda, iVIVU, Trip.com, 3 lần mỗi ngày",
+      "events": "Báo hết phòng, có phòng lại, đổi giá cho từng đêm trong 30 ngày tới",
+      "brief": "Bản tin AI lúc 07:30, mỗi nhận định đều kèm bằng chứng"
+    },
+    "price": "<strong>Liên hệ báo giá</strong><span>, chúng tôi thiết lập cùng bạn</span>",
+    "sample": "Xem bảng mẫu",
+    "assure": "Không cần tài khoản kênh đặt phòng của bạn, không cần cài phần mềm",
+    "trustLabel": "Thông số dịch vụ",
+    "trust": {
+      "scans": "<b>3 lượt quét</b> mỗi ngày",
+      "nights": "<b>30 đêm</b> phía trước, theo từng loại phòng",
+      "events": "<b>9 loại sự kiện</b> giữa hai lượt quét",
+      "channels": "Dữ liệu công khai từ <b>Booking.com, Agoda, iVIVU, Trip.com</b>"
+    }
+  },
+  "visual": {
+    "navOverview": "Tổng quan",
+    "navEvents": "Sự kiện",
+    "navBrief": "Bản tin",
+    "brief": "Cuối tuần {from}–{to} đang kín nhanh: 3/4 đối thủ đã hết phòng đêm {night}. Đề xuất: giữ giá phòng còn lại.",
+    "pillSoldOut": "{hotel} vừa hết phòng",
+    "pillLeft": "{hotel} · còn {count} phòng",
+    "boardLabel": "Minh hoạ: đêm {night}, lượt {time}, {sold} trên {total} đối thủ hết phòng.",
+    "boardWhen": "Đêm {night} · lượt {time}",
+    "boardBig": "{sold}/{total} <span>đối thủ hết phòng</span>",
+    "you": "Bạn",
+    "briefLabel": "Bản tin 07:30"
+  },
+  "why": {
+    "title": "Giá chỉ kể một nửa câu chuyện",
+    "lead": "Hai khách sạn cùng để giá 1,2 triệu cho đêm thứ Bảy. Một nơi còn 14 phòng, nơi kia còn 2. Chỉ nhìn giá, bạn không biết thị trường đang nóng hay đang chậm. OTARadar đếm phòng còn rồi mới đặt giá bên cạnh.",
+    "perNight": "/ đêm thứ Bảy",
+    "roomsLabel": "Còn {left} trên {total} phòng",
+    "calm": {
+      "name": "Khách sạn A",
+      "badge": "Còn nhiều phòng",
+      "note": "<b>Còn {count} phòng.</b> Cầu còn chậm, đối thủ có thể sớm giảm giá"
+    },
+    "hot": {
+      "name": "Khách sạn B",
+      "badge": "Chỉ còn 2 phòng",
+      "note": "<b>Còn {count} phòng.</b> Sắp kín, đây là đêm bạn có thể giữ hoặc tăng giá"
+    },
+    "confidenceTitle": "Các kênh không công bố số phòng. Chúng tôi nói rõ mình biết chắc tới đâu.",
+    "confidence": {
+      "exact": {
+        "name": "Chính xác",
+        "text": "Trang hiện “Chỉ còn 2 phòng”. Con số đúng, dùng để tính tốc độ bán."
+      },
+      "capped": {
+        "name": "Ít nhất",
+        "text": "Ô chọn số phòng chạm trần của trang. Biết chắc còn từ mức đó trở lên."
+      },
+      "hidden": {
+        "name": "Ẩn",
+        "text": "Còn phòng nhưng trang không để lộ số. Ghi nhận là còn, không đoán thêm."
+      },
+      "sold_out": {
+        "name": "Hết phòng",
+        "text": "Loại phòng biến mất hoặc báo hết. Lịch được đọc trước để không nhầm với ràng buộc số đêm tối thiểu."
+      }
+    }
+  },
+  "steps": {
+    "title": "Mỗi ngày ba vòng quanh thị trường",
+    "lead": "Quy trình chạy đúng thứ tự ở mọi lượt quét. Mỗi bước chỉ dùng kết quả của bước trước, nên số liệu nào trên bảng cũng truy ngược được về trang gốc.",
+    "calendar": {
+      "time": "06:00",
+      "title": "Mở lịch 30 ngày",
+      "text": "Đọc lịch của từng khách sạn trước: đêm nào còn bán, đêm nào bắt ở tối thiểu mấy đêm. Đêm đã đóng không cần tải trang."
+    },
+    "nights": {
+      "time": "Ngay sau đó",
+      "title": "Đọc từng đêm",
+      "text": "Tải trang cho từng đêm với đúng số đêm tối thiểu, ghi từng loại phòng, số phòng còn, giá, hoàn huỷ và bữa sáng."
+    },
+    "compare": {
+      "time": "Khi lượt quét xong",
+      "title": "Đối chiếu lần trước",
+      "text": "So với lần quan sát dùng được gần nhất để tìm hết phòng, có phòng lại, giảm phòng và đổi giá từ 3% trở lên."
+    },
+    "brief": {
+      "time": "07:30",
+      "title": "Bản tin buổi sáng",
+      "text": "Tóm tắt thị trường, tín hiệu cầu, cơ hội giá và rủi ro, mỗi nhận định bấm được tới số liệu gốc."
+    },
+    "rescan": {
+      "time": "14:00 · 22:00",
+      "title": "Quét thêm hai vòng",
+      "text": "Bắt kịp những đêm đang bán nhanh. Giờ quét, số mốc trong ngày và số đêm theo dõi đổi được theo múi giờ của bạn."
+    }
+  },
+  "boardSection": {
+    "title": "Ba mươi đêm tới trên một tấm bảng",
+    "lead": "Khách sạn của bạn ở hàng trên cùng, đối thủ bên dưới, dải compset ở cuối. Bấm vào một ô để xem từng loại phòng, giá và các lượt quan sát trước.",
+    "note": "Bảng minh hoạ với khách sạn và số liệu giả định, dựng theo đúng cách dashboard hiển thị."
+  },
+  "briefSection": {
+    "title": "Bản tin 07:30 chỉ nói điều dữ liệu chứng minh được",
+    "lead": "Mỗi sáng, dữ liệu của lượt quét gần nhất được gom lại cùng sự kiện 24 giờ và 7 ngày qua, chỉ số compset, công suất PMS và ngày lễ, rồi gửi cho mô hình AI viết bản tin.",
+    "ticks": {
+      "cite": "Mỗi nhận định phải trích sự kiện hoặc chỉ số có thật",
+      "dropped": "Nhận định thiếu bằng chứng bị loại và ghi lại để bạn xem",
+      "onDemand": "Cần gấp, bạn tạo bản tin mới ngay trên dashboard"
+    },
+    "note": "Bản tin mẫu, dựng từ dữ liệu minh hoạ ở bảng phía trên."
+  },
+  "pms": {
+    "title": "Đặt công suất thật của bạn cạnh thị trường",
+    "lead": "Nhập file CSV hoặc Excel xuất từ PMS, ezCloud, Newway hay hệ thống nào cũng được. Đêm đối thủ kín dần mà bạn còn nhiều phòng là đêm nên giữ giá, thay vì bán rẻ những phòng cuối cùng.",
+    "ticks": {
+      "mapping": "Ánh xạ cột một lần, lần sau chỉ cần tải file lên",
+      "errors": "Báo lỗi từng dòng: sai ngày, trùng ngày, bán vượt tổng phòng",
+      "reimport": "Nhập lại không nhân đôi dữ liệu"
+    },
+    "importLabel": "Kết quả nhập file PMS (minh hoạ)",
+    "importTitle": "Kết quả nhập PMS",
+    "importFile": "cong-suat-thang-10.xlsx",
+    "importSummary": "<b>30/31 dòng hợp lệ</b>, công suất 30 đêm đã được cập nhật.",
+    "colRow": "Dòng",
+    "colDate": "Ngày",
+    "colError": "Lỗi",
+    "rowError": "Số phòng bán (62) lớn hơn tổng số phòng (60)"
+  },
+  "chart": {
+    "title": "Công suất của bạn và thị trường",
+    "soldOut": "Đối thủ hết phòng",
+    "occupancy": "Công suất từ PMS",
+    "label": "Minh hoạ: đêm {night} đối thủ hết phòng {soldOut}%, công suất của bạn {occupancy}%.",
+    "note": "Số liệu minh hoạ"
+  },
+  "principles": {
+    "bannerLine1": "Mỗi ô cửa sáng là một phòng chưa bán.",
+    "bannerLine2": "Chúng tôi đếm chúng, ba lần mỗi ngày.",
+    "title": "Thu thập chừng mực, minh bạch từng con số",
+    "lead": "Những nguyên tắc chúng tôi giữ khi đọc dữ liệu công khai cho bạn.",
+    "public": {
+      "title": "Chỉ đọc trang công khai",
+      "text": "Không đăng nhập vào kênh đặt phòng nào, không dùng tài khoản extranet của bạn, không lấy dữ liệu cá nhân của khách lưu trú."
+    },
+    "pace": {
+      "title": "Nhịp độ chừng mực",
+      "text": "Các lần tải trang được giãn cách vài giây, không dồn dập, và mỗi khách sạn chỉ được đọc lần lượt từng trang."
+    },
+    "market": {
+      "title": "Giá đúng thị trường",
+      "text": "Xem trang như một khách ở nước của khách sạn. Giá giữ nguyên tiền tệ hiển thị, không quy đổi."
+    },
+    "archive": {
+      "title": "Giữ bản gốc",
+      "text": "Trang gốc được lưu lại một thời gian (mặc định 30 ngày). Khi một kênh đổi giao diện, dữ liệu được đọc lại thay vì mất."
+    },
+    "limits": {
+      "title": "Nói rõ giới hạn",
+      "text": "Hiện theo dõi Booking.com, Agoda, iVIVU, Trip.com, số phòng mỗi kênh đếm riêng. Mỗi lượt xem giả định 2 người lớn, nên loại phòng dành cho 1 người không xuất hiện."
+    }
+  },
+  "faq": {
+    "title": "Câu hỏi thường gặp",
+    "account": {
+      "q": "OTARadar có cần tài khoản Booking.com của tôi không?",
+      "a": "Không. Hệ thống chỉ đọc trang công khai mà khách đặt phòng nào cũng thấy. Tài khoản extranet của bạn không liên quan."
+    },
+    "accuracy": {
+      "q": "Số phòng còn lại chính xác đến đâu?",
+      "a": "Các kênh đặt phòng thường chỉ hiện con số chính xác khi còn ít phòng. Vì vậy mỗi con số trên OTARadar đi kèm mức tin cậy: chính xác, ít nhất, ẩn hoặc hết. Tốc độ bán chỉ được tính từ các cặp số chính xác."
+    },
+    "hotels": {
+      "q": "Tôi theo dõi được những khách sạn nào?",
+      "a": "Bất kỳ khách sạn nào có trang trên Booking.com, Agoda, iVIVU hoặc Trip.com: dán đường link là thêm vào danh sách. Khách sạn của bạn nằm cùng danh sách để luôn được đặt cạnh đối thủ."
+    },
+    "channels": {
+      "q": "Theo dõi những kênh nào?",
+      "a": "Booking.com, Agoda, iVIVU, Trip.com. Mỗi kênh có số phòng riêng nên được đếm riêng, không cộng lại. Expedia và Traveloka chưa có."
+    },
+    "timing": {
+      "q": "Bao lâu thì có dữ liệu?",
+      "a": "Lượt quét đầu tiên chạy ngay khi thiết lập xong. Sự kiện như hết phòng hay đổi giá xuất hiện từ lượt quét thứ hai, và bản tin đến mỗi sáng lúc 07:30."
+    },
+    "pms": {
+      "q": "Có bắt buộc kết nối PMS không?",
+      "a": "Không. Không có PMS bạn vẫn thấy đầy đủ dữ liệu đối thủ. Nhập file từ PMS giúp đặt công suất thật của bạn cạnh thị trường, cả trên bảng lẫn trong bản tin."
+    },
+    "team": {
+      "q": "Cả đội dùng chung được không?",
+      "a": "Được. Tài khoản quản trị cấu hình danh sách theo dõi, giờ quét và nhập PMS; tài khoản chỉ xem dành cho người cần đọc số liệu."
+    },
+    "pricing": {
+      "q": "Chi phí thế nào?",
+      "a": "Liên hệ để nhận báo giá phù hợp với khách sạn của bạn."
+    }
+  },
+  "cta": {
+    "title": "Gửi cho chúng tôi link khách sạn của bạn",
+    "lead": "Kèm vài đối thủ bạn hay so sánh. Chúng tôi thiết lập danh sách theo dõi, chạy lượt quét đầu tiên và cho bạn xem 30 đêm tới của thị trường.",
+    "steps": {
+      "send": "<b>Gửi link</b> khách sạn của bạn và các đối thủ",
+      "setup": "<b>Chúng tôi thiết lập</b> tài khoản và giờ quét theo múi giờ của bạn",
+      "read": "<b>Đọc bản tin</b> mỗi sáng lúc 07:30"
+    },
+    "empty": "Thông tin liên hệ đang được cập nhật."
+  },
+  "contact": {
+    "zalo": "Nhắn Zalo",
+    "zaloLink": "Nhắn tin trên Zalo",
+    "phone": "Gọi điện",
+    "email": "Gửi email",
+    "emailSubject": "Tư vấn OTARadar"
+  },
+  "footer": {
+    "tagline": "Theo dõi phòng còn và giá đối thủ trên Booking.com, Agoda, iVIVU, Trip.com cho khách sạn Việt Nam.",
+    "linksLabel": "Liên kết chân trang",
+    "contact": "Liên hệ",
+    "disclaimer": "OTARadar là dịch vụ độc lập, không liên kết với Booking.com, Agoda, iVIVU, Trip.com. Các tên này là nhãn hiệu của chủ sở hữu tương ứng.",
+    "credits": "Ảnh: <list></list> trên Unsplash."
+  },
+  "photos": {
+    "coffee": "Phin cà phê đang nhỏ giọt trên chiếc ghế gỗ trong nắng sớm",
+    "windows": "Mặt tiền một toà nhà về đêm, ô cửa sáng đèn xen giữa những ô cửa tối",
+    "desk": "Tường ô gỗ sau quầy lễ tân, mỗi ô treo một chìa khoá phòng, vài ô đã trống",
+    "key": "Chìa khoá phòng số 7 với thẻ đồng và tua rua xanh",
+    "coast": "Bãi biển Mỹ Khê, Đà Nẵng lúc chạng vạng với dãy khách sạn ven biển"
+  },
+  "demo": {
+    "selfHotel": "Khách sạn của bạn",
+    "roomTypes": {
+      "deluxeDoubleSea": "Deluxe giường đôi hướng biển",
+      "superiorTwin": "Superior hai giường",
+      "familySuite": "Suite gia đình",
+      "deluxeDouble": "Deluxe giường đôi",
+      "standardTwin": "Standard hai giường",
+      "boutiqueDouble": "Boutique giường đôi",
+      "juniorSuite": "Junior suite",
+      "superiorDouble": "Superior giường đôi",
+      "deluxeBalcony": "Deluxe ban công",
+      "premierSea": "Premier hướng biển",
+      "deluxeCity": "Deluxe hướng phố",
+      "twoBedApartment": "Căn hộ hai phòng ngủ"
+    },
+    "plans": {
+      "freeCancellation": "Hoàn huỷ miễn phí",
+      "breakfast": "Gồm bữa sáng",
+      "nonRefundable": "Không hoàn huỷ"
+    },
+    "events": {
+      "sold_out": "Hết phòng",
+      "restock": "Có phòng lại",
+      "rooms_decrease": "Giảm phòng",
+      "low_stock_enter": "Sắp hết phòng",
+      "price_down": "Giảm giá",
+      "price_up": "Tăng giá"
+    },
+    "confidence": {
+      "exact": "Chính xác",
+      "capped": "Ít nhất",
+      "hidden": "Ẩn",
+      "sold_out": "Hết"
+    },
+    "soldOutShort": "HẾT",
+    "availableShort": "CÒN"
+  },
+  "board": {
+    "title": "Tổng quan · 30 đêm tới",
+    "latestScan": "Lượt quét gần nhất: hôm nay 22:00",
+    "scrollLabel": "Bảng phòng còn theo khách sạn và đêm, cuộn ngang",
+    "caption": "Số phòng còn của khách sạn bạn và bốn đối thủ trong 30 đêm tới (minh hoạ)",
+    "hotelCol": "Khách sạn",
+    "yours": "Của bạn",
+    "cellLabel": "{hotel}, đêm {night}: {rooms}",
+    "soldOut": "Hết phòng",
+    "roomsAvailable": "Còn phòng",
+    "roomsAtLeast": "Còn ít nhất {count} phòng",
+    "roomsLeft": "Còn {count} phòng",
+    "bandSoldOut": "Đối thủ hết phòng",
+    "bandMeter": "{sold} trên {total}",
+    "bandPrice": "Giá thấp nhất (nghìn ₫)",
+    "legend": {
+      "exact": "Chính xác: trang hiện “chỉ còn X phòng”",
+      "capped": "Ít nhất: số trong ô là mức sàn",
+      "hidden": "Ẩn: còn phòng, không lộ số",
+      "soldOut": "Hết phòng"
+    },
+    "detailNight": "· đêm {night}",
+    "fromPrice": "từ {price}",
+    "typesCaption": "Từng loại phòng ở lượt quét gần nhất",
+    "colType": "Loại phòng",
+    "colLeft": "Còn",
+    "colPrice": "Giá / đêm",
+    "historyTitle": "Sáu lượt quan sát gần nhất",
+    "historyLabel": "Các lượt quan sát trước, lượt cũ in nhạt hơn",
+    "yesterdayShort": "Qua",
+    "todayShort": "Nay",
+    "historyNote": "Lượt càng cũ in càng nhạt. Tốc độ bán chỉ tính giữa hai số chính xác.",
+    "eventsTitle": "Sự kiện của đêm này",
+    "noEvents": "Không có thay đổi đáng kể giữa các lượt quét.",
+    "priceChange": "{from} → {to} nghìn",
+    "roomsChange": "{from} → {to} phòng",
+    "scanYesterday": "Hôm qua {time}",
+    "scanToday": "Hôm nay {time}"
+  },
+  "brief": {
+    "label": "Bản tin mẫu",
+    "title": "Bản tin sáng",
+    "weekday": "{day, select, 0 {Chủ nhật} 1 {Thứ Hai} 2 {Thứ Ba} 3 {Thứ Tư} 4 {Thứ Năm} 5 {Thứ Sáu} other {Thứ Bảy}}",
+    "meta": "{day} · 07:30 · dữ liệu đến lượt {scan}",
+    "summary": "Cuối tuần {eve}–{peak} đang kín nhanh: {sold}/{total} đối thủ đã hết phòng đêm {peak}. Khách sạn của bạn vẫn còn ít nhất {known} phòng cho đêm này, công suất PMS mới {occupancy}%.",
+    "peakTitle": "Đêm {night} gần kín thị trường",
+    "confHigh": "Tin cậy cao",
+    "confMedium": "Tin cậy trung bình",
+    "peakRec": "Đề xuất: giữ giá phòng còn lại, cân nhắc tăng giá hạng hướng biển trước lượt quét 14:00.",
+    "evidence": "Bằng chứng",
+    "compset": "<b>Compset</b> {sold}/{total} đối thủ hết phòng",
+    "dropTitle": "{hotel} giảm giá {pct}% cho đêm {night}",
+    "dropRec": "Đề xuất: chưa cần phản ứng, xem lượt 06:00 các đối thủ khác có giảm theo không.",
+    "dropEvidence": "<b>{hotel}</b> Giảm giá {from} → {to} nghìn <span>{when}</span>",
+    "signals": "Tín hiệu cầu",
+    "high": "Cao",
+    "medium": "Trung bình",
+    "dropped": "<b>1 nhận định bị loại</b> vì không trích được sự kiện hay chỉ số nào làm bằng chứng.",
+    "quality": "Chất lượng dữ liệu: {hotel} có loại phòng chỉ biết mức “ít nhất”, tốc độ bán chỉ tính trên số chính xác."
+  }
+}

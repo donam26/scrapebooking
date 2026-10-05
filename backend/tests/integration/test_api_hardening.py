@@ -93,16 +93,12 @@ async def test_role_change_takes_effect_without_relogin(
 ) -> None:
     await _seed(db)
     await _login(client, "view@a.com", "view-pass-1")
-    r = await client.post(
-        "/watchlist", json={"booking_url": "https://www.booking.com/hotel/vn/x.html"}
-    )
+    r = await client.post("/watchlist", json={"url": "https://www.booking.com/hotel/vn/x.html"})
     assert r.status_code == 403
     viewer = (await db.execute(select(User).where(User.email == "view@a.com"))).scalar_one()
     viewer.role = "tenant_admin"
     await db.commit()
-    r = await client.post(
-        "/watchlist", json={"booking_url": "https://www.booking.com/hotel/vn/x.html"}
-    )
+    r = await client.post("/watchlist", json={"url": "https://www.booking.com/hotel/vn/x.html"})
     assert r.status_code == 201
 
 

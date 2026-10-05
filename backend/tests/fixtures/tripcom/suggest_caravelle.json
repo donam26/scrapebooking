@@ -1,0 +1,136 @@
+{
+ "data": {
+  "mainKeywordList": {
+   "keywords": [
+    {
+     "keyword": {
+      "keywordContentInfo": {
+       "keywordId": 839839,
+       "keywordCode": "839839",
+       "keyword": "Caravelle Saigon",
+       "keywordDesc": "Caravelle Saigon",
+       "matchedWord": [
+        "Saigon",
+        "Caravelle"
+       ],
+       "highlightExplainWord": "",
+       "displayTexts": [
+        {
+         "key": "TITLE",
+         "value": "Caravelle Saigon"
+        },
+        {
+         "key": "MAIN_TITLE",
+         "value": "Caravelle Saigon"
+        },
+        {
+         "key": "SUB_TITLE",
+         "value": "TP. Hồ Chí Minh, Việt Nam"
+        },
+        {
+         "key": "ALIAS"
+        },
+        {
+         "key": "DISTANCE"
+        },
+        {
+         "key": "CONTENT",
+         "value": "TP. Hồ Chí Minh, Việt Nam"
+        },
+        {
+         "key": "EXPLAINABILITY",
+         "value": ""
+        },
+        {
+         "key": "ADDRESS"
+        }
+       ],
+       "displayStyleType": "",
+       "coordinateItemList": [
+        {
+         "coordinateType": "BAIDU",
+         "latitude": "-1",
+         "longitude": "-1"
+        },
+        {
+         "coordinateType": "GAODE",
+         "latitude": "-1",
+         "longitude": "-1"
+        },
+        {
+         "coordinateType": "GOOGLE",
+         "latitude": "10.776262",
+         "longitude": "106.703613"
+        },
+        {
+         "coordinateType": "NORMAL",
+         "latitude": "10.776262",
+         "longitude": "106.703613"
+        }
+       ],
+       "tripType": "H",
+       "searchType": 0,
+       "medalIcon": "",
+       "countryClickable": 0,
+       "position": 1,
+       "recommendTag": "",
+       "recallChannels": [
+        "TEXT_HOTEL",
+        "TYPE_ID",
+        "LOCALE_SEARCH_AFTER_EN_TRANSLATE"
+       ],
+       "recallSources": [
+        "TEXT"
+       ],
+       "familyFriendlyInfo": {}
+      },
+      "hotelInfo": {
+       "hotelId": "839839"
+      },
+      "subItemType": "",
+      "keywordSubItem": [],
+      "metrolineList": []
+     },
+     "controlInfo": {
+      "keywordFilterItem": {
+       "data": {
+        "filterID": "31|839839",
+        "type": "31",
+        "title": "Caravelle Saigon",
+        "value": "839839",
+        "subType": "1",
+        "scenarioType": "DestinationSearch",
+        "wordTypeId": "2020"
+       },
+       "extra": {
+        "formattedCoordinateInfo": "10.776262|106.703613|1"
+       },
+       "operation": {}
+      },
+      "regionInfo": {
+       "displayCityModel": {
+        "cityName": "TP. Hồ Chí Minh",
+        "provinceName": "",
+        "countryName": "Việt Nam",
+        "districtName": ""
+       },
+       "basicCityModel": {
+        "cityId": 301,
+        "districtId": 0,
+        "provinceId": 0,
+        "countryId": 111,
+        "countryType": 2,
+        "timeOffset": 25200,
+        "cityType": "OVERSEA"
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "ResponseStatus": {
+  "Ack": "Success",
+  "Errors": []
+ }
+}

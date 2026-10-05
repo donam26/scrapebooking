@@ -1,34 +1,39 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo } from "react";
-import { api } from "@/lib/api";
+import { api, apiUrl } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
-import { EVENT_TYPES, EVENT_TYPE_LABEL, EVENT_TYPE_TONE, type Tone } from "@/lib/labels";
-import { Button, Card, ErrorBox, Note, PageHeader, Segmented, Select, SkeletonBlock, cx } from "@/components/ui";
+import { EVENT_TYPES, EVENT_TYPE_TONE, useLabel, type Tone } from "@/lib/labels";
+import { channelName, hotelTitle, sortChannels } from "@/lib/channels";
+import { Button, ButtonLink, Card, ErrorBox, Note, PageHeader, Segmented, Select, SkeletonBlock, cx } from "@/components/ui";
+import { BRIEF_TABS, SubTabs } from "@/components/sub-tabs";
 import { EventTable } from "@/components/event-table";
-import { IconChevronLeft, IconChevronRight, IconClose, IconInfo } from "@/components/icons";
+import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconInfo } from "@/components/icons";
 
 const PAGE_SIZE = 100;
 
 type Filters = {
   hotelId: number | null;
   types: string[];
+  channels: string[];
   stayFrom: string;
   stayTo: string;
   /** số giờ quan sát gần đây; 0 = tất cả */
   sinceHours: number;
 };
 
-const EMPTY: Filters = { hotelId: null, types: [], stayFrom: "", stayTo: "", sinceHours: 0 };
+const EMPTY: Filters = { hotelId: null, types: [], channels: [], stayFrom: "", stayTo: "", sinceHours: 0 };
 
-const SINCE_OPTIONS = [
-  { value: 24, label: "24 giờ" },
-  { value: 72, label: "3 ngày" },
-  { value: 168, label: "7 ngày" },
-  { value: 720, label: "30 ngày" },
-  { value: 0, label: "Tất cả" },
+/** `key`: khoá trong events.since. */
+const SINCE_OPTIONS: { value: number; key: "h24" | "d3" | "d7" | "d30" | "all" }[] = [
+  { value: 24, key: "h24" },
+  { value: 72, key: "d3" },
+  { value: 168, key: "d7" },
+  { value: 720, key: "d30" },
+  { value: 0, key: "all" },
 ];
 
 function sinceIso(hours: number): string | null {
@@ -38,7 +43,7 @@ function sinceIso(hours: number): string | null {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Bộ lọc nằm trong URL (?hotel=&types=&from=&to=&since=&page=) để chia sẻ và tải lại được. */
+/** Bộ lọc nằm trong URL (?hotel=&types=&channel=&from=&to=&since=&page=) để chia sẻ và tải lại được. */
 function filtersFromParams(params: URLSearchParams): { f: Filters; offset: number } {
   const hotel = Number(params.get("hotel"));
   const since = Number(params.get("since"));
@@ -49,6 +54,7 @@ function filtersFromParams(params: URLSearchParams): { f: Filters; offset: numbe
     f: {
       hotelId: Number.isInteger(hotel) && hotel > 0 ? hotel : null,
       types: (params.get("types") ?? "").split(",").filter((t) => (EVENT_TYPES as readonly string[]).includes(t)),
+      channels: (params.get("channel") ?? "").split(",").filter((c) => /^[a-z]+$/.test(c)),
       stayFrom: DATE_RE.test(from) ? from : "",
       stayTo: DATE_RE.test(to) ? to : "",
       sinceHours: Number.isFinite(since) && since > 0 ? since : 0,
@@ -61,6 +67,7 @@ function filtersToQuery(f: Filters, offset: number, highlight: number | null): s
   const q = new URLSearchParams();
   if (f.hotelId !== null) q.set("hotel", String(f.hotelId));
   if (f.types.length) q.set("types", f.types.join(","));
+  if (f.channels.length) q.set("channel", f.channels.join(","));
   if (f.stayFrom) q.set("from", f.stayFrom);
   if (f.stayTo) q.set("to", f.stayTo);
   if (f.sinceHours > 0) q.set("since", String(f.sinceHours));
@@ -81,9 +88,11 @@ const DOT: Record<Tone, string> = {
 };
 
 const DATE_INPUT =
-  "h-9 w-[150px] rounded-lg border border-line-strong bg-surface px-2.5 text-base text-ink tabular hover:border-[#b9b5d6] focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/15";
+  "h-9 w-[150px] rounded-lg border border-line-strong bg-surface px-2.5 text-base text-ink tabular hover:border-[#b7bfcc] focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/15";
 
 function EventsView() {
+  const t = useTranslations("events");
+  const label = useLabel();
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -101,6 +110,7 @@ function EventsView() {
     api.events({
       hotel_id: f.hotelId,
       event_type: f.types.length ? f.types.join(",") : null,
+      channel: f.channels.length ? f.channels.join(",") : null,
       stay_from: f.stayFrom || null,
       stay_to: f.stayTo || null,
       observed_since: sinceIso(f.sinceHours),
@@ -113,69 +123,126 @@ function EventsView() {
   function go(next: Partial<Filters>, offset = 0) {
     router.replace(`${pathname}${filtersToQuery({ ...f, ...next }, offset, null)}`, { scroll: false });
   }
-  function toggleType(t: string) {
-    go({ types: f.types.includes(t) ? f.types.filter((x) => x !== t) : [...f.types, t] });
+  function toggleType(type: string) {
+    go({ types: f.types.includes(type) ? f.types.filter((x) => x !== type) : [...f.types, type] });
+  }
+  function toggleChannel(c: string) {
+    go({ channels: f.channels.includes(c) ? f.channels.filter((x) => x !== c) : [...f.channels, c] });
   }
 
-  const active = f.hotelId !== null || f.types.length > 0 || !!f.stayFrom || !!f.stayTo || f.sinceHours > 0;
+  // Kênh có trong watchlist (bỏ gợi ý chưa xác nhận), cộng kênh đang lọc.
+  const channelOptions = sortChannels([
+    ...(watchlist.data ?? []).flatMap((w) => w.hotel.listings.filter((l) => l.status !== "suggested").map((l) => l.channel)),
+    ...f.channels,
+  ]);
+
+  const active = f.hotelId !== null || f.types.length > 0 || f.channels.length > 0 || !!f.stayFrom || !!f.stayTo || f.sinceHours > 0;
   const count = events.data?.length ?? 0;
   const page = Math.floor(applied.offset / PAGE_SIZE) + 1;
 
   return (
     <>
-      <PageHeader title="Sự kiện" subtitle="Mọi biến động giữa hai lượt quét liên tiếp: hết phòng, có phòng lại, số phòng và giá" />
+      <SubTabs items={BRIEF_TABS} />
+      <PageHeader
+        title={t("title")}
+        subtitle={t("subtitle")}
+        actions={
+          <ButtonLink
+            href={apiUrl("/export/events.csv", {
+              hotel_id: f.hotelId,
+              event_type: f.types.length ? f.types.join(",") : null,
+              channel: f.channels.length ? f.channels.join(",") : null,
+              stay_from: f.stayFrom || null,
+              stay_to: f.stayTo || null,
+              observed_since: sinceIso(f.sinceHours),
+            })}
+            download
+            icon={<IconDownload size={16} />}
+          >
+            {t("downloadCsv")}
+          </ButtonLink>
+        }
+      />
 
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-body">Khách sạn</span>
+            <span className="text-sm font-semibold text-body">{t("filters.hotel")}</span>
             <Select className="w-[220px]" value={f.hotelId ?? ""} onChange={(e) => go({ hotelId: e.target.value ? Number(e.target.value) : null })}>
-              <option value="">Tất cả khách sạn</option>
+              <option value="">{t("filters.allHotels")}</option>
               {(watchlist.data ?? []).map((w) => (
                 <option key={w.hotel.id} value={w.hotel.id}>
-                  {w.label || w.hotel.name || w.hotel.booking_slug}
-                  {w.role === "self" ? " (của bạn)" : ""}
-                  {w.active ? "" : " (ngừng)"}
+                  {hotelTitle(w.hotel, w.label)}
+                  {w.role === "self" ? ` ${t("filters.yours")}` : ""}
+                  {w.active ? "" : ` ${t("filters.inactive")}`}
                 </option>
               ))}
             </Select>
           </label>
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-body">Quan sát trong</span>
-            <Segmented label="Quan sát trong" value={f.sinceHours} onChange={(v) => go({ sinceHours: v })} items={SINCE_OPTIONS} />
+            <span className="text-sm font-semibold text-body">{t("filters.observedWithin")}</span>
+            <Segmented
+              label={t("filters.observedWithin")}
+              value={f.sinceHours}
+              onChange={(v) => go({ sinceHours: v })}
+              items={SINCE_OPTIONS.map((o) => ({ value: o.value, label: t(`since.${o.key}`) }))}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-body">Đêm lưu trú</span>
+            <span className="text-sm font-semibold text-body">{t("filters.stayNight")}</span>
             <div className="flex items-center gap-2">
-              <input type="date" aria-label="Đêm lưu trú từ" className={DATE_INPUT} value={f.stayFrom} onChange={(e) => go({ stayFrom: e.target.value })} />
+              <input type="date" aria-label={t("filters.stayFrom")} className={DATE_INPUT} value={f.stayFrom} onChange={(e) => go({ stayFrom: e.target.value })} />
               <span className="text-muted">–</span>
-              <input type="date" aria-label="Đêm lưu trú đến" className={DATE_INPUT} value={f.stayTo} min={f.stayFrom || undefined} onChange={(e) => go({ stayTo: e.target.value })} />
+              <input type="date" aria-label={t("filters.stayTo")} className={DATE_INPUT} value={f.stayTo} min={f.stayFrom || undefined} onChange={(e) => go({ stayTo: e.target.value })} />
             </div>
           </div>
           {active && (
             <Button variant="quiet" icon={<IconClose size={15} />} onClick={() => go(EMPTY)}>
-              Xoá bộ lọc
+              {t("filters.clear")}
             </Button>
           )}
         </div>
 
-        <div role="group" aria-label="Loại sự kiện" className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-sm font-semibold text-body">Loại</span>
-          {EVENT_TYPES.map((t) => {
-            const on = f.types.includes(t);
+        {channelOptions.length > 1 && (
+          <div role="group" aria-label={t("filters.channel")} className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-sm font-semibold text-body">{t("filters.channel")}</span>
+            {channelOptions.map((c) => {
+              const on = f.channels.includes(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleChannel(c)}
+                  className={cx(
+                    "inline-flex h-8 items-center rounded-full px-3 text-sm font-semibold transition-colors duration-150",
+                    on ? "bg-night text-white" : "bg-surface text-body ring-1 ring-inset ring-line-strong hover:bg-subtle hover:ring-[#b7bfcc]",
+                  )}
+                >
+                  {channelName(c)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div role="group" aria-label={t("filters.eventType")} className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-sm font-semibold text-body">{t("filters.type")}</span>
+          {EVENT_TYPES.map((type) => {
+            const on = f.types.includes(type);
             return (
               <button
-                key={t}
+                key={type}
                 type="button"
                 aria-pressed={on}
-                onClick={() => toggleType(t)}
+                onClick={() => toggleType(type)}
                 className={cx(
                   "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors duration-150",
-                  on ? "bg-night text-white" : "bg-surface text-body ring-1 ring-inset ring-line-strong hover:bg-subtle hover:ring-[#b9b5d6]",
+                  on ? "bg-night text-white" : "bg-surface text-body ring-1 ring-inset ring-line-strong hover:bg-subtle hover:ring-[#b7bfcc]",
                 )}
               >
-                <span aria-hidden className={cx("h-2 w-2 rounded-full", DOT[EVENT_TYPE_TONE[t] ?? "gray"], on && "ring-2 ring-white/40")} />
-                {EVENT_TYPE_LABEL[t]}
+                <span aria-hidden className={cx("h-2 w-2 rounded-full", DOT[EVENT_TYPE_TONE[type] ?? "gray"], on && "ring-2 ring-white/40")} />
+                {label("eventType", type)}
               </button>
             );
           })}
@@ -184,9 +251,9 @@ function EventsView() {
 
       {highlightId && (
         <Note tone="info" icon={<IconInfo size={16} />} className="mb-4">
-          Đang làm nổi bật sự kiện #{highlightId} được dẫn từ bản tin (nếu nằm trong trang này).{" "}
+          {t("highlight.text", { id: highlightId })}{" "}
           <Link href={pathname + filtersToQuery(f, applied.offset, null)} className="font-semibold text-brand hover:underline">
-            Bỏ đánh dấu
+            {t("highlight.clear")}
           </Link>
         </Note>
       )}
@@ -194,17 +261,17 @@ function EventsView() {
 
       <Card
         padded={false}
-        title={events.data ? `${count}${count === PAGE_SIZE ? "+" : ""} sự kiện` : "Sự kiện"}
-        description={active ? "Theo bộ lọc đang chọn" : "Mới nhất trước"}
+        title={events.data ? (count === PAGE_SIZE ? t("list.countMore", { count }) : t("list.count", { count })) : t("title")}
+        description={active ? t("list.filtered") : t("list.newestFirst")}
         actions={
           (applied.offset > 0 || count === PAGE_SIZE) && (
             <div className="flex items-center gap-1.5 text-sm text-muted">
               <Button size="sm" variant="ghost" icon={<IconChevronLeft size={15} />} disabled={applied.offset === 0} onClick={() => go({}, Math.max(0, applied.offset - PAGE_SIZE))}>
-                Trước
+                {t("list.prev")}
               </Button>
-              <span className="tabular">Trang {page}</span>
+              <span className="tabular">{t("list.page", { page })}</span>
               <Button size="sm" variant="ghost" disabled={count < PAGE_SIZE} onClick={() => go({}, applied.offset + PAGE_SIZE)}>
-                Sau <IconChevronRight size={15} />
+                {t("list.next")} <IconChevronRight size={15} />
               </Button>
             </div>
           )
@@ -216,7 +283,7 @@ function EventsView() {
               events={events.data}
               highlightId={highlightId}
               labelOf={(id) => watchlist.data?.find((w) => w.hotel.id === id)?.label ?? undefined}
-              emptyText={active ? "Không có sự kiện nào khớp bộ lọc. Thử nới khoảng thời gian hoặc bỏ bớt loại sự kiện." : "Chưa có sự kiện nào. Sự kiện xuất hiện khi hai lượt quét liên tiếp khác nhau."}
+              emptyText={active ? t("list.emptyFiltered") : t("list.empty")}
             />
           ) : (
             !events.error && (

@@ -1,25 +1,34 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
+import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-// Be Vietnam Pro cho toàn bộ dashboard: một họ chữ, dấu tiếng Việt chuẩn ở mọi cỡ.
-const sans = Be_Vietnam_Pro({
+// Inter cho toàn bộ dashboard (theo giao diện mẫu OTARadar), có bộ dấu tiếng Việt.
+const sans = Inter({
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-app",
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: { default: "ScrapeBooking", template: "%s · ScrapeBooking" },
-  description: "Số phòng còn và giá của đối thủ trên Booking.com, cập nhật ba lần mỗi ngày",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("common.meta");
+  return {
+    title: { default: "OTARadar", template: "%s · OTARadar" },
+    description: t("description"),
+  };
+}
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
   return (
-    <html lang="vi" className={`h-full antialiased ${sans.variable}`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang={locale} className={`h-full antialiased ${sans.variable}`}>
+      <body className="min-h-full flex flex-col">
+        {/* Bản dịch + ngôn ngữ đi xuống client component (next-intl v4 tự lấy từ src/i18n/request.ts). */}
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

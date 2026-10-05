@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from datetime import timedelta
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -33,6 +33,23 @@ class PermanentJobFailure(JobFailed):
     """Lỗi không tự hết khi thử lại (VD trang khách sạn 404): không chờ arq retry."""
 
 
+@dataclass(frozen=True)
+class TierPolicy:
+    """Quét theo tầng (D12). Đêm cách `start_date` dưới `near_days` ngày: quét mọi lượt. Dưới
+    `mid_days`: bỏ qua nếu đã có quan sát dùng được trong `mid_max_age`. Xa hơn: `far_max_age`.
+    Giữ số request gần như cũ khi nới horizon 30 → 90."""
+
+    near_days: int = 14
+    mid_days: int = 60
+    mid_max_age: timedelta = timedelta(hours=20)
+    far_max_age: timedelta = timedelta(hours=66)
+
+    def max_age(self, offset_days: int) -> timedelta | None:
+        if offset_days < self.near_days:
+            return None
+        return self.mid_max_age if offset_days < self.mid_days else self.far_max_age
+
+
 @dataclass
 class WorkerDeps:
     session_factory: async_sessionmaker[AsyncSession]
@@ -45,6 +62,7 @@ class WorkerDeps:
     alerter: Alerter
     worker_id: str
     on_run_finished: RunFinishedHook | None = None
+    tiers: TierPolicy | None = field(default_factory=TierPolicy)
 
 
 @dataclass
@@ -54,7 +72,29 @@ class JobSummary:
     probed: int = 0
     skipped: int = 0
     failed: int = 0
+    fresh: int = 0  # đêm bỏ qua theo tầng (đã có quan sát đủ mới)
     run_finished: bool = False
+
+
+async def _fresh_dates(
+    deps: WorkerDeps, hotel_id: int, channel: str, start_date: date, horizon: int
+) -> set[date]:
+    """Đêm ở tầng giữa/xa đã có quan sát dùng được đủ mới: lượt này không cần quét lại."""
+    if deps.tiers is None:
+        return set()
+    now = deps.clock.now()
+    by_age: dict[date, timedelta] = {}
+    for offset in range(horizon):
+        max_age = deps.tiers.max_age(offset)
+        if max_age is not None:
+            by_age[start_date + timedelta(days=offset)] = max_age
+    if not by_age:
+        return set()
+    async with deps.session_factory() as s:
+        last = await SnapshotRepository(s, deps.page_cap).last_usable_probe_at(
+            hotel_id, channel, list(by_age)
+        )
+    return {d for d, max_age in by_age.items() if d in last and now - last[d] < max_age}
 
 
 async def run_probe_hotel(
@@ -69,9 +109,20 @@ async def run_probe_hotel(
         if job is None:
             log_ctx.info("job_already_done")
             return summary
-        hotel = await runs.load_hotel(hotel_id)
+        channel = await runs.run_channel(scan_run_id)
+        listing = await runs.load_listing(hotel_id, channel)
         start_date, horizon = job.start_date, job.horizon_days
+        if listing is None:
+            now = deps.clock.now()
+            await runs.finish_job(scan_run_id, hotel_id, "failed", now, "listing_inactive")
+            summary.run_finished = await runs.try_finish_run(scan_run_id, now)
         await s.commit()
+    if listing is None:
+        log_ctx.info("job_listing_inactive", channel=channel)
+        if summary.run_finished and deps.on_run_finished is not None:
+            await deps.on_run_finished(scan_run_id)
+        return summary
+    hotel = listing
 
     status, error = "done", None
     permanent = False
@@ -84,12 +135,14 @@ async def run_probe_hotel(
             await snaps.write_calendar(hotel_id, scan_run_id, calendar, deps.clock.now())
             done_dates = await snaps.terminal_dates(scan_run_id, hotel_id)
             await s.commit()
-        if not calendar.ok:
+        if not calendar.ok and calendar.error != "unsupported":
             log_ctx.warning("calendar_unavailable", error=calendar.error)
+        fresh_dates = await _fresh_dates(deps, hotel_id, channel, start_date, horizon)
+        summary.fresh = len(fresh_dates)
 
         for offset in range(horizon):
             stay_date = start_date + timedelta(days=offset)
-            if stay_date in done_dates:
+            if stay_date in done_dates or stay_date in fresh_dates:
                 continue
             day = calendar.day(stay_date) if calendar.ok else None
             fetched_at = deps.clock.now()
@@ -99,6 +152,7 @@ async def run_probe_hotel(
                     await SnapshotRepository(s, deps.page_cap).write_skipped(
                         scan_run_id,
                         hotel_id,
+                        channel,
                         stay_date,
                         nights=day.min_length_of_stay,
                         adults=deps.default_adults,
@@ -138,6 +192,7 @@ async def run_probe_hotel(
                 await SnapshotRepository(s, deps.page_cap).write_probe(
                     scan_run_id,
                     hotel_id,
+                    channel,
                     stay_date,
                     result,
                     key,
@@ -154,7 +209,7 @@ async def run_probe_hotel(
                 summary.failed += 1
             if result.status == ProbeStatus.ERROR and result.error == "not_found":
                 # Trang khách sạn 404 (URL/slug sai): mọi ngày khác cũng 404, dừng thay vì quét hết.
-                raise HotelPageNotFound(f"hotel page not found (http 404): {hotel.canonical_url}")
+                raise HotelPageNotFound(f"hotel page not found (http 404): {hotel.url}")
     except Exception as exc:  # noqa: BLE001
         status, error = "failed", f"{type(exc).__name__}: {exc}"
         permanent = isinstance(exc, HotelPageNotFound)
@@ -168,6 +223,11 @@ async def run_probe_hotel(
             "retrying" if status == "failed" and not (final_attempt or permanent) else status
         )
         await runs.finish_job(scan_run_id, hotel_id, job_status, now, error)
+        if permanent:
+            # URL listing hỏng (404): ngừng quét listing này tới khi người dùng sửa URL.
+            await SnapshotRepository(s, deps.page_cap).mark_listing_broken(
+                hotel_id, channel, error or "not found"
+            )
         if job_status != "retrying":
             summary.run_finished = await runs.try_finish_run(scan_run_id, now)
         await s.commit()
@@ -198,5 +258,28 @@ async def run_probe_hotel(
     JOBS_TOTAL.labels(status).inc()
     if status == "failed":
         raise (PermanentJobFailure if permanent else JobFailed)(error or "unknown")
-    log_ctx.info("job_done", probed=summary.probed, skipped=summary.skipped, failed=summary.failed)
+    log_ctx.info(
+        "job_done",
+        channel=channel,
+        probed=summary.probed,
+        skipped=summary.skipped,
+        fresh=summary.fresh,
+        failed=summary.failed,
+    )
     return summary
+
+
+async def fail_job(deps: WorkerDeps, scan_run_id: int, hotel_id: int, error: str) -> bool:
+    """Chốt job thất bại mà không quét (kênh đang tạm dừng). Trả True nếu nhờ đó run được chốt."""
+    now = deps.clock.now()
+    async with deps.session_factory() as s:
+        runs = ScanRunRepository(s)
+        job = await runs.start_job(scan_run_id, hotel_id, now)
+        if job is None:
+            return False
+        await runs.finish_job(scan_run_id, hotel_id, "failed", now, error)
+        finished = await runs.try_finish_run(scan_run_id, now)
+        await s.commit()
+    if finished and deps.on_run_finished is not None:
+        await deps.on_run_finished(scan_run_id)
+    return finished

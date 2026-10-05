@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// next-intl đọc cấu hình theo request ở src/i18n/request.ts (ngôn ngữ từ cookie, không tiền tố URL).
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   // Docker: `.next/standalone/server.js` chạy không cần node_modules.
@@ -10,4 +14,4 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

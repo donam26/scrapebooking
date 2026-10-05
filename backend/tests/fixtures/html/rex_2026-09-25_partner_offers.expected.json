@@ -1,11 +1,11 @@
 {
   "outcome": "rooms",
-  "booking_hotel_id": "71004",
+  "external_id": "71004",
   "hotel_name": "Rex Hotel",
   "csrf_token": "FIXTURE_CSRF_TOKEN",
   "offers": [
     {
-      "booking_room_id": "7100514",
+      "external_room_id": "7100514",
       "name": "Premium Twin Room",
       "max_occupancy": 2,
       "badge_count": null,
@@ -17,12 +17,17 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": "9303668",
+          "taxes_included": true,
+          "promo_label": "Getaway Deal",
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "7100411",
+      "external_room_id": "7100411",
       "name": "Rex Suite King",
       "max_occupancy": 2,
       "badge_count": 2,
@@ -34,12 +39,17 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": "10504141",
+          "taxes_included": true,
+          "promo_label": "Getaway Deal",
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "7100515",
+      "external_room_id": "7100515",
       "name": "Rex Suite Twin",
       "max_occupancy": 2,
       "badge_count": 2,
@@ -51,12 +61,17 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": "10504141",
+          "taxes_included": true,
+          "promo_label": "Getaway Deal",
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "7100412",
+      "external_room_id": "7100412",
       "name": "Governor Suite King",
       "max_occupancy": 2,
       "badge_count": null,
@@ -68,12 +83,17 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": "11104378",
+          "taxes_included": true,
+          "promo_label": "Getaway Deal",
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "7100413",
+      "external_room_id": "7100413",
       "name": "Executive Premium King",
       "max_occupancy": 2,
       "badge_count": null,
@@ -85,12 +105,17 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": "11704615",
+          "taxes_included": true,
+          "promo_label": "Getaway Deal",
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "7100516",
+      "external_room_id": "7100516",
       "name": "Executive Premium Twin",
       "max_occupancy": 2,
       "badge_count": null,
@@ -102,12 +127,17 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": "11704615",
+          "taxes_included": true,
+          "promo_label": "Getaway Deal",
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     },
     {
-      "booking_room_id": "7100414",
+      "external_room_id": "7100414",
       "name": "Executive Governor Suite King",
       "max_occupancy": 2,
       "badge_count": 3,
@@ -119,9 +149,14 @@
           "currency": "VND",
           "refundable": false,
           "breakfast": true,
-          "max_persons": 2
+          "max_persons": 2,
+          "price_original": "14855987",
+          "taxes_included": true,
+          "promo_label": "Getaway Deal",
+          "source_supplier": null
         }
-      ]
+      ],
+      "stock_scope": "room_type"
     }
   ]
 }

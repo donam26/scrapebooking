@@ -7,7 +7,7 @@ scrape_configs:
       - targets: ["scheduler:9100"]
   - job_name: worker
     dns_sd_configs:
-      - names: ["worker"]
+      - names: ["worker", "worker-agoda", "worker-ivivu", "worker-tripcom", "worker-mytour"]
         type: A
         port: 9100
   - job_name: jobs

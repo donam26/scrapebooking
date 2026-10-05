@@ -61,7 +61,7 @@ def test_request_body_uses_structured_outputs_and_fixed_system_prompt() -> None:
     assert (
         fmt["json_schema"]["strict"] is True and fmt["json_schema"]["schema"] == INSIGHT_JSON_SCHEMA
     )
-    assert PROMPT_VERSION == "1"
+    assert PROMPT_VERSION == "2"
 
 
 def test_cost_estimate_matches_research_pricing() -> None:

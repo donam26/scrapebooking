@@ -17,6 +17,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Bỏ qua API proxy, asset tĩnh và favicon.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|robots.txt).*)"],
+  // Bỏ qua API proxy, asset tĩnh, favicon và tệp PWA (trình duyệt tải manifest không kèm cookie).
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|robots.txt|manifest.webmanifest|icons/|icon.svg|apple-icon.png).*)"],
 };

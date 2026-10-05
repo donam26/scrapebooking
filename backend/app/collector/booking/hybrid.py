@@ -13,13 +13,14 @@ from app.collector.booking.calendar import (
 from app.collector.booking.parser import parse_hotel_page
 from app.collector.booking.results import failed_result, probe_result_from_page
 from app.collector.booking.selectors import dates_dropped, shown_other_checkin
-from app.collector.booking.urls import build_hotel_url, currency_for
+from app.collector.booking.urls import build_hotel_url, pagename
+from app.collector.factory import NoBudget, RequestBudget
 from app.collector.fetch import Fetcher, FetchOutcome
 from app.collector.ratelimit import RateLimiter
 from app.collector.session import ScrapeSession, SessionManager
 from app.domain.models import (
     CalendarResult,
-    HotelRef,
+    ListingRef,
     PageOutcome,
     ParsedPage,
     ProbeMethod,
@@ -52,6 +53,8 @@ class HybridCollector:
         http_retries: int = 1,
         backoff_seconds: float = 3.0,
         transient_retries: int = 1,
+        currency: str = "VND",
+        budget: RequestBudget | None = None,
     ) -> None:
         self._sessions = sessions
         self._fetcher = fetcher
@@ -62,18 +65,21 @@ class HybridCollector:
         self._http_retries = http_retries
         self._backoff_seconds = backoff_seconds
         self._transient_retries = transient_retries
+        self._currency = currency
+        self._budget = budget or NoBudget()
 
     async def _retire_blocked(self, session: ScrapeSession) -> None:
         await self._sessions.retire(session, reason="blocked")
         await self._fetcher.close(session.id)
 
     async def fetch_calendar(
-        self, hotel: HotelRef, start: date, days: int, adults: int
+        self, hotel: ListingRef, start: date, days: int, adults: int
     ) -> CalendarResult:
-        session = await self._sessions.get(hotel.country_code, hotel.canonical_url)
+        session = await self._sessions.get(hotel.country_code, hotel.url)
+        await self._budget.acquire()
         await self._limiter.wait(session.id)
-        payload = build_calendar_request(hotel.country_code, hotel.pagename, start, days, adults)
-        headers = calendar_headers(session.csrf_token, referer=hotel.canonical_url)
+        payload = build_calendar_request(hotel.country_code, pagename(hotel), start, days, adults)
+        headers = calendar_headers(session.csrf_token, referer=hotel.url)
         try:
             response = await self._fetcher.post_json(GRAPHQL_URL, payload, headers, session)
         except Exception as exc:  # noqa: BLE001
@@ -86,16 +92,19 @@ class HybridCollector:
             return CalendarResult(ok=False, error=f"http {response.status}")
         return parse_calendar_response(response.text)
 
-    async def probe(self, hotel: HotelRef, checkin: date, nights: int, adults: int) -> ProbeResult:
-        currency = currency_for(hotel.country_code)
+    async def probe(
+        self, hotel: ListingRef, checkin: date, nights: int, adults: int
+    ) -> ProbeResult:
+        currency = self._currency
         url = build_hotel_url(hotel, checkin, nights, adults, currency)
         attempts = 0
         transient = 0  # lỗi tạm thời (5xx, mạng): thử lại trên cùng session
         last_status: int | None = None
         last_session: str | None = None
         while True:
-            session = await self._sessions.get(hotel.country_code, hotel.canonical_url)
+            session = await self._sessions.get(hotel.country_code, hotel.url)
             last_session = session.id
+            await self._budget.acquire()
             await self._limiter.wait(session.id)
             t0 = time.monotonic()
             try:
@@ -205,7 +214,7 @@ class HybridCollector:
 
     async def _fallback_or_blocked(
         self,
-        hotel: HotelRef,
+        hotel: ListingRef,
         checkin: date,
         nights: int,
         adults: int,

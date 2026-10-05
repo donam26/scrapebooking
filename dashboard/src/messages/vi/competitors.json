@@ -1,0 +1,28 @@
+{
+  "page": {
+    "title": "Đối thủ",
+    "count": "{count} đối thủ trong compset",
+    "channel": "Kênh <b>{channel}</b>",
+    "scannedAt": "Quét lúc {when}",
+    "addHotel": "Thêm khách sạn",
+    "emptyTitle": "Chưa theo dõi khách sạn nào",
+    "emptyBody": "Thêm khách sạn của bạn và đối thủ bằng đường dẫn trang khách sạn trên một kênh đặt phòng."
+  },
+  "rooms": {
+    "notScanned": "Chưa quét",
+    "soldOut": "Hết phòng",
+    "unknown": "Không đọc được",
+    "available": "Còn phòng",
+    "left": "Còn {count}"
+  },
+  "card": {
+    "yourHotel": "Khách sạn của bạn",
+    "stars": "{count} sao",
+    "distance": "cách bạn {km} km",
+    "tonightRate": "Giá đêm nay",
+    "vsYours": "So giá bạn",
+    "change7d": "Giá 7 ngày",
+    "nextNights": "Giá {count} đêm tới",
+    "details": "Chi tiết"
+  }
+}

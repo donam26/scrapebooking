@@ -10,8 +10,12 @@ log = get_logger(__name__)
 
 # Mỗi worker một hàng đợi riêng: worker arq lấy mọi job trong hàng đợi nó nghe, job của hàm nó
 # không có sẽ bị bỏ ("function not found") thay vì để worker kia xử lý.
-COLLECTOR_QUEUE = "arq:queue:collector"  # probe_hotel (worker)
 JOBS_QUEUE = "arq:queue:jobs"  # run_analytics, generate_insight, cron (jobs)
+
+
+def collector_queue(channel: str) -> str:
+    """Hàng đợi probe_hotel/verify_listing/discover_listings của một kênh (một worker mỗi kênh)."""
+    return f"arq:queue:collector:{channel}"
 
 
 def worker_redis_settings() -> RedisSettings:
@@ -30,7 +34,7 @@ def worker_redis_settings() -> RedisSettings:
 
 
 class JobQueue(Protocol):
-    async def enqueue_probe(self, scan_run_id: int, hotel_id: int) -> None: ...
+    async def enqueue_probe(self, scan_run_id: int, hotel_id: int, channel: str) -> None: ...
 
 
 def probe_job_id(scan_run_id: int, hotel_id: int) -> str:
@@ -45,14 +49,52 @@ class ArqJobQueue:
     async def connect(cls, redis_url: str) -> "ArqJobQueue":
         return cls(await create_pool(RedisSettings.from_dsn(redis_url)))
 
-    async def enqueue_probe(self, scan_run_id: int, hotel_id: int) -> None:
+    @property
+    def redis(self) -> ArqRedis:
+        return self._redis
+
+    async def enqueue_probe(self, scan_run_id: int, hotel_id: int, channel: str) -> None:
         # _job_id trùng thì arq bỏ qua: đây là chốt idempotent ở tầng hàng đợi.
         await self._redis.enqueue_job(
             "probe_hotel",
             scan_run_id,
             hotel_id,
             _job_id=probe_job_id(scan_run_id, hotel_id),
-            _queue_name=COLLECTOR_QUEUE,
+            _queue_name=collector_queue(channel),
+        )
+
+    async def enqueue_verify(self, listing_id: int, channel: str) -> None:
+        await self._redis.enqueue_job(
+            "verify_listing", listing_id, _queue_name=collector_queue(channel)
+        )
+
+    async def enqueue_discover(self, hotel_id: int, channel: str) -> None:
+        await self._redis.enqueue_job(
+            "discover_listing",
+            hotel_id,
+            _job_id=f"discover:{hotel_id}:{channel}",
+            _queue_name=collector_queue(channel),
+        )
+
+    async def enqueue_market_list(
+        self,
+        area_id: int,
+        channel: str,
+        start: str | None = None,
+        index: int = 0,
+        round_ts: int | None = None,
+    ) -> None:
+        """Quét danh sách khu vực (app/marketscan/jobs.py), một job mỗi đêm nối tiếp nhau trên hàng
+        đợi của kênh: job probe xen giữa các đêm, không bị một lượt dài chặn cả giờ. `_job_id` cố
+        định theo (khu vực, vòng, đêm): đẩy trùng (bù chuỗi, retry) là vô hại."""
+        await self._redis.enqueue_job(
+            "scan_market_list",
+            area_id,
+            start,
+            index,
+            round_ts,
+            _job_id=f"mlist:{area_id}:{round_ts}:{index}" if round_ts is not None else None,
+            _queue_name=collector_queue(channel),
         )
 
     async def enqueue_analytics(self, scan_run_id: int) -> None:

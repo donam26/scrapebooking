@@ -1,0 +1,140 @@
+{
+ "data": {
+  "mainKeywordList": {
+   "keywords": [
+    {
+     "keyword": {
+      "keywordContentInfo": {
+       "keywordId": 7047736,
+       "keywordCode": "7047736",
+       "keyword": "Meliá Vinpearl Phu Quoc",
+       "keywordDesc": "Meliá Vinpearl Phu Quoc",
+       "matchedWord": [
+        "Meliá",
+        "Phú",
+        "Vinpearl",
+        "Phu",
+        "Quốc",
+        "Quoc"
+       ],
+       "highlightExplainWord": "",
+       "displayTexts": [
+        {
+         "key": "TITLE",
+         "value": "Meliá Vinpearl Phu Quoc"
+        },
+        {
+         "key": "MAIN_TITLE",
+         "value": "Meliá Vinpearl Phu Quoc"
+        },
+        {
+         "key": "SUB_TITLE",
+         "value": "Đảo Phú Quốc, An Giang, Việt Nam"
+        },
+        {
+         "key": "ALIAS"
+        },
+        {
+         "key": "DISTANCE"
+        },
+        {
+         "key": "CONTENT",
+         "value": "Đảo Phú Quốc, An Giang, Việt Nam"
+        },
+        {
+         "key": "EXPLAINABILITY",
+         "value": ""
+        },
+        {
+         "key": "ADDRESS"
+        }
+       ],
+       "displayStyleType": "",
+       "coordinateItemList": [
+        {
+         "coordinateType": "BAIDU",
+         "latitude": "-1",
+         "longitude": "-1"
+        },
+        {
+         "coordinateType": "GAODE",
+         "latitude": "-1",
+         "longitude": "-1"
+        },
+        {
+         "coordinateType": "GOOGLE",
+         "latitude": "10.357969",
+         "longitude": "103.849616"
+        },
+        {
+         "coordinateType": "NORMAL",
+         "latitude": "10.357969",
+         "longitude": "103.849616"
+        }
+       ],
+       "tripType": "H",
+       "searchType": 0,
+       "medalIcon": "",
+       "countryClickable": 0,
+       "position": 1,
+       "recommendTag": "",
+       "recallChannels": [
+        "TEXT_HOTEL",
+        "TYPE_ID",
+        "LOCALE_SEARCH_AFTER_EN_TRANSLATE"
+       ],
+       "recallSources": [
+        "TEXT"
+       ],
+       "familyFriendlyInfo": {}
+      },
+      "hotelInfo": {
+       "hotelId": "7047736"
+      },
+      "subItemType": "",
+      "keywordSubItem": [],
+      "metrolineList": []
+     },
+     "controlInfo": {
+      "keywordFilterItem": {
+       "data": {
+        "filterID": "31|7047736",
+        "type": "31",
+        "title": "Meliá Vinpearl Phu Quoc",
+        "value": "7047736",
+        "subType": "1",
+        "scenarioType": "DestinationSearch",
+        "wordTypeId": "2020"
+       },
+       "extra": {
+        "formattedCoordinateInfo": "10.357969|103.849616|1"
+       },
+       "operation": {}
+      },
+      "regionInfo": {
+       "displayCityModel": {
+        "cityName": "Đảo Phú Quốc",
+        "provinceName": "An Giang",
+        "countryName": "Việt Nam",
+        "districtName": ""
+       },
+       "basicCityModel": {
+        "cityId": 5649,
+        "districtId": 0,
+        "provinceId": 11513,
+        "countryId": 111,
+        "countryType": 2,
+        "timeOffset": 25200,
+        "cityType": "OVERSEA"
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "ResponseStatus": {
+  "Ack": "Success",
+  "Errors": []
+ }
+}

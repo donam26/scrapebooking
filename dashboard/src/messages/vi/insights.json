@@ -1,0 +1,97 @@
+{
+  "sections": {
+    "summary": "Tóm tắt",
+    "highlights": "Điểm nổi bật",
+    "demandSignals": "Tín hiệu nhu cầu",
+    "pricing": "Cơ hội giá",
+    "risks": "Rủi ro",
+    "dataQuality": "Giới hạn của dữ liệu",
+    "dropped": "Nhận định bị loại"
+  },
+  "level": {
+    "confidence": "{level, select, high {Tin cậy cao} medium {Tin cậy trung bình} low {Tin cậy thấp} other {Tin cậy {label}}}",
+    "demand": "{level, select, high {Nhu cầu cao} medium {Nhu cầu trung bình} low {Nhu cầu thấp} other {Nhu cầu {label}}}"
+  },
+  "counts": {
+    "highlights": "{count} điểm nổi bật",
+    "signals": "{count} tín hiệu nhu cầu",
+    "pricing": "{count} cơ hội giá",
+    "risks": "{count} rủi ro"
+  },
+  "list": {
+    "title": "Bản tin AI",
+    "subtitle": "Tự động mỗi sáng và khi bạn yêu cầu. Mỗi nhận định đều kèm bằng chứng bấm được tới số liệu gốc.",
+    "subtitleAt": "Tự động mỗi sáng lúc {hour} và khi bạn yêu cầu. Mỗi nhận định đều kèm bằng chứng bấm được tới số liệu gốc.",
+    "generating": "Đang tạo…",
+    "generate": "Tạo bản tin ngay",
+    "generatingNote": "Đang tạo bản tin từ dữ liệu mới nhất. Thường mất dưới một phút; danh sách tự cập nhật khi xong.",
+    "emptyTitle": "Chưa có bản tin nào",
+    "generateFirst": "Tạo bản tin đầu tiên",
+    "emptyBody": "Bản tin đọc số phòng còn, giá và sự kiện của khách sạn bạn và đối thủ, rồi nêu điểm đáng chú ý kèm đề xuất. Bản hằng ngày tự tạo mỗi sáng.",
+    "emptyBodyAt": "Bản tin đọc số phòng còn, giá và sự kiện của khách sạn bạn và đối thủ, rồi nêu điểm đáng chú ý kèm đề xuất. Bản hằng ngày tự tạo lúc {hour}.",
+    "previous": "Các bản tin trước",
+    "briefs": "Bản tin",
+    "latest": "Bản tin mới nhất",
+    "dataNights": "Dữ liệu đêm {period}",
+    "nights": "Đêm {period}",
+    "noSummaryYet": "Bản tin chưa có tóm tắt.",
+    "noSummary": "Không có tóm tắt.",
+    "readFull": "Đọc đầy đủ",
+    "operatorOnly": "Chỉ tài khoản vận hành thấy",
+    "tech": "{model} · {version} · {tokensIn}/{tokensOut} token · {cost} USD"
+  },
+  "detail": {
+    "crumb": "Bản tin AI",
+    "title": "Bản tin",
+    "titleAt": "Bản tin {when}",
+    "dataNights": "Dữ liệu đêm {period}",
+    "pending": "Đang chờ kết quả từ mô hình, trang tự làm mới mỗi 5 giây.",
+    "failedTitle": "Tạo bản tin thất bại",
+    "toc": "Trong bản tin này",
+    "generatedAt": "Tạo lúc",
+    "basedOnRun": "Dựa trên lượt quét",
+    "model": "Mô hình",
+    "tokens": "Token vào / ra",
+    "cost": "Chi phí"
+  },
+  "view": {
+    "unknownHotel": "KS #{id}",
+    "failed": "Tạo bản tin thất bại: {error}",
+    "unknownError": "không rõ lỗi",
+    "waitingTitle": "Đang chờ nội dung",
+    "waitingBody": "Bản tin sẽ hiện ở đây khi mô hình trả kết quả. Trang tự làm mới.",
+    "night": "Đêm {night}",
+    "highlightsEmpty": "Không có điểm nổi bật nào đủ bằng chứng trong kỳ này.",
+    "confidenceHint": "Mức tin cậy của nhận định",
+    "recommendation": "Đề xuất",
+    "demandEmpty": "Không có tín hiệu nhu cầu đáng kể.",
+    "pricingEmpty": "Chưa thấy cơ hội điều chỉnh giá có bằng chứng.",
+    "risksEmpty": "Không có rủi ro nào được nêu.",
+    "dataQualityHint": "AI tự ghi chú khi dữ liệu thiếu hoặc chưa chắc",
+    "droppedHint": "AI có nêu nhưng không có bằng chứng hợp lệ trong dữ liệu, nên không đưa vào bản tin.",
+    "untitled": "(không có tiêu đề)"
+  },
+  "evidence": {
+    "label": "Bằng chứng",
+    "event": "{hotel} · {type} · đêm {night}",
+    "eventFallback": "Sự kiện #{id}",
+    "metric": "{hotel} · đêm {night}",
+    "compset": "Thị trường · đêm {night}",
+    "demand": "Tín hiệu cầu từ kênh"
+  },
+  "fieldWords": {
+    "exactShare7d": "tỷ lệ số phòng chính xác trong 7 ngày",
+    "exactShare": "tỷ lệ số phòng chính xác",
+    "exactRoomsLeft": "số phòng chính xác",
+    "priceIndex": "chỉ số giá",
+    "pickup24h": "số phòng bán thêm trong 24 giờ",
+    "velocity3d": "tốc độ bán 3 ngày",
+    "occupancy": "công suất PMS",
+    "soldOut": "hết phòng",
+    "unknown": "không đọc được",
+    "capped": "“ít nhất”",
+    "hidden": "ẩn số",
+    "exact": "chính xác",
+    "compset": "nhóm đối thủ"
+  }
+}

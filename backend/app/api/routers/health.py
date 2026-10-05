@@ -18,7 +18,9 @@ router = APIRouter(prefix="/health", tags=["health"])
 @router.get("/summary", response_model=HealthSummaryOut)
 async def summary(_: OperatorDep, session: SessionDep) -> HealthSummaryOut:
     now = datetime.now(tz=UTC)
-    total, blocked = await ScanRunRepository(session).probe_stats_since(now - timedelta(minutes=15))
+    by_channel = await ScanRunRepository(session).probe_stats_since(now - timedelta(minutes=15))
+    total = sum(t for t, _ in by_channel.values())
+    blocked = sum(b for _, b in by_channel.values())
     last_run = (
         await session.execute(select(ScanRun).order_by(ScanRun.id.desc()).limit(1))
     ).scalar_one_or_none()
@@ -63,11 +65,11 @@ async def sessions(
     )
 
 
-@router.post("/scan-now", response_model=ScanRunOut, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/scan-now", response_model=list[ScanRunOut], status_code=status.HTTP_202_ACCEPTED)
 async def scan_now_all(
     _: OperatorDep,
     session: SessionDep,
     queue: Annotated[ApiQueue | None, Depends(get_queue)] = None,
-) -> ScanRun:
+) -> list[ScanRun]:
     """Operator: quét ngay mọi tenant đang hoạt động."""
     return await create_manual_run(session, queue, None)

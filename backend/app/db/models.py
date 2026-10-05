@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Identity,
     Index,
@@ -35,25 +36,59 @@ class Tenant(Base):
     scan_times: Mapped[list[str]] = mapped_column(
         ARRAY(String(5)), default=lambda: ["06:00", "14:00", "22:00"]
     )
-    horizon_days: Mapped[int] = mapped_column(Integer, default=30)
+    horizon_days: Mapped[int] = mapped_column(Integer, default=90)
     insight_language: Mapped[str] = mapped_column(String(8), default="vi")
     insight_hour: Mapped[str] = mapped_column(String(5), default="07:30")
     country_code: Mapped[str] = mapped_column(String(2), default="vn")
+    # Kênh dùng cho heatmap/compset mặc định (D10).
+    reference_channel: Mapped[str] = mapped_column(String(16), default="booking")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Hotel(Base):
+    """Khách sạn (property). URL/định danh trên từng kênh nằm ở `listings`."""
+
     __tablename__ = "hotels"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    booking_url: Mapped[str] = mapped_column(Text)
-    booking_slug: Mapped[str] = mapped_column(String(200), unique=True)
-    booking_hotel_id: Mapped[str | None] = mapped_column(String(32))
     name: Mapped[str | None] = mapped_column(String(300))
     city: Mapped[str | None] = mapped_column(String(120))
     country_code: Mapped[str] = mapped_column(String(2))
     star_rating: Mapped[Decimal | None] = mapped_column(Numeric(2, 1))
+    address: Mapped[str | None] = mapped_column(Text)
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    # Từ trang kết quả tìm kiếm của kênh (thị trường toàn thành phố, migration 0011).
+    review_score: Mapped[Decimal | None] = mapped_column(Numeric(3, 1))
+    review_count: Mapped[int | None] = mapped_column(Integer)
+    image_url: Mapped[str | None] = mapped_column(Text)
+    district: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Listing(Base):
+    """Một khách sạn trên một kênh. Khoá nghiệp vụ (hotel_id, channel) dùng ở mọi bảng quan sát."""
+
+    __tablename__ = "listings"
+    __table_args__ = (
+        UniqueConstraint("hotel_id", "channel", name="uq_listings_hotel_channel"),
+        UniqueConstraint("channel", "listing_key", name="uq_listings_channel_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"))
+    channel: Mapped[str] = mapped_column(String(16))
+    listing_key: Mapped[str] = mapped_column(String(300))
+    external_id: Mapped[str | None] = mapped_column(String(64))
+    url: Mapped[str] = mapped_column(Text)
+    name: Mapped[str | None] = mapped_column(String(300))
+    # suggested (gợi ý chờ xác nhận) | rejected (người dùng bỏ gợi ý, không gợi ý lại) |
+    # unverified | active | broken | paused
+    status: Mapped[str] = mapped_column(String(16))
+    match_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -70,11 +105,16 @@ class TenantHotel(Base):
 
 class RoomType(Base):
     __tablename__ = "room_types"
-    __table_args__ = (UniqueConstraint("hotel_id", "booking_room_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "hotel_id", "channel", "external_room_id", name="uq_room_types_listing_room"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"))
-    booking_room_id: Mapped[str] = mapped_column(String(32))
+    channel: Mapped[str] = mapped_column(String(16))
+    external_room_id: Mapped[str] = mapped_column(String(200))
     name: Mapped[str] = mapped_column(String(300))
     max_occupancy: Mapped[int | None] = mapped_column(Integer)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -85,7 +125,8 @@ class ScanRun(Base):
     __tablename__ = "scan_runs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    trigger_key: Mapped[str] = mapped_column(String(32), unique=True)
+    trigger_key: Mapped[str] = mapped_column(String(64), unique=True)
+    channel: Mapped[str] = mapped_column(String(16))  # mỗi run thuộc một kênh (D9)
     scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -116,11 +157,13 @@ class Probe(Base):
     __table_args__ = (
         UniqueConstraint("scan_run_id", "hotel_id", "stay_date"),
         Index("ix_probes_hotel_date_fetched", "hotel_id", "stay_date", "fetched_at"),
+        Index("ix_probes_hotel_channel_date", "hotel_id", "channel", "stay_date", "fetched_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id"))
     hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"))
+    channel: Mapped[str] = mapped_column(String(16))
     stay_date: Mapped[date] = mapped_column(Date)
     checkin: Mapped[date] = mapped_column(Date)
     checkout: Mapped[date] = mapped_column(Date)
@@ -161,11 +204,13 @@ class RoomSnapshot(Base):
     id: Mapped[int] = mapped_column(BigInteger, Identity(), nullable=False)
     probe_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("probes.id"))
     hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"))
+    channel: Mapped[str] = mapped_column(String(16))
     room_type_id: Mapped[int] = mapped_column(ForeignKey("room_types.id"))
     stay_date: Mapped[date] = mapped_column(Date)
     scanned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     rooms_left: Mapped[int | None] = mapped_column(Integer)
     stock_confidence: Mapped[str] = mapped_column(String(16))
+    stock_scope: Mapped[str] = mapped_column(String(16), default="room_type")
     badge_count: Mapped[int | None] = mapped_column(Integer)
     dropdown_max: Mapped[int | None] = mapped_column(Integer)
     min_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
@@ -200,12 +245,14 @@ class HotelDateSnapshot(Base):
     hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"), primary_key=True)
     stay_date: Mapped[date] = mapped_column(Date, primary_key=True)
     scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id"), primary_key=True)
+    channel: Mapped[str] = mapped_column(String(16))
     scanned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(16))  # available | sold_out | unknown
     exact_rooms_left: Mapped[int | None] = mapped_column(Integer)
     room_types_available: Mapped[int] = mapped_column(Integer, default=0)
     room_types_sold_out: Mapped[int] = mapped_column(Integer, default=0)
     min_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    min_refundable_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     currency: Mapped[str | None] = mapped_column(String(3))
 
 
@@ -227,6 +274,7 @@ class AvailabilityEvent(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"))
+    channel: Mapped[str] = mapped_column(String(16))
     room_type_id: Mapped[int | None] = mapped_column(ForeignKey("room_types.id"))
     stay_date: Mapped[date] = mapped_column(Date)
     event_type: Mapped[str] = mapped_column(String(24))
@@ -243,6 +291,7 @@ class HotelDateMetric(Base):
     __tablename__ = "hotel_date_metrics"
 
     hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"), primary_key=True)
+    channel: Mapped[str] = mapped_column(String(16), primary_key=True)
     stay_date: Mapped[date] = mapped_column(Date, primary_key=True)
     as_of_scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id"))
     days_to_arrival: Mapped[int] = mapped_column(Integer)
@@ -251,6 +300,7 @@ class HotelDateMetric(Base):
     sold_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     restocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     min_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    min_refundable_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     currency: Mapped[str | None] = mapped_column(String(3))
     price_change_7d_pct: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     availability_status: Mapped[str] = mapped_column(String(16))
@@ -348,3 +398,89 @@ class PmsColumnMapping(Base):
     adapter: Mapped[str] = mapped_column(String(32), primary_key=True)
     mapping: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ---------------------------------------------------------------------------
+# Thông báo email (đợt 1 sau nghiên cứu đối thủ)
+# ---------------------------------------------------------------------------
+
+
+class NotificationRecipient(Base):
+    __tablename__ = "notification_recipients"
+    __table_args__ = (
+        Index(
+            "uq_notification_recipients_tenant_email",
+            "tenant_id",
+            func.lower("email"),
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"))
+    email: Mapped[str] = mapped_column(String(254))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NotificationRule(Base):
+    """Một dòng mỗi (tenant, loại thông báo). Chưa có dòng = dùng mặc định của loại đó."""
+
+    __tablename__ = "notification_rules"
+
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    active: Mapped[bool] = mapped_column(Boolean)
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Notification(Base):
+    """Outbox + nhật ký: chèn theo `dedupe_key` duy nhất trước khi gửi, chạy lại không gửi trùng."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (Index("ix_notifications_tenant_created", "tenant_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"))
+    kind: Mapped[str] = mapped_column(String(32))
+    dedupe_key: Mapped[str] = mapped_column(String(128), unique=True)
+    status: Mapped[str] = mapped_column(String(16))  # sending | sent | failed | skipped
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    body_text: Mapped[str] = mapped_column(Text, default="")
+    body_html: Mapped[str] = mapped_column(Text, default="")
+    recipients: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    item_count: Mapped[int] = mapped_column(Integer, default=0)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    detail: Mapped[str | None] = mapped_column(Text)
+    scan_run_id: Mapped[int | None] = mapped_column(ForeignKey("scan_runs.id"))
+    insight_id: Mapped[int | None] = mapped_column(ForeignKey("insights.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ---------------------------------------------------------------------------
+# Đa kênh: tín hiệu cầu do kênh công bố (D5)
+# ---------------------------------------------------------------------------
+
+
+class ListingDemandSignal(Base):
+    """ "Đặt 13 lần trong 24 giờ" (Agoda), "đã bán 2 phòng/24h" (ivivu)… Là thông điệp của kênh,
+    luôn hiển thị kèm nguồn; không đưa vào chỉ số giá."""
+
+    __tablename__ = "listing_demand_signals"
+    __table_args__ = (
+        Index("ix_listing_demand_signals_hotel_observed", "hotel_id", "channel", "observed_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"))
+    channel: Mapped[str] = mapped_column(String(16))
+    scan_run_id: Mapped[int | None] = mapped_column(ForeignKey("scan_runs.id"))
+    stay_date: Mapped[date | None] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(24))
+    value: Mapped[Decimal] = mapped_column(Numeric(14, 3))
+    window_hours: Mapped[int | None] = mapped_column(Integer)
+    raw_text: Mapped[str | None] = mapped_column(Text)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

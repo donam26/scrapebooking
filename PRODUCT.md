@@ -15,35 +15,39 @@ web
 
 ## Product Purpose
 
-Quét trang công khai của khách sạn khách hàng và đối thủ trên Booking.com 3 lần mỗi ngày (06:00, 14:00, 22:00 mặc định, cấu hình 1–8 mốc), lưu số phòng còn lại theo loại phòng (kèm mức tin cậy) và giá theo từng ngày lưu trú trong 30 ngày tới (horizon 1–90), phát hiện sự kiện hết phòng / có phòng lại / giảm phòng / đổi giá, sinh bản tin AI hằng ngày có bằng chứng bấm được, và đặt occupancy thật từ PMS cạnh đối thủ.
+Quét trang công khai của khách sạn khách hàng và đối thủ trên nhiều kênh OTA (Booking.com, Agoda, iVIVU, Trip.com, Mytour) 3 lần mỗi ngày (06:00, 14:00, 22:00 mặc định, cấu hình 1–8 mốc), lưu số phòng còn lại theo loại phòng (kèm mức tin cậy và phạm vi) và giá theo từng ngày lưu trú trong 90 ngày tới (quét theo tầng: 14 đêm gần mọi lượt, xa hơn thưa dần), phát hiện sự kiện hết phòng / có phòng lại / giảm phòng / đổi giá / đóng bán trên một kênh / khách sạn rẻ hơn trên một kênh, sinh bản tin AI hằng ngày có bằng chứng bấm được, gửi email cảnh báo, và đặt occupancy thật từ PMS cạnh đối thủ.
 
 Thành công: khách sạn ra quyết định giá mỗi sáng dựa trên dữ liệu thị trường thật thay vì đoán.
 
 ## Positioning
 
-- Đo **số phòng còn lại** của đối thủ, không chỉ giá. Minh bạch mức tin cậy: `exact` (badge "Only X rooms left"), `capped` (ít nhất N), `hidden`, `sold_out`. Không đoán số khi không có.
+- Đo **số phòng còn lại** của đối thủ trên từng kênh, không chỉ giá. Minh bạch mức tin cậy: `exact` (kênh báo số chính xác), `capped` (ít nhất N, gồm "còn N phòng có giá này"), `hidden`, `sold_out`. Không đoán số khi không có.
+- So cùng một khách sạn giữa các kênh: phát hiện đóng bán trên một kênh, và giá khách sạn của bạn bị bán rẻ hơn ở kênh nào (lộ giá bán sỉ qua kênh bán lại như iVIVU, Mytour).
 - Đọc calendar trước để biết số đêm tối thiểu, tránh báo "hết phòng" sai.
 - Bản tin AI chỉ nêu điều có bằng chứng trong dữ liệu; điểm nổi bật không có bằng chứng bị loại và ghi lại.
 - Occupancy PMS (CSV/Excel từ ezCloud, Newway…) đặt cạnh compset.
 
 ## Operating Context
 
-Dashboard 6 màn hình tenant: Tổng quan (heatmap khách sạn × 30 ngày, khách sạn của bạn trên cùng, dải compset), Chi tiết ngày (từng loại phòng, lịch sử phòng còn và giá), Chi tiết khách sạn (chỉ số pickup, tốc độ, giá đổi 7 ngày, dòng thời gian sự kiện), Bản tin, Sự kiện, Cài đặt (thêm khách sạn bằng URL Booking, giờ quét, nhập PMS, người dùng). Operator onboard từng tenant; chưa có self-serve đăng ký, chưa có billing.
+Dashboard tenant theo giao diện OTARadar (thanh trên xanh, 8 tab ngang; mọi màn hình dữ liệu có bộ chọn kênh, mặc định kênh tham chiếu của tenant): Bảng điều khiển (toàn cảnh compset đêm nay, mức nén, ADR/RevPAR/công suất compset ước tính, dự báo cầu 14 đêm, xu hướng thị trường, cảnh báo, khách sạn của bạn, trạng thái dữ liệu), Đối thủ (thẻ từng khách sạn; bấm vào chi tiết khách sạn: pickup, tốc độ, giá đổi 7 ngày, dòng thời gian sự kiện; chi tiết đêm: so kênh, tín hiệu cầu, từng loại phòng, lịch sử), Phòng trống (heatmap khách sạn × 16 đêm đỏ→xanh, thay đổi 24 giờ, tổng thị trường, phân tích công suất; tải CSV), Giá & định giá (xu hướng 30 đêm từng khách sạn, vị trí giá so trung vị, heatmap giá, tình báo cạnh tranh; mọi giá hoặc giá hoàn huỷ), Terminal+ (chỉ báo thị trường, thời tiết OpenWeather, tín hiệu đặt phòng kênh công bố, doanh thu PMS 14 ngày, lịch ngày lễ 12 tháng, nhịp đặt phòng và gợi ý giá có lý do với "Đã áp dụng/Bỏ qua"), Bản tin (bản tin AI và sự kiện thay đổi, tải CSV), Lịch sử quét, Cài đặt (thêm khách sạn bằng URL của bất kỳ kênh hỗ trợ, xác nhận gợi ý cùng khách sạn trên kênh khác, kênh tham chiếu, giờ quét, thông báo email, nhập PMS, người dùng). Màn "Hôm nay" cho điện thoại vẫn còn (mở từ menu trợ giúp). Operator onboard từng tenant; chưa có self-serve đăng ký, chưa có billing.
 
 ## Capabilities and Constraints
 
-- Nguồn dữ liệu duy nhất hiện tại: Booking.com. Chưa có Agoda, Expedia.
-- Giá hiển thị theo tiền tệ nước của khách sạn, không quy đổi.
+- Thị trường cả khu vực (từ 02/10, chỉ Booking.com): tenant chọn thành phố/quận; mỗi ngày đọc số khách sạn còn phòng từng đêm, ghép dần danh sách mọi khách sạn (điểm, số đánh giá, hạng sao, quận, giá) và quét chi tiết top N khách sạn để ước tính phòng còn/công suất cả khu vực. Booking không cho phân trang trang kết quả nên danh sách được ghép qua nhiều lát cắt; giá khu vực là mẫu cho tới khi phủ ≥98%.
+- Kênh quét được: Booking.com, Agoda, iVIVU, Trip.com, Mytour (mỗi kênh một listing của khách sạn). Traveloka và Expedia chặn bot mạnh (DataDome, Akamai): nhận diện URL nhưng chưa quét.
+- Số phòng còn là của từng kênh, không cộng giữa kênh. iVIVU không công bố số phòng (chỉ còn/hết); Trip.com và Mytour báo theo mức giá (ít nhất N).
+- Giá chuẩn hoá: VND cố định toàn hệ thống (không quy đổi), theo phòng/đêm, đã gồm thuế phí, sau khuyến mãi kênh tự áp (mã phải tự nhập thì không trừ); lưu kèm giá gốc, nhãn khuyến mãi, nguồn bán. Heatmap/compset theo một kênh; không trộn giá các kênh vào một trung vị.
+- Tín hiệu cầu do kênh công bố ("đặt 13 lần trong 24 giờ", "đã bán 2 phòng/24h", "lần đặt gần nhất cách đây N phút") là thông điệp marketing (Mytour còn chia thời gian cho 5 khi hiển thị): luôn hiện kèm nguồn, không coi là số đặt phòng thật.
 - Probe với 2 người lớn; loại phòng chỉ cho 1 người không xuất hiện.
-- Chưa có thông báo email/chat cho tenant; bản tin xem trên dashboard.
+- Thông báo chỉ qua email (SMTP): cảnh báo gom một email mỗi mốc quét (mọi kênh), gồm khách sạn của bạn rẻ hơn hẳn trên một kênh, bản tin sáng, báo cáo tuần thứ Hai 08:00. Chưa có Zalo/Telegram, chưa có giờ im lặng.
 - PMS: import CSV/Excel có ánh xạ cột; adapter API cho ezCloud, Newway, Hotel Link, Smile chưa có.
-- Không đăng nhập Booking, không lấy dữ liệu cá nhân, chỉ trường cần thiết, nhịp độ lịch sự.
+- Không đăng nhập kênh nào, không lấy dữ liệu cá nhân, chỉ trường cần thiết (payload thô cắt bớt thông tin đối tác), nhịp độ lịch sự với ngân sách request/phút theo kênh và tự ngắt kênh khi bị chặn.
 
 ## Brand Commitments
 
-- Tên sản phẩm: **ScrapeBooking**.
+- Tên sản phẩm: **OTARadar** (đổi từ ScrapeBooking ngày 2026-10-02, theo giao diện mẫu khách hàng chọn trong `job/*.jpg`). Mã nguồn, package và tên service vẫn giữ "scrapebooking".
 - Ngôn ngữ giao diện: tiếng Việt.
-- Không dùng logo hay nhận diện của Booking.com; chỉ nhắc tên để mô tả nguồn dữ liệu.
+- Không dùng logo hay nhận diện của Booking.com hay kênh OTA nào; chỉ nhắc tên để mô tả nguồn dữ liệu.
 - Phong cách trang giới thiệu: chuẩn landing SaaS theo kiểu Hostinger (người dùng chọn ngày 2026-09-25, sau khi từ chối hướng "tranh in đá Đông Dương"). Không dùng logo, tên hay nội dung của Hostinger; không dùng số đánh giá, cam kết hoàn tiền hay giá khi chưa có thật.
 
 ## Evidence on Hand

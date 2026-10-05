@@ -1,0 +1,72 @@
+{
+  "board": {
+    "defaultPriceLabel": "Giá thấp nhất",
+    "legend": {
+      "beyond": "Ngoài phạm vi quét (sau {night})",
+      "holiday": "Ngày lễ",
+      "yours": "{price} của bạn",
+      "thatHotel": "{price} của khách sạn đó",
+      "medianInYours": "Trung vị đối thủ (trong dải của bạn)",
+      "hint": "Rê chuột hoặc Tab vào một đêm để so cả chồng; bấm ô để mở chi tiết đêm.",
+      "channelNote": "Số phòng và giá trên {channel}; mỗi kênh đếm riêng, không cộng giữa các kênh.",
+      "perNight": "{price} mỗi đêm",
+      "hintSingle": "Rê chuột hoặc Tab vào một đêm để xem số liệu; bấm ô để mở chi tiết đêm."
+    },
+    "axis": {
+      "month": "Th {month}"
+    },
+    "market": {
+      "aria": "Thị trường",
+      "title": "Thị trường",
+      "observed": "{count} đối thủ có dữ liệu trên {channel}",
+      "noneObserved": "Chưa có đối thủ nào có dữ liệu trên {channel}",
+      "yourRate": "Giá của bạn",
+      "median": "Trung vị đối thủ",
+      "lowest": "Thấp nhất đối thủ",
+      "soldOutPerNight": "Đối thủ hết phòng mỗi đêm",
+      "noneSoldOut": "chưa đối thủ nào hết phòng trong {count} đêm này",
+      "perNight": "{price} mỗi đêm"
+    },
+    "vsMedian": {
+      "title": "Giá bạn so trung vị đối thủ (%)",
+      "typical": "mức thường của bạn <num>{typical}</num>; đêm lệch từ {threshold} điểm in nâu",
+      "listAria": "Giá bạn so trung vị đối thủ theo đêm",
+      "item": "{night}: giá bạn {vs}{outlier, select, yes {, khác mức thường} other {}}",
+      "itemNoData": "{night}: chưa so được"
+    },
+    "hotel": {
+      "tonight": "Đêm nay",
+      "detailsAria": "Chi tiết {name}",
+      "details": "Chi tiết",
+      "yours": "Của bạn",
+      "rangeTitle": "Giá thấp nhất mỗi đêm trong kỳ",
+      "range": "Giá kỳ này {lo}–{hi}",
+      "cellAria": "{name}, {night}: {status}",
+      "cellAriaPrice": "{name}, {night}: {status}, giá {price}",
+      "pmsOcc": "Công suất theo PMS"
+    },
+    "noData": {
+      "notTracked": "Chưa theo dõi trên {channel}",
+      "broken": "Đường dẫn trên {channel} bị lỗi",
+      "paused": "Đang tạm dừng trên {channel}",
+      "unverified": "Đang kiểm tra đường dẫn trên {channel}",
+      "waiting": "Đang chờ lượt quét đầu tiên"
+    },
+    "status": {
+      "noData": "Chưa có",
+      "soldOut": "Hết phòng",
+      "unknown": "Không rõ",
+      "available": "Còn phòng",
+      "roomsLeft": "Còn {count} phòng"
+    },
+    "readout": {
+      "soldOut": "Đối thủ hết phòng",
+      "median": "Trung vị đối thủ",
+      "vsMedian": "Giá bạn so trung vị",
+      "rank": "Hạng giá của bạn",
+      "pmsOcc": "Công suất PMS",
+      "roomsLeft": "còn {rooms}",
+      "rel": "{days, plural, =0 {Đêm nay} =1 {Đêm mai} other {# ngày nữa}}"
+    }
+  }
+}

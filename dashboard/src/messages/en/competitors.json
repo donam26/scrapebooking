@@ -1,0 +1,28 @@
+{
+  "page": {
+    "title": "Competitors",
+    "count": "{count, plural, one {# competitor} other {# competitors}} in the comp set",
+    "channel": "Channel <b>{channel}</b>",
+    "scannedAt": "Scanned {when}",
+    "addHotel": "Add hotel",
+    "emptyTitle": "No hotels tracked yet",
+    "emptyBody": "Add your hotel and competitors using the hotel page link from a booking channel."
+  },
+  "rooms": {
+    "notScanned": "Not scanned",
+    "soldOut": "Sold out",
+    "unknown": "Could not read",
+    "available": "Available",
+    "left": "{count} left"
+  },
+  "card": {
+    "yourHotel": "Your hotel",
+    "stars": "{count, plural, one {# star} other {# stars}}",
+    "distance": "{km} km from you",
+    "tonightRate": "Rate tonight",
+    "vsYours": "Vs your rate",
+    "change7d": "7-day change",
+    "nextNights": "Rates, next {count, plural, one {# night} other {# nights}}",
+    "details": "Details"
+  }
+}

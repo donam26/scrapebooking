@@ -1,7 +1,15 @@
 from datetime import UTC, date, datetime, timedelta
 
 from app.repo.runs import HotelJobPlan
-from app.scheduler.planning import TenantSchedule, WatchRow, build_hotel_plans, compute_triggers
+from app.scheduler.planning import (
+    TenantSchedule,
+    WatchRow,
+    build_hotel_plans,
+    channel_trigger_key,
+    compute_triggers,
+    missed_slots,
+    rows_by_channel,
+)
 
 VN = TenantSchedule(
     id=1, timezone="Asia/Ho_Chi_Minh", scan_times=("06:00", "14:00", "22:00"), horizon_days=30
@@ -37,6 +45,28 @@ def test_different_timezones_get_different_triggers() -> None:
     assert [t.tenant_ids for t in triggers] == [(3,)]
 
 
+def test_missed_slots_returns_latest_slot_per_tenant() -> None:
+    now = datetime(2026, 10, 1, 4, 30, tzinfo=UTC)  # 11:30 VN/BKK ngày 01/10
+    # VN: mốc gần nhất 06:00 hôm nay (06:00 hôm qua, 22:00 hôm qua đã bị thay thế); BKK cùng mốc.
+    assert missed_slots([VN, BKK], now, timedelta(minutes=10)) == {
+        1: datetime(2026, 9, 30, 23, 0, tzinfo=UTC),
+        2: datetime(2026, 9, 30, 23, 0, tzinfo=UTC),
+    }
+
+
+def test_missed_slots_looks_back_to_yesterday_before_first_slot() -> None:
+    now = datetime(2026, 9, 30, 21, 0, tzinfo=UTC)  # 04:00 VN ngày 01/10, trước mốc 06:00
+    assert missed_slots([VN], now, timedelta(minutes=10)) == {
+        1: datetime(2026, 9, 30, 15, 0, tzinfo=UTC)  # 22:00 VN ngày 30/09
+    }
+
+
+def test_missed_slots_skips_slot_still_in_trigger_window() -> None:
+    now = datetime(2026, 9, 30, 23, 5, tzinfo=UTC)  # 06:05 VN: compute_triggers lo mốc 06:00
+    assert missed_slots([VN], now, timedelta(minutes=10)) == {}
+    assert [t.tenant_ids for t in compute_triggers([VN], now, timedelta(minutes=10))] == [(1,)]
+
+
 def test_build_hotel_plans_merges_horizon_and_start_date() -> None:
     at = datetime(2026, 9, 23, 23, 0, tzinfo=UTC)
     rows = [
@@ -51,3 +81,15 @@ def test_build_hotel_plans_merges_horizon_and_start_date() -> None:
         HotelJobPlan(11, date(2026, 9, 24), 45),
         HotelJobPlan(12, date(2026, 9, 23), 30),
     ]
+
+
+def test_rows_by_channel_one_group_per_channel_sorted() -> None:
+    rows = [
+        WatchRow(1, 10, 30, "Asia/Ho_Chi_Minh", "booking"),
+        WatchRow(1, 10, 30, "Asia/Ho_Chi_Minh", "agoda"),
+        WatchRow(2, 11, 45, "Asia/Ho_Chi_Minh", "booking"),
+    ]
+    grouped = rows_by_channel(rows)
+    assert list(grouped) == ["agoda", "booking"]
+    assert [r.hotel_id for r in grouped["booking"]] == [10, 11]
+    assert channel_trigger_key("2026-09-23T23:00", "agoda") == "2026-09-23T23:00:agoda"

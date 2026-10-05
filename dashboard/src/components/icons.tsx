@@ -245,27 +245,93 @@ export const IconBed = (p: IconProps) => (
 );
 
 /** Logo: mặt tiền 3×2 ô cửa, hai ô sáng (cùng logo trang giới thiệu). */
-export function BrandMark({ size = 28, className }: { size?: number; className?: string }) {
+/** Phong bì: email */
+export const IconMail = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="5.5" width="17" height="13" rx="2.5" />
+    <path d="m4.5 7.5 7.5 5.5 7.5-5.5" />
+  </Icon>
+);
+/** Chuông: thông báo */
+export const IconBell = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6.5 16.5v-5a5.5 5.5 0 0 1 11 0v5l1.5 1.5h-14z" />
+    <path d="M10 20.5a2 2 0 0 0 4 0" />
+  </Icon>
+);
+/** Thùng rác: xoá */
+export const IconTrash = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 7h15M9.5 7V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4l.8-12" />
+  </Icon>
+);
+/** Mặt trời mọc: màn "Hôm nay" */
+export const IconSunrise = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.5 15.5a4.5 4.5 0 0 1 9 0M3.5 15.5h17M12 4.5v3M5.6 8.6l1.8 1.8M18.4 8.6l-1.8 1.8M7 19h10" />
+  </Icon>
+);
+/** Đường đi lên: nhịp đặt phòng */
+export const IconTrend = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 17.5l5-5 3.5 3.5L20 8.5" />
+    <path d="M15 8.5h5v5" />
+  </Icon>
+);
+
+/** Dấu hỏi trong vòng tròn: trợ giúp */
+export const IconHelp = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M9.6 9.4a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.6M12 17v.1" />
+  </Icon>
+);
+/** Người dùng */
+export const IconUser = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="8.5" r="3.5" />
+    <path d="M5 19.5a7 7 0 0 1 14 0" />
+  </Icon>
+);
+/** Vị trí (ghim) */
+export const IconPin = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 20.5s-6-5.6-6-10.3a6 6 0 0 1 12 0c0 4.7-6 10.3-6 10.3Z" />
+    <circle cx="12" cy="10.2" r="2.2" />
+  </Icon>
+);
+/** Mây: thời tiết */
+export const IconCloud = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.5 18.5h9.8a3.7 3.7 0 0 0 .4-7.4 5.5 5.5 0 0 0-10.6 1.5 3 3 0 0 0 .4 5.9Z" />
+  </Icon>
+);
+/** Lịch sử (đồng hồ quay ngược) */
+export const IconHistory = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9" />
+    <path d="M4.5 4.5V9H9M12 8v4.3l3 1.8" />
+  </Icon>
+);
+/** Đô la tròn: giá */
+export const IconTag = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 12.6V4.5a1 1 0 0 1 1-1h8.1l8 8a1.5 1.5 0 0 1 0 2.1l-6 6a1.5 1.5 0 0 1-2.1 0l-9-7Z" />
+    <circle cx="8" cy="8" r="1.4" />
+  </Icon>
+);
+
+/**
+ * Logo OTARadar: ô bo tròn với dấu sao tám cánh (theo giao diện mẫu).
+ * `onBlue`: đặt trên thanh trên xanh (nền ô trắng mờ).
+ */
+export function BrandMark({ size = 28, className, onBlue = false }: { size?: number; className?: string; onBlue?: boolean }) {
   return (
     <svg viewBox="0 0 28 28" width={size} height={size} aria-hidden="true" className={className}>
-      <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--sb-brand)" />
-      {[0, 1, 2].map((c) =>
-        [0, 1].map((r) => {
-          const lit = (c === 1 && r === 0) || (c === 2 && r === 1);
-          return (
-            <rect
-              key={`${c}${r}`}
-              x={6.5 + c * 5.5}
-              y={8 + r * 6.5}
-              width="4"
-              height="4.5"
-              rx="1"
-              fill={lit ? "var(--sb-exact)" : "#fff"}
-              opacity={lit ? 1 : 0.9}
-            />
-          );
-        }),
-      )}
+      <rect x="1" y="1" width="26" height="26" rx="6" fill={onBlue ? "rgba(255,255,255,0.18)" : "var(--sb-brand)"} />
+      <g stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
+        <path d="M14 7.5v13M7.5 14h13M9.4 9.4l9.2 9.2M18.6 9.4l-9.2 9.2" />
+      </g>
     </svg>
   );
 }

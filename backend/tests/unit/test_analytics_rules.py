@@ -182,3 +182,33 @@ def test_pct_change_and_median() -> None:
     assert median([]) is None
     assert median([Decimal(3), Decimal(1), Decimal(2)]) == Decimal(2)
     assert median([Decimal(1), Decimal(2)]) == Decimal("1.50")
+
+
+def test_price_rank_ties_share_rank_and_missing_own_price() -> None:
+    from app.analytics.compset import price_rank
+
+    prices = [Decimal("90"), Decimal("100"), Decimal("120")]
+    assert price_rank(Decimal("80"), prices) == 1
+    assert (
+        price_rank(Decimal("100"), prices) == 2
+    )  # bằng giá đối thủ 100: cùng hạng, không bị đẩy xuống
+    assert price_rank(Decimal("130"), prices) == 4
+    assert price_rank(None, prices) is None
+    assert price_rank(Decimal("100"), []) == 1
+
+
+def test_hotel_date_obs_min_refundable_price_ignores_rooms_without_refundable_rate() -> None:
+    cur = HotelDateObs(
+        scan_run_id=1,
+        scanned_at=T0,
+        status=DateStatus.AVAILABLE,
+        rooms={
+            1: RoomObs(1, 2, C.EXACT, Decimal("90"), None),
+            2: RoomObs(2, 2, C.EXACT, Decimal("110"), Decimal("130")),
+            3: RoomObs(3, 2, C.EXACT, Decimal("100"), Decimal("120")),
+        },
+    )
+    assert cur.min_price == Decimal("90")
+    assert cur.min_refundable_price == Decimal("120")
+    none = HotelDateObs(1, T0, DateStatus.AVAILABLE, {1: RoomObs(1, 2, C.EXACT, Decimal("90"))})
+    assert none.min_refundable_price is None

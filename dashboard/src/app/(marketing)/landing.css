@@ -1,5 +1,5 @@
 /*
- * Trang giới thiệu ScrapeBooking, phong cách landing SaaS (tham chiếu Hostinger):
+ * Trang giới thiệu OTARadar, phong cách landing SaaS (tham chiếu Hostinger):
  * nền tím than có quầng tím, nút tím bo 8px, phần sáng #f4f5ff với thẻ trắng bo tròn.
  * Mọi lớp mang tiền tố lp- và chỉ dùng trong nhóm route (marketing).
  */
@@ -78,6 +78,11 @@
   font: inherit;
   color: inherit;
   cursor: pointer;
+}
+/* Nút chuyển ngôn ngữ (components/locale-switcher) dùng lớp Tailwind: trả lại cỡ chữ và màu của Tailwind. */
+.lp .lp-locale button {
+  font: revert-layer;
+  color: revert-layer;
 }
 .lp section[id] {
   scroll-margin-top: 76px;
@@ -245,9 +250,9 @@
   align-items: center;
   gap: 10px;
   color: #fff;
-  font-weight: 800;
-  font-size: 19px;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 .lp-logo-mark {
@@ -255,14 +260,7 @@
   height: 30px;
 }
 .lp-logo-bg {
-  fill: var(--lp-purple);
-}
-.lp-logo-lit {
-  fill: var(--lp-amber);
-}
-.lp-logo-dark {
-  fill: #fff;
-  opacity: 0.9;
+  fill: #0062ff;
 }
 .lp-nav-links {
   display: flex;

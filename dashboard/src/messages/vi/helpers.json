@@ -1,0 +1,61 @@
+{
+  "nightReason": {
+    "rankCheapest": "rẻ nhất trong {total}",
+    "rankPriciest": "đắt nhất trong {total}",
+    "rank": "rẻ thứ {rank}/{total}",
+    "vsMedianLevel": "ngang trung vị",
+    "vsMedianBelow": "thấp hơn trung vị {pct}%",
+    "vsMedianAbove": "cao hơn trung vị {pct}%",
+    "soldOut": "{soldOut}/{observed} đối thủ đã hết phòng",
+    "yourPrice": "giá bạn {vs}",
+    "yourPriceRank": "giá bạn {vs}, {rank}",
+    "holiday": "trùng {holiday}"
+  },
+  "marketMetrics": {
+    "demand": {
+      "low": "Thấp",
+      "moderate": "Vừa",
+      "high": "Cao"
+    },
+    "position": {
+      "level": "Ngang thị trường",
+      "below": "Dưới thị trường",
+      "above": "Trên thị trường"
+    }
+  },
+  "market": {
+    "paceFlat": "ngang cùng kỳ",
+    "paceUp": "+{pts} điểm",
+    "paceDown": "−{pts} điểm",
+    "suggestion": {
+      "raise": "Có thể tăng giá",
+      "hold": "Giữ giá",
+      "lower": "Xem lại giá"
+    },
+    "noChange": "Giữ nguyên",
+    "soldOut": "Hết phòng",
+    "notEnoughData": "Không đủ số"
+  },
+  "channels": {
+    "windowDays": "{count} ngày qua",
+    "windowHours": "{count} giờ qua",
+    "bookingsWindow": "đặt {count, number} lần trong {window}",
+    "bookingsToday": "đặt {count, number} lần hôm nay",
+    "lastBookedHours": "lần đặt gần nhất cách đây {count, number} giờ",
+    "lastBookedMinutes": "lần đặt gần nhất cách đây {count, number} phút",
+    "roomsSold": "đã bán {count, number} phòng trong {window}",
+    "bookingsMonthWindow": "{count, number} lượt đặt trong {window}",
+    "bookingsMonth": "{count, number} lượt đặt trong tháng",
+    "highDemandNight": "đêm {night} có nhu cầu cao",
+    "highDemand": "đang có nhu cầu cao"
+  },
+  "localEvents": {
+    "category": {
+      "festival": "Lễ hội",
+      "mice": "Hội nghị (MICE)",
+      "sports": "Thể thao",
+      "season": "Mùa",
+      "other": "Khác"
+    }
+  }
+}

@@ -490,7 +490,7 @@ components:
     height: "32px"
 ---
 
-# Design System: ScrapeBooking
+# Design System: OTARadar (trước đây ScrapeBooking)
 
 **Phạm vi.** Tài liệu này điều chỉnh cả hai bề mặt của ScrapeBooking. Ngày 2026-09-25 chủ sản phẩm chọn nối thương hiệu của trang giới thiệu vào dashboard, nên hai bề mặt là một hệ thống với hai giọng:
 
@@ -498,6 +498,32 @@ components:
 - **Ứng dụng (giọng Operate):** nhóm route `dashboard/src/app/(app)/` (màn hình tenant và operator) cùng `/login`. Token là các biến `--sb-*` trong `dashboard/src/app/globals.css`, ánh xạ sang tiện ích Tailwind qua `@theme` (`bg-night`, `bg-canvas`, `text-muted`, `bg-exact`…), cộng các lớp `sb-mark-*`, `sb-cell`, `sb-select`, `sb-skeleton`, `sb-scroll`.
 
 Hai bề mặt dùng chung bảng màu, bốn dấu mức tin cậy, một họ chữ Be Vietnam Pro, số thẳng cột, tím cho hành động và xanh cho khách sạn của bạn. Chúng khác nhau ở mật độ và vật liệu: trang giới thiệu bo 16–28px, có quầng tím trên nền tối, chữ thân 17px; app bo tối đa 12px, không quầng, chữ thân 14px, khung là thanh bên tím than. Mục nào chỉ áp cho một bề mặt thì ghi rõ "(trang giới thiệu)" hoặc "(app)". Trong frontmatter, typography, spacing và components mang tiền tố `app-`, `axis-`, `strip-` chỉ dùng trong app; phần còn lại là của trang giới thiệu hoặc dùng chung.
+
+## App OTARadar (từ 2026-10-02)
+
+**Mục này thay thế mọi mô tả "(app)" bên dưới khi mâu thuẫn** (thanh bên tím than, tím hành động, vàng "chính xác", Be Vietnam Pro). Khách hàng chọn giao diện mẫu "OTARadar" (ảnh trong `job/*.jpg`) làm chuẩn; quyết định ngày 2026-10-02: nhãn tiếng Việt, thương hiệu **OTARadar**, đủ 8 tab, tiền VND. Trang giới thiệu chỉ đổi tên và logo, giữ phong cách landing riêng.
+
+**Token** (`dashboard/src/app/globals.css`, giữ tên biến `--sb-*` để mọi trang cũ tự đổi theo):
+- Khung: thanh trên `--sb-night` #0062ff, chữ trắng; nền `--sb-canvas` #f5f6fa; thẻ trắng viền `--sb-line` #e6e8ef bo 10px, bóng rất nhẹ.
+- Hành động, đang chọn, khách sạn của bạn: `--sb-brand` #0062ff (đường biểu đồ của bạn dày 3px).
+- Trạng thái: xanh lá `--sb-yours` #16a34a (thấp, tốt, đã xác nhận), cam `--sb-hot` #ea7317 (cầu cao, cảnh báo), đỏ `--sb-danger` #dc2626 (hết, lỗi). Mức cầu: dưới 40 thấp (xanh lá), 40–59 vừa (xanh dương), từ 60 cao (cam).
+- Thang nhiệt số phòng còn `--sb-heat-0..5` / lớp `sb-heat-0..5`: 0 đỏ #dc2626 · ≤3 cam #f97316 · 4–10 hổ phách #fbbf24 · 11–20 vàng nhạt #fde68a · 21–30 xanh nhạt #bbf7d0 · >30 xanh lá #4ade80 (`exactShade`, `HEAT_LEVELS` trong `components/marks.tsx`). Còn phòng không lộ số: viền đứt xanh; ≥N: sọc xanh nhạt; không đọc được: "?" xám.
+- Chữ: Inter (latin + vietnamese), số tabular. Thứ 6/7/CN tô đỏ ở đầu cột ngày, "Hôm nay" xanh trên nền xanh nhạt.
+
+**Khung** (`components/app-shell.tsx`): thanh trên cao 56px (logo dấu sao tám cánh trên ô trắng 18% + chữ "OTARadar" 19px/600; bên phải: tên khách sạn/ô chọn tenant cho operator, ⓘ trợ giúp (độ mới dữ liệu, chú giải màu), chuông (8 thay đổi mới nhất, chấm đỏ nếu có trong 24 giờ), avatar (email, vai trò, đăng xuất)). Hàng tab trắng cao 48px, tab đang mở chữ đậm gạch chân xanh 2.5px; operator có thêm nhóm "Vận hành". Không còn thanh bên và ngăn kéo; hàng tab cuộn ngang trên điện thoại.
+
+**Tám tab:** Bảng điều khiển `/dashboard` · Đối thủ `/competitors` (+ `/hotels/[id]`) · Phòng trống `/availability` (`/overview` chuyển hướng) · Giá & định giá `/rates` · Terminal+ `/terminal` (`/pace` chuyển hướng tới `#pace`) · Bản tin `/insights` + `/events` (tab con) · Lịch sử quét `/runs` · Cài đặt `/settings`. PWA mở vào `/dashboard`; `/today` vẫn có, mở từ menu trợ giúp.
+
+**Thành phần mới:**
+- `PageStrip`: dải đầu trang (tên tab xanh 18px/700, mục thông tin ngăn bằng vạch dọc, chọn kênh bên phải).
+- `Card` / `PanelTitle` / `InfoTip`: tiêu đề thẻ 13px/600 IN HOA giãn 0.05em + ⓘ (tooltip nền mực); không còn đường chia dưới đầu thẻ.
+- `KpiCard`, `SnapshotRow`, `KeyValueRow` (`components/kpi.tsx`): số lớn 28px/700, nhãn 13–14px chữ phụ.
+- `ArcGauge` (nửa vòng, mức nén), `RingGauge` (vòng, công suất thị trường) trong `components/gauge.tsx`.
+- `TrendChart`, `TrendLegend`, `Sparkline` (`components/trend-chart.tsx`, Recharts): đường cong mượt, lưới đứt #eceef3, tối đa hai trục, thị trường nét đứt đen, chip bật/tắt từng khách sạn ở tab Giá.
+- Heatmap phòng còn (`availability/heatmap-table.tsx`): ô 30px bo 4px, ▼▲ là thay đổi 24 giờ, cột Tổng, dòng Tổng thị trường và Công suất ≈ %.
+- Lịch sự kiện 12 tháng (`terminal/events-calendar.tsx`): thẻ gradient (Tết đỏ→cam, ngày lễ cam→vàng, cầu du lịch tím→hồng).
+
+**Không bịa số:** ADR/RevPAR/công suất compset là ước tính từ giá niêm yết và số phòng còn, luôn ghi "≈" hoặc giải thích trong ⓘ. Thẻ "chuyến bay" của mẫu được thay bằng "Tín hiệu đặt phòng" (lượt đặt kênh tự công bố, ghi nguồn). Thời tiết lấy từ OpenWeather (`GET /market/weather`, cần `OPENWEATHER_API_KEY`); chưa có key thì thẻ báo cần cấu hình. Lịch sự kiện chỉ có ngày lễ (`GET /market/holidays`).
 
 ## Overview
 
@@ -785,7 +811,8 @@ Viên thuốc cao 22px, đệm 8px, chữ 12px/600, chấm 6px đứng trước 
 - **Ô nhập / chọn:** cao 36px (40px trên trang đăng nhập), bo 8px, viền 1px đường tóc đậm, nền trắng, đệm 12px, chữ 14px mực, lõm 1px phía trên; placeholder chữ mờ. Focus: viền tím và vòng 3px tím 15%, không viền ngoài. Lỗi: viền đỏ, vòng đỏ 15%, câu lỗi 13px đỏ `role="alert"` ngay dưới. Vô hiệu: nền giấy phớt, chữ mờ. `<select>` bỏ giao diện gốc, mũi tên 16px chữ phụ cách phải 10px.
 - **Trường:** nhãn 13px/600 chữ thân, cách ô 6px, gợi ý 12px chữ phụ.
 - **Trên nền tím than (chọn tenant của operator):** viền trắng 15%, nền trắng 6%, chữ trắng; focus tím quầng.
-- **Nhóm chọn (Segmented):** `radiogroup` thay cho select ngắn (14/30/60 đêm, vai trò). Rãnh lõm bo 8px đệm 2px; mỗi lựa chọn bo 6px, cao 32px, chữ 13px/600; đang bật nền trắng chữ mực có bóng nổi nhẹ; chưa bật chữ phụ, hover mực.
+- **Nhóm chọn (Segmented):** `radiogroup` thay cho select ngắn (14/30/60 đêm, vai trò, "Mọi giá | Giá hoàn huỷ"). Rãnh lõm bo 8px đệm 2px; mỗi lựa chọn bo 6px, cao 32px, chữ 13px/600; đang bật nền trắng chữ mực có bóng nổi nhẹ; chưa bật chữ phụ, hover mực.
+- **Công tắc (Switch):** `role="switch"` 36×20px bo tròn; bật nền tím (đây là điều khiển bấm được), tắt nền đường tóc đậm; núm trắng 16px trượt 150ms. Dùng cho bật/tắt từng loại thông báo; mỗi hàng: công tắc, tiêu đề 15px/700, câu mô tả 14px có ô số nội tuyến (cao 28px, rộng 56px, bo 6px, số căn giữa thẳng cột, không mũi tên tăng giảm) ngay trong câu ("giảm từ [10]% cho một đêm trong [14] đêm tới"). Sửa số thì hiện nút "Lưu" nhỏ bên phải; lưu xong hiện "Đã lưu" xanh.
 
 ### App · Thẻ, dải số đo, ghi chú, trạng thái rỗng
 - **Thẻ:** bo 12px, viền đường tóc, nền trắng, bóng thẻ app. Đầu thẻ (tuỳ chọn) có đường chia dưới, đệm 14px 20px: tiêu đề 15px/700, mô tả 13px chữ phụ, thao tác bên phải. Thân đệm 20px.
@@ -815,7 +842,10 @@ Bảng nằm trong khung cuộn ngang riêng. Đầu cột nền giấy phớt, 
 - **Thẻ khách sạn:** thẻ app, đệm 14px 20px. Đầu thẻ: tên 15px/700 (liên kết, hover tím gạch dưới), tên Booking đầy đủ 12px chữ phụ nếu khác nhãn; bên phải "Đêm nay Còn 7 phòng · 4.000.577 ₫", "Giá kỳ này 3,6 Tr–5 Tr" (≥1280px) và "Chi tiết →" 13px/600 tím. Khách sạn của bạn: chấm xanh 10px có quầng trước tên, nhãn "Của bạn", viền xanh 35% cộng vòng xanh 10%, luôn đứng ngay dưới thẻ Thị trường, trên mọi đối thủ.
 - **Dải ô:** mỗi đêm một ô cao 32px bo 6px, lớp `sb-mark-*`, số 13px/700 thẳng cột ("HẾT" 9px). Mỗi ô là liên kết tới chi tiết đêm với nhãn đọc đủ ("Caravelle, Thứ bảy 27/09: Còn 5 phòng (Booking báo chính xác), giá …"). Hover nhấc 1px kèm bóng nhấc ô (180ms). Ở mức khách sạn dải hiện chính xác, ẩn số, hết phòng và hai trạng thái dữ liệu; dấu "Ít nhất" xuất hiện ở mức loại phòng (chi tiết đêm, dòng sự kiện).
 - **Đường giá trên dải:** cao 60px, thang y riêng của từng thẻ, hai nhãn mức giá 10.5px/600 chữ phụ trên nền trắng bo 4px viền lưới. Thẻ của bạn: giá của bạn liền xanh đậm 2px, trung vị đối thủ đứt mực 1.25px. Thẻ đối thủ: giá khách sạn đó liền mực 2px, giá của bạn đứt xanh 1.25px. Điểm lẻ không có hàng xóm vẫn vẽ chấm 2.5px. Thẻ của bạn có thêm hàng "Công suất theo PMS" 11px/600 dưới dải khi có dữ liệu.
-- **Dò một đêm:** rê chuột hoặc Tab vào bất kỳ ô, cột thước đo hay vùng biểu đồ của một đêm: cột trục đổi nền tím, mọi ô cùng đêm có viền 2px tím lệch 1px, mọi biểu đồ có dải tím 12% rộng đúng một cột và chấm 4px viền trắng trên từng đường. Bảng đọc nổi rộng 300px (bo 12px, viền đường tóc, bóng nổi app, hiện dần 120ms, không bắt chuột) mở cạnh cột và lật sang trái khi sát mép: đầu "Thứ bảy 27/09" 15px/700 + "Đêm nay / Đêm mai / N ngày nữa" 12px; mỗi khách sạn một hàng (mẫu dấu 20px, tên 13px, giá gọn thẳng cột; khách sạn của bạn đậm xanh chữ); dưới đường tóc: đối thủ hết phòng k/n, trung vị đối thủ, giá bạn so trung vị ±%, công suất PMS. Rời khỏi chồng thì tắt.
+- **Hàng "Giá bạn so trung vị đối thủ (%)" (thẻ Thị trường):** cùng lưới cột với dải, mỗi đêm một số có dấu (−12, +8, 0) 11px thẳng cột, **chỉ chữ, không nền** (vàng cảnh báo gần trùng vàng "chính xác"). Khách sạn thường đứng ở một mức cố định so với compset, nên chỉ đêm lệch khỏi mức thường của chính khách sạn (trung vị cả kỳ) từ 10 điểm mới in đậm 800 nâu cảnh báo; nhãn phụ chữ mờ nói rõ "mức thường của bạn −40; đêm lệch từ 10 điểm in nâu". Không tô màu ô dải theo giá: màu ô chỉ mang mức tin cậy phòng còn.
+- **Ngày lễ:** chấm mực 4px dưới số ngày trên trục (trắng khi cột đang dò), `title` là tên lễ; chú giải "Ngày lễ" trong hàng chú giải; tên lễ 12px/600 mực có chấm ở đầu bảng đọc. Không dùng tím hay vàng cho ngày lễ.
+- **Câu thị trường một đêm:** ghi chú thông tin đầu trang chi tiết đêm, "Thị trường đêm này:" đậm rồi câu sự thật ghép từ số liệu ("4/6 đối thủ đã hết phòng · giá bạn thấp hơn trung vị 12%, rẻ thứ 2/6 · trùng Quốc khánh"); không đưa gợi ý giá.
+- **Dò một đêm:** rê chuột hoặc Tab vào bất kỳ ô, cột thước đo hay vùng biểu đồ của một đêm: cột trục đổi nền tím, mọi ô cùng đêm có viền 2px tím lệch 1px, mọi biểu đồ có dải tím 12% rộng đúng một cột và chấm 4px viền trắng trên từng đường. Bảng đọc nổi rộng 300px (bo 12px, viền đường tóc, bóng nổi app, hiện dần 120ms, không bắt chuột) mở cạnh cột và lật sang trái khi sát mép: đầu "Thứ bảy 27/09" 15px/700 + "Đêm nay / Đêm mai / N ngày nữa" 12px; mỗi khách sạn một hàng (mẫu dấu 20px, tên 13px, giá gọn thẳng cột; khách sạn của bạn đậm xanh chữ); dưới đường tóc: đối thủ hết phòng k/n, trung vị đối thủ, giá bạn so trung vị ±%, hạng giá của bạn ("rẻ nhất trong 5", "rẻ thứ 2/5", "đắt nhất trong 5"), công suất PMS. Rời khỏi chồng thì tắt.
 
 ### App · Biểu đồ đường
 SVG vẽ theo chiều rộng thật để chữ trục giữ đúng cỡ. Nét 2px bo tròn đầu; điểm bán kính 4px (6px khi rê) có vòng trắng 2px; điểm là mức sàn vẽ rỗng (nền trắng, viền màu chuỗi). Lưới ngang `chart-grid`, đường đáy đường tóc đậm, nhãn trục 11px/600 chữ phụ thẳng cột, lề trái 56px. Rê chuột: vạch dọc tím 30% nét đứt, các chuỗi khác mờ còn 35% trong 150ms, chú thích trắng bo 8px bóng nổi 12px. Chú giải luôn có khi ≥2 chuỗi (vạch 16×2px). Mỗi điểm nhận focus bằng bàn phím với nhãn đọc đủ. Không có dữ liệu: khối giấy phớt bo 8px với câu giải thích.
@@ -825,6 +855,15 @@ Nhóm theo lượt quét, mới nhất trước. Tiêu đề nhóm dính (giấy
 
 ### App · Bản tin AI
 Tóm tắt 17px/1.7 mực tối đa 70ch mở đầu. Các phần (Điểm nổi bật, Tín hiệu nhu cầu, Gợi ý giá, Rủi ro) có tiêu đề 17px/700 kèm số đếm; phần trống là hộp giấy phớt một câu. Nhận định là thẻ app đệm 20px: tiêu đề 15px/700 tối đa 60ch, nhãn mức tin cậy (cao xanh, vừa cảnh báo, thấp xám), hộp "Đề xuất" tím phớt bo 8px, rồi hàng chip bằng chứng: "Bằng chứng" 12px/600 chữ phụ, mỗi chip cao 28px bo 8px nền trắng vòng đường tóc, 12px/500 thẳng cột, có biểu tượng; chip nào trỏ được tới đêm hay sự kiện thì là liên kết, hover tím phớt chữ tím đậm. Cuối trang hai `<details>`: "Giới hạn của dữ liệu" (thẻ viền đường tóc) và "Nhận định bị loại" (viền đứt đường tóc đậm trên giấy phớt, lý do loại chữ đỏ đậm). Số token, chi phí và mô hình chỉ operator thấy.
+
+### App · Nhịp đặt phòng và Hôm nay
+- **Công suất ước tính** luôn có "≈" và chữ "ước tính"; dưới độ phủ 50% ghi "Không đủ số" chữ mờ, không đoán. Công suất PMS ghi nhãn "PMS". Nhịp so cùng kỳ "+12 điểm"; từ 10 điểm in đậm 800 nâu cảnh báo (cùng ngưỡng với hàng giá so trung vị), chậm hơn thì chữ phụ; thiếu lịch sử ghi "chưa đủ lịch sử" chữ mờ kèm `title` số đêm tham chiếu.
+- **Thẻ gợi ý giá:** thẻ bo 12px viền đường tóc, đệm 16px: đêm 15px/700 (liên kết chi tiết đêm), nhãn loại (tím "Có thể tăng giá", xám "Giữ giá", cảnh báo "Xem lại giá"), viên thuốc mức đổi "+10%" nền lõm thẳng cột, "Tin cậy cao/vừa" 12px chữ phụ, giá bạn bên phải; lý do là danh sách câu 13px có chấm mờ; chân thẻ nút phụ "Đã áp dụng" (biểu tượng tích) và nút ma "Bỏ qua". Đã xử lý: nền giấy phớt, "Đã áp dụng" xanh chữ + "Hoàn tác" nút lặng; gom vào `<details>` "Đã xử lý (N)".
+- **Hôm nay (điện thoại trước, tối đa 760px):** thẻ "Đêm nay" viền xanh của bạn (mẫu dấu 32px, trạng thái 20px/700, giá thấp nhất bên phải, câu thị trường dưới đường tóc); gợi ý tối đa 3 thẻ gọn; danh sách 7 đêm mỗi hàng là liên kết (ngày + lễ, mẫu dấu 24px, trạng thái · giá gọn, dòng phụ đối thủ hết phòng · so trung vị, nhãn gợi ý); thay đổi 24 giờ dùng Dòng sự kiện; bản tin mới nhất 4 dòng.
+- **Biểu tượng ứng dụng (PWA):** logo mặt tiền trên nền tím than tràn viền (maskable, vùng an toàn 60%); `theme_color` tím than, `background_color` sương tím.
+
+### App · Email thông báo
+Bảng 600px trên nền sương, thẻ trắng bo 12px viền đường tóc; đầu tím than với wordmark "SCRAPEBOOKING" 13px/800 chữ hoa giãn 0.08em; tiêu đề 20px/700 mực; mỗi mục một câu như dòng sự kiện (tiêu đề 15px/700 mực, chi tiết 14px chữ thân, liên kết "Xem đêm T7 03/10 →" 13px/600 tím); hộp "Đề xuất" tím phớt bo 8px trong bản tin; một nút chính tím bo 8px; chân 12px chữ phụ nói vì sao nhận email và nguồn số liệu. Style nội tuyến, không ảnh, không mã kỹ thuật.
 
 ### App · Đăng nhập
 Hai nửa trên máy tính: nửa tím than 45% (tối đa 640px) và nửa biểu mẫu trắng; trên điện thoại nửa tối thu thành dải trên cùng. Nửa tối: logo 30px + wordmark, liên kết "Về trang giới thiệu"; câu thương hiệu trắng 600 (28px, 1.25, −0.015em trên máy tính), câu phụ 14px chữ mờ; bảng minh hoạ 7 đêm × 4 khách sạn (ô 24px bo 5px, bốn dấu, khung trắng 4% viền trắng 10% bo 12px, ghi "Minh hoạ", `aria-hidden` kèm câu cho trình đọc màn hình); dòng 12px "Không liên kết với Booking.com". Nửa trắng: biểu mẫu tối đa 380px, H1 "Đăng nhập" 24px, ô nhập cao 40px, nút hiện/ẩn mật khẩu 32px trong ô, nút chính rộng đủ cao 40px có biểu tượng khoá, dòng chân sau đường tóc.

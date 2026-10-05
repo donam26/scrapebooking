@@ -1,0 +1,96 @@
+{
+  "title": "Dashboard",
+  "strip": {
+    "range": "{count, plural, one {# night} other {# nights}} from {start}",
+    "channel": "Channel <b>{name}</b>",
+    "updated": "Updated {when}"
+  },
+  "empty": {
+    "title": "No hotels tracked yet",
+    "body": "Add your hotel and your competitors in <link>Settings › Hotels</link>. The next scan will fill the dashboard."
+  },
+  "snapshot": {
+    "title": "Tonight's market at a glance",
+    "info": "Comp set competitors on the selected channel. Rooms left only adds up competitors whose channel shows an exact count; rates are each hotel's lowest rate.",
+    "viewAvailability": "View availability",
+    "competitors": "competitors",
+    "soldOut": "sold out",
+    "low": "≤3 rooms left",
+    "roomsLeft": "rooms left (competitors)",
+    "roomsLeftTitle": "Sum of {known}/{observed} competitors with exact counts",
+    "avgRate": "comp set avg rate"
+  },
+  "kpi": {
+    "compression": {
+      "title": "Comp set compression",
+      "info": "Share of competitors sold out or with ≤3 rooms left tonight (0–100).",
+      "noData": "No data"
+    },
+    "adr": {
+      "title": "Comp set ADR",
+      "info": "Average competitor room rate tonight: the average of each hotel's lowest rate on the selected channel (listed rates, not actual revenue).",
+      "sub": "Avg rate per night"
+    },
+    "revpar": {
+      "title": "Comp set RevPAR",
+      "info": "Estimate = comp set ADR × estimated competitor occupancy.",
+      "sub": "Revenue per available room"
+    },
+    "occ": {
+      "title": "Comp set occupancy",
+      "info": "Estimated from rooms left at {count, plural, one {# competitor} other {# competitors}} with enough data on the reference channel.",
+      "roomsLeft": "{count, plural, one {# room} other {# rooms}} left",
+      "notEnough": "not enough room data"
+    }
+  },
+  "trends": {
+    "title": "Market trends",
+    "info": "ADR is the average competitor lowest rate per night; RevPAR and occupancy are estimates from rooms left.",
+    "occSeries": "Occupancy ≈ %"
+  },
+  "forecast": {
+    "title": "Demand forecast",
+    "info": "Demand score 0–100 for each night: “≈” is the estimated competitor occupancy (from rooms left on the reference channel); a dotted-underlined score is the share of competitors sold out when occupancy cannot be estimated yet. 60 and above is high, 40–59 moderate, below 40 low.",
+    "cellTitle": "Demand score {score} ({source, select, occ {estimated competitor occupancy} other {share of competitors sold out (occupancy not yet estimated)}}): {level}",
+    "cellNoData": "No data yet",
+    "today": "Today",
+    "noData": "No data"
+  },
+  "alerts": {
+    "title": "Alerts",
+    "info": "Competitors sold out or with ≤3 rooms left tonight, nights in the next 7 days with at least half of competitors sold out, pending rate suggestions and failed scans.",
+    "empty": "No alerts. Nothing unusual in tonight's market.",
+    "more": "and {count, plural, one {# more alert} other {# more alerts}}",
+    "runFailed": "The latest {channel} scan collected no data",
+    "ownSoldOut": "Your hotel is sold out tonight",
+    "ownLow": "Your hotel has only {count, plural, one {# room} other {# rooms}} left tonight",
+    "compSoldOut": "{name} is sold out tonight",
+    "compLow": "{name} has only {count, plural, one {# room} other {# rooms}} left",
+    "tightNight": "{night}: {soldOut}/{observed} competitors sold out",
+    "suggestions": "{count, plural, one {# rate suggestion} other {# rate suggestions}} awaiting your review"
+  },
+  "yourHotel": {
+    "title": "Your hotel",
+    "empty": "Your hotel is not on the watchlist yet. <link>Add it in Settings</link>",
+    "info": "Occupancy comes from your PMS once you have imported it; otherwise it is an estimate from rooms left (≈). The rate is tonight's lowest rate on the selected channel.",
+    "occCaption": "occupancy tonight{source, select, pms { · PMS} est { · estimate} other {}}",
+    "yourRate": "Your rate",
+    "marketRate": "Market avg rate",
+    "roomsLeft": "Rooms left",
+    "hidden": "Not disclosed",
+    "position": "Rate position"
+  },
+  "dataStatus": {
+    "title": "Data status",
+    "info": "Latest scan across all channels, next scheduled scan, channels with data in the past 24 hours and number of hotels tracked.",
+    "lastScan": "Latest scan",
+    "scanning": "Scanning…",
+    "none": "None yet",
+    "nextScan": "Next scan",
+    "notScheduled": "Not scheduled",
+    "liveChannels": "Channels with data",
+    "liveChannelsValue": "{live}/{total, plural, one {# channel} other {# channels}}",
+    "hotels": "Hotels tracked",
+    "overdue": "Missed scan · data from {ago}"
+  }
+}

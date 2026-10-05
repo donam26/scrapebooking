@@ -6,7 +6,7 @@ from typing import Any
 from app.collector.fetch import FetchResponse
 from app.collector.proxy import ProxyEndpoint
 from app.collector.session import BootstrapResult, ScrapeSession
-from app.domain.models import PageOutcome, ParsedPage, RatePlan, RoomOffer
+from app.domain.models import ListingRef, PageOutcome, ParsedPage, RatePlan, RoomOffer
 
 
 class FakeBootstrapper:
@@ -57,7 +57,7 @@ def resp(status: int, text: str) -> FetchResponse:
 
 
 OFFER = RoomOffer(
-    booking_room_id="101",
+    external_room_id="101",
     name="Deluxe",
     max_occupancy=2,
     badge_count=2,
@@ -80,3 +80,27 @@ async def no_sleep(_: float) -> None:
 
 def any_date() -> date:
     return date(2026, 10, 5)
+
+
+def booking_listing(hotel_id: int = 1, slug: str = "vn/x") -> ListingRef:
+    return ListingRef(
+        hotel_id=hotel_id,
+        channel="booking",
+        listing_key=slug,
+        url=f"https://www.booking.com/hotel/{slug}.html",
+        country_code=slug.split("/", 1)[0],
+    )
+
+
+class FakeEmailSender:
+    """Ghi lại email thay vì gửi; `fail_for` = địa chỉ ném lỗi như SMTP từ chối."""
+
+    def __init__(self, configured: bool = True) -> None:
+        self.configured = configured
+        self.sent: list[tuple[str, Any]] = []
+        self.fail_for: set[str] = set()
+
+    async def send(self, to: str, email: Any) -> None:
+        if to in self.fail_for:
+            raise ConnectionError("smtp refused")
+        self.sent.append((to, email))

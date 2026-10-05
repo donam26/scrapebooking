@@ -1,0 +1,555 @@
+{
+ "results": [
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": true,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "-3730078",
+   "dest_type": "city",
+   "label": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Ho Chi Minh City",
+   "label2": "Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 1,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.771475,
+   "lc": "en",
+   "longitude": 106.698296,
+   "nr_homes": 2048,
+   "nr_hotels": 6890,
+   "nr_hotels_25": 5659,
+   "photo_uri": "/xdata/images/city/square150/1000293.jpg?k=7b87c2766e05b17fa51b546573f52b0dd79752df86f3162a1f56d8187994c59f&o=",
+   "roundtrip": "GgAgACgBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "2088",
+   "dest_type": "district",
+   "label": "District 1, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "District 1",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "District 1",
+     "precomposed": "District 1",
+     "hl": 1,
+     "dest_type": "district",
+     "dest_id": "2088"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 1,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.776396,
+   "lc": "en",
+   "longitude": 106.69709,
+   "nr_homes": 0,
+   "nr_hotels": 918,
+   "nr_hotels_25": 0,
+   "photo_uri": "/xdata/images/district/square150/60125.jpg?k=9bb14db96604c2a5b258960b5144d71c3f9887bf5bb10a7cbd7d249c905d2654&o=",
+   "roundtrip": "GgAgASgBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "District 1, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "7878",
+   "dest_type": "airport",
+   "label": "Tan Son Nhat International Airport, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Tan Son Nhat International Airport",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Tan Son Nhat International Airport",
+     "precomposed": "Tan Son Nhat International Airport",
+     "hl": 1,
+     "dest_type": "airport",
+     "dest_id": "7878"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 1,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.8188,
+   "lc": "en",
+   "longitude": 106.652,
+   "nr_homes": 0,
+   "nr_hotels": 345,
+   "nr_hotels_25": 0,
+   "photo_uri": "/static/img/plane-100.jpg",
+   "roundtrip": "GgAgAigBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Tan Son Nhat International Airport, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "6750",
+   "dest_type": "district",
+   "label": "Ho Chi Minh City-Centre, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Ho Chi Minh City-Centre",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Ho Chi Minh City-Centre",
+     "precomposed": "Ho Chi Minh City-Centre",
+     "hl": 1,
+     "dest_type": "district",
+     "dest_id": "6750"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 0,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.773954,
+   "lc": "en",
+   "longitude": 106.69548,
+   "nr_homes": 0,
+   "nr_hotels": 478,
+   "nr_hotels_25": 0,
+   "photo_uri": "/xdata/images/district/square150/39206.jpg?k=bc6c4d7c4aab9f8a29016ae91b5705553e08c0dd0baf09199f92adfd8b31eccb&o=",
+   "roundtrip": "GgAgAygBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Ho Chi Minh City-Centre, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "234878",
+   "dest_type": "landmark",
+   "label": "Ho Chi Minh City Museum, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Ho Chi Minh City Museum",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Ho Chi Minh City Museum",
+     "precomposed": "Ho Chi Minh City Museum",
+     "hl": 1,
+     "dest_type": "landmark",
+     "dest_id": "234878"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 0,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.775964,
+   "lc": "en",
+   "longitude": 106.699646,
+   "nr_homes": 0,
+   "nr_hotels": 121,
+   "nr_hotels_25": 0,
+   "roundtrip": "GgAgBCgBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Ho Chi Minh City Museum, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "191363",
+   "dest_type": "hotel",
+   "label": "Somerset Ho Chi Minh City, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Somerset Ho Chi Minh City",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Somerset Ho Chi Minh City",
+     "precomposed": "Somerset Ho Chi Minh City",
+     "hl": 1,
+     "dest_type": "hotel",
+     "dest_id": "191363"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 0,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.7893505,
+   "lc": "en",
+   "longitude": 106.70277,
+   "nr_homes": 0,
+   "nr_hotels": 1,
+   "nr_hotels_25": 1,
+   "photo_uri": "/xdata/images/hotel/square150/269467702.jpg?k=b55bde65bd12490fd2f4c23c22fe71bc03be4b58beee4f1a16e8754ce4e8794b&o=",
+   "roundtrip": "GgAgBSgBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Somerset Ho Chi Minh City, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "184514",
+   "dest_type": "hotel",
+   "label": "Equatorial Ho Chi Minh City, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Equatorial Ho Chi Minh City",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Equatorial Ho Chi Minh City",
+     "precomposed": "Equatorial Ho Chi Minh City",
+     "hl": 1,
+     "dest_type": "hotel",
+     "dest_id": "184514"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 0,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.763265,
+   "lc": "en",
+   "longitude": 106.678986,
+   "nr_homes": 0,
+   "nr_hotels": 1,
+   "nr_hotels_25": 1,
+   "photo_uri": "/xdata/images/hotel/square150/857304084.jpg?k=4637b79a6ca8cf97f82c6b008045e91f509b066baceb5c2b5757d50d0a455941&o=",
+   "roundtrip": "GgAgBigBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Equatorial Ho Chi Minh City, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "900061383",
+   "dest_type": "landmark",
+   "label": "Ho Chi Minh City Hall, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Ho Chi Minh City Hall",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Ho Chi Minh City Hall",
+     "precomposed": "Ho Chi Minh City Hall",
+     "hl": 1,
+     "dest_type": "landmark",
+     "dest_id": "900061383"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 0,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.776561,
+   "lc": "en",
+   "longitude": 106.70097,
+   "nr_homes": 0,
+   "nr_hotels": 153,
+   "nr_hotels_25": 0,
+   "roundtrip": "GgAgBygBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Ho Chi Minh City Hall, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "3611715",
+   "dest_type": "hotel",
+   "label": "Sedona Suites Ho Chi Minh City, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Sedona Suites Ho Chi Minh City",
+   "label2": "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Sedona Suites Ho Chi Minh City",
+     "precomposed": "Sedona Suites Ho Chi Minh City",
+     "hl": 1,
+     "dest_type": "hotel",
+     "dest_id": "3611715"
+    },
+    {
+     "text": "Ho Chi Minh City",
+     "precomposed": "Ho Chi Minh City",
+     "hl": 0,
+     "dest_type": "city",
+     "dest_id": "-3730078"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.77356,
+   "lc": "en",
+   "longitude": 106.700134,
+   "nr_homes": 0,
+   "nr_hotels": 1,
+   "nr_hotels_25": 1,
+   "photo_uri": "/xdata/images/hotel/square150/644142470.jpg?k=4d70c3e4c8817644e7f270c747a32b4b9b86eadde11116d621cc4e0c521931eb&o=",
+   "roundtrip": "GgAgCCgBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Sedona Suites Ho Chi Minh City, Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
+  },
+  {
+   "b_max_los_data": {
+    "defaultLos": 45,
+    "extendedLos": 90,
+    "experiment": "long_stays_web_extend_los_4",
+    "fullOn": true
+   },
+   "b_show_entire_homes_checkbox": false,
+   "cc1": "vn",
+   "cjk": false,
+   "dest_id": "16951238",
+   "dest_type": "hotel",
+   "label": "Homestay Hồ Chí Minh City, Long Bình, Ho Chi Minh Municipality, Vietnam",
+   "label1": "Homestay Hồ Chí Minh City",
+   "label2": "Long Bình, Ho Chi Minh Municipality, Vietnam",
+   "labels": [
+    {
+     "text": "Homestay Hồ Chí Minh City",
+     "precomposed": "Homestay Hồ Chí Minh City",
+     "hl": 1,
+     "dest_type": "hotel",
+     "dest_id": "16951238"
+    },
+    {
+     "text": "Long Bình",
+     "precomposed": "Long Bình",
+     "hl": 0,
+     "dest_type": "city",
+     "dest_id": "-3720355"
+    },
+    {
+     "text": "Ho Chi Minh Municipality",
+     "precomposed": "Ho Chi Minh Municipality",
+     "hl": 0,
+     "dest_type": "region",
+     "dest_id": "6229"
+    },
+    {
+     "text": "Vietnam",
+     "precomposed": "Vietnam",
+     "hl": 0,
+     "dest_type": "country",
+     "dest_id": "vn"
+    }
+   ],
+   "latitude": 10.846729,
+   "lc": "en",
+   "longitude": 106.83938,
+   "nr_homes": 0,
+   "nr_hotels": 1,
+   "nr_hotels_25": 1,
+   "photo_uri": "/xdata/images/hotel/square150/899599571.jpg?k=7774e53a893756c8b60d03fc6b9e41a1fe12cac51d66f6917b2071046012d19a&o=",
+   "roundtrip": "GgAgCSgBMgJlbjoQSG8gQ2hpIE1pbmggQ2l0eUAASgBQAA==",
+   "rtl": false,
+   "value": "Homestay Hồ Chí Minh City, Long Bình, Ho Chi Minh Municipality, Vietnam"
+  }
+ ]
+}

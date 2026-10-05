@@ -1,0 +1,55 @@
+{
+  "summary": {
+    "pendingLabel": "Gợi ý giá đang chờ",
+    "pendingValue": "{count} đêm",
+    "pendingHint": "Gần nhất: {night}, {suggestion}",
+    "pendingNone": "Chưa có đêm nào cần xem lại giá",
+    "compSoldLabel": "Đối thủ ước tính đã bán, 7 đêm tới",
+    "compSoldNone": "Booking chưa lộ đủ số phòng của đối thủ",
+    "compSoldHint": "Trung bình {count} đêm đủ số",
+    "fastLabel": "Đêm thị trường bán nhanh hơn cùng kỳ",
+    "fastValue": "{count} đêm",
+    "fastHint": "Từ {pts} điểm trở lên, trong {count} đêm so được",
+    "fastNone": "Cần ít nhất 2 tuần dữ liệu cùng thứ để so",
+    "pmsLabel": "Ước tính so với PMS",
+    "pmsValue": "Lệch {pts} điểm",
+    "pmsNone": "Nhập PMS ở Cài đặt để đối chiếu",
+    "pmsHint": "Trung bình trên {count} đêm đã qua"
+  },
+  "row": {
+    "estRange": "Khoảng ước tính {low}–{high}%",
+    "est": "ước tính",
+    "hotels": "{count} KS",
+    "compOccMissing": "Cần ít nhất 2 đối thủ được Booking lộ đủ số phòng",
+    "pickupMissing": "Cần số phòng còn biết chắc ở cả hai thời điểm",
+    "pickupNegative": "Âm: đối thủ mở thêm phòng hoặc có khách huỷ",
+    "paceMissingTitle": "Có {count} đêm cùng thứ để so, cần ít nhất 2",
+    "paceMissing": "chưa đủ lịch sử",
+    "applied": "Đã áp dụng",
+    "dismissed": "Đã bỏ qua"
+  },
+  "view": {
+    "embeddedTitle": "Nhịp đặt phòng & gợi ý giá",
+    "title": "Nhịp đặt phòng",
+    "subtitle": "{days} đêm từ {start} · ước tính từ số phòng còn trên {channel}",
+    "note": "Công suất ước tính là phần phòng nhìn thấy trên Booking đã không còn bán. Chỉ hiện số khi Booking lộ đủ (ít nhất một nửa số phòng biết chắc); khách đặt trực tiếp, khách đoàn và phòng không mở bán trên Booking không thấy được.",
+    "dataSince": "Dữ liệu ước tính có từ {date}.",
+    "suggestionsTitle": "Gợi ý giá",
+    "suggestionsDescription": "Theo luật cố định, kèm số liệu làm lý do. Hệ thống không tự đổi giá; bấm “Đã áp dụng” để ghi lại.",
+    "suggestionsEmptyTitle": "Chưa có gợi ý nào",
+    "suggestionsEmptyBody": "Gợi ý xuất hiện khi bạn rẻ hơn trung vị trong lúc thị trường căng, đắt hơn nhưng thị trường đang bán tốt, hoặc đắt hơn nhiều khi đêm sắp tới mà thị trường không căng.",
+    "decided": "Đã xử lý ({count})",
+    "nightsTitle": "Từng đêm",
+    "nightsDescription": "Thị trường = trung vị các đối thủ được Booking lộ đủ số. Nhịp so với các đêm cùng thứ 1–8 tuần trước, ở cùng số ngày trước khi đến.",
+    "noEstimates": "Chưa có ước tính cho các đêm này. Ước tính được tính sau mỗi lượt quét, vài phút sau khi lượt quét xong.",
+    "col": {
+      "night": "Đêm",
+      "you": "Bạn",
+      "compSold": "Đối thủ đã bán",
+      "compSoldOut": "Đối thủ hết phòng",
+      "compPickup": "Đối thủ bán thêm 7 ngày (phòng)",
+      "pace": "Thị trường so cùng kỳ",
+      "suggestion": "Gợi ý"
+    }
+  }
+}

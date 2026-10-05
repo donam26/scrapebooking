@@ -57,7 +57,7 @@ async def generate_insight(
             Insight.status == "pending",
             Insight.generated_at < now - timedelta(minutes=10),
         )
-        .values(status="failed", error="timeout: jobs worker không xử lý trong 10 phút")
+        .values(status="failed", error="timeout: jobs worker did not pick it up within 10 minutes")
     )
     pending = (
         await session.execute(

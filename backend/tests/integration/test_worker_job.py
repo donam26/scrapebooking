@@ -7,22 +7,31 @@ from app.clock import FixedClock
 from app.collector.booking.results import failed_result
 from app.collector.fake import FakeCollector
 from app.collector.storage import MemoryRawStore
-from app.db.models import Hotel, HotelCalendar, Probe, RoomSnapshot, ScanJob, ScanRun
-from app.domain.models import CalendarDay, CalendarResult, ProbeMethod, ProbeStatus
+from app.db.models import HotelCalendar, Listing, Probe, RoomSnapshot, ScanJob, ScanRun
+from app.domain.models import CalendarDay, CalendarResult, ListingRef, ProbeMethod, ProbeStatus
 from app.ops.alerts import NullAlerter
 from app.repo.runs import HotelJobPlan, ScanRunRepository
-from app.worker.jobs import JobFailed, PermanentJobFailure, WorkerDeps, run_probe_hotel
+from app.repo.snapshots import SnapshotRepository
+from app.worker.jobs import (
+    JobFailed,
+    PermanentJobFailure,
+    TierPolicy,
+    WorkerDeps,
+    fail_job,
+    run_probe_hotel,
+)
 from tests.fakes import OFFER
+from tests.integration.seed import add_hotel
 
 NOW = datetime(2026, 9, 23, 23, 5, tzinfo=UTC)
 START = date(2026, 9, 24)
 
 
-async def _seed(db: AsyncSession, horizon: int = 3) -> tuple[int, int]:
-    hotel = Hotel(booking_url="u", booking_slug="vn/h1", country_code="vn")
-    db.add(hotel)
-    await db.flush()
-    run = await ScanRunRepository(db).create_run("k", NOW, [HotelJobPlan(hotel.id, START, horizon)])
+async def _seed(db: AsyncSession, horizon: int = 3, channel: str = "booking") -> tuple[int, int]:
+    hotel = await add_hotel(db, "vn/h1", channels=("booking", "agoda"))
+    run = await ScanRunRepository(db).create_run(
+        f"k:{channel}", NOW, [HotelJobPlan(hotel.id, START, horizon)], channel
+    )
     assert run is not None
     await db.commit()
     return run.id, hotel.id
@@ -192,10 +201,8 @@ async def test_other_job_finishing_does_not_close_run_while_one_waits_for_retry(
                 raise RuntimeError("calendar timeout")
             return await super().fetch_calendar(hotel, start, days, adults)
 
-    h1 = Hotel(booking_url="u1", booking_slug="vn/h1", country_code="vn")
-    h2 = Hotel(booking_url="u2", booking_slug="vn/h2", country_code="vn")
-    db.add_all([h1, h2])
-    await db.flush()
+    h1 = await add_hotel(db, "vn/h1")
+    h2 = await add_hotel(db, "vn/h2")
     run = await ScanRunRepository(db).create_run(
         "k2", NOW, [HotelJobPlan(h1.id, START, 1), HotelJobPlan(h2.id, START, 1)]
     )
@@ -261,3 +268,96 @@ async def test_hotel_page_not_found_stops_job_early(db: AsyncSession) -> None:
     db.expire_all()
     job = (await db.execute(select(ScanJob))).scalar_one()
     assert job.status == "failed" and "404" in (job.error or "")
+    # Listing hỏng thì ngừng quét tới khi người dùng sửa; listing kênh khác không bị ảnh hưởng.
+    statuses = dict((await db.execute(select(Listing.channel, Listing.status))).tuples().all())
+    assert statuses == {"booking": "broken", "agoda": "active"}
+
+
+async def test_job_uses_listing_of_the_run_channel(db: AsyncSession) -> None:
+    class Recording(FakeCollector):
+        def __init__(self) -> None:
+            super().__init__()
+            self.listings: list[ListingRef] = []
+
+        async def probe(self, hotel, checkin, nights, adults):  # type: ignore[no-untyped-def]
+            self.listings.append(hotel)
+            return await super().probe(hotel, checkin, nights, adults)
+
+    run_id, hotel_id = await _seed(db, horizon=1, channel="agoda")
+    collector = Recording()
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
+    await run_probe_hotel(
+        _deps(db, collector, MemoryRawStore()), run_id, hotel_id, final_attempt=True
+    )
+    assert [(lst.channel, lst.listing_key) for lst in collector.listings] == [("agoda", "vn/h1")]
+    probe = (await db.execute(select(Probe))).scalar_one()
+    snap = (await db.execute(select(RoomSnapshot))).scalar_one()
+    assert (probe.channel, snap.channel) == ("agoda", "agoda")
+
+
+async def _old_probe(
+    db: AsyncSession, hotel_id: int, stay: date, age: timedelta, status: ProbeStatus
+) -> None:
+    old = await ScanRunRepository(db).create_run(
+        f"old:{stay}:{status}", NOW - age, [HotelJobPlan(hotel_id, START, 1)]
+    )
+    assert old is not None
+    collector = FakeCollector()
+    collector.set_probe(hotel_id, stay, status, offers=(OFFER,) if status == ProbeStatus.OK else ())
+    result = await collector.probe(ListingRef(hotel_id, "booking", "vn/h1", "u", "vn"), stay, 1, 2)
+    await SnapshotRepository(db, 10).write_probe(
+        old.id, hotel_id, "booking", stay, result, None, "1", "vn", NOW - age
+    )
+    await db.commit()
+
+
+async def test_tiering_skips_mid_and_far_nights_observed_recently(db: AsyncSession) -> None:
+    # Gần (offset 0): luôn quét. Giữa (offset 1-2): bỏ nếu đã quan sát < 20h. Xa (offset 3): < 66h.
+    run_id, hotel_id = await _seed(db, horizon=4)
+    d = [START + timedelta(days=i) for i in range(4)]
+    await _old_probe(db, hotel_id, d[0], timedelta(hours=1), ProbeStatus.OK)  # gần: vẫn quét
+    await _old_probe(db, hotel_id, d[1], timedelta(hours=2), ProbeStatus.OK)  # giữa, mới: bỏ
+    await _old_probe(db, hotel_id, d[2], timedelta(hours=2), ProbeStatus.BLOCKED)  # không dùng được
+    await _old_probe(db, hotel_id, d[3], timedelta(hours=70), ProbeStatus.SOLD_OUT)  # xa, cũ: quét
+    collector = FakeCollector()
+    for day in d:
+        collector.set_probe(hotel_id, day, ProbeStatus.OK, offers=(OFFER,))
+    deps = _deps(db, collector, MemoryRawStore())
+    deps.tiers = TierPolicy(
+        near_days=1, mid_days=3, mid_max_age=timedelta(hours=20), far_max_age=timedelta(hours=66)
+    )
+    summary = await run_probe_hotel(deps, run_id, hotel_id, final_attempt=True)
+    assert [c[1] for c in collector.probe_calls] == [d[0], d[2], d[3]]
+    assert (summary.probed, summary.fresh, summary.run_finished) == (3, 1, True)
+    run = await db.get(ScanRun, run_id)
+    assert run is not None and run.status == "completed"
+
+
+async def test_tiering_disabled_probes_every_night(db: AsyncSession) -> None:
+    run_id, hotel_id = await _seed(db, horizon=2)
+    await _old_probe(db, hotel_id, START + timedelta(days=1), timedelta(hours=1), ProbeStatus.OK)
+    collector = FakeCollector()
+    deps = _deps(db, collector, MemoryRawStore())
+    deps.tiers = None
+    summary = await run_probe_hotel(deps, run_id, hotel_id, final_attempt=True)
+    assert len(collector.probe_calls) == 2 and summary.fresh == 0
+
+
+async def test_fail_job_closes_job_without_probing(db: AsyncSession) -> None:
+    run_id, hotel_id = await _seed(db, horizon=2)
+    finished: list[int] = []
+
+    async def hook(run_id_: int) -> None:
+        finished.append(run_id_)
+
+    collector = FakeCollector()
+    deps = _deps(db, collector, MemoryRawStore())
+    deps.on_run_finished = hook
+    assert await fail_job(deps, run_id, hotel_id, "channel paused (block rate)") is True
+    assert collector.probe_calls == [] and finished == [run_id]
+    db.expire_all()
+    job = (await db.execute(select(ScanJob))).scalar_one()
+    assert (job.status, job.error) == ("failed", "channel paused (block rate)")
+    assert (await db.get(ScanRun, run_id)).status == "partial"  # type: ignore[union-attr]
+    # Gọi lại (arq chạy lại job): không làm gì.
+    assert await fail_job(deps, run_id, hotel_id, "again") is False

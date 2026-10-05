@@ -1,0 +1,15 @@
+{
+  "justNow": "vừa xong",
+  "minutesAgo": "{count} phút trước",
+  "hoursAgo": "{count} giờ trước",
+  "yesterday": "hôm qua",
+  "daysAgo": "{count} ngày trước",
+  "timeToday": "{time} hôm nay",
+  "timeYesterday": "{time} hôm qua",
+  "timeTomorrow": "{time} ngày mai",
+  "durationMinutes": "{minutes}p",
+  "durationHours": "{hours}g {minutes}p",
+  "tonight": "Đêm nay",
+  "tomorrowNight": "Đêm mai",
+  "daysAway": "Còn {count} ngày"
+}

@@ -1,40 +1,49 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type InsightOut } from "@/lib/api";
-import { translateError } from "@/lib/errors";
+import { useErrorMessage } from "@/lib/errors";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { fmtInt, fmtNum, fmtWhen } from "@/lib/format";
-import { INSIGHT_STATUS_LABEL, INSIGHT_STATUS_TONE, INSIGHT_TRIGGER_LABEL, LEVEL_LABEL, LEVEL_TONE } from "@/lib/labels";
+import { useFmt } from "@/lib/format";
+import { INSIGHT_STATUS_TONE, LEVEL_TONE, useLabel } from "@/lib/labels";
 import { Badge, Button, EmptyState, ErrorBox, Note, PageHeader, SkeletonBlock, Spinner, cx } from "@/components/ui";
+import { BRIEF_TABS, SubTabs } from "@/components/sub-tabs";
 import { IconArrowRight, IconBrief, IconCalendar, IconSparkle } from "@/components/icons";
-import { insightCounts, parseInsightOutput, periodText } from "./insight-view";
+import { insightCounts, parseInsightOutput } from "./insight-view";
 
 const POLL_MS = 5000;
 
 function Counts({ r }: { r: InsightOut }) {
+  const t = useTranslations("insights.counts");
   const c = insightCounts(parseInsightOutput(r.output_json));
   const parts = [
-    c.highlights && `${c.highlights} điểm nổi bật`,
-    c.signals && `${c.signals} tín hiệu nhu cầu`,
-    c.pricing && `${c.pricing} cơ hội giá`,
-    c.risks && `${c.risks} rủi ro`,
+    c.highlights && t("highlights", { count: c.highlights }),
+    c.signals && t("signals", { count: c.signals }),
+    c.pricing && t("pricing", { count: c.pricing }),
+    c.risks && t("risks", { count: c.risks }),
   ].filter(Boolean);
   return parts.length ? <span>{parts.join(" · ")}</span> : null;
 }
 
 /** Thông tin kỹ thuật (chỉ operator): mô hình, token, chi phí. */
 function Tech({ r }: { r: InsightOut }) {
+  const t = useTranslations("insights.list");
+  const { fmtInt, fmtNum } = useFmt();
   return (
-    <span className="text-xs text-faint tabular" title="Chỉ tài khoản vận hành thấy">
-      {r.model} · {r.prompt_version} · {fmtInt(r.tokens_in)}/{fmtInt(r.tokens_out)} token · {fmtNum(r.cost_usd, 4)} USD
+    <span className="text-xs text-faint tabular" title={t("operatorOnly")}>
+      {t("tech", { model: r.model, version: r.prompt_version, tokensIn: fmtInt(r.tokens_in), tokensOut: fmtInt(r.tokens_out), cost: fmtNum(r.cost_usd, 4) })}
     </span>
   );
 }
 
 function Latest({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
+  const t = useTranslations("insights.list");
+  const tLevel = useTranslations("insights.level");
+  const { fmtPeriod, fmtWhen } = useFmt();
+  const label = useLabel();
   const out = parseInsightOutput(r.output_json);
   const top = out?.highlights.slice(0, 3) ?? [];
   return (
@@ -45,19 +54,19 @@ function Latest({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
             <IconSparkle size={18} />
           </span>
           <div>
-            <h2 className="text-md font-bold text-white">Bản tin mới nhất</h2>
+            <h2 className="text-md font-bold text-white">{t("latest")}</h2>
             <div className="text-sm">
-              {fmtWhen(r.generated_at)} · {INSIGHT_TRIGGER_LABEL[r.trigger] ?? r.trigger}
+              {fmtWhen(r.generated_at)} · {label("insightTrigger", r.trigger)}
             </div>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 text-sm tabular">
           <IconCalendar size={15} className="text-on-night-muted" />
-          Dữ liệu đêm {periodText(r.period_start, r.period_end)}
+          {t("dataNights", { period: fmtPeriod(r.period_start, r.period_end) })}
         </span>
       </header>
       <div className="px-6 py-5">
-        <p className="max-w-[75ch] text-lg leading-[1.7] text-ink">{out?.summary || "Bản tin chưa có tóm tắt."}</p>
+        <p className="max-w-[75ch] text-lg leading-[1.7] text-ink">{out?.summary || t("noSummaryYet")}</p>
         {top.length > 0 && (
           <ul className="mt-5 space-y-2">
             {top.map((h, i) => (
@@ -66,7 +75,7 @@ function Latest({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
                 <span className="min-w-0 flex-1 text-base font-semibold text-ink">{h.title}</span>
                 {h.confidence && (
                   <Badge tone={LEVEL_TONE[h.confidence] ?? "gray"} className="shrink-0">
-                    Tin cậy {(LEVEL_LABEL[h.confidence] ?? h.confidence).toLowerCase()}
+                    {tLevel("confidence", { level: h.confidence, label: label("level", h.confidence).toLowerCase() })}
                   </Badge>
                 )}
               </li>
@@ -80,7 +89,7 @@ function Latest({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
           {isOperator && <Tech r={r} />}
         </span>
         <Link href={`/insights/${r.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand px-3.5 text-base font-semibold text-white hover:bg-brand-hover">
-          Đọc đầy đủ <IconArrowRight size={16} />
+          {t("readFull")} <IconArrowRight size={16} />
         </Link>
       </footer>
     </article>
@@ -88,6 +97,10 @@ function Latest({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
 }
 
 function OlderRow({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
+  const t = useTranslations("insights.list");
+  const { fmtPeriod, fmtWhen } = useFmt();
+  const label = useLabel();
+  const errorText = useErrorMessage();
   const out = parseInsightOutput(r.output_json);
   const done = r.status === "completed";
   return (
@@ -95,19 +108,19 @@ function OlderRow({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
       <Link href={`/insights/${r.id}`} className="group grid gap-x-6 gap-y-1 px-5 py-4 transition-colors hover:bg-subtle md:grid-cols-[180px_minmax(0,1fr)_auto]">
         <div>
           <div className="font-semibold text-ink tabular group-hover:text-brand">{fmtWhen(r.generated_at)}</div>
-          <div className="text-sm text-muted">{INSIGHT_TRIGGER_LABEL[r.trigger] ?? r.trigger}</div>
+          <div className="text-sm text-muted">{label("insightTrigger", r.trigger)}</div>
         </div>
         <div className="min-w-0">
           {done ? (
-            <p className="line-clamp-2 text-base text-body">{out?.summary || "Không có tóm tắt."}</p>
+            <p className="line-clamp-2 text-base text-body">{out?.summary || t("noSummary")}</p>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={INSIGHT_STATUS_TONE[r.status] ?? "gray"}>{INSIGHT_STATUS_LABEL[r.status] ?? r.status}</Badge>
-              {r.status === "failed" && r.error && <span className="truncate text-sm text-danger-deep">{translateError(r.error)}</span>}
+              <Badge tone={INSIGHT_STATUS_TONE[r.status] ?? "gray"}>{label("insightStatus", r.status)}</Badge>
+              {r.status === "failed" && r.error && <span className="truncate text-sm text-danger-deep">{errorText(r.error)}</span>}
             </div>
           )}
           <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted">
-            <span className="tabular">Đêm {periodText(r.period_start, r.period_end)}</span>
+            <span className="tabular">{t("nights", { period: fmtPeriod(r.period_start, r.period_end) })}</span>
             {done && <Counts r={r} />}
           </div>
           {isOperator && (
@@ -123,6 +136,7 @@ function OlderRow({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
 }
 
 export default function InsightsPage() {
+  const t = useTranslations("insights.list");
   const { canWrite, isOperator } = useSession();
   const list = useApi("insights", () => api.insights.list(50));
   const settings = useApi("settings", () => api.settings.get());
@@ -159,20 +173,21 @@ export default function InsightsPage() {
 
   return (
     <>
+      <SubTabs items={BRIEF_TABS} />
       <PageHeader
-        title="Bản tin AI"
-        subtitle={`${hour ? `Tự động mỗi sáng lúc ${hour}` : "Tự động mỗi sáng"} và khi bạn yêu cầu. Mỗi nhận định đều kèm bằng chứng bấm được tới số liệu gốc.`}
+        title={t("title")}
+        subtitle={hour ? t("subtitleAt", { hour }) : t("subtitle")}
         actions={
           canWrite && (
             <Button variant="primary" icon={<IconSparkle size={16} />} busy={generate.busy || pollingId !== null} onClick={() => void generate.run()}>
-              {pollingId !== null ? "Đang tạo…" : "Tạo bản tin ngay"}
+              {pollingId !== null ? t("generating") : t("generate")}
             </Button>
           )
         }
       />
       {pollingId !== null && (
         <Note tone="info" icon={<Spinner className="text-brand" />} className="mb-4">
-          Đang tạo bản tin từ dữ liệu mới nhất. Thường mất dưới một phút; danh sách tự cập nhật khi xong.
+          {t("generatingNote")}
         </Note>
       )}
       <ErrorBox error={generate.error} className="mb-4" />
@@ -186,17 +201,17 @@ export default function InsightsPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<IconBrief />}
-          title="Chưa có bản tin nào"
+          title={t("emptyTitle")}
           className="border border-line bg-surface"
           action={
             canWrite && (
               <Button variant="primary" icon={<IconSparkle size={16} />} busy={generate.busy} onClick={() => void generate.run()}>
-                Tạo bản tin đầu tiên
+                {t("generateFirst")}
               </Button>
             )
           }
         >
-          Bản tin đọc số phòng còn, giá và sự kiện của khách sạn bạn và đối thủ, rồi nêu điểm đáng chú ý kèm đề xuất. Bản hằng ngày tự tạo {hour ? `lúc ${hour}` : "mỗi sáng"}.
+          {hour ? t("emptyBodyAt", { hour }) : t("emptyBody")}
         </EmptyState>
       ) : (
         <div className={cx("space-y-6", list.loading && "opacity-70")}>
@@ -204,7 +219,7 @@ export default function InsightsPage() {
           {others.length > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-bold text-ink">
-                {latest ? "Các bản tin trước" : "Bản tin"} <span className="text-base font-semibold text-muted tabular">{others.length}</span>
+                {latest ? t("previous") : t("briefs")} <span className="text-base font-semibold text-muted tabular">{others.length}</span>
               </h2>
               <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
                 {others.map((r) => (

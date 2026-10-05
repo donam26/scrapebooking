@@ -1,0 +1,41 @@
+{
+  "title": "Sự kiện",
+  "subtitle": "Mọi biến động giữa hai lượt quét liên tiếp trên từng kênh: hết phòng, có phòng lại, số phòng, giá và chênh lệch giữa các kênh",
+  "downloadCsv": "Tải CSV",
+  "since": {
+    "h24": "24 giờ",
+    "d3": "3 ngày",
+    "d7": "7 ngày",
+    "d30": "30 ngày",
+    "all": "Tất cả"
+  },
+  "filters": {
+    "hotel": "Khách sạn",
+    "allHotels": "Tất cả khách sạn",
+    "yours": "(của bạn)",
+    "inactive": "(ngừng)",
+    "observedWithin": "Quan sát trong",
+    "stayNight": "Đêm lưu trú",
+    "stayFrom": "Đêm lưu trú từ",
+    "stayTo": "Đêm lưu trú đến",
+    "clear": "Xoá bộ lọc",
+    "channel": "Kênh",
+    "eventType": "Loại sự kiện",
+    "type": "Loại"
+  },
+  "highlight": {
+    "text": "Đang làm nổi bật sự kiện #{id} được dẫn từ bản tin (nếu nằm trong trang này).",
+    "clear": "Bỏ đánh dấu"
+  },
+  "list": {
+    "count": "{count} sự kiện",
+    "countMore": "{count}+ sự kiện",
+    "filtered": "Theo bộ lọc đang chọn",
+    "newestFirst": "Mới nhất trước",
+    "prev": "Trước",
+    "next": "Sau",
+    "page": "Trang {page}",
+    "emptyFiltered": "Không có sự kiện nào khớp bộ lọc. Thử nới khoảng thời gian hoặc bỏ bớt loại sự kiện.",
+    "empty": "Chưa có sự kiện nào. Sự kiện xuất hiện khi hai lượt quét liên tiếp khác nhau."
+  }
+}

@@ -1,14 +1,9 @@
 from datetime import date
 
-from app.collector.booking.urls import build_hotel_url, currency_for
-from app.domain.models import HotelRef
+from app.collector.booking.urls import build_hotel_url, canonical_url, pagename
+from tests.fakes import booking_listing
 
-HOTEL = HotelRef(
-    id=1,
-    country_code="vn",
-    slug="vn/the-reverie-saigon",
-    canonical_url="https://www.booking.com/hotel/vn/the-reverie-saigon.html",
-)
+HOTEL = booking_listing(slug="vn/the-reverie-saigon")
 
 
 def test_build_hotel_url() -> None:
@@ -20,7 +15,8 @@ def test_build_hotel_url() -> None:
     )
 
 
-def test_currency_for_known_and_default() -> None:
-    assert currency_for("vn") == "VND"
-    assert currency_for("th") == "THB"
-    assert currency_for("zz") == "USD"
+def test_pagename_and_canonical_url() -> None:
+    assert pagename(HOTEL) == "the-reverie-saigon"
+    assert canonical_url("vn/the-reverie-saigon") == (
+        "https://www.booking.com/hotel/vn/the-reverie-saigon.html"
+    )

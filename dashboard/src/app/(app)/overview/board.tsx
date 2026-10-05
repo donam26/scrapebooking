@@ -1,13 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CompsetDayOut, DateCell, HotelRow, OverviewOut } from "@/lib/api";
-import { dateRange, fmtCompact, fmtDateShort, fmtInt, fmtMoney, fmtNight, fmtNum, fmtPct, fmtWeekday, isWeekend, num, parseDate, prettySlug } from "@/lib/format";
+import { dateRange, isWeekend, num, parseDate, useFmt } from "@/lib/format";
+import { channelName, hotelTitle, withChannel } from "@/lib/channels";
 import { useElementWidth } from "@/lib/use-width";
-import { cellMark, MarkSwatch, MarksLegend } from "@/components/marks";
+import { MarkSwatch, MarksLegend, useMarks } from "@/components/marks";
 import { IconArrowRight } from "@/components/icons";
 import { cx } from "@/components/ui";
+import { deltaVsMedian, useNightReason } from "@/lib/night-reason";
 
 /* Hình học dùng chung: mọi dải cùng số cột, cùng khe, nên cột thẳng hàng qua cả chồng. */
 const GAP = 3;
@@ -18,15 +21,20 @@ const YOURS = "#008a70";
 const REF = "#8a89a0";
 
 type Active = { idx: number; x: number; y: number } | null;
+type BoardTranslator = ReturnType<typeof useTranslations<"overview.board">>;
 
 export function hotelName(row: HotelRow): string {
-  return row.label || row.hotel.name || prettySlug(row.hotel.booking_slug);
+  return hotelTitle(row.hotel, row.label);
 }
 
 // ---------------------------------------------------------------------------
 
 /** Chồng dải khách sạn × đêm. `market=false` bỏ thẻ thị trường (trang một khách sạn). */
-export function Board({ data, market = true }: { data: OverviewOut; market?: boolean }) {
+export function Board({ data, market = true, priceLabel: priceLabelProp }: { data: OverviewOut; market?: boolean; priceLabel?: string }) {
+  const t = useTranslations("overview.board");
+  const { fmtNight } = useFmt();
+  const { beyondMark } = useMarks();
+  const priceLabel = priceLabelProp ?? t("defaultPriceLabel");
   const dates = useMemo(() => dateRange(data.start, data.end), [data.start, data.end]);
   const n = dates.length;
   const compset = useMemo(() => new Map<string, CompsetDayOut>(data.compset.map((c) => [c.stay_date, c])), [data.compset]);
@@ -34,6 +42,7 @@ export function Board({ data, market = true }: { data: OverviewOut; market?: boo
   const compRows = data.hotels.filter((h) => h.role !== "self");
   const self = selfRows[0] ?? null;
   const currency = data.compset.find((c) => c.currency)?.currency ?? data.hotels.flatMap((h) => h.cells).find((c) => c.currency)?.currency ?? null;
+  const holidays = useMemo(() => new Map<string, string>(data.holidays.map((h) => [h.date, h.name])), [data.holidays]);
 
   const outerRef = useRef<HTMLDivElement>(null);
   const outerW = useElementWidth(outerRef);
@@ -46,15 +55,30 @@ export function Board({ data, market = true }: { data: OverviewOut; market?: boo
     setActive({ idx, x: r.right, y: r.top });
   }, []);
 
-  const ctx: StripCtx = { dates, n, active: active?.idx ?? null, activate, fits };
+  const ctx: StripCtx = { dates, n, active: active?.idx ?? null, activate, fits, horizonEnd: data.horizon_end, holidays, channel: data.channel };
 
   return (
     <div onMouseLeave={() => setActive(null)} className="relative">
-      <MarksLegend className="mb-3" />
+      <MarksLegend className="mb-3">
+        {data.end > data.horizon_end && (
+          <li className="flex items-center gap-2">
+            <MarkSwatch mark={beyondMark} size={18} />
+            {t("legend.beyond", { night: fmtNight(data.horizon_end) })}
+          </li>
+        )}
+        {holidays.size > 0 && (
+          <li className="flex items-center gap-2">
+            <span aria-hidden className="grid h-[18px] w-[18px] place-items-center">
+              <HolidayDot />
+            </span>
+            {t("legend.holiday")}
+          </li>
+        )}
+      </MarksLegend>
       <div ref={outerRef} className={cx(!fits && "sb-scroll -mx-4 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0")}>
         <div className="space-y-3" style={fits ? undefined : { width: required }}>
           <Axis ctx={ctx} sticky={fits} />
-          {market && <MarketCard ctx={ctx} data={data} compset={compset} self={self} currency={currency} />}
+          {market && <MarketCard ctx={ctx} data={data} compset={compset} self={self} currency={currency} priceLabel={priceLabel} />}
           {selfRows.map((row) => (
             <HotelCard key={row.hotel.id} ctx={ctx} row={row} self={self} compset={compset} />
           ))}
@@ -69,28 +93,31 @@ export function Board({ data, market = true }: { data: OverviewOut; market?: boo
           {market ? (
             <>
               <li className="flex items-center gap-2">
-                <LineKey color={YOURS} /> Giá thấp nhất của bạn
+                <LineKey color={YOURS} /> {t("legend.yours", { price: priceLabel })}
               </li>
               <li className="flex items-center gap-2">
-                <LineKey color={INK} /> Giá thấp nhất của khách sạn đó
+                <LineKey color={INK} /> {t("legend.thatHotel", { price: priceLabel })}
               </li>
               <li className="flex items-center gap-2">
-                <LineKey color={INK} dashed /> Trung vị đối thủ (trong dải của bạn)
+                <LineKey color={INK} dashed /> {t("legend.medianInYours")}
               </li>
-              <li className="text-faint">Rê chuột hoặc Tab vào một đêm để so cả chồng; bấm ô để mở chi tiết đêm.</li>
+              <li className="text-faint">{t("legend.hint")}</li>
+              {data.channels.length > 1 && (
+                <li className="text-faint">{t("legend.channelNote", { channel: channelName(data.channel) })}</li>
+              )}
             </>
           ) : (
             <>
               <li className="flex items-center gap-2">
-                <LineKey color={self ? YOURS : INK} /> Giá thấp nhất mỗi đêm
+                <LineKey color={self ? YOURS : INK} /> {t("legend.perNight", { price: priceLabel })}
               </li>
-              <li className="text-faint">Rê chuột hoặc Tab vào một đêm để xem số liệu; bấm ô để mở chi tiết đêm.</li>
+              <li className="text-faint">{t("legend.hintSingle")}</li>
             </>
           )}
         </ul>
       </div>
 
-      {active && <Readout active={active} dates={dates} data={data} compset={compset} currency={currency} />}
+      {active && <Readout active={active} dates={dates} data={data} compset={compset} currency={currency} holidays={holidays} />}
     </div>
   );
 }
@@ -102,6 +129,12 @@ type StripCtx = {
   activate: (idx: number, el: Element) => void;
   /** Cả chồng vừa màn hình (không cuộn ngang). */
   fits: boolean;
+  /** Đêm xa nhất trong phạm vi quét; đêm sau đó chưa tới lượt được quét. */
+  horizonEnd: string;
+  /** Kênh của mọi số trên chồng; liên kết sang chi tiết giữ nguyên kênh này. */
+  channel: string;
+  /** Ngày lễ theo nước của tenant: đêm → tên lễ. */
+  holidays: Map<string, string>;
 };
 
 function gridStyle(n: number) {
@@ -112,7 +145,10 @@ function gridStyle(n: number) {
 // Trục ngày
 
 function Axis({ ctx, sticky }: { ctx: StripCtx; sticky: boolean }) {
-  const { dates, n, active } = ctx;
+  const t = useTranslations("overview.board.axis");
+  const { fmtWeekday } = useFmt();
+  const { dates, n, active, holidays } = ctx;
+  const anyHoliday = holidays.size > 0;
   return (
     <div className={cx("z-20 -mx-1 rounded-lg bg-canvas/95 px-1 pt-1 backdrop-blur-sm", sticky && "sticky top-0 lg:top-0 max-lg:top-14")}>
       <div className="grid pb-1.5" style={{ ...gridStyle(n), paddingInline: PAD_X + 1 }} aria-hidden>
@@ -124,7 +160,7 @@ function Axis({ ctx, sticky }: { ctx: StripCtx; sticky: boolean }) {
           return (
             <div key={d} className="relative flex flex-col items-center">
               <span className={cx("h-4 self-start whitespace-nowrap text-2xs font-semibold text-muted", !monthStart && "invisible")}>
-                {monthStart ? `Th ${parseDate(d).getMonth() + 1}` : "·"}
+                {monthStart ? t("month", { month: parseDate(d).getMonth() + 1 }) : "·"}
               </span>
               <span
                 className={cx(
@@ -132,8 +168,13 @@ function Axis({ ctx, sticky }: { ctx: StripCtx; sticky: boolean }) {
                   on ? "bg-brand text-white" : we ? "bg-sunken text-ink" : "text-muted",
                 )}
               >
-                <span className={cx("text-2xs", we && !on && "font-semibold")}>{fmtWeekday(d).replace("Thứ ", "T")}</span>
+                <span className={cx("text-2xs", we && !on && "font-semibold")}>{fmtWeekday(d)}</span>
                 <span className={cx("text-sm tabular", on ? "font-bold text-white" : we ? "font-extrabold text-ink" : "font-bold text-ink")}>{day}</span>
+                {anyHoliday && (
+                  <span className="flex h-1.5 items-center" title={holidays.get(d)}>
+                    {holidays.has(d) && <HolidayDot onDark={on} />}
+                  </span>
+                )}
               </span>
             </div>
           );
@@ -152,13 +193,16 @@ function MarketCard({
   compset,
   self,
   currency,
+  priceLabel,
 }: {
   ctx: StripCtx;
   data: OverviewOut;
   compset: Map<string, CompsetDayOut>;
   self: HotelRow | null;
   currency: string | null;
+  priceLabel: string;
 }) {
+  const t = useTranslations("overview.board.market");
   const { dates, n } = ctx;
   const observed = Math.max(0, ...data.compset.map((c) => c.competitors_observed));
   const anySold = dates.some((d) => (compset.get(d)?.competitors_sold_out ?? 0) > 0);
@@ -169,31 +213,33 @@ function MarketCard({
   if (self) lines.push({ key: "own", color: YOURS, width: 2, values: dates.map((d) => num(compset.get(d)?.own_min_price)) });
 
   return (
-    <section className="rounded-xl border border-line bg-surface shadow-card" aria-label="Thị trường">
+    <section className="rounded-xl border border-line bg-surface shadow-card" aria-label={t("aria")}>
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pt-4">
         <div className="sticky left-5 flex items-baseline gap-2">
-          <h2 className="text-md font-bold text-ink">Thị trường</h2>
-          <span className="text-sm text-muted">{observed > 0 ? `${observed} đối thủ đang theo dõi` : "Chưa có đối thủ nào có dữ liệu"}</span>
+          <h2 className="text-md font-bold text-ink">{t("title")}</h2>
+          <span className="text-sm text-muted">
+            {observed > 0 ? t("observed", { count: observed, channel: channelName(ctx.channel) }) : t("noneObserved", { channel: channelName(ctx.channel) })}
+          </span>
         </div>
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
           {self && (
             <li className="flex items-center gap-1.5">
-              <LineKey color={YOURS} /> Giá của bạn
+              <LineKey color={YOURS} /> {t("yourRate")}
             </li>
           )}
           <li className="flex items-center gap-1.5">
-            <LineKey color={INK} /> Trung vị đối thủ
+            <LineKey color={INK} /> {t("median")}
           </li>
           <li className="flex items-center gap-1.5">
-            <LineKey color={REF} dashed /> Thấp nhất đối thủ
+            <LineKey color={REF} dashed /> {t("lowest")}
           </li>
         </ul>
       </header>
 
       <div className="px-5 pb-4 pt-3">
         <div className="mb-1 flex items-baseline gap-2 text-xs">
-          <span className="font-semibold text-muted">Đối thủ hết phòng mỗi đêm</span>
-          {!anySold && <span className="text-faint">chưa đối thủ nào hết phòng trong {n} đêm này</span>}
+          <span className="font-semibold text-muted">{t("soldOutPerNight")}</span>
+          {!anySold && <span className="text-faint">{t("noneSoldOut", { count: n })}</span>}
         </div>
         <div className={cx("grid items-end", anySold ? "h-9" : "h-1.5")} style={gridStyle(n)}>
           {dates.map((d, i) => {
@@ -217,13 +263,78 @@ function MarketCard({
           })}
         </div>
 
+        {self && <VsMedianRow ctx={ctx} compset={compset} />}
+
         <div className="mb-1 mt-4 text-xs font-semibold text-muted">
-          Giá thấp nhất mỗi đêm{currency ? ` (${currency})` : ""}
+          {t("perNight", { price: priceLabel })}
+          {currency ? ` (${currency})` : ""}
         </div>
         <PriceLines ctx={ctx} lines={lines} height={96} />
       </div>
     </section>
   );
+}
+
+/** Đêm lệch khỏi mức thường của bạn (trung vị cả kỳ) từ chừng này điểm % thì in nhấn. */
+const VS_MEDIAN_OUTLIER = 10;
+
+/**
+ * Hàng "Giá bạn so trung vị đối thủ" theo lưới cột chung. Không tô lại ô dải (màu ô là mức tin cậy
+ * phòng còn) và không tô nền (vàng cảnh báo gần trùng vàng "chính xác"): chỉ chữ. Khách sạn thường
+ * đứng ở một mức cố định so với compset (ví dụ luôn rẻ hơn 40%), nên nhấn đêm lệch khỏi mức thường
+ * đó (đối thủ tăng/giảm giá bất thường) thay vì nhấn mọi đêm lệch xa trung vị.
+ */
+function VsMedianRow({ ctx, compset }: { ctx: StripCtx; compset: Map<string, CompsetDayOut> }) {
+  const t = useTranslations("overview.board.vsMedian");
+  const { fmtNight } = useFmt();
+  const { fmtVsMedian } = useNightReason();
+  const { dates, n } = ctx;
+  const deltas = dates.map((d) => deltaVsMedian(compset.get(d)?.price_index));
+  const known = deltas.filter((v): v is number => v !== null).sort((a, b) => a - b);
+  if (!known.length) return null;
+  const typical = known.length >= 3 ? known[Math.floor(known.length / 2)] : null;
+  const fmt = (v: number) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : "0");
+  return (
+    <>
+      <div className="mb-1 mt-4 flex flex-wrap items-baseline gap-x-2 text-xs">
+        <span className="font-semibold text-muted">{t("title")}</span>
+        {typical !== null && (
+          <span className="text-faint">
+            {t.rich("typical", { typical: fmt(typical), threshold: VS_MEDIAN_OUTLIER, num: (c) => <span className="tabular">{c}</span> })}
+          </span>
+        )}
+      </div>
+      <div className="grid" style={gridStyle(n)} role="list" aria-label={t("listAria")}>
+        {deltas.map((v, i) => {
+          const outlier = v !== null && typical !== null && Math.abs(v - typical) >= VS_MEDIAN_OUTLIER;
+          return (
+            <span
+              key={dates[i]}
+              role="listitem"
+              aria-label={
+                v === null
+                  ? t("itemNoData", { night: fmtNight(dates[i]) })
+                  : t("item", { night: fmtNight(dates[i]), vs: fmtVsMedian(v + 100) ?? "", outlier: outlier ? "yes" : "no" })
+              }
+              onMouseEnter={(e) => ctx.activate(i, e.currentTarget)}
+              className={cx(
+                "rounded-[4px] text-center text-2xs leading-5 tabular transition-colors duration-100",
+                ctx.active === i && "bg-brand-softer",
+                v === null ? "text-faint" : outlier ? "font-extrabold text-warning-deep" : "font-semibold text-body",
+              )}
+            >
+              {v === null ? "·" : fmt(v)}
+            </span>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/** Chấm mực đánh dấu ngày lễ: không tím (tím = bấm/chọn), không vàng (vàng = chính xác). */
+function HolidayDot({ onDark }: { onDark?: boolean }) {
+  return <span aria-hidden className={cx("block h-1 w-1 rounded-full", onDark ? "bg-white" : "bg-ink")} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -240,13 +351,16 @@ function HotelCard({
   self: HotelRow | null;
   compset: Map<string, CompsetDayOut>;
 }) {
+  const t = useTranslations("overview.board");
+  const { fmtCompact, fmtMoney, fmtNight, fmtPct } = useFmt();
+  const { cellMark } = useMarks();
   const { dates, n } = ctx;
   const isSelf = row.role === "self";
   const byDate = new Map<string, DateCell>(row.cells.map((c) => [c.stay_date, c]));
   const name = hotelName(row);
   const hasData = row.cells.some((c) => c.availability_status !== null);
   const first = byDate.get(dates[0]);
-  const firstMark = cellMark(first);
+  const firstMark = cellMark(first, dates[0] > ctx.horizonEnd);
 
   const prices = row.cells.map((c) => num(c.min_price)).filter((v): v is number => v !== null);
   const priceRange = prices.length ? [Math.min(...prices), Math.max(...prices)] : null;
@@ -267,23 +381,23 @@ function HotelCard({
     <>
       {hasData ? (
         <span className="flex items-center gap-1.5 text-muted" title={firstMark.label}>
-          {first?.days_to_arrival === 0 ? "Đêm nay" : fmtNight(dates[0])}
-          <span className="font-semibold text-ink tabular">{shortStatus(first)}</span>
+          {first?.days_to_arrival === 0 ? t("hotel.tonight") : fmtNight(dates[0])}
+          <span className="font-semibold text-ink tabular">{shortStatus(first, t)}</span>
           {first?.min_price && <span className="tabular text-body">· {fmtMoney(first.min_price, first.currency)}</span>}
         </span>
       ) : (
-        <span className="text-muted">Đang chờ lượt quét đầu tiên</span>
+        <span className="text-muted">{noDataText(row, ctx.channel, t)}</span>
       )}
     </>
   );
   const detailsLink = (
     <>
       <Link
-        href={`/hotels/${row.hotel.id}`}
+        href={withChannel(`/hotels/${row.hotel.id}`, ctx.channel)}
         className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-semibold text-brand hover:bg-brand-softer"
-        aria-label={`Chi tiết ${name}`}
+        aria-label={t("hotel.detailsAria", { name })}
       >
-        Chi tiết <IconArrowRight size={14} />
+        {t("hotel.details")} <IconArrowRight size={14} />
       </Link>
     </>
   );
@@ -301,10 +415,10 @@ function HotelCard({
           {isSelf && <span aria-hidden className="mt-[7px] h-2.5 w-2.5 shrink-0 rounded-full bg-yours shadow-[0_0_0_3px_rgba(0,176,144,0.18)]" />}
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
-              <Link href={`/hotels/${row.hotel.id}`} className="truncate text-md font-bold text-ink hover:text-brand hover:underline" title={row.hotel.name ?? undefined}>
+              <Link href={withChannel(`/hotels/${row.hotel.id}`, ctx.channel)} className="truncate text-md font-bold text-ink hover:text-brand hover:underline" title={row.hotel.name ?? undefined}>
                 {name}
               </Link>
-              {isSelf && <span className="shrink-0 rounded-full bg-yours-soft px-2 py-px text-xs font-semibold text-yours-deep">Của bạn</span>}
+              {isSelf && <span className="shrink-0 rounded-full bg-yours-soft px-2 py-px text-xs font-semibold text-yours-deep">{t("hotel.yours")}</span>}
             </div>
             {ctx.fits ? (
               row.label && row.hotel.name && row.hotel.name !== row.label && <div className="truncate text-xs text-muted">{row.hotel.name}</div>
@@ -320,8 +434,8 @@ function HotelCard({
           <div className="flex items-center gap-4 text-sm">
             {statusText}
             {hasData && priceRange && (
-              <span className="hidden text-muted xl:inline tabular" title="Giá thấp nhất mỗi đêm trong kỳ">
-                Giá kỳ này {fmtCompact(priceRange[0])}–{fmtCompact(priceRange[1])}
+              <span className="hidden text-muted xl:inline tabular" title={t("hotel.rangeTitle")}>
+                {t("hotel.range", { lo: fmtCompact(priceRange[0]), hi: fmtCompact(priceRange[1]) })}
               </span>
             )}
             {detailsLink}
@@ -342,13 +456,17 @@ function HotelCard({
         <div className="grid" style={gridStyle(n)}>
           {dates.map((d, i) => {
             const cell = byDate.get(d);
-            const mark = cellMark(cell);
+            const mark = cellMark(cell, d > ctx.horizonEnd);
             const on = ctx.active === i;
             return (
               <Link
                 key={d}
-                href={`/hotels/${row.hotel.id}/dates/${d}`}
-                aria-label={`${name}, ${fmtWeekday(d)} ${fmtDateShort(d)}: ${mark.label}${cell?.min_price ? `, giá ${fmtMoney(cell.min_price, cell.currency)}` : ""}`}
+                href={withChannel(`/hotels/${row.hotel.id}/dates/${d}`, ctx.channel)}
+                aria-label={
+                  cell?.min_price
+                    ? t("hotel.cellAriaPrice", { name, night: fmtNight(d), status: mark.label, price: fmtMoney(cell.min_price, cell.currency) })
+                    : t("hotel.cellAria", { name, night: fmtNight(d), status: mark.label })
+                }
                 onMouseEnter={(e) => ctx.activate(i, e.currentTarget)}
                 onFocus={(e) => ctx.activate(i, e.currentTarget)}
                 className={cx(
@@ -366,7 +484,7 @@ function HotelCard({
         {hasData && <PriceLines ctx={ctx} lines={lines} height={60} className="mt-2" />}
         {hasOcc && (
           <>
-            <div className="mb-1 mt-2 text-xs font-semibold text-muted">Công suất theo PMS</div>
+            <div className="mb-1 mt-2 text-xs font-semibold text-muted">{t("hotel.pmsOcc")}</div>
             <div className="grid" style={gridStyle(n)}>
               {occ.map((v, i) => (
                 <span key={dates[i]} className="text-center text-2xs font-semibold text-body tabular">
@@ -381,11 +499,22 @@ function HotelCard({
   );
 }
 
-function shortStatus(cell: DateCell | undefined): string {
-  if (!cell || cell.availability_status === null) return "Chưa có";
-  if (cell.availability_status === "sold_out") return "Hết phòng";
-  if (cell.availability_status === "unknown") return "Không rõ";
-  return cell.exact_rooms_left === null ? "Còn phòng" : `Còn ${cell.exact_rooms_left} phòng`;
+/** Vì sao thẻ chưa có số trên kênh đang xem. */
+function noDataText(row: HotelRow, channel: string, t: BoardTranslator): string {
+  const l = row.hotel.listings.find((x) => x.channel === channel && x.status !== "suggested");
+  const ch = channelName(channel);
+  if (!l) return t("noData.notTracked", { channel: ch });
+  if (l.status === "broken") return t("noData.broken", { channel: ch });
+  if (l.status === "paused") return t("noData.paused", { channel: ch });
+  if (l.status === "unverified") return t("noData.unverified", { channel: ch });
+  return t("noData.waiting");
+}
+
+function shortStatus(cell: DateCell | undefined, t: BoardTranslator): string {
+  if (!cell || cell.availability_status === null) return t("status.noData");
+  if (cell.availability_status === "sold_out") return t("status.soldOut");
+  if (cell.availability_status === "unknown") return t("status.unknown");
+  return cell.exact_rooms_left === null ? t("status.available") : t("status.roomsLeft", { count: cell.exact_rooms_left });
 }
 
 // ---------------------------------------------------------------------------
@@ -395,6 +524,7 @@ type Line = { key: string; color: string; width: number; dash?: string; values: 
 
 /** Thang y riêng của từng biểu đồ (theo các đường của chính nó), có nhãn mức giá. */
 function PriceLines({ ctx, lines, height, className }: { ctx: StripCtx; lines: Line[]; height: number; className?: string }) {
+  const { fmtCompact } = useFmt();
   const ref = useRef<HTMLDivElement>(null);
   const w = useElementWidth(ref);
   const { n, active } = ctx;
@@ -501,13 +631,19 @@ function Readout({
   data,
   compset,
   currency,
+  holidays,
 }: {
   active: NonNullable<Active>;
   dates: string[];
   data: OverviewOut;
   compset: Map<string, CompsetDayOut>;
   currency: string | null;
+  holidays: Map<string, string>;
 }) {
+  const t = useTranslations("overview.board");
+  const { fmtCompact, fmtDateShort, fmtInt, fmtMoney, fmtPct, fmtWeekday } = useFmt();
+  const { fmtRank } = useNightReason();
+  const { cellMark } = useMarks();
   const ref = useRef<HTMLDivElement>(null);
   const [h, setH] = useState(0);
   useLayoutEffect(() => {
@@ -522,6 +658,8 @@ function Readout({
   const left = active.x + 14 + W > vw - 8 ? active.x - W - 44 : active.x + 14;
   const top = Math.max(8, Math.min(active.y - 20, vh - (h || 320) - 8));
   const idx = num(c?.price_index);
+  const rank = c ? fmtRank(c.own_rank, c.priced_hotels) : null;
+  const holiday = holidays.get(d);
 
   return (
     <div
@@ -534,12 +672,18 @@ function Readout({
         <span className="text-md font-bold text-ink">
           {fmtWeekday(d)} {fmtDateShort(d)}
         </span>
-        <span className="text-xs text-muted">{relNight(data.hotels, d)}</span>
+        <span className="text-xs text-muted">{relNight(data.hotels, d, t)}</span>
       </div>
+      {holiday && (
+        <div className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-ink">
+          <HolidayDot />
+          {holiday}
+        </div>
+      )}
       <ul className="mt-2.5 space-y-1.5">
         {data.hotels.map((h) => {
           const cell = h.cells.find((x) => x.stay_date === d);
-          const mark = cellMark(cell);
+          const mark = cellMark(cell, d > data.horizon_end);
           return (
             <li key={h.hotel.id} className="flex items-center gap-2 text-sm">
               <MarkSwatch mark={mark} size={20} />
@@ -551,24 +695,30 @@ function Readout({
       </ul>
       {c && (
         <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line pt-2.5 text-xs">
-          <dt className="text-muted">Đối thủ hết phòng</dt>
+          <dt className="text-muted">{t("readout.soldOut")}</dt>
           <dd className="text-right font-semibold text-ink tabular">
             {c.competitors_sold_out}/{c.competitors_observed}
           </dd>
-          <dt className="text-muted">Trung vị đối thủ</dt>
+          <dt className="text-muted">{t("readout.median")}</dt>
           <dd className="text-right font-semibold text-ink tabular">{fmtMoney(c.median_price, c.currency ?? currency)}</dd>
           {idx !== null && (
             <>
-              <dt className="text-muted">Giá bạn so trung vị</dt>
+              <dt className="text-muted">{t("readout.vsMedian")}</dt>
               <dd className="text-right font-semibold text-ink tabular">{fmtPct(idx - 100, { signed: true, digits: 0 })}</dd>
+            </>
+          )}
+          {rank && (
+            <>
+              <dt className="text-muted">{t("readout.rank")}</dt>
+              <dd className="text-right font-semibold text-ink">{rank}</dd>
             </>
           )}
           {c.own_occupancy_pct !== null && (
             <>
-              <dt className="text-muted">Công suất PMS</dt>
+              <dt className="text-muted">{t("readout.pmsOcc")}</dt>
               <dd className="text-right font-semibold text-ink tabular">
                 {fmtPct(c.own_occupancy_pct, { digits: 0 })}
-                {c.own_rooms_available !== null && <span className="font-normal text-muted"> · còn {fmtInt(c.own_rooms_available)}</span>}
+                {c.own_rooms_available !== null && <span className="font-normal text-muted"> · {t("readout.roomsLeft", { rooms: fmtInt(c.own_rooms_available) })}</span>}
               </dd>
             </>
           )}
@@ -578,10 +728,8 @@ function Readout({
   );
 }
 
-function relNight(hotels: HotelRow[], d: string): ReactNode {
+function relNight(hotels: HotelRow[], d: string, t: BoardTranslator): ReactNode {
   const dta = hotels.flatMap((h) => h.cells).find((c) => c.stay_date === d)?.days_to_arrival;
   if (dta === null || dta === undefined) return null;
-  if (dta === 0) return "Đêm nay";
-  if (dta === 1) return "Đêm mai";
-  return `${fmtNum(dta)} ngày nữa`;
+  return t("readout.rel", { days: dta });
 }

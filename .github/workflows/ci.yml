@@ -109,7 +109,9 @@ jobs:
           if-no-files-found: error
       - name: Fail when api-types.ts is stale
         if: steps.gen-api.outcome == 'failure'
-        run: echo "src/lib/api-types.ts is stale: download the api-types artifact" && exit 1
+        run: |
+          echo "src/lib/api-types.ts is stale - download the api-types artifact and commit it"
+          exit 1
       - run: npm run build
 
   docker:

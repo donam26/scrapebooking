@@ -1,0 +1,81 @@
+# Cảnh báo vận hành (phase 2.5). Metric đặt ở backend/app/ops/metrics.py; mọi biểu thức sum() qua
+# instance để scale nhiều bản sao không làm lệch.
+#
+# Chưa có: DiskLow (cần node_exporter — chưa triển khai; thêm `prom/node-exporter` vào
+# docker-compose.monitoring.yml rồi bật quy tắc
+#   (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.2),
+# CertExpiring (Caddy tự gia hạn; theo dõi qua blackbox_exporter nếu cần).
+
+groups:
+  - name: scrapebooking-ops
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }} ({{ $labels.instance }}) không scrape được 3 phút"
+          description: "Tiến trình chết hoặc cổng metrics không mở. `docker compose ps`, `docker compose logs {{ $labels.job }}`."
+
+      - alert: SchedulerNoTick
+        # Không bản sao scheduler nào hoàn tất tick trong 5 phút (tick mỗi 60 s). absent(): chưa
+        # từng có tick ok (vừa khởi động mà kẹt, hoặc target biến mất).
+        expr: sum(increase(sb_scheduler_ticks_total{outcome="ok"}[5m])) < 1 or absent(sb_scheduler_ticks_total{outcome="ok"})
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Scheduler không tick 5 phút"
+          description: "Không run mới, không chốt run quá hạn, không đẩy lại job kẹt. Xem log `scheduler_tick_failed` / `scheduler_standby`."
+
+      - alert: RunSuccessLow
+        # Tỉ lệ probe dùng được (ok + sold_out) trong 1 giờ dưới 90% (cùng ngưỡng với
+        # run_summary_alert), khi có đủ mẫu.
+        expr: |
+          (
+            sum(increase(sb_probes_total{status=~"ok|sold_out"}[1h]))
+              / clamp_min(sum(increase(sb_probes_total{status!="skipped_calendar"}[1h])), 1)
+          ) < 0.9
+          and sum(increase(sb_probes_total{status!="skipped_calendar"}[1h])) >= 50
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Probe thành công < 90% trong 1 giờ"
+          description: "Kênh chặn, proxy lỗi hoặc parser hỏng. Xem Grafana 'Collector health' và sb_probes_total theo status."
+
+      - alert: BlockRateHigh
+        # Cùng ngưỡng với scheduler tự ngắt kênh (CHANNEL_BLOCK_RATE_THRESHOLD / MIN_PROBES).
+        expr: |
+          (
+            sum(increase(sb_probes_total{status="blocked"}[15m]))
+              / clamp_min(sum(increase(sb_probes_total{status!="skipped_calendar"}[15m])), 1)
+          ) > 0.2
+          and sum(increase(sb_probes_total{status!="skipped_calendar"}[15m])) >= 20
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Block rate > 20% trong 15 phút"
+          description: "Scheduler sẽ tạm dừng kênh bị chặn; kiểm tra proxy (`uv run sb check-proxy`) và session."
+
+      - alert: QueueDepthGrowing
+        # Hàng đợi arq tăng liên tục 30 phút và không rỗng: worker chết/không theo kịp.
+        expr: delta(sb_arq_queue_depth[30m]) > 0 and min_over_time(sb_arq_queue_depth[30m]) > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Hàng đợi {{ $labels.queue }} tăng 30 phút ({{ $value | printf \"%.0f\" }} job thêm)"
+          description: "Worker của hàng đợi này chết, bị pause hoặc quá tải. `docker compose ps`, cân nhắc `--scale`."
+
+      - alert: AnalyticsLag
+        expr: max(sb_analytics_lag_seconds) > 1800
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Run đã chốt chờ analytics > 30 phút"
+          description: "Worker `jobs` chết hoặc analytics lỗi lặp lại (log `analytics_failed`); cron catch-up mỗi 30 phút đẩy lại."
+
+      - alert: BackupFailed
+        expr: increase(sb_backups_total{status="error"}[1h]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "Backup Postgres thất bại"
+          description: "Xem log `backup_failed` của worker jobs; chạy tay `uv run sb backup-db`."

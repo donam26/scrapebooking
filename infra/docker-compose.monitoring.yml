@@ -1,25 +1,71 @@
 name: scrapebooking
 
+# Prometheus + Alertmanager + Grafana, cùng project/mạng `internal` với infra/docker-compose.yml:
+#   docker compose --env-file .env -f infra/docker-compose.monitoring.yml up -d
+# Bắt buộc trong .env: GRAFANA_ADMIN_PASSWORD, SMTP_HOST, SMTP_FROM, OPS_ALERT_EMAILS (Alertmanager gửi
+# email qua SMTP STARTTLS, cùng biến SMTP_* với backend). Giao diện chỉ bind 127.0.0.1 trên máy chủ:
+# xem từ xa qua SSH tunnel `ssh -L 3001:127.0.0.1:3001 -L 9090:127.0.0.1:9090 <vps>`.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "50m", max-file: "5" }
+
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.4.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - promdata:/prometheus
-    ports: ["9090:9090"]
+    ports: ["127.0.0.1:9090:9090"]
+    networks: [internal]
     restart: unless-stopped
+    logging: *logging
+
+  alertmanager:
+    # Alertmanager không đọc biến môi trường trong file cấu hình: entrypoint.sh điền SMTP_* vào mẫu
+    # alertmanager.yml lúc khởi động (mật khẩu qua file, không qua sed).
+    image: prom/alertmanager:v0.28.1
+    entrypoint: ["/bin/sh", "/etc/alertmanager/entrypoint.sh"]
+    environment:
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST thiếu trong .env (Alertmanager gửi email)}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:?SMTP_FROM thiếu trong .env}
+      OPS_ALERT_EMAILS: ${OPS_ALERT_EMAILS:?OPS_ALERT_EMAILS thiếu trong .env}
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
+      - ./alertmanager/entrypoint.sh:/etc/alertmanager/entrypoint.sh:ro
+      - alertmanagerdata:/alertmanager
+    ports: ["127.0.0.1:9093:9093"]
+    networks: [internal]
+    restart: unless-stopped
+    logging: *logging
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.0.2
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD thiếu trong .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - grafanadata:/var/lib/grafana
-    ports: ["3001:3000"]
+    ports: ["127.0.0.1:3001:3000"]
+    networks: [internal]
     depends_on: [prometheus]
     restart: unless-stopped
+    logging: *logging
+
+networks:
+  internal: {}
 
 volumes:
   promdata:
+  alertmanagerdata:
   grafanadata:

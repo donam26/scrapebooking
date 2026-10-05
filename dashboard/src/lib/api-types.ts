@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout All
+         * @description Thu hồi mọi phiên của chính mình (mọi thiết bị): tăng token_version.
+         */
+        post: operations["logout_all_auth_logout_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -49,6 +69,63 @@ export interface paths {
         get: operations["me_auth_me_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Tự đổi mật khẩu: cần mật khẩu hiện tại; phiên khác bị thu hồi, phiên này được cấp lại.
+         */
+        post: operations["change_password_auth_change_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forgot Password
+         * @description Luôn trả 204 (không lộ email có tồn tại hay không). Có tài khoản thì gửi link một lần.
+         */
+        post: operations["forgot_password_auth_forgot_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Password */
+        post: operations["reset_password_auth_reset_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1076,6 +1153,13 @@ export interface components {
             /** Bias Pts */
             bias_pts: string | null;
         };
+        /** ChangePasswordRequest */
+        ChangePasswordRequest: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
         /**
          * ChannelDayOut
          * @description Một kênh cho (khách sạn, đêm): đặt các kênh cạnh nhau (D4: không cộng số phòng).
@@ -1396,6 +1480,14 @@ export interface components {
             lat: number | null;
             /** Lng */
             lng: number | null;
+        };
+        /** ForgotPasswordRequest */
+        ForgotPasswordRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
         };
         /** EventOut */
         EventOut: {
@@ -2229,6 +2321,13 @@ export interface components {
              */
             created_at: string;
         };
+        /** ResetPasswordRequest */
+        ResetPasswordRequest: {
+            /** Token */
+            token: string;
+            /** Password */
+            password: string;
+        };
         /** RoomSnapshotOut */
         RoomSnapshotOut: {
             /** Id */
@@ -2472,6 +2571,14 @@ export interface components {
             /** Active */
             active: boolean;
             /**
+             * Limits
+             * @description Hạn mức riêng do operator đặt (rỗng = mặc định hệ thống): max_hotels, manual_scans_per_day, insights_per_day.
+             * @default {}
+             */
+            limits: {
+                [key: string]: number;
+            };
+            /**
              * Created At
              * Format: date-time
              */
@@ -2497,6 +2604,10 @@ export interface components {
             reference_channel?: string | null;
             /** Active */
             active?: boolean | null;
+            /** Limits */
+            limits?: {
+                [key: string]: number;
+            } | null;
         };
         /** UserCreate */
         UserCreate: {
@@ -2692,6 +2803,24 @@ export interface operations {
             };
         };
     };
+    logout_all_auth_logout_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     me_auth_me_get: {
         parameters: {
             query?: never;
@@ -2708,6 +2837,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserOut"];
+                };
+            };
+        };
+    };
+    change_password_auth_change_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    forgot_password_auth_forgot_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_password_auth_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

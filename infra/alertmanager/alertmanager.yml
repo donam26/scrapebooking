@@ -1,0 +1,28 @@
+# Mẫu cấu hình Alertmanager: entrypoint.sh thay __X__ bằng biến môi trường SMTP_* / OPS_ALERT_EMAILS
+# lúc khởi động (Alertmanager không đọc env trong file cấu hình). Mật khẩu SMTP đọc từ file, không
+# qua sed. Giả định SMTP STARTTLS (SMTP_SECURITY=starttls, cổng 587); SMTP_USERNAME trống = không auth.
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: "__SMTP_HOST__:__SMTP_PORT__"
+  smtp_from: "__SMTP_FROM__"
+  smtp_auth_username: "__SMTP_USERNAME__"
+  smtp_auth_password_file: /tmp/alertmanager/smtp_password
+  smtp_require_tls: true
+
+route:
+  receiver: ops-email
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: ['severity = "critical"']
+      repeat_interval: 1h
+
+receivers:
+  - name: ops-email
+    email_configs:
+      - to: "__OPS_ALERT_EMAILS__"
+        send_resolved: true
+        headers:
+          Subject: "[ScrapeBooking alert] {{ .CommonLabels.alertname }} ({{ .Status }})"

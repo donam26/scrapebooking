@@ -1,20 +1,33 @@
 name: scrapebooking-collector
 
-# Chạy worker collector trên máy khác. `.env` trên máy này phải có DATABASE_URL, REDIS_URL,
-# MINIO_ENDPOINT trỏ về IP/hostname của máy trung tâm, và WORKER_CHANNEL (booking | agoda |
-# ivivu | tripcom) chọn kênh mà máy này quét.
+# Worker collector trên máy khác. `.env` trên máy này phải có DATABASE_URL, REDIS_URL (kèm mật khẩu:
+# `redis://:<REDIS_PASSWORD>@<host>:6379/0`), MINIO_ENDPOINT, MINIO_ACCESS_KEY/MINIO_SECRET_KEY trỏ
+# về máy trung tâm qua mạng nội bộ/WireGuard (máy trung tâm không còn publish 5432/6379/9000 ra
+# Internet: cần mở riêng trên mạng đó), và WORKER_CHANNEL (booking | agoda | ivivu | tripcom | mytour)
+# chọn kênh mà máy này quét. Prometheus ở máy trung tâm scrape cổng 9100: đặt METRICS_BIND=<IP
+# WireGuard của máy này> (mặc định chỉ 127.0.0.1).
+#
+#   docker compose --env-file .env -f infra/docker-compose.collector.yml up -d --build
 services:
   worker:
     build:
       context: ..
       dockerfile: infra/Dockerfile.backend
+      target: collector
+    image: scrapebooking-backend:collector
     env_file: ../.env
     environment:
       WORKER_CHANNEL: ${WORKER_CHANNEL:-booking}
+      DB_STATEMENT_TIMEOUT_MS: "120000"
+      DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: "300000"
     command: ["arq", "app.worker.settings.WorkerSettings"]
+    ports: ["${METRICS_BIND:-127.0.0.1}:9100:9100"]
     deploy:
       resources:
         limits:
           memory: 1500M
     shm_size: "512m"
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" }

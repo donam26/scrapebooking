@@ -60,6 +60,21 @@
     }
    }
   },
+  "/auth/logout-all": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Logout All",
+    "description": "Thu hồi mọi phiên của chính mình (mọi thiết bị): tăng token_version.",
+    "operationId": "logout_all_auth_logout_all_post",
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     }
+    }
+   }
+  },
   "/auth/me": {
    "get": {
     "tags": [
@@ -74,6 +89,117 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/change-password": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Change Password",
+    "description": "Tự đổi mật khẩu: cần mật khẩu hiện tại; phiên khác bị thu hồi, phiên này được cấp lại.",
+    "operationId": "change_password_auth_change_password_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ChangePasswordRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/forgot": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Forgot Password",
+    "description": "Luôn trả 204 (không lộ email có tồn tại hay không). Có tài khoản thì gửi link một lần.",
+    "operationId": "forgot_password_auth_forgot_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ForgotPasswordRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/reset": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Reset Password",
+    "operationId": "reset_password_auth_reset_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ResetPasswordRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
         }
        }
       }
@@ -4562,6 +4688,27 @@
     ],
     "title": "CalibrationOut"
    },
+   "ChangePasswordRequest": {
+    "properties": {
+     "current_password": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Current Password"
+     },
+     "new_password": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 8,
+      "title": "New Password"
+     }
+    },
+    "type": "object",
+    "required": [
+     "current_password",
+     "new_password"
+    ],
+    "title": "ChangePasswordRequest"
+   },
    "ChannelDayOut": {
     "properties": {
      "channel": {
@@ -5883,6 +6030,20 @@
      "lng"
     ],
     "title": "DestinationOut"
+   },
+   "ForgotPasswordRequest": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ],
+    "title": "ForgotPasswordRequest"
    },
    "EventOut": {
     "properties": {
@@ -8284,6 +8445,28 @@
      "created_at"
     ],
     "title": "RecipientOut"
+   },
+   "ResetPasswordRequest": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 16,
+      "title": "Token"
+     },
+     "password": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 8,
+      "title": "Password"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token",
+     "password"
+    ],
+    "title": "ResetPasswordRequest"
    },
    "RoomSnapshotOut": {
     "properties": {

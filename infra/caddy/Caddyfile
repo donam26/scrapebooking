@@ -1,0 +1,26 @@
+# Reverse proxy duy nhất publish ra ngoài (80/443) → dashboard (Next.js); dashboard tự chuyển tiếp
+# /api/* tới api nội bộ. SITE_ADDRESS từ compose: ":80" (HTTP, chạy thử) hoặc tên miền
+# "ota.congty.vn" (Caddy tự lấy/gia hạn TLS Let's Encrypt, chuyển hướng HTTP→HTTPS).
+{$SITE_ADDRESS}
+
+encode zstd gzip
+
+# Phòng thủ nhiều lớp: dashboard chỉ chuyển tiếp các prefix API cho phép, nhưng ba đường này không
+# bao giờ được ra Internet dù cấu hình phía sau có sai (metrics Prometheus, OpenAPI).
+@internal path /api/metrics /api/docs /api/openapi.json /api/redoc
+respond @internal 404
+
+header {
+	X-Content-Type-Options nosniff
+	Referrer-Policy strict-origin-when-cross-origin
+	X-Frame-Options DENY
+	-Server
+}
+
+# HSTS chỉ khi phục vụ qua TLS: gửi khi chạy HTTP sẽ khoá trình duyệt vào HTTPS lúc thử nghiệm.
+@https protocol https
+header @https Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+# CSP và Permissions-Policy do Next.js đặt (next.config headers(), phase 2.2): app biết inline
+# script/style nào cần nonce; đặt thêm ở proxy sẽ chồng chéo và khó debug.
+reverse_proxy dashboard:3000

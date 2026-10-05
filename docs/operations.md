@@ -7,11 +7,16 @@
 | `migrate` | `alembic upgrade head` | Tạo/cập nhật schema (migration 0001–0011; 0007 = đa kênh, 0008 = thị trường/occupancy, 0010 = sự kiện địa phương, 0011 = thị trường khu vực). |
 | `scheduler` | `python -m app.scheduler` | Mỗi 60 giây: tạo scan run cho mốc giờ quét của tenant (**một run mỗi kênh**), đẩy job `probe_hotel` vào hàng đợi của kênh, đẩy lại job kẹt, chốt run quá hạn 90 phút, cảnh báo block rate theo kênh và **tự ngắt kênh** bị chặn >20%/15 phút (30 phút), kiểm tra proxy mỗi 15 phút, tạo partition tháng. |
 | `worker`, `worker-agoda`, `worker-ivivu`, `worker-tripcom` | `arq app.worker.settings.WorkerSettings` với `WORKER_CHANNEL=<kênh>` | Collector của một kênh: mỗi job = 1 listing (khách sạn × kênh), lấy calendar (nếu kênh có) rồi probe từng đêm theo tầng (0–14 đêm mọi lượt, xa hơn chỉ khi dữ liệu cũ), ghi snapshot + tín hiệu cầu, payload thô lên MinIO. Cũng chạy `verify_listing` (URL người dùng dán trỏ khách sạn nào) và `discover_listing` (tìm cùng khách sạn trên kênh này → gợi ý). Ngân sách request/phút toàn hệ thống theo kênh (`CHANNEL_BUDGETS`). Scale từng kênh: `--scale worker-agoda=N`. |
-| `jobs` | `arq app.jobs.settings.JobsWorkerSettings` | Analytics sau mỗi run (+ catch-up mỗi 30 phút), insight hằng ngày theo `insight_hour` của tenant (Batch API), insight theo yêu cầu (đồng bộ), poll batch mỗi 10 phút, backup Postgres 02:30 giờ VN, dọn partition >24 tháng ngày 1 hằng tháng. |
-| `api` | `uvicorn app.api.asgi:app` | FastAPI cho dashboard và import PMS. OpenAPI tại `/docs`, Prometheus tại `/metrics`. |
-| `dashboard` | Next.js | Giao diện tenant và operator; gọi API qua rewrite `/api/*`. |
+| `jobs` | `arq app.jobs.settings.JobsWorkerSettings` | Analytics sau mỗi run (+ catch-up mỗi 30 phút), insight hằng ngày theo `insight_hour` của tenant và theo yêu cầu (đều gọi model đồng bộ), backup Postgres 02:30 giờ VN, dọn partition >24 tháng ngày 1 hằng tháng. |
+| `api` | `uvicorn app.api.asgi:app` | FastAPI cho dashboard và import PMS. OpenAPI tại `/docs`, Prometheus tại `/metrics` (chỉ trong mạng `internal`; Caddy trả 404 cho `/api/metrics`, `/api/docs`, `/api/openapi.json`). |
+| `dashboard` | Next.js | Giao diện tenant và operator; gọi API qua rewrite `/api/*`. Không publish cổng. |
+| `caddy` | `caddy:2` + `infra/caddy/Caddyfile` | Điểm vào duy nhất (80/443) → dashboard. `SITE_ADDRESS=":80"` chạy HTTP; đặt tên miền thì tự lấy TLS Let's Encrypt, chuyển hướng HTTP→HTTPS, thêm HSTS. CSP do Next.js đặt. |
 
-Hạ tầng: Postgres 16, Redis 7 (hàng đợi arq), MinIO (HTML thô 30 ngày, backup), Prometheus + Grafana (profile monitoring).
+Hạ tầng: Postgres 16 (limit 1 GB RAM, `shared_buffers=256MB`), Redis 7 (hàng đợi arq, `--requirepass` + AOF + volume `redisdata`), MinIO (HTML thô 30 ngày, backup), Prometheus + Alertmanager + Grafana (`docker-compose.monitoring.yml`). Mạng compose: `internal` (mọi dịch vụ) và `edge` (caddy ↔ dashboard/api); **không service nào publish cổng ngoài caddy** — phát triển cục bộ thêm `-f infra/docker-compose.dev.yml` để mở 5432/6379/9000/9001/8000/3000 trên 127.0.0.1. Mọi service có `logging: json-file 50m × 5`, api/dashboard có healthcheck (`/healthz`, `GET /login`), `dashboard` chờ `api` healthy, `caddy` chờ `dashboard` healthy. Scheduler/jobs/worker không healthcheck (tiến trình không ghi heartbeat) — giám sát bằng Prometheus (§7).
+
+**Image backend** (`infra/Dockerfile.backend`) có hai target: `base` (api/scheduler/jobs/migrate: không Chromium, chạy user `app` uid 10001, có `pg_dump` 16) và `collector` (base + Playwright Chromium cho 5 worker; vẫn chạy root vì mã collector gọi `chromium.launch()` không có `--no-sandbox` và seccomp mặc định của Docker chặn sandbox namespace với user thường — chuyển sang `app` khi collector thêm cờ đó hoặc compose gắn seccomp profile của Playwright). Timeout Postgres đặt lúc kết nối (`app/db/engine.py`): api/scheduler 30 s / idle-in-transaction 60 s; jobs 600 s / 900 s; worker 120 s / 300 s (env `DB_STATEMENT_TIMEOUT_MS`, `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` trong compose).
+
+**Scheduler nhiều bản sao:** mỗi tick lấy `pg_try_advisory_lock(hashtext('scrapebooking.scheduler'))` trên một kết nối riêng, trả khoá cuối tick; bản sao không lấy được ghi log `scheduler_standby` (info, tối đa 1 phút/lần) và bỏ tick. Tiến trình giữ khoá chết → Postgres giải phóng khi kết nối đứt → bản sao kia tiếp quản ở tick sau. Hai bản sao lệch pha có thể luân phiên tick: vô hại vì mọi bước idempotent và throttle cảnh báo nằm trong Redis (`SET NX EX`, 30 phút). Cảnh báo SMTP và kiểm tra proxy chạy sau khi tick đã commit, ngoài transaction và ngoài khoá.
 
 Hàng đợi arq tách riêng theo worker: `arq:queue:collector:<kênh>` (`probe_hotel`, `verify_listing`,
 `discover_listing` của kênh đó) và `arq:queue:jobs` (analytics, bản tin, cron, tiến trình `jobs`).
@@ -62,8 +67,10 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 ## 5. AI insight
 
 - Nhà cung cấp: **OpenRouter** (Chat Completions, OpenAI-compatible). `OPENROUTER_MODEL=openai/gpt-6-luna`, `OPENROUTER_REASONING_EFFORT=medium`, `OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`, prompt hệ thống cố định (`app/insight/prompt.py`, `PROMPT_VERSION`).
-- Hằng ngày: `INSIGHT_USE_BATCH=true`. OpenRouter **không có** Batch API server-side nên đây là giả lập: `submit_batch` chạy song song ngay bằng Chat Completions và cache kết quả vào Redis (key `insight:batch:*`, TTL 48h), `jobs` poll mỗi 10 phút materialize vào DB; luồng `pending`/`batch_pending` → `completed`/`failed` giữ nguyên. **Không có chiết khấu batch** (cost batch = cost đồng bộ). Theo yêu cầu từ dashboard: gọi đồng bộ.
-- Mọi highlight/pricing_opportunity/risk phải có `evidence.ref` tồn tại trong đầu vào (`evt:<id>`, `metric:<hotel_id>:<date>`, `compset:<date>`); mục sai bị loại vào `dropped_highlights`.
+- Hằng ngày: cron `dispatch_daily_insights` (5 phút) đẩy job `generate_insight` cho tenant đã qua `insight_hour`; job gọi model **đồng bộ** y như theo yêu cầu (OpenRouter không có Batch API, không chiết khấu), bản tin đi `pending` → `completed`/`failed` trong một giao dịch; thất bại thì cron thử lại, tối đa 2 lần/ngày. Theo yêu cầu từ dashboard: API ghi dòng `pending` (khoá dòng tenant nên bấm hai lần chỉ có một bản), worker gọi đồng bộ, dashboard poll. Cột `insights.batch_id` không còn dùng.
+- Giới hạn mỗi lần gọi: `OPENROUTER_MAX_OUTPUT_TOKENS=4096`, `OPENROUTER_TIMEOUT_SECONDS=120` (SDK thử lại 1 lần), `INSIGHT_MAX_HOTELS=25` khách sạn trong đầu vào (self trước, rồi đối thủ theo thứ tự watchlist; `data_quality.hotels_omitted` ghi số bị bỏ). `events_24h` và `events_7d` không trùng nhau; sự kiện giá chỉ lấy mức khách sạn. Nhà cung cấp không trả usage thì `tokens_in` là ước lượng (ký tự/4).
+- Mọi highlight/pricing_opportunity/risk phải có `evidence.ref` tồn tại trong đầu vào (`evt:<id>`, `metric:<hotel_id>:<date>`, `compset:<date>`, `demand:<id>`) và `kind` khớp loại ref; `date_from ≤ date_to` và nằm trong kỳ; highlight phải có `hotel_ids`. Mục sai bị loại vào `dropped_highlights` kèm lý do.
+- Lỗi `insights.error`: operator thấy nguyên văn; người dùng tenant chỉ thấy mã ngắn (`no_scan_data`, `watchlist_empty`, `schema_invalid`, `worker_timeout`, `queue_unavailable`, `provider_error`).
 - Không có `OPENROUTER_API_KEY` thì dùng client giả (đầu ra rỗng có ghi chú) để hệ thống vẫn chạy.
 - Đổi prompt: tăng `PROMPT_VERSION`, chạy `uv run pytest tests/unit/test_insight_scenarios.py`.
 
@@ -96,7 +103,7 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 | `check-proxy` | Gọi thử qua từng proxy, in IP ra (không in mật khẩu); mã thoát 1 nếu có proxy lỗi. |
 | `run-status --limit 5` | Trạng thái các đợt quét gần nhất. |
 | `analyze [--run-id N] [--all-pending]` | Chạy analytics tay. |
-| `insight <tenant_id> [--sync/--batch]` | Sinh bản tin tay. |
+| `insight <tenant_id>` | Sinh bản tin tay (gọi model đồng bộ). |
 | `reparse --since-days 30 [--no-reanalyze]` | Parse lại HTML thô **Booking** sau khi đổi parser, rồi tính lại analytics cho các run bị ảnh hưởng. Kênh khác lưu payload JSON; `parser_version` mỗi probe có dạng `<kênh>:<phiên bản>`. |
 | `ensure-partitions`, `prune-partitions --keep-months 24` | Partition `room_snapshots`. |
 | `backup-db` | pg_dump → gzip → MinIO bucket `BACKUP_BUCKET`, giữ `BACKUP_KEEP` bản. |

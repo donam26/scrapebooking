@@ -1,22 +1,59 @@
 name: scrapebooking
 
+# Chạy từ thư mục gốc repo: `docker compose --env-file .env -f infra/docker-compose.yml up -d --build`
+# (compose chỉ tự đọc `.env` nằm cạnh file compose, nên phải chỉ rõ `--env-file`).
+#
+# Biến bắt buộc trong .env (compose dừng với thông báo rõ nếu thiếu): POSTGRES_PASSWORD,
+# REDIS_PASSWORD, MINIO_ROOT_PASSWORD, JWT_SECRET. Mật khẩu nằm trong URL kết nối: chỉ dùng chữ+số.
+#
+# Mạng: `internal` (mọi dịch vụ) và `edge` (caddy ↔ dashboard/api). Chỉ `caddy` publish cổng
+# (80/443). Phát triển cục bộ cần 5432/6379/9000/9001/8000/3000 trên localhost: thêm
+# `-f infra/docker-compose.dev.yml`.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "50m", max-file: "5" }
+
 x-backend-env: &backend-env
-  DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/scrapebooking
-  REDIS_URL: redis://redis:6379/0
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD thiếu trong .env}@postgres:5432/${POSTGRES_DB:-scrapebooking}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD thiếu trong .env}@redis:6379/0
   MINIO_ENDPOINT: http://minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+  MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD thiếu trong .env}
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET thiếu trong .env}
+  # Truy vấn ngắn: 30 s / transaction bỏ quên: 60 s (app/db/engine.py). jobs và worker đặt dài hơn.
+  DB_STATEMENT_TIMEOUT_MS: "30000"
+  DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: "60000"
+
+# Worker collector: commit mỗi đêm nhưng một job có thể chờ budget/kênh lâu; analytics/insight trong
+# jobs chạy nhiều phút và gọi model tới 120 s trong một session.
+x-collector-env: &collector-env
+  <<: *backend-env
+  DB_STATEMENT_TIMEOUT_MS: "120000"
+  DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: "300000"
 
 x-backend: &backend
   build:
     context: ..
     dockerfile: infra/Dockerfile.backend
+    target: base
+  image: scrapebooking-backend:base
   env_file: ../.env
   environment: *backend-env
   restart: unless-stopped
+  logging: *logging
+  networks: [internal]
 
 # Worker thu dữ liệu: một service mỗi kênh (WORKER_CHANNEL), mỗi kênh một hàng đợi riêng (D9).
-# Tăng thông lượng một kênh: `docker compose up -d --scale worker-agoda=2`.
+# Tăng thông lượng một kênh: `docker compose up -d --scale worker-agoda=2`. Không healthcheck:
+# tiến trình arq không ghi heartbeat; giám sát qua Prometheus (up, sb_arq_queue_depth, sb_jobs_total).
 x-collector: &collector
   <<: *backend
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile.backend
+    target: collector
+  image: scrapebooking-backend:collector
   command: ["arq", "app.worker.settings.WorkerSettings"]
   depends_on:
     migrate: { condition: service_completed_successfully }
@@ -30,24 +67,40 @@ x-collector: &collector
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.9-alpine
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
-      POSTGRES_DB: scrapebooking
-    ports: ["5432:5432"]
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD thiếu trong .env}
+      POSTGRES_DB: ${POSTGRES_DB:-scrapebooking}
+    # Khoảng 1/4 RAM cấp cho Postgres (limit 1g); api 10 + scheduler 10 + jobs 10 + 5 worker × 10 kết nối.
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "effective_cache_size=768MB", "-c", "max_connections=120"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
+    shm_size: "256m"
+    networks: [internal]
+    restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d scrapebooking"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
+    image: redis:7.4-alpine
+    # AOF + volume: hàng đợi arq, pause kênh, budget, throttle cảnh báo sống qua recreate container.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes --maxmemory-policy noeviction"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD thiếu trong .env}
+    volumes: ["redisdata:/data"]
+    networks: [internal]
+    restart: unless-stopped
+    logging: *logging
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -57,10 +110,12 @@ services:
     image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports: ["9000:9000", "9001:9001"]
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD thiếu trong .env}
     volumes: ["miniodata:/data"]
+    networks: [internal]
+    restart: unless-stopped
+    logging: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 5s
@@ -75,69 +130,91 @@ services:
       postgres: { condition: service_healthy }
 
   scheduler:
+    # Có thể chạy 2 bản sao (`--scale scheduler=2`): khoá leader pg_try_advisory_lock mỗi tick,
+    # bản sao không giữ khoá ghi log `scheduler_standby` và bỏ tick.
     <<: *backend
     command: ["python", "-m", "app.scheduler"]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
   worker:
     # Booking.com (tên service giữ nguyên để không đổi cấu hình giám sát cũ).
     <<: *collector
     environment:
-      <<: *backend-env
+      <<: *collector-env
       WORKER_CHANNEL: booking
 
   worker-agoda:
     <<: *collector
     environment:
-      <<: *backend-env
+      <<: *collector-env
       WORKER_CHANNEL: agoda
 
   worker-ivivu:
     <<: *collector
     environment:
-      <<: *backend-env
+      <<: *collector-env
       WORKER_CHANNEL: ivivu
 
   worker-tripcom:
     <<: *collector
     environment:
-      <<: *backend-env
+      <<: *collector-env
       WORKER_CHANNEL: tripcom
 
   worker-mytour:
     <<: *collector
     environment:
-      <<: *backend-env
+      <<: *collector-env
       WORKER_CHANNEL: mytour
 
   jobs:
-    # Analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu, poll batch, backup đêm.
+    # Analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu, thông báo email, backup đêm.
     <<: *backend
     command: ["arq", "app.jobs.settings.JobsWorkerSettings"]
+    environment:
+      <<: *backend-env
+      DB_STATEMENT_TIMEOUT_MS: "600000"
+      DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: "900000"
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
+    deploy:
+      resources:
+        limits:
+          memory: 768m
 
   api:
     <<: *backend
-    command: ["uvicorn", "app.api.asgi:app", "--host", "0.0.0.0", "--port", "8000"]
-    ports: ["8000:8000"]
+    command: ["uvicorn", "app.api.asgi:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment:
-      DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/scrapebooking
-      REDIS_URL: redis://redis:6379/0
-      MINIO_ENDPOINT: http://minio:9000
+      <<: *backend-env
       GRAFANA_URL: ${GRAFANA_URL:-http://localhost:3001}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    networks: [internal, edge]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   dashboard:
     # Trình duyệt gọi cùng origin /api/*; Route Handler của Next chuyển tiếp tới API_INTERNAL_URL
-    # (đọc lúc chạy, không cần build lại).
+    # (đọc lúc chạy, không cần build lại). Không publish cổng: Caddy đứng trước.
     build:
       context: ../dashboard
       dockerfile: Dockerfile
@@ -146,10 +223,47 @@ services:
       CONTACT_PHONE: ${CONTACT_PHONE:-}
       CONTACT_ZALO: ${CONTACT_ZALO:-}
       CONTACT_EMAIL: ${CONTACT_EMAIL:-}
-    ports: ["3000:3000"]
-    depends_on: [api]
+    networks: [internal, edge]
+    depends_on:
+      api: { condition: service_healthy }
     restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/login > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  caddy:
+    # Điểm vào duy nhất từ Internet. SITE_ADDRESS=":80" (HTTP, chạy thử) hoặc tên miền (Caddy tự lấy
+    # và gia hạn chứng chỉ Let's Encrypt, chuyển hướng HTTP→HTTPS; khi đó đặt COOKIE_SECURE=true,
+    # APP_BASE_URL/CORS_ORIGINS=https://…).
+    image: caddy:2.10.0-alpine
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    networks: [edge]
+    depends_on:
+      dashboard: { condition: service_healthy }
+    restart: unless-stopped
+    logging: *logging
+
+networks:
+  internal: {}
+  edge: {}
 
 volumes:
   pgdata:
+  redisdata:
   miniodata:
+  caddydata:
+  caddyconfig:

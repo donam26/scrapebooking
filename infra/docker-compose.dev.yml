@@ -1,0 +1,26 @@
+name: scrapebooking
+
+# Override cho phát triển cục bộ: mở lại các cổng dịch vụ nội bộ trên localhost (chỉ 127.0.0.1)
+# để chạy backend/dashboard ngoài container (`make api`, `npm run dev`) hoặc dùng psql/redis-cli.
+#
+#   docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up -d
+#   docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up -d postgres redis minio
+#
+# `.env.example` có sẵn mật khẩu dev (app / devredis / minioadmin) khớp DATABASE_URL, REDIS_URL,
+# MINIO_* dùng cho tiến trình chạy ngoài container. Không dùng file này trên máy chủ sản xuất.
+
+services:
+  postgres:
+    ports: ["127.0.0.1:5432:5432"]
+
+  redis:
+    ports: ["127.0.0.1:6379:6379"]
+
+  minio:
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+
+  api:
+    ports: ["127.0.0.1:8000:8000"]
+
+  dashboard:
+    ports: ["127.0.0.1:3000:3000"]

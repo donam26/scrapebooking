@@ -25,10 +25,11 @@ docs/
 ## Chạy nhanh
 
 ```bash
-cp .env.example .env
-docker compose -f infra/docker-compose.yml up -d --build
+cp .env.example .env   # bắt buộc: POSTGRES_PASSWORD, REDIS_PASSWORD, MINIO_ROOT_PASSWORD, JWT_SECRET; điền PROXY_URL_TEMPLATE
+docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 cd backend && uv run sb add-user ops@congty.vn --role operator
-# dashboard: http://localhost:3000, API docs: http://localhost:8000/docs
+# dashboard: http://localhost (Caddy, cổng 80/443 duy nhất publish). Phát triển cần :3000/:8000/:5432…
+# trên localhost: thêm -f infra/docker-compose.dev.yml. API docs: http://localhost:8000/docs (dev override)
 ```
 
 Phát triển cục bộ (Postgres + Redis + MinIO từ compose):

@@ -30,3 +30,7 @@ class RateLimiter:
             if remaining > 0:
                 await self._sleep(remaining)
         self._last[key] = self._now()
+
+    def forget(self, key: str) -> None:
+        """Bỏ mốc của key (session đã thu hồi): bảng mốc không lớn mãi theo số session đã qua."""
+        self._last.pop(key, None)

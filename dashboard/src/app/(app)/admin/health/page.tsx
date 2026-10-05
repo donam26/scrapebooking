@@ -84,6 +84,8 @@ export default function AdminHealthPage() {
   useInterval(reloadAll, REFRESH_MS);
   const [created, setCreated] = useState<number | null>(null);
   const scanAll = useMutation(async () => {
+    // Tạo lượt quét cho mọi tenant × kênh: hỏi lại để tránh bấm nhầm.
+    if (!window.confirm(t("scanAllConfirm"))) return;
     setCreated(null);
     const created = await api.health.scanNow();
     setCreated(created.length);

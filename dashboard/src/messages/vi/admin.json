@@ -95,6 +95,7 @@
     "openGrafana": "Mở Grafana",
     "scanAll": "Quét tất cả ngay",
     "scanAllTitle": "Tạo lượt quét thủ công cho mọi tenant đang hoạt động",
+    "scanAllConfirm": "Quét tất cả tenant ngay bây giờ? Mỗi tenant × kênh đang hoạt động sẽ có một lượt quét mới, tốn proxy và có thể tăng tỷ lệ bị chặn.",
     "scanCreated": "Đã tạo {count, number} lượt quét (mỗi tenant × kênh một lượt). Tiến độ hiện trong bảng “Các lượt quét” ở lần làm mới tới.",
     "stats": {
       "probes": "Probe 15 phút qua",

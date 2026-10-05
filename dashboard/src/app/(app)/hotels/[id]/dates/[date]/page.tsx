@@ -2,12 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { useState } from "react";
 import { api, type ChannelDayOut, type DayDetailOut, type RoomSnapshotOut, type ScanRunOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { addDays, num, useFmt } from "@/lib/format";
+import { parseDateParam, parseIdParam } from "@/lib/params";
 import { useLabel } from "@/lib/labels";
 import { channelName, hotelTitle, sortChannels, withChannel } from "@/lib/channels";
 import { Button, ButtonLink, Card, EmptyState, ErrorBox, Note, PageHeader, ROW_CLASS, Segmented, SkeletonBlock, Table, Tabs, Td, Th, cx } from "@/components/ui";
@@ -278,15 +279,17 @@ export default function DayDetailPage() {
   const label = useLabel();
   const { cellMark, roomMark } = useMarks();
   const { nightReason } = useNightReason();
-  const { id, date } = useParams<{ id: string; date: string }>();
-  const hotelId = Number(id);
-  const valid = Number.isFinite(hotelId) && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const { id, date: dateParam } = useParams<{ id: string; date: string }>();
+  const hotelId = parseIdParam(id);
+  const date = parseDateParam(dateParam);
   const [historyDays, setHistoryDays] = useState<number>(14);
   const [channelParam, setChannel] = useChannelParam();
   const { isOperator } = useSession();
-  const { data, error, loading } = useApi(valid ? `day:${hotelId}:${date}:${historyDays}:${channelParam ?? ""}` : null, () =>
-    api.day(hotelId, date, historyDays, channelParam),
+  const { data, error, loading } = useApi(hotelId === null || date === null ? null : `day:${hotelId}:${date}:${historyDays}:${channelParam ?? ""}`, () =>
+    api.day(hotelId!, date!, historyDays, channelParam),
   );
+  // id/ngày sai định dạng: trang 404 thay vì skeleton xoay mãi (gọi sau mọi hook để thứ tự hook không đổi).
+  if (hotelId === null || date === null) notFound();
   const channel = data?.channel ?? channelParam ?? "";
   // Kênh của khách sạn: có số liệu đêm này, hoặc đang/đã quét (kể cả tạm dừng, đường dẫn lỗi).
   const hotelChannels = data
@@ -343,8 +346,8 @@ export default function DayDetailPage() {
   const title = data ? hotelTitle(data.hotel, data.label) : t("fallbackTitle");
   const rateScoped = data?.latest.some((s) => s.stock_scope === "rate") ?? false;
   const market = data ? nightReason(data.compset, data.holiday) : null;
-  const prev = valid ? addDays(date, -1) : null;
-  const next = valid ? addDays(date, 1) : null;
+  const prev = addDays(date, -1);
+  const next = addDays(date, 1);
 
   return (
     <>
@@ -352,9 +355,9 @@ export default function DayDetailPage() {
         crumbs={[
           { href: "/competitors", label: t("crumb") },
           { href: withChannel(`/hotels/${hotelId}`, channelParam), label: title },
-          { label: valid ? t("nightCrumb", { night: fmtNight(date) }) : t("invalidDate") },
+          { label: t("nightCrumb", { night: fmtNight(date) }) },
         ]}
-        title={valid ? t("title", { weekday: fmtWeekday(date), date: fmtDate(date) }) : t("invalidDate")}
+        title={t("title", { weekday: fmtWeekday(date), date: fmtDate(date) })}
         subtitle={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="font-semibold text-body">{title}</span>
@@ -373,16 +376,14 @@ export default function DayDetailPage() {
           </span>
         }
         actions={
-          valid && (
-            <div className="flex items-center gap-1">
-              <ButtonLink href={withChannel(`/hotels/${hotelId}/dates/${prev}`, channelParam)} variant="ghost" size="sm" icon={<IconChevronLeft size={15} />}>
-                {fmtNight(prev!)}
-              </ButtonLink>
-              <ButtonLink href={withChannel(`/hotels/${hotelId}/dates/${next}`, channelParam)} variant="ghost" size="sm">
-                {fmtNight(next!)} <IconChevronRight size={15} />
-              </ButtonLink>
-            </div>
-          )
+          <div className="flex items-center gap-1">
+            <ButtonLink href={withChannel(`/hotels/${hotelId}/dates/${prev}`, channelParam)} variant="ghost" size="sm" icon={<IconChevronLeft size={15} />}>
+              {fmtNight(prev)}
+            </ButtonLink>
+            <ButtonLink href={withChannel(`/hotels/${hotelId}/dates/${next}`, channelParam)} variant="ghost" size="sm">
+              {fmtNight(next)} <IconChevronRight size={15} />
+            </ButtonLink>
+          </div>
         }
       />
       <ErrorBox error={error} className="mb-4" />

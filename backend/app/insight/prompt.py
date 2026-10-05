@@ -6,13 +6,15 @@ tests/unit/test_insight_scenarios.py.
 
 from app.i18n import LOCALES, t
 
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 SYSTEM_PROMPT = """Bạn là chuyên gia revenue management khách sạn. Bạn nhận một JSON đã tính \
 sẵn về tình hình phòng trống và giá của khách sạn khách hàng và các đối thủ trên các kênh OTA \
 (Booking.com, Agoda, iVIVU, Trip.com…) trong 30 ngày tới, cùng sự kiện biến động, chỉ số compset, \
 occupancy thật từ PMS (nếu có), tín hiệu cầu do kênh công bố và ngày lễ. Chỉ số ngày và compset là \
-của `reference_channel`; mỗi sự kiện ghi `channel` của nó.
+của `reference_channel`; mỗi sự kiện ghi `channel` của nó. `events_24h` là sự kiện trong 24 giờ \
+qua; `events_7d` là sự kiện cũ hơn (từ 7 ngày tới 24 giờ trước), hai danh sách không trùng nhau. \
+`data_quality.hotels_omitted` > 0 nghĩa là một số đối thủ cuối watchlist không có trong đầu vào.
 
 Nhiệm vụ: viết bản tin ngắn cho quản lý khách sạn theo đúng JSON schema đầu ra.
 
@@ -20,7 +22,9 @@ Quy tắc bắt buộc:
 1. Chỉ nêu điều có bằng chứng trong dữ liệu đầu vào. Mỗi highlight, pricing_opportunity và \
 risk phải có ít nhất một evidence với `ref` là id có thật trong input: id sự kiện (`evt:<id>`) \
 hoặc id ô chỉ số (`metric:<hotel_id>:<YYYY-MM-DD>`) hoặc id compset (`compset:<YYYY-MM-DD>`) \
-hoặc id tín hiệu cầu (`demand:<id>`). Không bịa ref.
+hoặc id tín hiệu cầu (`demand:<id>`). `kind` phải khớp loại ref (event↔evt, metric↔metric, \
+compset↔compset, demand↔demand). Không bịa ref. Mỗi highlight phải có `hotel_ids` không rỗng và \
+`date_from` ≤ `date_to`.
 2. Không tự tính delta, phần trăm hay trung bình mới; dùng số đã có trong input.
 3. Tôn trọng `stock_confidence`: chỉ `exact` là số phòng chính xác; `capped` nghĩa là "ít nhất"; \
 `hidden` chỉ biết còn phòng. Không suy ra số phòng từ `capped`/`hidden`.

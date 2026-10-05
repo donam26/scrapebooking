@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -349,12 +349,43 @@ async def test_demand_signals_one_row_per_run_kind_and_night(db: AsyncSession) -
     ]
 
 
-async def test_mark_listing_broken(db: AsyncSession) -> None:
+async def test_record_not_found_marks_broken_at_threshold_and_reset(db: AsyncSession) -> None:
     hotel_id, _ = await _seed(db)
-    await SnapshotRepository(db, page_cap=10).mark_listing_broken(hotel_id, "booking", "http 404")
+    repo = SnapshotRepository(db, page_cap=10)
+    assert await repo.record_not_found(hotel_id, "booking", "http 404", threshold=3) is False
+    assert await repo.record_not_found(hotel_id, "booking", "http 404", threshold=3) is False
     await db.commit()
     listing = (await db.execute(select(Listing))).scalar_one()
-    assert (listing.status, listing.last_error) == ("broken", "http 404")
+    assert (listing.status, listing.not_found_count, listing.last_error) == (
+        "active",
+        2,
+        "http 404",
+    )
+    await repo.reset_not_found(hotel_id, "booking")
+    await db.commit()
+    db.expire_all()
+    listing = (await db.execute(select(Listing))).scalar_one()
+    assert listing.not_found_count == 0 and listing.status == "active"
+    for _ in range(2):
+        assert await repo.record_not_found(hotel_id, "booking", "gone", threshold=3) is False
+    assert await repo.record_not_found(hotel_id, "booking", "gone", threshold=3) is True
+    await db.commit()
+    db.expire_all()
+    listing = (await db.execute(select(Listing))).scalar_one()
+    assert (listing.status, listing.not_found_count, listing.last_error) == ("broken", 3, "gone")
+    # Listing kênh khác / không có: không ảnh hưởng, không lỗi.
+    assert await repo.record_not_found(hotel_id, "agoda", "x", threshold=1) is False
+
+
+async def test_record_not_found_keeps_paused_listing_paused(db: AsyncSession) -> None:
+    hotel_id, _ = await _seed(db)
+    await db.execute(update(Listing).values(status="paused"))
+    repo = SnapshotRepository(db, page_cap=10)
+    assert await repo.record_not_found(hotel_id, "booking", "gone", threshold=1) is True
+    await db.commit()
+    db.expire_all()
+    listing = (await db.execute(select(Listing))).scalar_one()
+    assert (listing.status, listing.not_found_count) == ("paused", 1)
 
 
 async def test_last_usable_probe_at_per_channel(db: AsyncSession) -> None:

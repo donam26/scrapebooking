@@ -2,7 +2,10 @@
 occupancy PMS, ngày lễ. Không HTML thô, không để AI tự tính delta.
 
 Mỗi phần tử có `ref` để AI trích bằng chứng: `metric:<hotel_id>:<date>`, `evt:<id>`,
-`compset:<date>`.
+`compset:<date>`, `demand:<id>`.
+
+Giới hạn đầu vào: tối đa `max_hotels` khách sạn (self trước, rồi đối thủ theo thứ tự
+watchlist); `events_24h` và `events_7d` không trùng nhau (7d chỉ gồm sự kiện cũ hơn 24h).
 """
 
 from dataclasses import dataclass, field
@@ -11,7 +14,7 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.compset import compset_by_day
@@ -33,6 +36,7 @@ EVENT_LIMIT_24H = 120
 EVENT_LIMIT_7D = 200
 # Bản tin phục vụ quyết định buổi sáng: tối đa 30 đêm dù horizon quét là 90 (giữ đầu vào gọn).
 INSIGHT_MAX_DAYS = 30
+INSIGHT_MAX_HOTELS = 25
 
 PRIORITY_EVENTS = (
     "channel_closed",
@@ -44,6 +48,9 @@ PRIORITY_EVENTS = (
     "price_up",
     "rooms_decrease",
 )
+# Sự kiện giá chỉ lấy mức khách sạn (room_type_id NULL): giá từng loại phòng lặp lại cùng
+# biến động và làm đầu vào phình.
+HOTEL_LEVEL_ONLY = ("price_down", "price_up")
 
 
 def _num(v: Decimal | None) -> float | None:
@@ -61,7 +68,10 @@ class InsightInput:
 
 
 async def build_input(
-    session: AsyncSession, tenant: Tenant, now: datetime | None = None
+    session: AsyncSession,
+    tenant: Tenant,
+    now: datetime | None = None,
+    max_hotels: int = INSIGHT_MAX_HOTELS,
 ) -> InsightInput:
     now = now or datetime.now(tz=UTC)
     tz = ZoneInfo(tenant.timezone)
@@ -70,14 +80,17 @@ async def build_input(
     start, end = today, today + timedelta(days=days_n - 1)
     channel = tenant.reference_channel
 
-    links = (
+    # role desc: "self" trước "competitor"; trong mỗi vai theo thứ tự thêm vào watchlist.
+    all_links = (
         await session.execute(
             select(TenantHotel, Hotel)
             .join(Hotel, Hotel.id == TenantHotel.hotel_id)
             .where(TenantHotel.tenant_id == tenant.id, TenantHotel.active.is_(True))
-            .order_by(TenantHotel.role.desc(), TenantHotel.added_at)
+            .order_by(TenantHotel.role.desc(), TenantHotel.added_at, TenantHotel.hotel_id)
         )
     ).all()
+    links = all_links[: max(max_hotels, 1)]
+    hotels_omitted = len(all_links) - len(links)
     hotel_ids = [h.id for _, h in links]
     refs: set[str] = set()
     payload: dict[str, Any] = {
@@ -197,23 +210,29 @@ async def build_input(
             }
         )
 
-    async def _events(since: datetime, limit: int) -> list[dict[str, Any]]:
-        rows = (
-            await session.execute(
-                select(AvailabilityEvent, Hotel.name, RoomType.name)
-                .join(Hotel, Hotel.id == AvailabilityEvent.hotel_id)
-                .outerjoin(RoomType, RoomType.id == AvailabilityEvent.room_type_id)
-                .where(
-                    AvailabilityEvent.hotel_id.in_(hotel_ids),
-                    AvailabilityEvent.observed_at >= since,
-                    AvailabilityEvent.stay_date >= start,
-                    AvailabilityEvent.stay_date <= end,
-                    AvailabilityEvent.event_type.in_(PRIORITY_EVENTS),
-                )
-                .order_by(AvailabilityEvent.observed_at.desc(), AvailabilityEvent.id.desc())
-                .limit(limit)
+    async def _events(since: datetime, until: datetime | None, limit: int) -> list[dict[str, Any]]:
+        """Sự kiện ưu tiên quan sát từ `since` (tới trước `until` nếu có)."""
+        stmt = (
+            select(AvailabilityEvent, Hotel.name, RoomType.name)
+            .join(Hotel, Hotel.id == AvailabilityEvent.hotel_id)
+            .outerjoin(RoomType, RoomType.id == AvailabilityEvent.room_type_id)
+            .where(
+                AvailabilityEvent.hotel_id.in_(hotel_ids),
+                AvailabilityEvent.observed_at >= since,
+                AvailabilityEvent.stay_date >= start,
+                AvailabilityEvent.stay_date <= end,
+                AvailabilityEvent.event_type.in_(PRIORITY_EVENTS),
+                or_(
+                    AvailabilityEvent.event_type.not_in(HOTEL_LEVEL_ONLY),
+                    AvailabilityEvent.room_type_id.is_(None),
+                ),
             )
-        ).all()
+            .order_by(AvailabilityEvent.observed_at.desc(), AvailabilityEvent.id.desc())
+            .limit(limit)
+        )
+        if until is not None:
+            stmt = stmt.where(AvailabilityEvent.observed_at < until)
+        rows = (await session.execute(stmt)).all()
         out = []
         for e, hotel_name, rt_name in rows:
             ref = f"evt:{e.id}"
@@ -236,8 +255,10 @@ async def build_input(
             )
         return out
 
-    payload["events_24h"] = await _events(now - timedelta(hours=24), EVENT_LIMIT_24H)
-    payload["events_7d"] = await _events(now - timedelta(days=7), EVENT_LIMIT_7D)
+    # Hai cửa sổ rời nhau: 24h gần nhất, và 7 ngày trước đó trừ 24h (không gửi sự kiện 2 lần).
+    cutoff_24h = now - timedelta(hours=24)
+    payload["events_24h"] = await _events(cutoff_24h, None, EVENT_LIMIT_24H)
+    payload["events_7d"] = await _events(now - timedelta(days=7), cutoff_24h, EVENT_LIMIT_7D)
 
     signals = (
         (
@@ -308,5 +329,6 @@ async def build_input(
         "unknown_rate": round(unknown_rate, 3) if unknown_rate is not None else None,
         "last_observation_at": last_obs.isoformat() if last_obs else None,
         "has_pms_data": bool(own_daily),
+        "hotels_omitted": hotels_omitted,
     }
     return InsightInput(payload, refs, set(hotel_ids), start, end, scan_run_id)

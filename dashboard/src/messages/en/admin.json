@@ -95,6 +95,7 @@
     "openGrafana": "Open Grafana",
     "scanAll": "Scan all now",
     "scanAllTitle": "Create a manual scan for every active tenant",
+    "scanAllConfirm": "Scan all tenants now? Every active tenant × channel gets a new scan, which uses proxy quota and may raise the block rate.",
     "scanCreated": "Created {count, plural, one {# scan} other {# scans}} (one per tenant × channel). Progress shows in the “Scans” table on the next refresh.",
     "stats": {
       "probes": "Probes, last 15 min",

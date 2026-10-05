@@ -2,7 +2,7 @@
 `build(deps: CollectorDeps) -> ChannelCollector`."""
 
 import importlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Protocol
 
@@ -11,6 +11,7 @@ from app.collector.base import Collector, ListingFinder, ListingVerifier
 from app.collector.proxy import ProxyProvider
 from app.collector.ratelimit import RateLimiter
 from app.collector.session import SessionListener
+from app.config import AGODA_INITIATOR_API_KEY, AGODA_INITIATOR_VERSION, MYTOUR_WEB_SECRET
 
 
 class RequestBudget(Protocol):
@@ -22,6 +23,16 @@ class RequestBudget(Protocol):
 class NoBudget:
     async def acquire(self) -> None:
         return None
+
+
+@dataclass(frozen=True)
+class ChannelKeys:
+    """Khoá tĩnh trong JS web của kênh (Settings, không phải bí mật tài khoản): kênh deploy bản mới
+    có thể đổi, cấu hình qua env thay vì build lại."""
+
+    agoda_initiator_api_key: str = AGODA_INITIATOR_API_KEY
+    agoda_initiator_version: str = AGODA_INITIATOR_VERSION
+    mytour_web_secret: str = MYTOUR_WEB_SECRET
 
 
 @dataclass
@@ -36,6 +47,7 @@ class CollectorDeps:
     session_listener: SessionListener | None = None
     budget: RequestBudget = NoBudget()
     country: str = "vn"  # nước của proxy / điểm bán (POS)
+    keys: ChannelKeys = field(default_factory=ChannelKeys)
 
 
 class ChannelCollector(Collector, ListingVerifier, ListingFinder, Protocol):

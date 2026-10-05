@@ -8,6 +8,8 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from app.collector.ivivu.api import price_headers, price_request
 from app.collector.ivivu.parser import (
     bookings_month_signal,
@@ -41,7 +43,8 @@ def test_melia_offers_rates_and_suppliers(fixtures_dir: Path) -> None:
     assert len(villa.rates) == 59
     assert villa.min_price == Decimal("3120500")
     assert villa.min_refundable_price == Decimal("4537500")
-    assert villa.badge_count is None and villa.dropdown_max is None
+    # AvailableNo: hạng phòng ghi 0 (Status RQ) nhưng các dòng giá ghi tới 10 → "còn ít nhất 10".
+    assert (villa.badge_count, villa.dropdown_max, villa.stock_scope) == (10, None, "rate")
     cheapest = villa.rates[0]  # rates sắp theo giá
     assert cheapest.price == Decimal("3120500") and cheapest.currency == "VND"
     assert cheapest.source_supplier == "B2B"
@@ -113,11 +116,75 @@ def test_taxes_flag_follows_exclude_vat(fixtures_dir: Path) -> None:
     assert {r.taxes_included for o in parsed.offers for r in o.rates} == {False}
 
 
-def test_empty_hotels_is_sold_out_and_garbage_is_error() -> None:
-    assert parse_price_response('{"Hotels":[],"MSG":""}', 2, "VND").status == ProbeStatus.SOLD_OUT
+def test_missing_exclude_vat_means_unknown_taxes(fixtures_dir: Path) -> None:
+    # Không có ExcludeVAT ở cả khách sạn lẫn hạng phòng: không chắc, không mặc định "gồm thuế".
+    data = json.loads(_price(fixtures_dir))
+    hotel = data["Hotels"][0]
+    del hotel["ExcludeVAT"]
+    for rc in hotel["RoomClasses"]:
+        rc.pop("ExcludeVAT", None)
+    parsed = parse_price_response(json.dumps(data), 2, "VND")
+    assert parsed.status == ProbeStatus.OK
+    assert {r.taxes_included for o in parsed.offers for r in o.rates} == {None}
+    # Chỉ hạng phòng ghi: vẫn đọc được.
+    hotel["RoomClasses"][0]["ExcludeVAT"] = 0
+    parsed = parse_price_response(json.dumps(data), 2, "VND")
+    first = next(o for o in parsed.offers if o.external_room_id == "13361")
+    assert {r.taxes_included for r in first.rates} == {True}
+
+
+def test_available_no_is_at_least_n_per_room_class(fixtures_dir: Path) -> None:
+    """Park Hyatt 01/10: trong một hạng phòng mỗi nguồn bán một AvailableNo (1, 6, 7) → lấy max,
+    scope rate (capped), không phải số chính xác; phòng nguồn ngoài chưa ghép ghi 1 (chỗ giữ)."""
+    parsed = parse_price_response(_read(fixtures_dir, "price_parkhyatt_2026-10-01.json"), 2, "VND")
+    by_id = {o.external_room_id: o for o in parsed.offers}
+    assert by_id["3725"].badge_count == 7 and by_id["3725"].stock_scope == "rate"
+    assert by_id["15725"].badge_count == 2
+    assert by_id["name:park-twin-beds"].badge_count == 1
+    assert all(o.dropdown_max is None for o in parsed.offers)
+
+
+def test_available_no_zero_or_missing_is_not_sold_out(fixtures_dir: Path) -> None:
+    data = json.loads(_price(fixtures_dir))
+    for rc in data["Hotels"][0]["RoomClasses"]:
+        rc["AvailableNo"] = 0
+        for r in rc["MealTypeRates"]:
+            r.pop("AvailableNo", None)
+    parsed = parse_price_response(json.dumps(data), 2, "VND")
+    assert parsed.status == ProbeStatus.OK
+    assert {o.badge_count for o in parsed.offers} == {None}  # ẩn, không phải sold_out
+
+
+def test_empty_hotels_and_api_error_are_errors_not_sold_out() -> None:
+    # `Hotels` rỗng là lỗi/chặn mềm phía API; hết phòng thật vẫn trả Hotels[0] với RoomClasses rỗng.
+    empty = parse_price_response('{"Hotels":[],"MSG":""}', 2, "VND")
+    assert (empty.status, empty.error) == (ProbeStatus.ERROR, "empty_hotels")
     assert parse_price_response("<html>", 2, "VND").error == "invalid_json"
+    assert parse_price_response('{"MSG":""}', 2, "VND").error == "malformed: no Hotels"
     err = parse_price_response('{"status":"error","error_code":"X"}', 2, "VND")
     assert err.status == ProbeStatus.ERROR and err.error == "api: X"
+
+
+def test_well_formed_payload_without_rooms_is_sold_out() -> None:
+    body = '{"Supplier":"IVIVU","MSG":"","Hotels":[{"HotelCode":"1","HotelName":"H","RoomClasses":[]}]}'
+    parsed = parse_price_response(body, 2, "VND")
+    assert (parsed.status, parsed.hotel_name, parsed.offers) == (ProbeStatus.SOLD_OUT, "H", ())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        '{"Hotels":[null]}',
+        '{"Hotels":"x"}',
+        '{"Hotels":[{"RoomClasses":"nope"}]}',
+        '{"Hotels":[{"RoomClasses":[{"MealTypeRates":[1,2]}]}]}',
+        '{"Hotels":[{"RoomClasses":[{"Rooms":"x","MealTypeRates":[{"PriceAvgPlusTA":1}]}]}]}',
+    ],
+)
+def test_malformed_payload_is_error_not_exception(body: str) -> None:
+    parsed = parse_price_response(body, 2, "VND")
+    assert parsed.status == ProbeStatus.ERROR
+    assert parsed.error and (parsed.error.startswith("malformed") or parsed.error == "empty_hotels")
 
 
 def test_trimmed_payload_reparses_identically(fixtures_dir: Path) -> None:

@@ -1,10 +1,14 @@
 import uuid
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Protocol
 
 from app.clock import Clock
 from app.collector.proxy import ProxyEndpoint, ProxyProvider
+from app.logging import get_logger
+
+log = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -42,9 +46,14 @@ class SessionListener(Protocol):
     async def session_retired(self, session: ScrapeSession, reason: str) -> None: ...
 
 
+# Dọn dẹp tài nguyên gắn với session khi nó bị thu hồi (hết tuổi/số request, bị chặn, đóng):
+# đóng client HTTP/trình duyệt của session, bỏ mốc giãn cách của rate limiter.
+RetireHook = Callable[[ScrapeSession, str], Awaitable[None]]
+
+
 class SessionManager:
     """Giữ một session còn hạn cho mỗi nước. Làm mới khi hết tuổi, hết số request,
-    hoặc bị thu hồi."""
+    hoặc bị thu hồi. Mỗi lần thu hồi gọi các `on_retire` hook rồi mới báo listener."""
 
     def __init__(
         self,
@@ -54,6 +63,7 @@ class SessionManager:
         max_requests: int,
         clock: Clock,
         listener: SessionListener | None = None,
+        on_retire: Iterable[RetireHook] = (),
     ) -> None:
         self._bootstrapper = bootstrapper
         self._proxies = proxy_provider
@@ -61,7 +71,11 @@ class SessionManager:
         self._max_requests = max_requests
         self._clock = clock
         self._listener = listener
+        self._on_retire: list[RetireHook] = list(on_retire)
         self._sessions: dict[str, ScrapeSession] = {}
+
+    def add_retire_hook(self, hook: RetireHook) -> None:
+        self._on_retire.append(hook)
 
     def _expired(self, s: ScrapeSession) -> bool:
         if s.retired:
@@ -105,6 +119,16 @@ class SessionManager:
             session.block_count += 1
         if self._sessions.get(session.country) is session:
             del self._sessions[session.country]
+        for hook in self._on_retire:
+            try:
+                await hook(session, reason)
+            except Exception as exc:  # noqa: BLE001 - dọn dẹp lỗi không được chặn luồng probe
+                log.warning(
+                    "session_retire_hook_failed",
+                    session=session.id,
+                    reason=reason,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
         if self._listener:
             await self._listener.session_retired(session, reason)
 

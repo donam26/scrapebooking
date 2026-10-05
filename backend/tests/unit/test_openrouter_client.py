@@ -1,9 +1,11 @@
-"""Unit test cho OpenRouterInsightClient: shape request Chat Completions, parse kết quả,
-và vòng batch (submit chạy ngay -> store -> poll lấy ra)."""
+"""Unit test cho OpenRouterInsightClient: shape request Chat Completions, giới hạn mỗi lần gọi
+(max_tokens, timeout, số lần thử lại), parse kết quả và ước lượng token khi thiếu usage."""
 
 import json
 from types import SimpleNamespace
 from typing import Any
+
+import pytest
 
 from app.insight.client import (
     CompletionRequest,
@@ -20,36 +22,29 @@ _OUTPUT = {
     "risks": [],
     "data_quality_note": "",
 }
-
-
-class _DictStore:
-    def __init__(self) -> None:
-        self.d: dict[str, str] = {}
-
-    async def put(self, key: str, value: str) -> None:
-        self.d[key] = value
-
-    async def get(self, key: str) -> str | None:
-        return self.d.get(key)
+_USAGE = SimpleNamespace(prompt_tokens=123, completion_tokens=45)
 
 
 class _FakeCompletions:
-    def __init__(self, content: str, calls: list[dict[str, Any]]) -> None:
+    def __init__(self, content: str, calls: list[dict[str, Any]], usage: Any) -> None:
         self._content = content
         self._calls = calls
+        self._usage = usage
 
     async def create(self, **kwargs: Any) -> Any:
         self._calls.append(kwargs)
+        if isinstance(self._content, Exception):
+            raise self._content
         return SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content=self._content))],
-            usage=SimpleNamespace(prompt_tokens=123, completion_tokens=45),
+            usage=self._usage,
         )
 
 
 class _FakeAsyncOpenAI:
-    def __init__(self, content: str) -> None:
+    def __init__(self, content: Any, usage: Any = _USAGE) -> None:
         self.calls: list[dict[str, Any]] = []
-        self.chat = SimpleNamespace(completions=_FakeCompletions(content, self.calls))
+        self.chat = SimpleNamespace(completions=_FakeCompletions(content, self.calls, usage))
 
 
 def _request(custom_id: str = "insight-1") -> CompletionRequest:
@@ -58,7 +53,7 @@ def _request(custom_id: str = "insight-1") -> CompletionRequest:
 
 async def test_complete_shapes_chat_completions_and_parses() -> None:
     fake = _FakeAsyncOpenAI(json.dumps(_OUTPUT))
-    client = OpenRouterInsightClient(store=_DictStore(), client=fake)
+    client = OpenRouterInsightClient(client=fake, max_output_tokens=2048)
 
     result = await client.complete(_request())
 
@@ -70,36 +65,51 @@ async def test_complete_shapes_chat_completions_and_parses() -> None:
     assert call["messages"][1]["content"].endswith('{"a":1}')
     assert call["response_format"]["json_schema"]["schema"] == INSIGHT_JSON_SCHEMA
     assert call["extra_body"] == {"reasoning": {"effort": "high"}}
+    assert call["max_tokens"] == 2048
 
 
 async def test_complete_empty_content_is_error() -> None:
-    client = OpenRouterInsightClient(store=_DictStore(), client=_FakeAsyncOpenAI(""))
+    client = OpenRouterInsightClient(client=_FakeAsyncOpenAI(""))
     result = await client.complete(_request())
     assert result.output_json is None and result.error == "empty response"
 
 
-async def test_batch_submit_runs_now_and_poll_returns_results() -> None:
-    store = _DictStore()
-    fake = _FakeAsyncOpenAI(json.dumps(_OUTPUT))
-    client = OpenRouterInsightClient(store=store, client=fake)
+async def test_complete_without_usage_stores_estimated_tokens_in() -> None:
+    client = OpenRouterInsightClient(client=_FakeAsyncOpenAI(json.dumps(_OUTPUT), usage=None))
+    req = _request()
+    result = await client.complete(req)
+    assert result.output_json == _OUTPUT and result.error is None
+    assert result.tokens_in == req.estimated_input_tokens > 0
+    assert result.tokens_out == 0
 
-    batch_id = await client.submit_batch([_request("insight-1"), _request("insight-2")])
-    assert batch_id.startswith("orbatch_")
-    assert len(fake.calls) == 2  # đã gọi ngay lúc submit
-    assert batch_id in store.d  # kết quả đã được cache
 
-    status = await client.poll_batch(batch_id)
-    assert status.done and status.status == "completed"
-    assert {r.custom_id for r in status.results} == {"insight-1", "insight-2"}
-    assert all(r.output_json == _OUTPUT for r in status.results)
+async def test_complete_exception_returns_error_with_estimate() -> None:
+    client = OpenRouterInsightClient(client=_FakeAsyncOpenAI(RuntimeError("boom")))
+    req = _request()
+    result = await client.complete(req)
+    assert result.output_json is None and result.error == "RuntimeError: boom"
+    assert result.tokens_in == req.estimated_input_tokens
 
-    # Idempotent: poll lại vẫn ra completed (không xóa khi đọc) để re-poll an toàn.
-    again = await client.poll_batch(batch_id)
-    assert again.done and {r.custom_id for r in again.results} == {"insight-1", "insight-2"}
 
-    # Không có batch_id -> in_progress (chưa submit xong hoặc hết TTL).
-    missing = await client.poll_batch("orbatch_unknown")
-    assert missing.status == "in_progress" and not missing.done
+def test_estimated_input_tokens_counts_all_messages() -> None:
+    req = _request()
+    chars = len("SYS") + len("USER:" + '{"a":1}')
+    assert req.estimated_input_tokens == chars // 4
+
+
+def test_sdk_client_gets_timeout_and_single_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    created: dict[str, Any] = {}
+
+    class _Recording:
+        def __init__(self, **kwargs: Any) -> None:
+            created.update(kwargs)
+
+    monkeypatch.setattr("openai.AsyncOpenAI", _Recording)
+    OpenRouterInsightClient(
+        api_key="k", headers={"X-Title": "t"}, timeout_seconds=45.0, max_retries=1
+    )
+    assert created["timeout"] == 45.0 and created["max_retries"] == 1
+    assert created["api_key"] == "k" and created["default_headers"] == {"X-Title": "t"}
 
 
 def test_parse_output_text_rejects_non_dict() -> None:

@@ -36,8 +36,13 @@ class ListingFinder(Protocol):
 
 
 class ListingNotFound(Exception):
-    """verify(): kênh trả 404 / không có khách sạn ở URL này (listing → broken)."""
+    """verify(): kênh nói rõ listing không tồn tại — CHỈ khi HTTP 404 thật hoặc mã "không tồn tại"
+    riêng của kênh (Mytour 4103, Agoda payload đầy đủ mà không có khách sạn). Worker đếm chuỗi
+    not_found (`listings.not_found_count`); đủ ngưỡng mới đánh `broken`. Probe báo cùng nghĩa bằng
+    `ProbeStatus.ERROR` + `error="not_found"`."""
 
 
 class ListingBlocked(Exception):
-    """verify()/suggest(): bị chống bot chặn, thử lại sau (listing giữ trạng thái chờ)."""
+    """verify()/suggest(): bị chống bot chặn, thử lại sau (listing giữ trạng thái chờ). Gồm cả
+    trang 200 thiếu cấu trúc mong đợi (challenge, chuyển hướng, JSON cụt): chặn mềm → thu hồi
+    session, không bao giờ coi là "không tồn tại"."""

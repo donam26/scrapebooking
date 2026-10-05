@@ -18,6 +18,7 @@ from app.collector.agoda.parser import (
     AgodaPage,
     PayloadError,
     SuggestHit,
+    explicit_not_found,
     parse_identity,
     parse_property_data,
     parse_room_grid_sold_out,
@@ -170,10 +171,16 @@ class AgodaCollector:
             max_requests=deps.session_max_requests,
             clock=deps.clock,
             listener=deps.session_listener,
+            on_retire=[self._on_session_retired],
         )
         self._backoff = backoff
         self._backoff_seconds = backoff_seconds
         self._ids: dict[str, str] = {}  # listing_key -> propertyId đọc từ HTML
+
+    async def _on_session_retired(self, session: ScrapeSession, reason: str) -> None:
+        """Session hết hạn/bị chặn: đóng AsyncSession curl_cffi của nó, bỏ mốc giãn cách."""
+        await self._http.close(session.id)
+        self._deps.limiter.forget(session.id)
 
     async def _send(
         self,
@@ -206,8 +213,7 @@ class AgodaCollector:
             outcome = _classify(response, expect_json)
             if outcome == FetchOutcome.BLOCKED:
                 log.warning("agoda_blocked", status=response.status, url=url[:120], attempt=blocked)
-                await self._sessions.retire(session, reason="blocked")
-                await self._http.close(session.id)
+                await self._sessions.retire(session, reason="blocked")  # hook đóng client
                 if blocked < 1:
                     blocked += 1
                     await self._backoff(self._backoff_seconds)
@@ -226,8 +232,8 @@ class AgodaCollector:
         return {
             "Origin": urls.BASE,
             "ag-cid": "-1",
-            "ag-initiator-api-key": urls.INITIATOR_API_KEY,
-            "ag-initiator-version": "6_0",
+            "ag-initiator-api-key": self._deps.keys.agoda_initiator_api_key,
+            "ag-initiator-version": self._deps.keys.agoda_initiator_version,
             "ag-request-attempt": "1",
             "ag-retry-attempt": "0",
             "ag-user-id": user_id,
@@ -240,7 +246,7 @@ class AgodaCollector:
         known = urls.property_id(listing) or self._ids.get(listing.listing_key)
         if known:
             return known
-        response, outcome, _ = await self._send(
+        response, outcome, session = await self._send(
             "GET", listing.url, _PAGE_HEADERS, expect_json=False
         )
         if outcome == FetchOutcome.BLOCKED:
@@ -250,12 +256,17 @@ class AgodaCollector:
         if outcome != FetchOutcome.OK:
             raise AgodaError(f"http {response.status}")
         found = property_id_from_html(response.text)
-        if found:
-            self._ids[listing.listing_key] = found
+        if not found:
+            # Trang 200 không có propertyId: trang challenge/chặn mềm (URL sai thì Agoda trả 404).
+            await self._sessions.retire(session, reason="blocked")
+            raise ListingBlocked("no propertyId in page")
+        self._ids[listing.listing_key] = found
         return found
 
     async def _identity(self, property_id: str, referer: str) -> ListingIdentity:
-        response, outcome, _ = await self._send(
+        """ListingBlocked: bị chặn, kể cả JSON 200 thiếu hotelInfo mà payload chưa đủ (chặn mềm).
+        Trả identity không tên chỉ khi Agoda nói rõ id không tồn tại (explicit_not_found)."""
+        response, outcome, session = await self._send(
             "GET", urls.secondary_data_url(property_id), _api_headers(referer, self._deps.currency)
         )
         if outcome == FetchOutcome.BLOCKED:
@@ -263,9 +274,13 @@ class AgodaCollector:
         if outcome != FetchOutcome.OK:
             raise AgodaError(f"http {response.status}")
         try:
-            return parse_identity(response.text)
+            identity = parse_identity(response.text)
+            if identity.name is None and not explicit_not_found(response.text):
+                await self._sessions.retire(session, reason="blocked")
+                raise ListingBlocked("incomplete payload: no hotelInfo")
         except PayloadError as exc:
             raise AgodaError(str(exc)) from exc
+        return identity
 
     async def _sold_out(
         self, property_id: str, checkin: date, nights: int, adults: int, referer: str
@@ -350,7 +365,20 @@ class AgodaCollector:
         except PayloadError as exc:
             return done(ProbeStatus.ERROR, error=f"bad payload: {exc}", response=response)
         if page.hotel_name is None:
-            return done(ProbeStatus.ERROR, error="not_found", response=response, session=session)
+            if page.complete:
+                # Agoda trả trọn dữ liệu cho id này mà không có khách sạn: không tồn tại thật.
+                return done(
+                    ProbeStatus.ERROR, error="not_found", response=response, session=session
+                )
+            # JSON 200 nhưng thiếu hotelInfo ở payload chưa đủ/có lỗi: chặn mềm → đổi session,
+            # không bao giờ coi là listing hỏng.
+            await self._sessions.retire(session, reason="blocked")
+            return done(
+                ProbeStatus.BLOCKED,
+                error="incomplete payload: no hotelInfo",
+                response=response,
+                session=session,
+            )
         if page.currency != currency:
             return done(
                 ProbeStatus.ERROR,

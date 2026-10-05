@@ -51,3 +51,22 @@ def test_sold_out_and_empty_mapping() -> None:
     )
     assert probe_result_from_page(_page(PageOutcome.SOLD_OUT), **kw).status == ProbeStatus.SOLD_OUT  # type: ignore[arg-type]
     assert probe_result_from_page(_page(PageOutcome.EMPTY), **kw).status == ProbeStatus.NO_ROOMS_1N  # type: ignore[arg-type]
+
+
+def test_wrong_currency_maps_to_error_with_reason() -> None:
+    page = ParsedPage(
+        PageOutcome.WRONG_CURRENCY, "111", "Hotel X", "csrf", (), "currency_mismatch: saw USD"
+    )
+    r = probe_result_from_page(
+        page,
+        method=ProbeMethod.HTTP,
+        checkin=date(2026, 10, 1),
+        nights=1,
+        adults=2,
+        raw_html="<html/>",
+        http_status=200,
+        session_id="s",
+        duration_ms=5,
+    )
+    assert r.status == ProbeStatus.ERROR and r.error == "currency_mismatch: saw USD"
+    assert r.offers == ()

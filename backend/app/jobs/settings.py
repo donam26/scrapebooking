@@ -1,6 +1,6 @@
-"""Worker `jobs` (arq): analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu,
-poll Batch API, gửi thông báo email, backup đêm, dọn partition. Tách khỏi worker collector để
-không chặn probe."""
+"""Worker `jobs` (arq): analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu (gọi
+model đồng bộ trong job), gửi thông báo email, backup đêm, dọn partition. Tách khỏi worker
+collector để không chặn probe."""
 
 from datetime import UTC, date, datetime
 from typing import Any
@@ -71,10 +71,9 @@ async def generate_insight(
     ctx: dict[str, Any], tenant_id: int, trigger: str, request_key: str | None = None
 ) -> dict[str, Any]:
     settings = ctx["settings"]
-    use_batch = trigger == "daily" and settings.insight_use_batch
     async with ctx["session_factory"]() as s:
         svc = InsightService(s, client=ctx["client"], settings=settings)
-        row = await svc.generate(tenant_id, trigger, use_batch=use_batch, request_key=request_key)
+        row = await svc.generate(tenant_id, trigger, request_key=request_key)
         await s.commit()
         if row.status == "failed":
             await ctx["alerter"].send(f"⚠️ Insight tenant {tenant_id} failed: {row.error}")
@@ -102,7 +101,7 @@ async def select_daily_dispatch(session: Any, now: datetime) -> list[tuple[int, 
             .group_by(Insight.status)
         )
         by_status = {r[0]: r[1] for r in rows}
-        if any(by_status.get(st) for st in ("completed", "batch_pending", "pending")):
+        if any(by_status.get(st) for st in ("completed", "pending")):
             continue
         failures = by_status.get("failed", 0)
         if failures >= MAX_DAILY_FAILURES:
@@ -118,14 +117,6 @@ async def dispatch_daily_insights(ctx: dict[str, Any]) -> int:
     for tenant_id, key, attempt in due:
         await ctx["queue"].enqueue_insight(tenant_id, "daily", key, attempt=attempt)
     return len(due)
-
-
-async def poll_insight_batches(ctx: dict[str, Any]) -> int:
-    async with ctx["session_factory"]() as s:
-        svc = InsightService(s, client=ctx["client"], settings=ctx["settings"])
-        n = await svc.poll_batches()
-        await s.commit()
-    return n
 
 
 async def dispatch_notifications(ctx: dict[str, Any]) -> dict[str, int]:
@@ -171,7 +162,6 @@ class JobsWorkerSettings:
     functions = [run_analytics, generate_insight]
     cron_jobs = [
         cron(dispatch_daily_insights, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
-        cron(poll_insight_batches, minute={2, 12, 22, 32, 42, 52}),
         cron(analytics_catch_up, minute={7, 37}),
         cron(estimate_occupancy_catch_up, minute={4, 14, 24, 34, 44, 54}),
         cron(dispatch_notifications, minute={1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56}),

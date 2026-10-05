@@ -6,6 +6,7 @@ _STATUS_BY_OUTCOME = {
     PageOutcome.ROOMS: ProbeStatus.OK,
     PageOutcome.SOLD_OUT: ProbeStatus.SOLD_OUT,
     PageOutcome.EMPTY: ProbeStatus.NO_ROOMS_1N,
+    PageOutcome.WRONG_CURRENCY: ProbeStatus.ERROR,
 }
 
 
@@ -33,6 +34,7 @@ def probe_result_from_page(
         http_status=http_status,
         session_id=session_id,
         duration_ms=duration_ms,
+        error=page.note if page.outcome == PageOutcome.WRONG_CURRENCY else None,
         external_id=page.external_id,
         hotel_name=page.hotel_name,
     )

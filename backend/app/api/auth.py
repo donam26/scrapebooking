@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -13,6 +14,9 @@ ROLE_TENANT_ADMIN = "tenant_admin"
 ROLE_VIEWER = "viewer"
 ROLES = (ROLE_OPERATOR, ROLE_TENANT_ADMIN, ROLE_VIEWER)
 COOKIE_NAME = "sb_session"
+# Băm cố định để xác minh "giả" khi email không tồn tại: thời gian trả lời như tài khoản thật
+# (chống dò email theo thời gian).
+_DUMMY_HASH = _hasher.hash("dummy-password-for-timing-equalisation")
 
 
 def hash_password(password: str) -> str:
@@ -28,12 +32,26 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+async def hash_password_async(password: str) -> str:
+    """argon2 tốn ~50 ms CPU và 64 MiB: chạy trong thread để không chặn event loop API."""
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(password: str, password_hash: str | None) -> bool:
+    """`password_hash=None` (email không tồn tại): vẫn chạy một lần băm giả rồi trả False."""
+    if password_hash is None:
+        await asyncio.to_thread(verify_password, password, _DUMMY_HASH)
+        return False
+    return await asyncio.to_thread(verify_password, password, password_hash)
+
+
 @dataclass(frozen=True)
 class Principal:
     user_id: int
     email: str
     role: str
     tenant_id: int | None
+    token_version: int = 0
 
     @property
     def is_operator(self) -> bool:
@@ -53,6 +71,7 @@ def issue_token(
         "email": principal.email,
         "role": principal.role,
         "tenant_id": principal.tenant_id,
+        "tv": principal.token_version,
         "iat": int(now.timestamp()),
         "exp": int((now + ttl).timestamp()),
     }
@@ -73,4 +92,5 @@ def decode_token(token: str, secret: str) -> Principal:
         email=str(payload.get("email", "")),
         role=str(payload["role"]),
         tenant_id=payload.get("tenant_id"),
+        token_version=int(payload.get("tv", 0)),
     )

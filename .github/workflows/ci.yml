@@ -68,6 +68,18 @@ jobs:
         run: uv run playwright install-deps chromium
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy app
+      - name: Regenerate OpenAPI snapshot (diff shown when docs/api/openapi.json is stale)
+        # Không chặn pipeline: test snapshot bên dưới mới quyết định; bước này in diff và lưu
+        # artifact để cập nhật file khi không chạy được app ở máy dev.
+        continue-on-error: true
+        run: |
+          uv run python scripts/export_openapi.py
+          git diff --exit-code -- ../docs/api/openapi.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: docs/api/openapi.json
+          if-no-files-found: error
       - run: uv run pytest -q -m "not live"
 
   dashboard:
@@ -87,7 +99,17 @@ jobs:
       - run: npm run typecheck
       - run: npm run i18n:check
       - name: Generated API types match docs/api/openapi.json
+        id: gen-api
+        continue-on-error: true
         run: npm run gen:api && git diff --exit-code -- src/lib/api-types.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-types
+          path: dashboard/src/lib/api-types.ts
+          if-no-files-found: error
+      - name: Fail when api-types.ts is stale
+        if: steps.gen-api.outcome == 'failure'
+        run: echo "src/lib/api-types.ts is stale: download the api-types artifact" && exit 1
       - run: npm run build
 
   docker:

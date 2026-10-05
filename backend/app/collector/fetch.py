@@ -13,6 +13,8 @@ class FetchOutcome(StrEnum):
     ERROR = "error"
 
 
+# Mã HTTP WAF/anti-bot dùng để chặn: 202 là trang challenge của AWS WAF (Booking).
+BLOCK_STATUSES = (403, 429, 202)
 BLOCK_MARKERS = (
     "awswaf",
     "aws-waf",
@@ -21,17 +23,31 @@ BLOCK_MARKERS = (
     "pardon our interruption",
     "verify you are a human",
     "access denied",
+    "just a moment",  # trang challenge Cloudflare
 )
 
 
+def looks_like_html(text: str) -> bool:
+    """Body là trang HTML (không phải JSON của API): chỉ khi đó mới quét dấu hiệu chặn, vì mô tả
+    khách sạn trong JSON (iVIVU, Mytour) có thể chứa chữ "access denied"."""
+    head = text[:20_000]
+    return head.lstrip()[:1] == "<" or "<html" in head.lower()
+
+
 def classify_response(status: int, text: str) -> FetchOutcome:
-    if status in (403, 429, 503, 202):
+    """Quy ước chung cho mọi kênh:
+    - BLOCKED: 403/429/202, hoặc trang HTML mang dấu hiệu WAF (kể cả 5xx challenge) → đổi session.
+    - NOT_FOUND: chỉ 404 thật (kênh nói rõ không tồn tại; mã riêng của kênh do collector xử lý).
+    - ERROR: 5xx không phải challenge (503 sự cố thật: thử lại, không đốt session/proxy), 4xx khác.
+    Body 200 thiếu cấu trúc mong đợi do từng collector quyết định, và phải coi là chặn mềm."""
+    if status in BLOCK_STATUSES:
         return FetchOutcome.BLOCKED
     if status == 404:
         return FetchOutcome.NOT_FOUND
-    head = text[:20_000].lower()
-    if any(marker in head for marker in BLOCK_MARKERS):
-        return FetchOutcome.BLOCKED
+    if looks_like_html(text):
+        head = text[:20_000].lower()
+        if any(marker in head for marker in BLOCK_MARKERS):
+            return FetchOutcome.BLOCKED
     if status >= 400:
         return FetchOutcome.ERROR
     return FetchOutcome.OK
@@ -59,7 +75,8 @@ class Fetcher(Protocol):
 
 class CurlFetcher:
     """HTTP client giả lập TLS fingerprint Chrome, dùng cookie và proxy của ScrapeSession.
-    Một AsyncSession curl_cffi cho mỗi ScrapeSession, đóng khi session bị thu hồi."""
+    Một AsyncSession curl_cffi cho mỗi ScrapeSession, đóng khi session bị thu hồi (hook
+    `SessionManager.add_retire_hook`)."""
 
     def __init__(self, timeout_s: float = 30.0, impersonate: str = "chrome") -> None:
         self._timeout = timeout_s

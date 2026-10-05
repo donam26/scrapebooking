@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +13,10 @@ from app.insight.client import FakeInsightClient
 from app.insight.input_builder import build_input
 from app.insight.service import InsightService, due_daily_tenants
 from app.repo.snapshots import SnapshotRepository
+from tests.integration.conftest import FakeQueue
 from tests.integration.seed import add_hotel, scan_run
+from tests.integration.test_api import _login
+from tests.integration.test_api import _seed as _seed_api
 
 T0 = datetime(2026, 10, 3, 23, 0, tzinfo=UTC)  # 06:00 VN ngày 04/10
 STAY = date(2026, 10, 5)
@@ -131,17 +135,46 @@ async def test_build_input_shape_and_refs(db: AsyncSession) -> None:
     assert (
         next(d for d in p["hotels"][0]["days"] if d["date"] == "2026-10-06")["status"] == "no_data"
     )
+    # Giá: chỉ sự kiện mức khách sạn (price_up của loại phòng bị bỏ, tránh lặp cùng biến động).
     types = sorted(e["type"] for e in p["events_24h"])
-    assert types == ["low_stock_enter", "price_up", "price_up", "rooms_decrease"]
+    assert types == ["low_stock_enter", "price_up", "rooms_decrease"]
+    assert next(e for e in p["events_24h"] if e["type"] == "price_up")["room_type"] is None
     assert all(
         e["ref"].startswith("evt:") and e["ref"] in built.valid_refs for e in p["events_24h"]
     )
+    assert p["events_7d"] == []  # mọi sự kiện đều trong 24h: không gửi lần hai ở 7d
     assert p["compset"][1]["competitors_sold_out"] == 0 and "compset:2026-10-05" in built.valid_refs
     assert p["data_quality"]["hotel_dates_observed"] == 2 and p["data_quality"]["has_pms_data"]
+    assert p["data_quality"]["hotels_omitted"] == 0
     assert built.hotel_ids == {own, comp} and built.scan_run_id is not None
     assert "html" not in str(p).lower()
     assert p["reference_channel"] == "booking" and p["demand_signals"] == []
     assert {e["channel"] for e in p["events_24h"]} == {"booking"}
+
+
+async def test_build_input_event_windows_are_disjoint(db: AsyncSession) -> None:
+    tenant, _, _ = await _seed(db)
+    # 25 giờ sau lần quét: sự kiện rời khỏi cửa sổ 24h và chỉ xuất hiện ở 7d.
+    p = (await build_input(db, tenant, now=T0 + timedelta(hours=25))).payload
+    assert p["events_24h"] == []
+    assert sorted(e["type"] for e in p["events_7d"]) == [
+        "low_stock_enter",
+        "price_up",
+        "rooms_decrease",
+    ]
+    # 8 ngày sau: ra khỏi cả hai cửa sổ.
+    p = (await build_input(db, tenant, now=T0 + timedelta(days=8))).payload
+    assert p["events_24h"] == [] and p["events_7d"] == []
+
+
+async def test_build_input_caps_hotels_own_first(db: AsyncSession) -> None:
+    tenant, own, comp = await _seed(db)
+    built = await build_input(db, tenant, now=T0 + timedelta(hours=1), max_hotels=1)
+    p = built.payload
+    assert [h["hotel_id"] for h in p["hotels"]] == [own] and built.hotel_ids == {own}
+    assert p["data_quality"]["hotels_omitted"] == 1
+    assert f"metric:{comp}:2026-10-05" not in built.valid_refs
+    assert p["events_24h"] == []  # mọi sự kiện trong seed là của đối thủ bị bỏ
 
 
 async def test_build_input_uses_reference_channel_and_demand_signals(db: AsyncSession) -> None:
@@ -230,9 +263,7 @@ async def test_generate_sync_validates_and_stores(db: AsyncSession) -> None:
         }
     )
     svc = InsightService(db, client=client, settings=SETTINGS)
-    row = await svc.generate(
-        tenant.id, trigger="on_demand", use_batch=False, now=T0 + timedelta(hours=1)
-    )
+    row = await svc.generate(tenant.id, trigger="on_demand", now=T0 + timedelta(hours=1))
     await db.commit()
     assert row.status == "completed" and row.trigger == "on_demand"
     assert row.output_json is not None and len(row.output_json["highlights"]) == 1
@@ -273,15 +304,54 @@ async def test_generate_fills_pending_row_from_api(db: AsyncSession) -> None:
         }
     )
     row = await InsightService(db, client, SETTINGS).generate(
-        tenant.id,
-        "on_demand",
-        use_batch=False,
-        request_key=f"req{pending.id}",
-        now=T0 + timedelta(hours=1),
+        tenant.id, "on_demand", request_key=f"req{pending.id}", now=T0 + timedelta(hours=1)
     )
     await db.commit()
     assert row.id == pending.id and row.status == "completed"
     assert len((await db.execute(select(Insight))).scalars().all()) == 1
+
+
+async def test_generate_keeps_demand_signal_evidence(db: AsyncSession) -> None:
+    """Hồi quy: bằng chứng `demand:<id>` phải được coi là hợp lệ khi sinh bản tin."""
+    tenant, _, comp = await _seed(db)
+    signal = ListingDemandSignal(
+        hotel_id=comp,
+        channel="booking",
+        scan_run_id=None,
+        kind="bookings_24h",
+        value=Decimal("13"),
+        window_hours=24,
+        raw_text="Đặt 13 lần trong 24 giờ qua",
+        observed_at=T0,
+    )
+    db.add(signal)
+    await db.commit()
+    client = FakeInsightClient(
+        default_output={
+            "summary": "x",
+            "highlights": [
+                {
+                    "title": "Comp được đặt nhiều",
+                    "date_from": "2026-10-05",
+                    "date_to": "2026-10-05",
+                    "hotel_ids": [comp],
+                    "evidence": [{"kind": "demand", "ref": f"demand:{signal.id}"}],
+                    "confidence": "medium",
+                    "recommendation": "x",
+                }
+            ],
+            "demand_signals": [],
+            "pricing_opportunities": [],
+            "risks": [],
+            "data_quality_note": "",
+        }
+    )
+    row = await InsightService(db, client, SETTINGS).generate(
+        tenant.id, "daily", request_key="daily:2026-10-04", now=T0 + timedelta(hours=1)
+    )
+    assert row.status == "completed" and row.dropped_highlights == []
+    assert row.output_json is not None and len(row.output_json["highlights"]) == 1
+    assert row.input_json["demand_signals"][0]["ref"] == f"demand:{signal.id}"
 
 
 async def test_generate_failure_and_empty_watchlist(db: AsyncSession) -> None:
@@ -289,7 +359,7 @@ async def test_generate_failure_and_empty_watchlist(db: AsyncSession) -> None:
     client = FakeInsightClient()
     client.fail_with = "rate limited"
     row = await InsightService(db, client, SETTINGS).generate(
-        tenant.id, "on_demand", use_batch=False, now=T0 + timedelta(hours=1)
+        tenant.id, "on_demand", now=T0 + timedelta(hours=1)
     )
     assert row.status == "failed" and row.error == "rate limited"
     empty = Tenant(
@@ -305,16 +375,18 @@ async def test_generate_failure_and_empty_watchlist(db: AsyncSession) -> None:
     db.add(empty)
     await db.commit()
     row = await InsightService(db, client, SETTINGS).generate(
-        empty.id, "daily", use_batch=True, now=T0 + timedelta(hours=1)
+        empty.id, "daily", request_key="daily:2026-10-04", now=T0 + timedelta(hours=1)
     )
     assert row.status == "failed" and row.error == "watchlist is empty"
 
 
-async def test_batch_flow_and_daily_idempotency(db: AsyncSession) -> None:
-    tenant, _, comp = await _seed(db)
+async def test_daily_generation_is_sync_and_idempotent(db: AsyncSession) -> None:
+    """Hằng ngày gọi model đồng bộ y như theo yêu cầu (không còn batch_pending), và cùng
+    ngày địa phương thì không sinh bản thứ hai."""
+    tenant, _, _ = await _seed(db)
     client = FakeInsightClient(
         default_output={
-            "summary": "batch",
+            "summary": "daily",
             "highlights": [],
             "demand_signals": [],
             "pricing_opportunities": [],
@@ -322,35 +394,96 @@ async def test_batch_flow_and_daily_idempotency(db: AsyncSession) -> None:
             "data_quality_note": "",
         }
     )
-    client.batch_status = "in_progress"
     svc = InsightService(db, client, SETTINGS)
     row = await svc.generate(
-        tenant.id,
-        "daily",
-        use_batch=True,
-        request_key="daily:2026-10-04",
-        now=T0 + timedelta(hours=1),
+        tenant.id, "daily", request_key="daily:2026-10-04", now=T0 + timedelta(hours=1)
     )
     await db.commit()
-    assert row.status == "batch_pending" and row.batch_id == "batch_1"
-    # cùng ngày gọi lại: không tạo bản mới
+    assert row.status == "completed" and row.trigger == "daily" and row.batch_id is None
+    assert row.output_json is not None and row.output_json["summary"] == "daily"
+    assert str(row.cost_usd) == "0.003000"
     again = await svc.generate(
-        tenant.id,
-        "daily",
-        use_batch=True,
-        request_key="daily:2026-10-04",
-        now=T0 + timedelta(hours=2),
+        tenant.id, "daily", request_key="daily:2026-10-04", now=T0 + timedelta(hours=2)
     )
-    row_id = row.id
-    assert again.id == row_id and len(client.batches) == 1
-    assert await svc.poll_batches() == 0  # chưa xong
-    client.batch_status = "completed"
-    assert await svc.poll_batches() == 1
+    assert again.id == row.id and len(client.requests) == 1
+    assert len((await db.execute(select(Insight))).scalars().all()) == 1
+
+
+# ---- API: /insights ----
+
+
+def _insight_row(tenant_id: int, status: str, error: str | None, at: datetime) -> Insight:
+    return Insight(
+        tenant_id=tenant_id,
+        period_start=at.date(),
+        period_end=at.date() + timedelta(days=29),
+        generated_at=at,
+        trigger="on_demand",
+        status=status,
+        model="m",
+        prompt_version="1",
+        input_json={},
+        output_json=None,
+        dropped_highlights=[],
+        error=error,
+    )
+
+
+async def test_generate_api_dedups_and_survives_duplicate_pending_rows(
+    client: AsyncClient, db: AsyncSession, queue: FakeQueue
+) -> None:
+    ids = await _seed_api(db)
+    await _login(client, "admin@a.com", "admin-pass-1")
+    r = await client.post("/insights/generate")
+    assert r.status_code == 202, r.text
+    first = r.json()
+    r = await client.post("/insights/generate")
+    assert r.status_code == 202 and r.json()["id"] == first["id"]
+    assert len(queue.insights) == 1
+    # Hai dòng pending đã lọt (đua trước khi có khoá): lần sau trả dòng mới nhất, không 500.
+    now = datetime.now(tz=UTC)
+    db.add_all([_insight_row(ids["t1"], "pending", None, now) for _ in range(2)])
     await db.commit()
-    db.expire_all()
-    done = (await db.execute(select(Insight).where(Insight.id == row_id))).scalar_one()
-    assert done.status == "completed" and done.output_json["summary"] == "batch"
-    assert str(done.cost_usd) == "0.003000"  # OpenRouter không giảm giá batch
+    newest = max(
+        (await db.execute(select(Insight.id).where(Insight.tenant_id == ids["t1"]))).scalars()
+    )
+    r = await client.post("/insights/generate")
+    assert r.status_code == 202 and r.json()["id"] == newest
+    assert len(queue.insights) == 1
+    assert len((await db.execute(select(Insight))).scalars().all()) == 3
+
+
+async def test_insight_error_is_short_code_for_tenant_users(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    ids = await _seed_api(db)
+    now = datetime.now(tz=UTC)
+    rows = [
+        _insight_row(ids["t1"], "failed", "schema: 1 validation error for InsightOutput", now),
+        _insight_row(ids["t1"], "failed", "no scan data yet (no scan/analytics data)", now),
+        _insight_row(ids["t1"], "failed", "APIConnectionError: Connection error.", now),
+        _insight_row(ids["t1"], "completed", None, now),
+    ]
+    db.add_all(rows)
+    await db.commit()
+    await _login(client, "admin@a.com", "admin-pass-1")
+    r = await client.get("/insights")
+    assert r.status_code == 200
+    by_id = {x["id"]: x["error"] for x in r.json()}
+    assert [by_id[x.id] for x in rows] == [
+        "schema_invalid",
+        "no_scan_data",
+        "provider_error",
+        None,
+    ]
+    r = await client.get(f"/insights/{rows[2].id}")
+    assert r.status_code == 200 and r.json()["error"] == "provider_error"
+    await _login(client, "op@x.com", "op-pass-123")
+    r = await client.get("/insights", params={"tenant_id": ids["t1"]})
+    by_id = {x["id"]: x["error"] for x in r.json()}
+    assert by_id[rows[2].id] == "APIConnectionError: Connection error."
+    r = await client.get(f"/insights/{rows[0].id}", params={"tenant_id": ids["t1"]})
+    assert r.json()["error"] == "schema: 1 validation error for InsightOutput"
 
 
 def test_due_daily_tenants_local_time() -> None:

@@ -106,3 +106,56 @@ async def test_retire_forces_new_session_and_notifies_listener() -> None:
     assert s2 is not s1
     assert [s.id for s in listener.created] == [s1.id, s2.id]
     assert listener.retired == [(s1, "blocked")]
+
+
+class RecordingHook:
+    def __init__(self, fail: bool = False) -> None:
+        self.calls: list[tuple[str, str]] = []
+        self.fail = fail
+
+    async def __call__(self, session: ScrapeSession, reason: str) -> None:
+        self.calls.append((session.id, reason))
+        if self.fail:
+            raise RuntimeError("close failed")
+
+
+async def test_retire_hooks_run_on_explicit_retire_and_on_expiry() -> None:
+    # Fetcher đăng ký hook để đóng client HTTP của session: chạy cả khi bị chặn lẫn khi session
+    # hết hạn (max_requests/tuổi) lúc get() xoay sang session mới — trước đây rò một client/lần xoay.
+    clock = FixedClock(datetime(2026, 9, 24, 6, 0, tzinfo=UTC))
+    hook = RecordingHook()
+    listener = RecordingListener()
+    mgr = _manager(clock, FakeBootstrapper(), listener)
+    mgr.add_retire_hook(hook)
+    s1 = await mgr.get("vn", "u")
+    await mgr.retire(s1, reason="blocked")
+    await mgr.retire(s1, reason="blocked")  # lần hai: không gọi lại
+    s2 = await mgr.get("vn", "u")
+    for _ in range(3):
+        mgr.mark_request(s2)
+    s3 = await mgr.get("vn", "u")  # hết số request → retire "expired" rồi tạo mới
+    clock.advance(minutes=21)
+    s4 = await mgr.get("vn", "u")  # hết tuổi
+    assert len({s1.id, s2.id, s3.id, s4.id}) == 4
+    assert hook.calls == [(s1.id, "blocked"), (s2.id, "expired"), (s3.id, "expired")]
+    assert [(s.id, r) for s, r in listener.retired] == hook.calls
+
+
+async def test_retire_hook_failure_does_not_break_retire() -> None:
+    clock = FixedClock(datetime(2026, 9, 24, 6, 0, tzinfo=UTC))
+    failing, after = RecordingHook(fail=True), RecordingHook()
+    listener = RecordingListener()
+    mgr = SessionManager(
+        bootstrapper=FakeBootstrapper(),
+        proxy_provider=StaticProxyProvider("http://u-{country}-{session}:p@h:1"),
+        max_age=timedelta(minutes=20),
+        max_requests=3,
+        clock=clock,
+        listener=listener,
+        on_retire=[failing, after],
+    )
+    s1 = await mgr.get("vn", "u")
+    await mgr.retire(s1, reason="blocked")
+    assert s1.retired and after.calls == [(s1.id, "blocked")]
+    assert listener.retired == [(s1, "blocked")]
+    assert (await mgr.get("vn", "u")) is not s1

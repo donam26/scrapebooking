@@ -31,7 +31,8 @@ from app.logging import get_logger
 
 log = get_logger(__name__)
 
-Parser = Callable[[str, str, int | None], ParsedPage]  # (html, tiền tệ, số người lớn)
+# (html, tiền tệ, số người lớn, số đêm): số đêm để chia tổng tiền cả kỳ thành giá mỗi đêm.
+Parser = Callable[[str, str, int | None, int], ParsedPage]
 
 
 class HybridCollector:
@@ -75,7 +76,10 @@ class HybridCollector:
     async def fetch_calendar(
         self, hotel: ListingRef, start: date, days: int, adults: int
     ) -> CalendarResult:
-        session = await self._sessions.get(hotel.country_code, hotel.url)
+        try:
+            session = await self._sessions.get(hotel.country_code, hotel.url)
+        except Exception as exc:  # noqa: BLE001  (Playwright/proxy lỗi khi mở session)
+            return CalendarResult(ok=False, error=f"bootstrap: {type(exc).__name__}: {exc}")
         await self._budget.acquire()
         await self._limiter.wait(session.id)
         payload = build_calendar_request(hotel.country_code, pagename(hotel), start, days, adults)
@@ -102,7 +106,21 @@ class HybridCollector:
         last_status: int | None = None
         last_session: str | None = None
         while True:
-            session = await self._sessions.get(hotel.country_code, hotel.url)
+            try:
+                session = await self._sessions.get(hotel.country_code, hotel.url)
+            except Exception as exc:  # noqa: BLE001
+                # Không mở được session (challenge không qua, proxy 407…): coi như bị chặn, để
+                # job ghi BLOCKED (kích hoạt tự ngắt kênh) thay vì ngoại lệ thô thành ERROR.
+                log.warning("probe_bootstrap_failed", hotel=hotel.id, error=type(exc).__name__)
+                return failed_result(
+                    ProbeStatus.BLOCKED,
+                    method=ProbeMethod.HTTP,
+                    checkin=checkin,
+                    nights=nights,
+                    adults=adults,
+                    error=f"session bootstrap failed: {type(exc).__name__}: {exc}",
+                    session_id=last_session,
+                )
             last_session = session.id
             await self._budget.acquire()
             await self._limiter.wait(session.id)
@@ -194,7 +212,7 @@ class HybridCollector:
                     duration_ms=duration_ms,
                     raw_html=response.text,
                 )
-            parsed = self._parser(response.text, currency, adults)
+            parsed = self._parser(response.text, currency, adults, nights)
             if parsed.csrf_token and parsed.csrf_token != session.csrf_token:
                 session.csrf_token = parsed.csrf_token
             if parsed.outcome == PageOutcome.EMPTY and self._fallback is not None:

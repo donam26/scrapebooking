@@ -13,25 +13,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "10650000",
+          "price": "12077100",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "12500000",
+          "price": "14175000",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -47,25 +47,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "12300000",
+          "price": "13948200",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "14150000",
+          "price": "16046100",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -81,25 +81,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "12300000",
+          "price": "13948200",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "14150000",
+          "price": "16046100",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -115,25 +115,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "12600000",
+          "price": "14288400",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "14450000",
+          "price": "16386300",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -149,25 +149,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "12600000",
+          "price": "14288400",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "14450000",
+          "price": "16386300",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -183,25 +183,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "17950000",
+          "price": "20355300",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "19800000",
+          "price": "22453200",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -217,25 +217,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "21100000",
+          "price": "23927400",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "22950000",
+          "price": "26025300",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -251,25 +251,25 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "23100000",
+          "price": "26195400",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "24950000",
+          "price": "28293300",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
@@ -285,30 +285,31 @@
       "rates": [
         {
           "name": "Free cancellation",
-          "price": "31400000",
+          "price": "35607600",
           "currency": "VND",
           "refundable": true,
           "breakfast": null,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         },
         {
           "name": "Free cancellation + breakfast",
-          "price": "33250000",
+          "price": "37705500",
           "currency": "VND",
           "refundable": true,
           "breakfast": true,
           "max_persons": 2,
           "price_original": null,
-          "taxes_included": false,
+          "taxes_included": true,
           "promo_label": null,
           "source_supplier": null
         }
       ],
       "stock_scope": "room_type"
     }
-  ]
+  ],
+  "note": null
 }

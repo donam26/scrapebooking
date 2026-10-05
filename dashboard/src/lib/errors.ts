@@ -24,8 +24,15 @@ type Rule = [RegExp, ErrorKey, ((m: RegExpMatchArray) => Values)?];
 const RULES: Rule[] = [
   // xác thực, phân quyền
   [/^invalid credentials$/, "invalidCredentials"],
-  [/^(not authenticated|invalid session)$/, "sessionExpired"],
+  [/^(not authenticated|invalid session|session revoked)$/, "sessionExpired"],
   [/^user disabled$/, "userDisabled"],
+  [/^tenant disabled$/, "tenantDisabled"],
+  [/^too many login attempts.*$/, "tooManyLogins"],
+  [/^too many requests.*$/, "tooManyRequests"],
+  [/^csrf check failed.*$/, "csrfFailed"],
+  [/^current password is wrong$/, "currentPasswordWrong"],
+  [/^invalid or expired token$/, "resetTokenInvalid"],
+  [/^quota exceeded: (.+?) \(limit (\d+)\).*$/, "quotaExceeded", (m) => ({ what: m[1], limit: m[2] })],
   [/^operator only$/, "operatorOnly"],
   [/^read-only role$/, "readOnlyRole"],
   [/^cannot access another tenant$/, "otherTenant"],
@@ -89,12 +96,16 @@ const RULES: Rule[] = [
   // dữ liệu
   [/^end before start$/, "endBeforeStart"],
   [/^range over (\d+) days$/, "rangeTooLong", (m) => ({ max: m[1] })],
-  // bản tin
+  // bản tin (người dùng tenant nhận mã ngắn; operator nhận nguyên văn)
   [/^insight not found$/, "insightNotFound"],
-  [/^no scan data yet.*$/, "noScanData"],
+  [/^(no scan data yet.*|no_scan_data)$/, "noScanData"],
+  [/^watchlist_empty$/, "watchlistEmpty"],
   [/^no json output$/, "noJsonOutput"],
   [/^schema: (.*)$/, "badSchema", (m) => ({ detail: m[1] })],
-  [/^timeout: .*$/, "workerTimeout"],
+  [/^schema_invalid$/, "schemaInvalid"],
+  [/^(timeout: .*|worker_timeout)$/, "workerTimeout"],
+  [/^queue_unavailable$/, "queueUnavailable"],
+  [/^provider_error$/, "providerError"],
   // proxy /api của Next.js không gọi được backend
   [/^api unreachable .*$/, "apiUnreachable"],
   // PMS
@@ -106,6 +117,8 @@ const RULES: Rule[] = [
   [/^empty sheet$/, "emptySheet"],
   [/^cannot read excel: .*$/, "cannotReadExcel"],
   [/^old excel format \(\.xls\) not supported.*$/, "oldExcel"],
+  [/^file larger than (\d+) bytes$/, "fileTooLarge", (m) => ({ mb: String(Math.round(Number(m[1]) / 1048576)) })],
+  [/^too many rows \(more than (\d+)\).*$/, "tooManyRows", (m) => ({ max: m[1] })],
   [/^missing mapping for (\w+)$/, "missingMapping", (m) => ({ field: m[1] })],
   [/^unrecognised date '?(.*?)'?$/, "badDate", (m) => ({ value: m[1] })],
   [/^duplicate date (.+)$/, "duplicateDate", (m) => ({ value: m[1] })],

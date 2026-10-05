@@ -1,6 +1,10 @@
 """Báo cáo nhịp đặt phòng của tenant theo từng đêm: công suất ước tính (của bạn và thị trường),
 nhịp so cùng kỳ, đối chiếu PMS, gợi ý giá. Đọc trên kênh tham chiếu của tenant (mặc định Booking),
-nơi số phòng còn được lộ rõ nhất."""
+nơi số phòng còn được lộ rõ nhất.
+
+Tenant chuỗi có nhiều khách sạn `self`: mỗi khách sạn một gợi ý riêng (`NightReport.suggestions`,
+theo thứ tự hotel_id); các cột `own_*` và `suggestion` của đêm là của khách sạn chính (id nhỏ
+nhất) để giữ tương thích."""
 
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -8,7 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.rules import median
@@ -26,10 +30,23 @@ from app.market.pacing import (
     compset_curve,
     pace,
 )
-from app.market.price_suggest import NightSignals, Suggestion, suggest
+from app.market.price_suggest import (
+    DEFAULT_THRESHOLDS,
+    NightSignals,
+    PriceQuote,
+    Suggestion,
+    SuggestionThresholds,
+    comparable,
+    price_basis,
+    suggest,
+)
 
-HISTORY = timedelta(weeks=max(REFERENCE_WEEKS) + 1)
+HISTORY = timedelta(weeks=max(REFERENCE_WEEKS))  # đêm tham chiếu xa nhất: 8 tuần trước
 CALIBRATION_DAYS = 60
+# Đêm mà lần quét mới nhất cũ hơn STALE_DAYS ngày: không nạp quan sát cũ hơn nữa (không coi ước
+# tính cả tuần trước là "hiện tại"). PICKUP_LEAD: `_pickup_7d` nhìn lại tối đa 8 mốc lead.
+STALE_DAYS = 7
+PICKUP_LEAD = 8
 
 
 @dataclass(frozen=True)
@@ -58,6 +75,17 @@ class Obs:
         return is_reliable(self.coverage, self.occ_low, self.occ_high)
 
 
+@dataclass(frozen=True)
+class OwnSuggestion:
+    """Gợi ý của một khách sạn `self` cho một đêm, kèm ghi nhận còn hiệu lực (nếu có)."""
+
+    hotel_id: int
+    suggestion: Suggestion
+    decision: str | None
+    own_price: Decimal | None  # giá của khách sạn đó theo cơ sở gợi ý (ghi vào quyết định)
+    currency: str | None
+
+
 @dataclass
 class NightReport:
     stay_date: date
@@ -78,8 +106,9 @@ class NightReport:
     comp_pickup_7d: int | None
     comp_pickup_hotels: int
     comp_pace: Pace
-    suggestion: Suggestion | None
+    suggestion: Suggestion | None  # của khách sạn self chính (id nhỏ nhất)
     decision: str | None
+    suggestions: list[OwnSuggestion] = field(default_factory=list)  # mọi khách sạn self
 
 
 @dataclass
@@ -102,9 +131,44 @@ def tenant_today(tenant: Tenant, now: datetime | None = None) -> date:
 
 
 async def _observations(
-    s: AsyncSession, hotel_ids: list[int], channel: str, start: date, end: date
+    s: AsyncSession,
+    hotel_ids: list[int],
+    channel: str,
+    start: date,
+    end: date,
+    today: date,
+    calibrate_hotel: int | None,
 ) -> dict[int, dict[date, list[Obs]]]:
-    """Mỗi (khách sạn, đêm, số ngày trước khi đến) giữ lần quét mới nhất."""
+    """Mỗi (khách sạn, đêm, số ngày trước khi đến) giữ lần quét mới nhất. Chỉ nạp cửa sổ lead cần:
+    - đêm hiển thị [start, end]: quan sát trong STALE_DAYS + PICKUP_LEAD + dung sai ngày trước mốc
+      hiện tại của đêm (mốc = hôm nay, hoặc chính đêm đó nếu đã qua);
+    - đêm tham chiếu (cùng thứ, 1–8 tuần trước đêm hiển thị): quan sát ở cùng lead với đêm hiển
+      thị (± dung sai, + STALE_DAYS khi lần quét mới nhất đã cũ);
+    - đêm hiệu chuẩn (khách sạn bạn, CALIBRATION_DAYS ngày qua): lead ≤ LEAD_TOLERANCE + 1."""
+    night, lead = OccupancyEstimate.stay_date, OccupancyEstimate.days_to_arrival
+    display_window = STALE_DAYS + PICKUP_LEAD + LEAD_TOLERANCE
+    needed = [
+        and_(
+            night >= start,
+            night <= end,
+            lead <= func.greatest(night - today, 0) + display_window,
+        ),
+        and_(
+            night >= start - HISTORY,
+            night <= end - timedelta(weeks=min(REFERENCE_WEEKS)),
+            lead >= (start - today).days - LEAD_TOLERANCE,
+            lead <= (end - today).days + STALE_DAYS + LEAD_TOLERANCE,
+        ),
+    ]
+    if calibrate_hotel is not None:
+        needed.append(
+            and_(
+                OccupancyEstimate.hotel_id == calibrate_hotel,
+                night >= today - timedelta(days=CALIBRATION_DAYS),
+                night < today,
+                lead <= LEAD_TOLERANCE + 1,
+            )
+        )
     q = (
         select(
             OccupancyEstimate.hotel_id,
@@ -122,8 +186,7 @@ async def _observations(
         .where(
             OccupancyEstimate.hotel_id.in_(hotel_ids),
             OccupancyEstimate.channel == channel,
-            OccupancyEstimate.stay_date >= start,
-            OccupancyEstimate.stay_date <= end,
+            or_(*needed),
         )
         .distinct(
             OccupancyEstimate.hotel_id,
@@ -138,8 +201,8 @@ async def _observations(
         )
     )
     out: dict[int, dict[date, list[Obs]]] = defaultdict(lambda: defaultdict(list))
-    for hid, d, lead, at, status, inv, llo, lhi, lo, hi, cov in (await s.execute(q)).all():
-        out[hid][d].append(Obs(d, lead, at, status, inv, llo, lhi, lo, hi, cov))
+    for hid, d, lead_, at, status, inv, llo, lhi, lo, hi, cov in (await s.execute(q)).all():
+        out[hid][d].append(Obs(d, lead_, at, status, inv, llo, lhi, lo, hi, cov))
     return out
 
 
@@ -213,6 +276,58 @@ def _decision(stored: tuple[str, int] | None, sug: Suggestion | None) -> str | N
     return stored[0]
 
 
+def _quote(m: HotelDateMetric) -> PriceQuote:
+    return PriceQuote(m.currency, m.min_price, m.min_refundable_price)
+
+
+@dataclass(frozen=True)
+class _OwnNight:
+    """Tín hiệu một đêm nhìn từ một khách sạn `self` (đối thủ đã lọc tiền tệ theo khách sạn đó)."""
+
+    obs: Obs | None
+    signals: NightSignals
+    currency: str | None
+    suggestion: Suggestion | None
+
+
+def _own_night(
+    d: date,
+    today: date,
+    obs: list[Obs],
+    pms_occ: Decimal | None,
+    own_m: HotelDateMetric | None,
+    comp_all: list[HotelDateMetric],
+    comp_occ: Decimal | None,
+    comp_pace: Decimal | None,
+    holiday: str | None,
+    thresholds: SuggestionThresholds,
+) -> _OwnNight:
+    own_obs = _latest(obs)
+    own_occ_now = own_obs.occ_mid if own_obs and own_obs.reliable else None
+    own_q = _quote(own_m) if own_m else None
+    own_currency = own_q.currency if own_q else None
+    comp_m = [m for m in comp_all if comparable(own_currency, _quote(m))]
+    pick = price_basis(own_q, [_quote(m) for m in comp_m])
+    signals = NightSignals(
+        stay_date=d,
+        days_to_arrival=(d - today).days,
+        own_status=own_m.availability_status if own_m else None,
+        own_price=pick.own_price,
+        own_rooms_left=own_m.exact_rooms_left if own_m else None,
+        own_occ=pms_occ if pms_occ is not None else own_occ_now,
+        comp_observed=len(comp_m),
+        comp_sold_out=sum(1 for m in comp_m if m.availability_status == "sold_out"),
+        comp_median_price=median(pick.comp_prices),
+        comp_occ=comp_occ,
+        comp_pace=comp_pace,
+        holiday=holiday,
+        price_basis=pick.basis,
+    )
+    sug = suggest(signals, thresholds) if d >= today else None
+    currency = own_currency or next((m.currency for m in comp_m if m.currency), None)
+    return _OwnNight(own_obs, signals, currency, sug)
+
+
 async def build_pace_report(
     s: AsyncSession,
     tenant_id: int,
@@ -220,6 +335,7 @@ async def build_pace_report(
     end: date,
     today: date | None = None,
     locale: str = DEFAULT_LOCALE,
+    thresholds: SuggestionThresholds = DEFAULT_THRESHOLDS,
 ) -> PaceReport:
     """`locale`: ngôn ngữ tên ngày lễ (cũng là tham số của lý do gợi ý giá)."""
     tenant = await s.get(Tenant, tenant_id)
@@ -229,23 +345,22 @@ async def build_pace_report(
     channel = tenant.reference_channel or "booking"
     links = (
         await s.execute(
-            select(TenantHotel.hotel_id, TenantHotel.role).where(
-                TenantHotel.tenant_id == tenant_id, TenantHotel.active.is_(True)
-            )
+            select(TenantHotel.hotel_id, TenantHotel.role)
+            .where(TenantHotel.tenant_id == tenant_id, TenantHotel.active.is_(True))
+            .order_by(TenantHotel.hotel_id)
         )
     ).all()
     own_ids = [h for h, r in links if r == "self"]
     comp_ids = [h for h, r in links if r == "competitor"]
-    own_id = own_ids[0] if own_ids else None
+    own_id = own_ids[0] if own_ids else None  # khách sạn chính: id nhỏ nhất, ổn định giữa request
     report = PaceReport(start, end, channel, own_id)
     ids = own_ids + comp_ids
     if not ids:
         return report
 
-    hist_start = min(start, today - timedelta(days=CALIBRATION_DAYS)) - HISTORY
-    obs = await _observations(s, ids, channel, hist_start, end)
+    obs = await _observations(s, ids, channel, start, end, today, own_id)
     holidays = {
-        h.date: h.name for h in holidays_between(tenant.country_code, hist_start, end, locale)
+        h.date: h.name for h in holidays_between(tenant.country_code, start - HISTORY, end, locale)
     }
 
     def is_holiday(d: date) -> bool:
@@ -277,43 +392,41 @@ async def build_pace_report(
             )
         ).scalars()
     }
-    pms: dict[date, Decimal] = {}
-    if own_id:
-        for d, pct in await s.execute(
-            select(OwnHotelDaily.stay_date, OwnHotelDaily.occupancy_pct).where(
+    pms: dict[int, dict[date, Decimal]] = defaultdict(dict)
+    decisions: dict[tuple[int, date, str], tuple[str, int]] = {}
+    if own_ids:
+        for hid, d, pct in await s.execute(
+            select(
+                OwnHotelDaily.hotel_id, OwnHotelDaily.stay_date, OwnHotelDaily.occupancy_pct
+            ).where(
                 OwnHotelDaily.tenant_id == tenant_id,
-                OwnHotelDaily.hotel_id == own_id,
-                OwnHotelDaily.stay_date >= hist_start,
+                OwnHotelDaily.hotel_id.in_(own_ids),
+                OwnHotelDaily.stay_date >= min(start, today - timedelta(days=CALIBRATION_DAYS)),
                 OwnHotelDaily.stay_date <= end,
             )
         ):
             if pct is not None:
-                pms[d] = (Decimal(pct) / 100).quantize(Q4)
-    decisions = {
-        (d, k): (dec, pct)
-        for d, k, dec, pct in await s.execute(
-            select(
-                PriceSuggestionDecision.stay_date,
-                PriceSuggestionDecision.kind,
-                PriceSuggestionDecision.decision,
-                PriceSuggestionDecision.change_pct,
-            ).where(
-                PriceSuggestionDecision.tenant_id == tenant_id,
-                PriceSuggestionDecision.stay_date >= start,
-                PriceSuggestionDecision.stay_date <= end,
+                pms[hid][d] = (Decimal(pct) / 100).quantize(Q4)
+        decisions = {
+            (hid, d, k): (dec, pct)
+            for hid, d, k, dec, pct in await s.execute(
+                select(
+                    PriceSuggestionDecision.hotel_id,
+                    PriceSuggestionDecision.stay_date,
+                    PriceSuggestionDecision.kind,
+                    PriceSuggestionDecision.decision,
+                    PriceSuggestionDecision.change_pct,
+                ).where(
+                    PriceSuggestionDecision.tenant_id == tenant_id,
+                    PriceSuggestionDecision.hotel_id.in_(own_ids),
+                    PriceSuggestionDecision.stay_date >= start,
+                    PriceSuggestionDecision.stay_date <= end,
+                )
             )
-        )
-    }
+        }
 
     d = start
     while d <= end:
-        own_obs = _latest(obs.get(own_id, {}).get(d, [])) if own_id else None
-        own_occ_now = own_obs.occ_mid if own_obs and own_obs.reliable else None
-        own_pace = (
-            pace(d, own_obs.lead, own_occ_now, own_curves, is_holiday)
-            if own_obs
-            else Pace(None, 0, None)
-        )
         comp_latest = [o for c in comp_ids if (o := _latest(obs.get(c, {}).get(d, [])))]
         reliable = [o.occ_mid for o in comp_latest if o.reliable]
         comp_med = median(reliable) if len(reliable) >= 2 else None
@@ -324,41 +437,57 @@ async def build_pace_report(
             lead = min(comp_curve_now)
             comp_pace = pace(d, lead, comp_curve_now[lead], comp_curves, is_holiday)
         pickups = [p for c in comp_ids if (p := _pickup_7d(obs.get(c, {}).get(d, []))) is not None]
-
-        own_m = metrics.get((own_id, d)) if own_id else None
-        comp_m = [
+        comp_all = [
             m for c in comp_ids if (m := metrics.get((c, d))) and m.availability_status != "unknown"
         ]
-        comp_prices = [m.min_price for m in comp_m if m.min_price is not None]
-        own_occ_for_rules = pms[d] if d in pms else own_occ_now
-        signals = NightSignals(
-            stay_date=d,
-            days_to_arrival=(d - today).days,
-            own_status=own_m.availability_status if own_m else None,
-            own_price=own_m.min_price if own_m else None,
-            own_rooms_left=own_m.exact_rooms_left if own_m else None,
-            own_occ=own_occ_for_rules,
-            comp_observed=len(comp_m),
-            comp_sold_out=sum(1 for m in comp_m if m.availability_status == "sold_out"),
-            comp_median_price=median(comp_prices),
-            comp_occ=comp_occ,
-            comp_pace=comp_pace.delta,
-            holiday=holidays.get(d),
+
+        # Mỗi khách sạn self một bộ tín hiệu (giá, tiền tệ, PMS riêng); đối thủ dùng chung.
+        per_own: dict[int | None, _OwnNight] = {}
+        for hid in own_ids or [None]:
+            per_own[hid] = _own_night(
+                d,
+                today,
+                obs.get(hid, {}).get(d, []) if hid else [],
+                pms[hid].get(d) if hid else None,
+                metrics.get((hid, d)) if hid else None,
+                comp_all,
+                comp_occ,
+                comp_pace.delta,
+                holidays.get(d),
+                thresholds,
+            )
+        primary = per_own[own_id]
+        own_obs, signals = primary.obs, primary.signals
+        own_occ_now = own_obs.occ_mid if own_obs and own_obs.reliable else None
+        own_pace = (
+            pace(d, own_obs.lead, own_occ_now, own_curves, is_holiday)
+            if own_obs
+            else Pace(None, 0, None)
         )
-        sug = suggest(signals) if d >= today else None
+        suggestions = [
+            # Ghi nhận chỉ còn hiệu lực khi gợi ý giữ nguyên mức (đổi mức thì hỏi lại).
+            OwnSuggestion(
+                hid,
+                sug,
+                _decision(decisions.get((hid, d, sug.kind)), sug),
+                o.signals.own_price,
+                o.currency,
+            )
+            for hid, o in per_own.items()
+            if hid is not None and (sug := o.suggestion) is not None
+        ]
         report.nights.append(
             NightReport(
                 stay_date=d,
                 days_to_arrival=(d - today).days,
                 holiday=holidays.get(d),
                 own_obs=own_obs,
-                own_pms_occ=pms.get(d),
+                own_pms_occ=pms[own_id].get(d) if own_id else None,
                 own_pace=own_pace,
                 own_price=signals.own_price,
                 own_status=signals.own_status,
                 own_rooms_left=signals.own_rooms_left,
-                currency=(own_m.currency if own_m else None)
-                or next((m.currency for m in comp_m if m.currency), None),
+                currency=primary.currency,
                 comp_observed=signals.comp_observed,
                 comp_sold_out=signals.comp_sold_out,
                 comp_median_price=signals.comp_median_price,
@@ -367,16 +496,16 @@ async def build_pace_report(
                 comp_pickup_7d=sum(pickups) if pickups else None,
                 comp_pickup_hotels=len(pickups),
                 comp_pace=comp_pace,
-                suggestion=sug,
-                # Ghi nhận chỉ còn hiệu lực khi gợi ý giữ nguyên mức (đổi mức thì hỏi lại).
-                decision=_decision(decisions.get((d, sug.kind)), sug) if sug else None,
+                suggestion=primary.suggestion,
+                decision=next((o.decision for o in suggestions if o.hotel_id == own_id), None),
+                suggestions=suggestions,
             )
         )
         d += timedelta(days=1)
 
     if own_id:
         pairs = []
-        for night, real in pms.items():
+        for night, real in pms[own_id].items():
             if not today - timedelta(days=CALIBRATION_DAYS) <= night < today:
                 continue
             last = _latest([o for o in obs.get(own_id, {}).get(night, []) if o.reliable])

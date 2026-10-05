@@ -113,7 +113,7 @@ class BrowserCollector:
                 )
             finally:
                 await browser.close()
-        parsed = parse_hotel_page(html, currency, adults)
+        parsed = parse_hotel_page(html, currency, adults, nights)
         return probe_result_from_page(
             parsed,
             method=ProbeMethod.BROWSER,

@@ -3,7 +3,10 @@ from collections import deque
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from app.clock import FixedClock
+from app.collector.base import ListingBlocked
 from app.collector.factory import CollectorDeps
 from app.collector.proxy import ProxyEndpoint, StaticProxyProvider
 from app.collector.ratelimit import RateLimiter
@@ -121,15 +124,64 @@ async def test_blocked_twice_reports_blocked() -> None:
     c, _ = collector(BLOCKED_LOAD, signin)
     result = await c.probe(LISTING, date(2026, 10, 15), 1, 2)
     assert result.status == ProbeStatus.BLOCKED
-    assert result.error == "blocked"
+    assert result.error == "blocked: signin"
 
 
-async def test_unknown_hotel_redirect_is_not_found() -> None:
+async def test_redirect_away_from_detail_is_blocked_not_broken() -> None:
+    # Trang 200 chuyển về trang chủ: Trip.com không nói rõ "không tồn tại", chặn mềm cũng chuyển
+    # hướng y hệt → BLOCKED + thu hồi session (trước đây not_found → listing broken vĩnh viễn).
     home = DetailLoad("https://vn.trip.com/?locale=vi-vn", None, None, None, "other")
-    c, browsers = collector(home)
+    c, browsers = collector(home, home)
     result = await c.probe(LISTING, date(2026, 10, 15), 1, 2)
-    assert (result.status, result.error) == (ProbeStatus.ERROR, "not_found")
-    assert browsers.browsers[0].closed is False
+    assert result.status == ProbeStatus.BLOCKED
+    assert result.error == "blocked: redirected to https://vn.trip.com/?locale=vi-vn"
+    assert [b.closed for b in browsers.browsers] == [True, True]
+    assert browsers.live == {}
+
+
+async def test_bootstrap_failure_is_blocked_result_not_exception() -> None:
+    class Exploding(ScriptedBootstrapper):
+        async def bootstrap(self, proxy: ProxyEndpoint, warmup_url: str) -> BootstrapResult:
+            raise RuntimeError("chromium launch failed")
+
+    deps = CollectorDeps(
+        proxy_provider=StaticProxyProvider("http://u:p@proxy.local:8000"),
+        clock=FixedClock(datetime(2026, 10, 1, tzinfo=UTC)),
+        limiter=RateLimiter(0, 0, sleep=no_sleep),
+        currency="VND",
+        headless=True,
+        session_max_age=timedelta(minutes=20),
+        session_max_requests=400,
+    )
+    c = TripcomCollector(deps, browsers=Exploding())
+    result = await c.probe(LISTING, date(2026, 10, 15), 1, 2)
+    assert result.status == ProbeStatus.BLOCKED and result.session_id is None
+    assert result.error == "bootstrap: RuntimeError: chromium launch failed"
+
+
+async def test_verify_200_without_hotel_data_is_blocked() -> None:
+    c, _ = collector()
+    seen: list[str] = []
+
+    async def fake_request(method: str, url: str, **kwargs: object) -> tuple[int, str, str]:
+        seen.append(url)
+        return 200, "<html><body>Please wait</body></html>", "https://vn.trip.com/?x=1"
+
+    c._request = fake_request  # type: ignore[method-assign]
+    with pytest.raises(ListingBlocked, match="no hotel data"):
+        await c.verify(LISTING)
+    assert seen == ["https://vn.trip.com/hotels/detail/?hotelId=6648653"]
+
+
+async def test_expired_session_closes_browser_and_clears_rate_limiter() -> None:
+    c, browsers = collector(OK_LOAD, OK_LOAD)
+    await c.probe(LISTING, date(2026, 10, 15), 1, 2)
+    first = await c._sessions.get("vn", "x")
+    for _ in range(400):
+        c._sessions.mark_request(first)
+    await c.probe(LISTING, date(2026, 10, 15), 1, 2)  # hết số request → session mới
+    assert browsers.browsers[0].closed is True and len(browsers.browsers) == 2
+    assert first.id not in c._deps.limiter._last
 
 
 async def test_room_list_timeout_is_error() -> None:

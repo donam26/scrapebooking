@@ -21,9 +21,12 @@ from app.domain.models import (
     ProbeStatus,
     RatePlan,
     RoomOffer,
+    StockScope,
 )
 
-PARSER_VERSION = "2"  # 2: không lọc Isshowprices=0 (Park Hyatt 01/10 bị coi là hết phòng)
+# 2: không lọc Isshowprices=0 (Park Hyatt 01/10 bị coi là hết phòng)
+# 3: tồn phòng từ AvailableNo (capped, scope rate); thiếu ExcludeVAT → taxes_included=None
+PARSER_VERSION = "3"
 INVALID_TOKEN = "Invalid_token_ivv"
 
 _SUPPLIER_ALIASES = {"AGD": "AGODA", "INTERNAL": "IVIVU"}
@@ -79,6 +82,16 @@ def is_invalid_token(status: int, text: str) -> bool:
 
 
 def parse_price_response(text: str, adults: int, currency: str) -> ParsedPrice:
+    """Không bao giờ ném: payload lạ (ivivu đổi cấu trúc, trang chặn lọt vào) → ERROR để job ghi
+    lỗi của đêm đó thay vì nổ cả job. SOLD_OUT chỉ khi payload hợp lệ (có khách sạn) nói không còn
+    phòng; `Hotels` rỗng là lỗi/chặn mềm phía API, không phải hết phòng."""
+    try:
+        return _parse_price(text, adults, currency)
+    except Exception as exc:  # noqa: BLE001 - cấu trúc lạ: TypeError/KeyError/AttributeError…
+        return ParsedPrice(ProbeStatus.ERROR, error=f"malformed: {type(exc).__name__}: {exc}")
+
+
+def _parse_price(text: str, adults: int, currency: str) -> ParsedPrice:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
@@ -87,19 +100,26 @@ def parse_price_response(text: str, adults: int, currency: str) -> ParsedPrice:
         return ParsedPrice(ProbeStatus.ERROR, error="invalid_json")
     if data.get("error_code"):
         return ParsedPrice(ProbeStatus.ERROR, error=f"api: {data['error_code']}")
-    hotels = data.get("Hotels") or []
-    if not hotels:
-        return ParsedPrice(ProbeStatus.SOLD_OUT)
+    if "Hotels" not in data:
+        return ParsedPrice(ProbeStatus.ERROR, error="malformed: no Hotels")
+    hotels = data["Hotels"]
+    if not isinstance(hotels, list) or not hotels or not isinstance(hotels[0], dict):
+        # Hết phòng thật vẫn trả Hotels[0] (HotelCode, HotelName) với RoomClasses rỗng.
+        return ParsedPrice(ProbeStatus.ERROR, error="empty_hotels")
     hotel = hotels[0]
     name = hotel.get("HotelName") or None
+    hotel_vat = _opt_int(hotel.get("ExcludeVAT"))
     offers: dict[str, RoomOffer] = {}
     for rc in hotel.get("RoomClasses") or []:
-        taxes = _int(hotel.get("ExcludeVAT")) == 0 and _int(rc.get("ExcludeVAT")) == 0
-        rates = [
-            r
-            for r in (_rate(x, adults, currency, taxes) for x in rc.get("MealTypeRates") or [])
-            if r is not None
-        ]
+        taxes = _taxes_included(hotel_vat, _opt_int(rc.get("ExcludeVAT")))
+        rates: list[RatePlan] = []
+        counts = [_positive(rc.get("AvailableNo"))]
+        for raw in rc.get("MealTypeRates") or []:
+            rate = _rate(raw, adults, currency, taxes)
+            if rate is None:
+                continue
+            rates.append(rate)
+            counts.append(_positive(raw.get("AvailableNo")))
         if not rates or rc.get("IsPackageRate"):
             continue
         rc_currency = rc.get("CurrencyCode") or currency
@@ -107,10 +127,13 @@ def parse_price_response(text: str, adults: int, currency: str) -> ParsedPrice:
             return ParsedPrice(
                 ProbeStatus.ERROR, hotel_name=name, error=f"currency_mismatch:{rc_currency}"
             )
-        offer = _offer(rc, rates)
+        offer = _offer(rc, rates, max((c for c in counts if c), default=None))
         prev = offers.get(offer.external_room_id)
-        if prev is not None:  # cùng hạng phòng lặp lại: gộp giá
-            offer = replace(prev, rates=prev.rates + offer.rates)
+        if prev is not None:  # cùng hạng phòng lặp lại: gộp giá, tồn phòng lấy số lớn hơn
+            known = [c for c in (prev.badge_count, offer.badge_count) if c]
+            offer = replace(
+                prev, rates=prev.rates + offer.rates, badge_count=max(known) if known else None
+            )
         offers[offer.external_room_id] = offer
     if not offers:
         return ParsedPrice(ProbeStatus.SOLD_OUT, hotel_name=name)
@@ -121,16 +144,36 @@ def parse_price_response(text: str, adults: int, currency: str) -> ParsedPrice:
     return ParsedPrice(ProbeStatus.OK, offers=tuple(ordered), hotel_name=name)
 
 
-def _offer(rc: dict[str, Any], rates: list[RatePlan]) -> RoomOffer:
+def _offer(rc: dict[str, Any], rates: list[RatePlan], available: int | None) -> RoomOffer:
+    """`available` = max `AvailableNo` của hạng phòng và các dòng giá còn giữ, hiểu là "còn ÍT NHẤT
+    N" (badge_count + scope rate → derive_stock cho `capped`), không phải tồn kho chính xác:
+    - AvailableNo là allotment của từng nguồn bán (hợp đồng ivivu, B2B, Agoda, Hotelbeds…): trong
+      một hạng phòng mỗi dòng giá một số (Park Hyatt 01/10: 1, 6, 7). Khách sạn còn ≥ max.
+    - Nguồn ngoài chưa ghép (ClassID âm) luôn ghi 1: chỗ giữ "còn phòng", không phải đúng 1 (exact
+      sẽ sinh cảnh báo sắp hết phòng giả).
+    - Hạng phòng Status "RQ" (xác nhận sau) ghi 0 ở cấp hạng phòng dù dòng giá ghi 8–10 (Melia
+      12/10): 0 không phải hết phòng, nên chỉ lấy số dương.
+    Không dùng dropdown_max: ivivu không có ô chọn số phòng và derive_stock chỉ coi dropdown là
+    capped khi chạm trần trang."""
     rooms = rc.get("Rooms") or [{}]
     return RoomOffer(
         external_room_id=room_class_id(rc),
         name=str(rc.get("ClassName") or ""),
         max_occupancy=_int(rooms[0].get("MaxAdults")) or None,
-        badge_count=None,  # ivivu không hiện "còn N phòng"
+        badge_count=available,
         dropdown_max=None,
         rates=tuple(rates),
+        stock_scope=StockScope.RATE,
     )
+
+
+def _taxes_included(*exclude_vat: int | None) -> bool | None:
+    """`ExcludeVAT` 0 = giá đã gồm thuế phí (web ghi "Đã bao gồm thuế & phí"), 1 = chưa. Thiếu ở
+    cả khách sạn lẫn hạng phòng → None: không chắc, không đem so chéo kênh."""
+    known = [v for v in exclude_vat if v is not None]
+    if not known:
+        return None
+    return all(v == 0 for v in known)
 
 
 def room_class_id(rc: dict[str, Any]) -> str:
@@ -144,7 +187,7 @@ def room_class_id(rc: dict[str, Any]) -> str:
     return "name:" + re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-")
 
 
-def _rate(r: dict[str, Any], adults: int, currency: str, taxes: bool) -> RatePlan | None:
+def _rate(r: dict[str, Any], adults: int, currency: str, taxes: bool | None) -> RatePlan | None:
     # Không lọc theo `Isshowprices`: giá AGD/MGB của Park Hyatt (01/10) có Isshowprices=0 mà vẫn
     # đặt được, bằng giá trên Agoda/Trip.com; lọc thì cả khách sạn bị coi là hết phòng.
     if r.get("IsPackageRate") or r.get("IsComboFlight"):
@@ -303,6 +346,21 @@ def _int(raw: Any) -> int:
         return int(raw or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _opt_int(raw: Any) -> int | None:
+    """Số nguyên, None nếu thiếu/không đọc được (khác _int: thiếu không thành 0)."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _positive(raw: Any) -> int | None:
+    value = _opt_int(raw)
+    return value if value is not None and value > 0 else None
 
 
 def _decimal(raw: Any) -> Decimal | None:

@@ -1,6 +1,7 @@
 """Parser trên JSON Agoda THẬT (bắt 2026-10-01 qua proxy VN, rút gọn theo whitelist trường, không
 cookie/token). Số kỳ vọng đọc trực tiếp từ payload gốc trong lúc spike."""
 
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -9,6 +10,7 @@ import pytest
 
 from app.collector.agoda.parser import (
     PayloadError,
+    explicit_not_found,
     parse_identity,
     parse_property_data,
     parse_room_grid_sold_out,
@@ -125,7 +127,22 @@ def test_unknown_property_has_no_name(fixtures_dir: Path) -> None:
     page = parse_property_data(_load(fixtures_dir, "not_found.json"), adults=2)
     assert page.hotel_name is None
     assert page.outcome == PageOutcome.EMPTY
+    assert page.complete  # isDataReady, không error: Agoda nói rõ id không tồn tại
     assert parse_identity(_load(fixtures_dir, "not_found.json")).name is None
+    assert explicit_not_found(_load(fixtures_dir, "not_found.json"))
+
+
+def test_incomplete_payload_without_name_is_not_explicit_not_found(fixtures_dir: Path) -> None:
+    data = json.loads(_load(fixtures_dir, "not_found.json"))
+    data["roomGridData"]["isDataReady"] = False
+    assert not parse_property_data(json.dumps(data), adults=2).complete
+    assert not explicit_not_found(json.dumps(data))
+    data["roomGridData"]["isDataReady"] = True
+    data["error"] = {"code": "RATE_LIMIT"}
+    assert not explicit_not_found(json.dumps(data))
+    # Payload bình thường (có tên): complete, không phải not_found.
+    normal = _load(fixtures_dir, "melia_2026-10-20.json")
+    assert parse_property_data(normal, adults=2).complete and not explicit_not_found(normal)
 
 
 def test_payload_must_be_json_object() -> None:

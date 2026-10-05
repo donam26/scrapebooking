@@ -6,6 +6,8 @@ import hashlib
 from datetime import date, timedelta
 from typing import Any
 
+from app.config import MYTOUR_WEB_SECRET
+
 API_BASE = "https://apis.tripi.vn/hotels"
 AVAILABILITY_PATH = "/v3/rooms/availability"
 DETAIL_PATH = "/v3/hotels/detail"
@@ -14,26 +16,27 @@ HOME_URL = "https://mytour.vn/"
 
 CODE_OK = 200
 CODE_HOTEL_NOT_FOUND = 4103  # "Khách sạn không tồn tại."
-# 3004 "Hash không tồn tại": appHash sai → khoá web đã đổi, cập nhật _WEB_SECRET.
+# "Hash không tồn tại": appHash sai → Mytour đã đổi khoá web. Collector báo BLOCKED
+# "mytour_secret_rotated" (kênh tự ngắt + cảnh báo vận hành); đặt MYTOUR_WEB_SECRET mới (tìm bằng
+# grep "appHash" trong _app-*.js của mytour.vn), không cần build lại.
+CODE_SECRET_ROTATED = 3004
 
-# Khoá tĩnh trong JS web của Mytour (_app-*.js, hàm sinh header appHash, nhánh "website").
-# Mytour deploy bản mới có thể đổi khoá: tìm lại bằng grep "appHash" trong _app-*.js.
-_WEB_SECRET = "@Zz8qt5CzUlyg#$RK4YJmW5!I@yYSaVf"
 
-
-def app_hash(now_s: float) -> str:
+def app_hash(now_s: float, secret: str = MYTOUR_WEB_SECRET) -> str:
     """base64(sha256("<unix giây làm tròn xuống 5 phút>:<khoá web>")), như trình duyệt tính."""
     t = int(now_s)
     t -= t % 300
-    return base64.b64encode(hashlib.sha256(f"{t}:{_WEB_SECRET}".encode()).digest()).decode()
+    return base64.b64encode(hashlib.sha256(f"{t}:{secret}".encode()).digest()).decode()
 
 
-def api_headers(device_id: str, currency: str, now_s: float) -> dict[str, str]:
+def api_headers(
+    device_id: str, currency: str, now_s: float, secret: str = MYTOUR_WEB_SECRET
+) -> dict[str, str]:
     return {
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "vi",
         "appId": "mytour-web",
-        "appHash": app_hash(now_s),
+        "appHash": app_hash(now_s, secret),
         "caid": "17",
         "countryCode": "VN",
         "currency": currency,

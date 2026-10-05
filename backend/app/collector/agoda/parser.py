@@ -41,12 +41,14 @@ class PayloadError(ValueError):
 class AgodaPage:
     outcome: PageOutcome
     external_id: str | None
-    hotel_name: str | None  # None: Agoda không có khách sạn này (id sai/đã gỡ)
+    hotel_name: str | None  # None + complete: Agoda không có khách sạn này (id sai/đã gỡ)
     currency: str | None  # tiền tệ Agoda thực trả
     checkin: date | None
     nights: int | None
     offers: tuple[RoomOffer, ...] = field(default_factory=tuple)
     demand_signals: tuple[DemandSignal, ...] = field(default_factory=tuple)
+    # payload_complete(): thiếu tên ở payload chưa đủ là chặn mềm, không phải not_found.
+    complete: bool = True
 
 
 @dataclass(frozen=True)
@@ -69,6 +71,21 @@ def load_json(text: str) -> dict[str, Any]:
 
 def _dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def payload_complete(data: dict[str, Any]) -> bool:
+    """Agoda đã trả trọn dữ liệu cho id này: `roomGridData.isDataReady` và không có `error`.
+    Payload như vậy mà không có tên khách sạn là Agoda nói rõ id không tồn tại (fixture
+    not_found.json); thiếu tên ở payload chưa sẵn sàng / có lỗi là chặn mềm hoặc sự cố, không
+    phải "không tồn tại"."""
+    ready = _bool(_dict(data.get("roomGridData")).get("isDataReady")) is True
+    return ready and not data.get("error")
+
+
+def explicit_not_found(text: str) -> bool:
+    """Payload GetSecondaryData đầy đủ nhưng không có khách sạn (xem payload_complete)."""
+    data = load_json(text)
+    return _text(_dict(data.get("hotelInfo")).get("name")) is None and payload_complete(data)
 
 
 def _list(value: Any) -> list[Any]:
@@ -291,6 +308,7 @@ def parse_property_data(text: str, adults: int | None = None) -> AgodaPage:
         nights=_int(criteria.get("los")),
         offers=tuple(offers + sold_out),
         demand_signals=_demand_signals(info),
+        complete=payload_complete(data),
     )
 
 

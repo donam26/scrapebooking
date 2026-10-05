@@ -31,11 +31,11 @@ export function SuggestionCard({
   const { suggestionLabel, fmtChange } = useMarketText();
   const s = night.suggestion!;
   const decide = useMutation(async (decision: "applied" | "dismissed") => {
-    await api.market.decide(night.stay_date, s.kind, decision);
+    await api.market.decide(night.stay_date, s.kind, decision, s.hotel_id);
     onChanged();
   });
   const undo = useMutation(async () => {
-    await api.market.undo(night.stay_date, s.kind);
+    await api.market.undo(night.stay_date, s.kind, s.hotel_id);
     onChanged();
   });
   const title = `${fmtWeekday(night.stay_date)} ${fmtDateShort(night.stay_date)}`;

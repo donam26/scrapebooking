@@ -66,6 +66,7 @@
       "stopTitle": "Stop scanning this hotel on all channels (you can turn it back on at any time)",
       "resumeTitle": "Resume scanning this hotel",
       "stopAria": "Stop scanning {name}",
+      "stopConfirm": "Stop scanning {name} on all channels? Collected data is kept and you can turn it back on at any time.",
       "resumeAria": "Resume scanning {name}",
       "stop": "Stop scanning",
       "resume": "Resume",

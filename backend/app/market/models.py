@@ -68,6 +68,8 @@ class PriceSuggestionDecision(Base):
     __tablename__ = "price_suggestion_decisions"
 
     tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), primary_key=True)
+    # Khách sạn "self" được gợi ý (tenant chuỗi có nhiều cơ sở, mỗi cơ sở một bộ gợi ý).
+    hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"), primary_key=True)
     stay_date: Mapped[date] = mapped_column(Date, primary_key=True)
     kind: Mapped[str] = mapped_column(String(16), primary_key=True)  # raise | hold | lower
     decision: Mapped[str] = mapped_column(String(16))

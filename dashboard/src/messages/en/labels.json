@@ -47,7 +47,6 @@
   },
   "insightStatus": {
     "pending": "Generating",
-    "batch_pending": "Waiting for batch",
     "completed": "Completed",
     "failed": "Failed"
   },

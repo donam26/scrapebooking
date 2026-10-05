@@ -1,6 +1,7 @@
 """AgodaCollector với HTTP giả (fixture thật trong tests/fixtures/agoda): luồng probe/verify/suggest,
 chặn -> đổi session, hết phòng qua room-grid, sai tiền tệ."""
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -13,7 +14,7 @@ from app.clock import FixedClock
 from app.collector.agoda import collector as agoda_collector
 from app.collector.agoda.collector import AgodaCollector, AgodaHttp, build
 from app.collector.base import ListingBlocked, ListingNotFound
-from app.collector.factory import CollectorDeps
+from app.collector.factory import ChannelKeys, CollectorDeps
 from app.collector.fetch import FetchResponse
 from app.collector.proxy import StaticProxyProvider
 from app.collector.ratelimit import RateLimiter
@@ -213,12 +214,55 @@ async def test_server_error_retried_once(fixtures_dir: Path) -> None:
 
 
 async def test_unknown_property_and_missing_page_are_not_found(fixtures_dir: Path) -> None:
+    # Payload đầy đủ (isDataReady, không error) mà không có khách sạn: Agoda nói rõ id không tồn tại.
     body = _fixture(fixtures_dir, "not_found.json")
-    collector, _ = _collector(lambda m, u: (200, body))
+    collector, http = _collector(lambda m, u: (200, body))
     assert (await collector.probe(MELIA_ID, date(2026, 10, 20), 1, 2)).error == "not_found"
+    assert http.closed == []  # không phải chặn: giữ session
     collector, _ = _collector(lambda m, u: (404, "<html>not found</html>"))
     result = await collector.probe(MELIA, date(2026, 10, 20), 1, 2)
     assert (result.status, result.error) == (ProbeStatus.ERROR, "not_found")
+
+
+def _incomplete(fixtures_dir: Path) -> str:
+    data = json.loads(_fixture(fixtures_dir, "not_found.json"))
+    data["roomGridData"]["isDataReady"] = False
+    return json.dumps(data)
+
+
+async def test_json_200_without_hotel_info_is_blocked_not_broken(fixtures_dir: Path) -> None:
+    # JSON 200 thiếu hotelInfo.name ở payload chưa đủ dữ liệu: chặn mềm → đổi session, BLOCKED
+    # (trước đây là not_found → listing broken vĩnh viễn).
+    body = _incomplete(fixtures_dir)
+    collector, http = _collector(lambda m, u: (200, body))
+    result = await collector.probe(MELIA_ID, date(2026, 10, 20), 1, 2)
+    assert result.status == ProbeStatus.BLOCKED
+    assert result.error == "incomplete payload: no hotelInfo"
+    assert http.closed == [http.calls[0].session_id]
+    collector, _ = _collector(lambda m, u: (200, body))
+    with pytest.raises(ListingBlocked):
+        await collector.verify(MELIA_ID)
+
+
+async def test_html_200_without_property_id_is_blocked(fixtures_dir: Path) -> None:
+    collector, http = _collector(lambda m, u: (200, "<html><body>Please wait…</body></html>"))
+    result = await collector.probe(MELIA, date(2026, 10, 20), 1, 2)
+    assert result.status == ProbeStatus.BLOCKED
+    assert http.closed == [http.calls[0].session_id]
+    with pytest.raises(ListingBlocked):
+        await collector.verify(MELIA)
+
+
+async def test_retired_session_closes_client_and_clears_rate_limiter(fixtures_dir: Path) -> None:
+    body = _fixture(fixtures_dir, "melia_2026-10-20.json")
+    deps = _deps()
+    http = FakeHttp(lambda m, u: (200, body))
+    collector = AgodaCollector(deps, http=http, backoff=no_sleep)
+    await collector.probe(MELIA_ID, date(2026, 10, 20), 1, 2)
+    sid = http.calls[0].session_id
+    assert sid in deps.limiter._last
+    await collector._sessions.retire(await collector._sessions.get("vn", "x"), "expired")
+    assert http.closed == [sid] and sid not in deps.limiter._last
 
 
 async def test_transport_error_after_retry_is_error() -> None:
@@ -323,8 +367,28 @@ async def test_close_closes_http_clients() -> None:
     assert http.closed == ["*"]
 
 
-@pytest.mark.parametrize("status", [429, 503])
+@pytest.mark.parametrize("status", [403, 429])
 async def test_rate_limit_statuses_count_as_blocked(status: int) -> None:
     collector, _ = _collector(lambda m, u: (status, ""))
     result = await collector.probe(MELIA_ID, date(2026, 10, 20), 1, 2)
     assert result.status == ProbeStatus.BLOCKED
+
+
+async def test_503_outage_is_retried_then_error_without_burning_session() -> None:
+    collector, http = _collector(lambda m, u: (503, "Service Unavailable"))
+    result = await collector.probe(MELIA_ID, date(2026, 10, 20), 1, 2)
+    assert (result.status, result.error) == (ProbeStatus.ERROR, "http 503")
+    assert len(http.calls) == 2 and http.calls[0].session_id == http.calls[1].session_id
+    assert http.closed == []
+
+
+async def test_gate_headers_use_keys_from_settings(fixtures_dir: Path) -> None:
+    data = _fixture(fixtures_dir, "camia_sold_out_2026-10-03.json")
+    grid = _fixture(fixtures_dir, "camia_room_grid_2026-10-03.json")
+    deps = _deps()
+    deps.keys = ChannelKeys(agoda_initiator_api_key="key-2", agoda_initiator_version="7_1")
+    http = FakeHttp(lambda m, u: (200, grid if m == "POST" else data))
+    await AgodaCollector(deps, http=http, backoff=no_sleep).probe(CAMIA, date(2026, 10, 3), 1, 2)
+    post = http.calls[1]
+    assert post.headers["ag-initiator-api-key"] == "key-2"
+    assert post.headers["ag-initiator-version"] == "7_1"

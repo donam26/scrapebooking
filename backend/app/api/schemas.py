@@ -41,6 +41,20 @@ class UserUpdate(BaseModel):
     password: str | None = Field(default=None, min_length=8)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=16, max_length=200)
+    password: str = Field(min_length=8, max_length=200)
+
+
 # ---- tenants ----
 
 
@@ -55,6 +69,9 @@ class TenantOut(ORM):
     country_code: str
     reference_channel: str
     active: bool
+    # Hạn mức riêng do operator đặt (rỗng = mặc định hệ thống): max_hotels, manual_scans_per_day,
+    # insights_per_day.
+    limits: dict[str, int] = {}
     created_at: datetime
 
 
@@ -88,6 +105,7 @@ class TenantUpdate(BaseModel):
     country_code: str | None = Field(default=None, min_length=2, max_length=2)
     reference_channel: str | None = None
     active: bool | None = None
+    limits: dict[str, int] | None = None  # chỉ operator (PATCH /tenants/{id})
 
     _language = field_validator("insight_language")(_check_language)
 
@@ -190,6 +208,8 @@ class DateCell(BaseModel):
     restocked_at: datetime | None
     last_observed_at: datetime | None
     days_to_arrival: int | None
+    # Probe mới nhất không dùng được: giá/số phòng giữ từ lần dùng được cuối, cũ từ mốc này.
+    stale_since: datetime | None = None
 
 
 class HotelRow(BaseModel):

@@ -103,16 +103,33 @@ async def test_page_that_dropped_requested_dates_is_soft_block() -> None:
 
 async def test_parser_gets_party_size_of_the_probe() -> None:
     # Parser bỏ dòng giá cho ít khách hơn số người lớn đã tìm: phải biết số người lớn của probe.
-    seen: list[tuple[str, int | None]] = []
+    seen: list[tuple[str, int | None, int]] = []
 
-    def recording_parser(html: str, currency: str, adults: int | None = None) -> ParsedPage:
-        seen.append((currency, adults))
-        return fake_parser(html, currency, adults)
+    def recording_parser(
+        html: str, currency: str, adults: int | None = None, nights: int = 1
+    ) -> ParsedPage:
+        seen.append((currency, adults, nights))
+        return fake_parser(html, currency, adults, nights)
 
     collector, _ = _build(FakeFetcher(resp(200, "<html>ROOMS</html>")))
     collector._parser = recording_parser  # noqa: SLF001
-    await collector.probe(HOTEL, any_date(), nights=1, adults=3)
-    assert seen == [("VND", 3)]
+    await collector.probe(HOTEL, any_date(), nights=2, adults=3)
+    # Số đêm phải tới parser: Booking hiện tổng tiền cả kỳ, parser chia theo đêm.
+    assert seen == [("VND", 3, 2)]
+
+
+async def test_session_bootstrap_failure_is_blocked_not_exception() -> None:
+    # Playwright/proxy lỗi khi mở session: probe trả BLOCKED (kích hoạt tự ngắt kênh), không nổ.
+    class FailingBootstrapper:
+        async def bootstrap(self, proxy: object, warmup_url: str) -> object:
+            raise RuntimeError("challenge not solved")
+
+    collector, _ = _build(FakeFetcher(resp(200, "<html>ROOMS</html>")))
+    collector._sessions._bootstrapper = FailingBootstrapper()  # type: ignore[assignment]
+    r = await collector.probe(HOTEL, any_date(), nights=1, adults=2)
+    assert r.status == ProbeStatus.BLOCKED and "bootstrap" in (r.error or "")
+    cal = await collector.fetch_calendar(HOTEL, any_date(), 30, 2)
+    assert cal.ok is False and (cal.error or "").startswith("bootstrap")
 
 
 async def test_transient_5xx_is_retried_once_on_same_session() -> None:

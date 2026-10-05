@@ -1,12 +1,13 @@
 """API nhịp đặt phòng + gợi ý giá, dữ liệu chèn thẳng qua ORM (không phụ thuộc collector/analytics)."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.auth import hash_password
 from app.config import Settings
@@ -23,7 +24,9 @@ from app.db.models import (
     TenantHotel,
     User,
 )
-from app.market.occupancy_service import OccupancyService
+from app.market.jobs import estimate_occupancy_catch_up
+from app.market.models import OccupancyEstimate, OccupancyEstimateRun
+from app.market.occupancy_service import RETRY_AFTER, OccupancyService, reset_occupancy_marker
 from app.market.weather import Weather, WeatherDay, WeatherNow
 from tests.integration.test_api import _login
 
@@ -207,6 +210,7 @@ async def test_pace_estimates_suggestion_and_decision_flow(
     assert n["comp_sold_out"] == 1 and n["comp_observed"] == 2
     sug = n["suggestion"]
     assert sug["kind"] == "raise" and sug["change_pct"] == 15 and sug["decision"] is None
+    assert sug["hotel_id"] == own and sug["price_basis"] == "any" and n["suggestions"] == [sug]
     assert "1/2 đối thủ đã hết phòng" in sug["reasons"]
     en = (await client.get("/market/pace", params=params, headers={"Accept-Language": "en"})).json()
     assert "1/2 competitors sold out" in en["nights"][0]["suggestion"]["reasons"]
@@ -363,3 +367,174 @@ async def test_market_runs_are_not_the_tenants_last_run(
     # Danh sách lượt quét vẫn có run đó nhưng che mã khu vực của tenant khác.
     runs = (await client.get("/runs")).json()
     assert [r["trigger_key"] for r in runs] == ["market"]
+
+
+def _metric(
+    hotel_id: int,
+    status: str,
+    price: Decimal | None,
+    left: int | None,
+    run_id: int,
+    *,
+    refundable: Decimal | None = None,
+    currency: str | None = "VND",
+) -> HotelDateMetric:
+    return HotelDateMetric(
+        hotel_id=hotel_id,
+        channel="booking",
+        stay_date=NIGHT,
+        as_of_scan_run_id=run_id,
+        days_to_arrival=5,
+        min_price=price,
+        min_refundable_price=refundable,
+        currency=currency,
+        availability_status=status,
+        exact_rooms_left=left,
+        last_observed_at=NOW - timedelta(hours=1),
+    )
+
+
+async def _add_hotel(db: AsyncSession, tenant_id: int, name: str, role: str) -> int:
+    h = Hotel(name=name, country_code="vn")
+    db.add(h)
+    await db.flush()
+    db.add(TenantHotel(tenant_id=tenant_id, hotel_id=h.id, role=role, active=True, label=name))
+    await db.commit()
+    return h.id
+
+
+async def test_two_self_hotels_get_their_own_suggestions_and_decisions(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    ids = await _seed(db)
+    own, a, b = ids["own"], ids["a"], ids["b"]
+    own2 = await _add_hotel(db, ids["t"], "Rex Annex", "self")
+    assert own2 > own  # khách sạn chính = id nhỏ nhất
+    run = await _observe(
+        db, ids, "r1", NOW - timedelta(hours=1), {a: ("sold_out", None), b: ("available", 1)}
+    )
+    db.add_all(
+        [
+            _metric(own, "available", Decimal("80"), 6, run),
+            _metric(own2, "available", Decimal("90"), 2, run),
+            _metric(a, "sold_out", None, None, run, currency=None),
+            _metric(b, "available", Decimal("100"), 1, run),
+        ]
+    )
+    await db.commit()
+    await _login(client, "admin@rex.vn", "admin-pass-1")
+    params = {"start": NIGHT.isoformat(), "end": NIGHT.isoformat()}
+    body = (await client.get("/market/pace", params=params)).json()
+    assert body["own_hotel_id"] == own
+    n = body["nights"][0]
+    assert n["suggestion"]["hotel_id"] == own and n["own_price"] == "80.00"
+    # Mỗi khách sạn self một gợi ý riêng (giá riêng → mức tăng riêng), theo thứ tự hotel_id.
+    assert [(s["hotel_id"], s["kind"], s["change_pct"]) for s in n["suggestions"]] == [
+        (own, "raise", 15),
+        (own2, "raise", 10),
+    ]
+
+    path = f"/market/suggestions/{NIGHT.isoformat()}/raise"
+    comp = await client.put(path, json={"decision": "applied"}, params={"hotel_id": a})
+    assert comp.status_code == 404  # đối thủ không phải khách sạn self
+    put = await client.put(path, json={"decision": "dismissed"}, params={"hotel_id": own2})
+    assert put.status_code == 200
+    assert put.json()["hotel_id"] == own2 and put.json()["decision"] == "dismissed"
+    n = (await client.get("/market/pace", params=params)).json()["nights"][0]
+    assert n["suggestion"]["decision"] is None  # khách sạn chính chưa ghi nhận
+    assert [s["decision"] for s in n["suggestions"]] == [None, "dismissed"]
+    # Không có hotel_id: khách sạn chính.
+    assert (await client.put(path, json={"decision": "applied"})).status_code == 200
+    n = (await client.get("/market/pace", params=params)).json()["nights"][0]
+    assert n["suggestion"]["decision"] == "applied"
+    assert [s["decision"] for s in n["suggestions"]] == ["applied", "dismissed"]
+    assert (await client.delete(path, params={"hotel_id": b})).status_code == 404
+    assert (await client.delete(path, params={"hotel_id": own2})).status_code == 204
+    n = (await client.get("/market/pace", params=params)).json()["nights"][0]
+    assert [s["decision"] for s in n["suggestions"]] == ["applied", None]
+
+
+async def test_suggestion_uses_refundable_basis_and_skips_other_currency(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    ids = await _seed(db)
+    own, a, b = ids["own"], ids["a"], ids["b"]
+    c = await _add_hotel(db, ids["t"], "Comp C", "competitor")
+    run = await _observe(db, ids, "r1", NOW - timedelta(hours=1), {a: ("sold_out", None)})
+    db.add_all(
+        [
+            _metric(own, "available", Decimal("80"), 6, run, refundable=Decimal("88")),
+            _metric(a, "sold_out", None, None, run, currency=None),
+            _metric(b, "available", Decimal("100"), 3, run, refundable=Decimal("110")),
+            _metric(c, "available", Decimal("4"), 3, run, refundable=Decimal("5"), currency="USD"),
+        ]
+    )
+    await db.commit()
+    await _login(client, "view@rex.vn", "view-pass-1")
+    params = {"start": NIGHT.isoformat(), "end": NIGHT.isoformat()}
+    n = (await client.get("/market/pace", params=params)).json()["nights"][0]
+    # C (USD) bị bỏ, A hết phòng (không có giá) vẫn đếm; so giá hoàn huỷ 88 với 110.
+    assert n["comp_observed"] == 2 and n["comp_sold_out"] == 1 and n["currency"] == "VND"
+    assert n["own_price"] == "88.00" and n["comp_median_price"] == "110.00"
+    sug = n["suggestion"]
+    assert sug["price_basis"] == "refundable" and sug["kind"] == "raise" and sug["change_pct"] == 15
+    assert "giá bạn thấp hơn trung vị đối thủ 20%" in sug["reasons"]
+
+    # Bạn không còn giá hoàn huỷ → so giá thấp nhất mọi loại.
+    m = (
+        await db.execute(select(HotelDateMetric).where(HotelDateMetric.hotel_id == own))
+    ).scalar_one()
+    m.min_refundable_price = None
+    await db.commit()
+    n = (await client.get("/market/pace", params=params)).json()["nights"][0]
+    assert n["suggestion"]["price_basis"] == "any"
+    assert n["own_price"] == "80.00" and n["comp_median_price"] == "100.00"
+
+
+async def test_occupancy_days_to_arrival_uses_hotel_local_date(db: AsyncSession) -> None:
+    ids = await _seed(db)
+    own = ids["own"]
+    day = TODAY - timedelta(days=2)
+    # 06:00 giờ Việt Nam = 23:00 UTC hôm trước; 14:00 cùng ngày địa phương = 07:00 UTC.
+    dawn = datetime.combine(day - timedelta(days=1), time(23, 0), tzinfo=UTC)
+    noon = datetime.combine(day, time(7, 0), tzinfo=UTC)
+    r_dawn = await _observe(db, ids, "dawn", dawn, {own: ("available", 6)})
+    r_noon = await _observe(db, ids, "noon", noon, {own: ("available", 5)})
+    svc = OccupancyService(db)
+    assert await svc.run(r_dawn) == 1 and await svc.run(r_noon) == 1
+    await db.commit()
+    rows = await db.execute(
+        select(OccupancyEstimate.scan_run_id, OccupancyEstimate.days_to_arrival).where(
+            OccupancyEstimate.hotel_id == own
+        )
+    )
+    expected = (NIGHT - day).days
+    assert dict(rows.all()) == {r_dawn: expected, r_noon: expected}  # type: ignore[arg-type]
+
+
+async def test_failed_occupancy_run_is_retried_with_backoff_then_parked(
+    db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ids = await _seed(db)
+    run = await _observe(db, ids, "r1", NOW - timedelta(hours=1), {ids["own"]: ("available", 6)})
+
+    async def boom(self: OccupancyService, run_id: int) -> int:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(OccupancyService, "run", boom)
+    factory = async_sessionmaker(db.bind, expire_on_commit=False)  # type: ignore[arg-type]
+    assert await estimate_occupancy_catch_up({"session_factory": factory}) == 0
+    marker = select(OccupancyEstimateRun.rows).where(OccupancyEstimateRun.scan_run_id == run)
+    assert (await db.execute(marker)).scalar_one() == -1  # lần thử 1, không phải dấu vĩnh viễn
+    svc = OccupancyService(db)
+    assert await svc.pending_run_ids() == []  # chưa tới hạn thử lại
+    later = NOW + RETRY_AFTER + timedelta(hours=1)
+    assert await svc.pending_run_ids(now=later) == [run]
+    assert await svc.mark_failed(run) == 2 and await svc.mark_failed(run) == 3
+    await db.commit()
+    assert (await db.execute(marker)).scalar_one() == -3
+    assert await svc.pending_run_ids(now=later + timedelta(days=2)) == []  # đủ 3 lần: để nguyên
+    assert await reset_occupancy_marker(db, run) is True
+    await db.commit()
+    assert await svc.pending_run_ids() == [run]
+    assert await reset_occupancy_marker(db, run) is False

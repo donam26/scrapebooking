@@ -49,6 +49,9 @@ class PageOutcome(StrEnum):
     ROOMS = "rooms"  # có bảng phòng với ít nhất 1 dòng
     SOLD_OUT = "sold_out"  # có thông báo hết phòng rõ ràng
     EMPTY = "empty"  # không có bảng phòng, không có thông báo: nghi bị chặn hoặc min stay
+    # Trang hiện giá bằng tiền tệ khác SCAN_CURRENCY (proxy sai nước, Booking bỏ tham số):
+    # không được ghi giá; probe thành ERROR "currency_mismatch".
+    WRONG_CURRENCY = "wrong_currency"
 
 
 @dataclass(frozen=True)
@@ -113,6 +116,7 @@ class ParsedPage:
     hotel_name: str | None
     csrf_token: str | None
     offers: tuple[RoomOffer, ...] = field(default_factory=tuple)
+    note: str | None = None  # lý do khi outcome là lỗi (VD tiền tệ thấy được)
 
 
 @dataclass(frozen=True)

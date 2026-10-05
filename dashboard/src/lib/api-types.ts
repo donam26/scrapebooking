@@ -1294,6 +1294,8 @@ export interface components {
             last_observed_at: string | null;
             /** Days To Arrival */
             days_to_arrival: number | null;
+            /** Stale Since */
+            stale_since?: string | null;
         };
         /** DayDetailOut */
         DayDetailOut: {
@@ -2130,6 +2132,8 @@ export interface components {
             comp_pickup_hotels: number;
             comp_pace: components["schemas"]["PaceOut"];
             suggestion: components["schemas"]["SuggestionOut"] | null;
+            /** Suggestions */
+            suggestions: components["schemas"]["SuggestionOut"][];
         };
         /** PaceOut */
         PaceOut: {
@@ -2393,6 +2397,13 @@ export interface components {
             reasons: string[];
             /** Decision */
             decision: ("applied" | "dismissed") | null;
+            /** Hotel Id */
+            hotel_id: number;
+            /**
+             * Price Basis
+             * @enum {string}
+             */
+            price_basis: "refundable" | "any";
         };
         /** TenantCreate */
         TenantCreate: {
@@ -4185,6 +4196,7 @@ export interface operations {
     decide_suggestion_market_suggestions__stay_date___kind__put: {
         parameters: {
             query?: {
+                hotel_id?: number | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };
@@ -4224,6 +4236,7 @@ export interface operations {
     undo_decision_market_suggestions__stay_date___kind__delete: {
         parameters: {
             query?: {
+                hotel_id?: number | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };

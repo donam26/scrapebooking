@@ -906,3 +906,23 @@ Chuyển trạng thái 150ms (hover hàng 100ms, trục đêm 100ms); nhấc ô 
 - **Không** cho tenant thấy token, chi phí, mô hình AI, probe, chặn, lỗi hay mã lượt quét.
 - **Không** dùng giá trị hex rời (`bg-[#…]`) trong app; màu mới phải thành biến `--sb-*` trước.
 - **Không** dùng viền màu bên trái cho ghi chú hay thẻ.
+
+## Ghi chú kỹ thuật từng layout
+
+Hai hợp đồng thiết kế dưới đây trước kia được chèn vào HTML dưới dạng chú thích ẩn (`dangerouslySetInnerHTML` trong `dashboard/src/app/(marketing)/layout.tsx` và `dashboard/src/app/(app)/layout.tsx`) để công cụ review đọc. Từ phase 2 (bảo mật) chúng nằm ở đây, không ship ra khách.
+
+### Trang giới thiệu (`(marketing)/layout.tsx`)
+
+- **THESIS:** Trang giới thiệu theo chuẩn landing SaaS mà người dùng chọn (tham chiếu Hostinger): khách hiểu ngay dịch vụ đếm phòng còn và giá đối thủ, thấy sản phẩm chạy thật, rồi liên hệ.
+- **OWN-WORLD:** Nền tím than #16123a có quầng tím #673de6, nút tím #673de6 bo 8px, phần sáng #f4f5ff với thẻ trắng bo 16–24px, dấu tích xanh #00b090, dữ liệu: vàng #ffcd35 (số chính xác), tím nhạt gạch chéo (ít nhất), viền đứt (ẩn), tím đậm #2f1c6a (hết phòng). Be Vietnam Pro.
+- **STORY:** Hiểu (đếm phòng, 3 lượt/ngày, 30 đêm) → tin (mức tin cậy, bằng chứng, dữ liệu minh hoạ tương tác) → liên hệ (Zalo/điện thoại/email).
+- **FIRST VIEWPORT:** Trái: nhãn sản phẩm, tiêu đề trắng lớn, 3 dấu tích, "Liên hệ báo giá", nút tím Liên hệ tư vấn, dòng cam kết. Phải: ảnh biển Mỹ Khê bo góc với bảng phòng mini, nhãn sự kiện, hộp bản tin gõ chữ, công tắc lượt quét.
+- **FORM:** Chuẩn ngành (lối thoát chuẩn), người dùng chọn thay cho hướng được bốc thăm, seed e9787018.
+- **FINISH:** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+
+### App (`(app)/layout.tsx`)
+
+- **THESIS:** Dashboard OTARadar theo giao diện mẫu khách hàng: thanh trên xanh, hàng tab ngang, thẻ trắng tiêu đề in hoa; mỗi số đều từ dữ liệu quét thật, ước tính ghi "≈".
+- **OWN-WORLD:** Thanh trên #0062ff có logo dấu sao, nền #f5f6fa, thẻ trắng bo 10px viền #e6e8ef; xanh #0062ff cho hành động, đang chọn và khách sạn của bạn; thang nhiệt phòng còn đỏ #dc2626 → cam → hổ phách → vàng nhạt → xanh lá #4ade80; cầu thấp xanh lá, vừa xanh dương, cao cam. Inter, số tabular.
+- **STORY:** Mở app vào Bảng điều khiển → đọc toàn cảnh đêm nay và dự báo cầu 14 đêm → Phòng trống để dò heatmap → Giá & định giá để so giá → Terminal+ cho bối cảnh (lễ, thời tiết, nhịp đặt phòng).
+- **FIRST VIEWPORT:** Thanh trên + 8 tab; dải đầu trang tên tab xanh và chọn kênh; lưới thẻ chỉ số; cột phải Cảnh báo, Khách sạn của bạn, Trạng thái dữ liệu.

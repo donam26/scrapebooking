@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,13 +9,17 @@ from app.api.auth import Principal
 from app.api.deps import (
     ApiQueue,
     LocaleDep,
+    PrincipalDep,
     SessionDep,
+    SettingsDep,
     TenantDep,
     WriterDep,
+    client_ip,
     ensure_hotel_in_tenant,
     get_queue,
 )
-from app.api.hotel_views import hotel_out, hotel_outs
+from app.api.hotel_views import hotel_out, hotel_outs, listing_out
+from app.api.quotas import ensure_can_add_hotel, ensure_can_scan_now
 from app.api.scan_now import create_manual_run
 from app.api.schemas import (
     ChannelOut,
@@ -27,6 +31,7 @@ from app.api.schemas import (
     WatchItemOut,
     WatchItemUpdate,
 )
+from app.audit import record_audit
 from app.channels.registry import ListingUrl, UnsupportedUrl, channels, parse_listing_url
 from app.db.models import Hotel, Listing, ScanRun, TenantHotel
 from app.logging import get_logger
@@ -72,9 +77,11 @@ async def _enqueue_verify(queue: ApiQueue | None, listing: Listing) -> None:
         log.exception("enqueue_verify_failed", listing_id=listing.id)
 
 
-async def _item(session: AsyncSession, link: TenantHotel, hotel: Hotel) -> WatchItemOut:
+async def _item(
+    session: AsyncSession, link: TenantHotel, hotel: Hotel, *, operator: bool = False
+) -> WatchItemOut:
     return WatchItemOut(
-        hotel=await hotel_out(session, hotel),
+        hotel=await hotel_out(session, hotel, operator=operator),
         role=link.role,
         label=link.label,
         active=link.active,
@@ -84,7 +91,10 @@ async def _item(session: AsyncSession, link: TenantHotel, hotel: Hotel) -> Watch
 
 @router.get("", response_model=list[WatchItemOut])
 async def list_watchlist(
-    tenant_id: TenantDep, session: SessionDep, include_inactive: bool = False
+    tenant_id: TenantDep,
+    principal: PrincipalDep,
+    session: SessionDep,
+    include_inactive: bool = False,
 ) -> list[WatchItemOut]:
     stmt = (
         select(TenantHotel, Hotel)
@@ -95,7 +105,7 @@ async def list_watchlist(
     if not include_inactive:
         stmt = stmt.where(TenantHotel.active.is_(True))
     rows = (await session.execute(stmt)).all()
-    outs = await hotel_outs(session, [h for _, h in rows])
+    outs = await hotel_outs(session, [h for _, h in rows], operator=principal.is_operator)
     return [
         WatchItemOut(
             hotel=outs[h.id],
@@ -112,8 +122,10 @@ async def list_watchlist(
 async def add_hotel(
     body: WatchItemCreate,
     tenant_id: TenantDep,
-    _: WriterDep,
+    principal: WriterDep,
+    request: Request,
     session: SessionDep,
+    settings: SettingsDep,
     locale: LocaleDep,
     queue: QueueDep = None,
 ) -> WatchItemOut:
@@ -121,6 +133,7 @@ async def add_hotel(
     theo dõi) thì dùng chung khách sạn đó; listing mới được tạo `unverified` và đẩy job kiểm tra
     (tên, toạ độ), sau đó worker tự tìm cùng khách sạn trên các kênh khác (gợi ý chờ xác nhận)."""
     ref = _parse(body.url, locale)
+    await ensure_can_add_hotel(session, settings, tenant_id)
     listing = (
         await session.execute(
             select(Listing).where(
@@ -179,11 +192,20 @@ async def add_hotel(
         session.add(link)
     else:
         link.role, link.label, link.active = body.role, body.label, True
+    record_audit(
+        session,
+        action="watchlist.added",
+        tenant_id=tenant_id,
+        user_id=principal.user_id,
+        target=f"hotel:{hotel.id}",
+        payload={"channel": ref.channel, "role": body.role, "new_listing": new_listing},
+        ip=client_ip(request),
+    )
     await session.commit()
     await session.refresh(link)
     if new_listing:
         await _enqueue_verify(queue, listing)
-    return await _item(session, link, hotel)
+    return await _item(session, link, hotel, operator=principal.is_operator)
 
 
 async def _tenant_link(
@@ -227,21 +249,51 @@ async def _ensure_sole_tracker(
 
 @router.patch("/{hotel_id}", response_model=WatchItemOut)
 async def update_item(
-    hotel_id: int, body: WatchItemUpdate, tenant_id: TenantDep, _: WriterDep, session: SessionDep
+    hotel_id: int,
+    body: WatchItemUpdate,
+    tenant_id: TenantDep,
+    principal: WriterDep,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> WatchItemOut:
     link, hotel = await _tenant_link(session, tenant_id, hotel_id)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if data.get("active") is True and not link.active:
+        await ensure_can_add_hotel(session, settings, tenant_id)  # quét lại = thêm vào hạn mức
+    for k, v in data.items():
         setattr(link, k, v)
+    record_audit(
+        session,
+        action="watchlist.updated",
+        tenant_id=tenant_id,
+        user_id=principal.user_id,
+        target=f"hotel:{hotel_id}",
+        payload={"fields": sorted(data)},
+        ip=client_ip(request),
+    )
     await session.commit()
-    return await _item(session, link, hotel)
+    return await _item(session, link, hotel, operator=principal.is_operator)
 
 
 @router.delete("/{hotel_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_item(
-    hotel_id: int, tenant_id: TenantDep, _: WriterDep, session: SessionDep
+    hotel_id: int,
+    tenant_id: TenantDep,
+    principal: WriterDep,
+    request: Request,
+    session: SessionDep,
 ) -> None:
     link, _hotel = await _tenant_link(session, tenant_id, hotel_id)
     link.active = False  # giữ lịch sử, ngừng quét cho tenant này
+    record_audit(
+        session,
+        action="watchlist.removed",
+        tenant_id=tenant_id,
+        user_id=principal.user_id,
+        target=f"hotel:{hotel_id}",
+        ip=client_ip(request),
+    )
     await session.commit()
 
 
@@ -251,10 +303,11 @@ async def add_listing(
     body: ListingCreate,
     tenant_id: TenantDep,
     principal: WriterDep,
+    request: Request,
     session: SessionDep,
     locale: LocaleDep,
     queue: QueueDep = None,
-) -> Listing:
+) -> ListingOut:
     """Gắn thêm một kênh cho khách sạn bằng URL (VD trang Agoda của khách sạn đã có
     trên Booking). Thay URL của kênh đã có chỉ khi tenant là người theo dõi duy nhất."""
     await _tenant_link(session, tenant_id, hotel_id, active_only=True)
@@ -289,16 +342,28 @@ async def add_listing(
     elif current.listing_key == ref.listing_key and current.status in ("active", "unverified"):
         return current  # dán lại đúng URL đang quét: không đặt lại trạng thái
     else:
-        # Thay URL của kênh này (sửa gợi ý sai hoặc listing hỏng): ảnh hưởng tenant khác.
-        if current.status not in ("suggested", "broken", "rejected"):
+        # Thay URL của kênh này (sửa gợi ý sai hoặc listing hỏng): listing dùng chung nên ảnh hưởng
+        # mọi tenant theo dõi khách sạn → chỉ tenant theo dõi duy nhất hoặc operator. Gợi ý
+        # (`suggested`) chưa từng được quét nên tenant nào cũng được thay.
+        if current.status != "suggested":
             await _ensure_sole_tracker(session, tenant_id, hotel_id, principal)
         current.listing_key, current.url = ref.listing_key, ref.url
         current.external_id, current.status = ref.external_id, "unverified"
         current.last_error, current.match_score = None, None
+        current.not_found_count = 0
+    record_audit(
+        session,
+        action="listing.added",
+        tenant_id=tenant_id,
+        user_id=principal.user_id,
+        target=f"hotel:{hotel_id}:{ref.channel}",
+        payload={"listing_key": ref.listing_key},
+        ip=client_ip(request),
+    )
     await session.commit()
     await session.refresh(current)
     await _enqueue_verify(queue, current)
-    return current
+    return listing_out(current, operator=principal.is_operator)
 
 
 @router.patch("/{hotel_id}/listings/{listing_id}", response_model=ListingOut | None)
@@ -308,9 +373,10 @@ async def act_on_listing(
     body: ListingAction,
     tenant_id: TenantDep,
     principal: WriterDep,
+    request: Request,
     session: SessionDep,
     queue: QueueDep = None,
-) -> Listing | None:
+) -> ListingOut | None:
     await _tenant_link(session, tenant_id, hotel_id, active_only=True)
     listing = (
         await session.execute(
@@ -320,10 +386,22 @@ async def act_on_listing(
     if listing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "listing not found")
     action = body.action
-    if action in ("pause", "resume"):
+    # Listing dùng chung giữa tenant: mọi thao tác đổi trạng thái quét của một kênh (tạm dừng, quét
+    # lại, thử lại listing hỏng, nhận/bỏ gợi ý) ảnh hưởng tenant khác → chỉ tenant theo dõi duy
+    # nhất hoặc operator. Gợi ý chưa được quét nên nhận/bỏ gợi ý chỉ cần là người theo dõi.
+    if action in ("pause", "resume", "retry"):
         await _ensure_sole_tracker(session, tenant_id, hotel_id, principal)
     if action == "retry" and listing.status not in ("broken", "unverified"):
         raise HTTPException(status.HTTP_409_CONFLICT, "only broken listings can be retried")
+    record_audit(
+        session,
+        action="listing.action",
+        tenant_id=tenant_id,
+        user_id=principal.user_id,
+        target=f"listing:{listing.id}",
+        payload={"action": action, "from": listing.status},
+        ip=client_ip(request),
+    )
     if action == "reject":
         if listing.status != "suggested":
             raise HTTPException(status.HTTP_409_CONFLICT, "only suggestions can be rejected")
@@ -339,11 +417,12 @@ async def act_on_listing(
         listing.status = "paused"
     elif action in ("resume", "retry"):
         listing.status, listing.last_error = "unverified", None
+        listing.not_found_count = 0
     await session.commit()
     await session.refresh(listing)
     if listing.status == "unverified":
         await _enqueue_verify(queue, listing)
-    return listing
+    return listing_out(listing, operator=principal.is_operator)
 
 
 @router.post("/{hotel_id}/discover", status_code=status.HTTP_202_ACCEPTED)
@@ -366,9 +445,16 @@ async def discover_listings(
 
 @router.post("/scan-now", response_model=list[ScanRunOut], status_code=status.HTTP_202_ACCEPTED)
 async def scan_now(
-    tenant_id: TenantDep, _: WriterDep, session: SessionDep, queue: QueueDep = None
+    tenant_id: TenantDep,
+    principal: WriterDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    queue: QueueDep = None,
 ) -> list[ScanRun]:
-    """Quét ngay toàn bộ watchlist của tenant (mỗi kênh một run), không đợi mốc giờ."""
+    """Quét ngay toàn bộ watchlist của tenant (mỗi kênh một run), không đợi mốc giờ. Có hạn mức
+    số lần mỗi ngày (quota_manual_scans_per_day): mỗi lần tốn ngân sách request của cả hệ thống."""
+    if not principal.is_operator:
+        await ensure_can_scan_now(session, settings, tenant_id)
     return await create_manual_run(session, queue, tenant_id)
 
 
@@ -376,8 +462,15 @@ async def scan_now(
     "/{hotel_id}/scan-now", response_model=list[ScanRunOut], status_code=status.HTTP_202_ACCEPTED
 )
 async def scan_hotel_now(
-    hotel_id: int, tenant_id: TenantDep, _: WriterDep, session: SessionDep, queue: QueueDep = None
+    hotel_id: int,
+    tenant_id: TenantDep,
+    principal: WriterDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    queue: QueueDep = None,
 ) -> list[ScanRun]:
     """Quét ngay một khách sạn trong watchlist (mỗi kênh đang quét một run nhỏ)."""
     await ensure_hotel_in_tenant(session, tenant_id, hotel_id)
+    if not principal.is_operator:
+        await ensure_can_scan_now(session, settings, tenant_id)
     return await create_manual_run(session, queue, tenant_id, hotel_id=hotel_id)

@@ -3,5 +3,6 @@
   "external_id": "9467659",
   "hotel_name": "Jovia Hotel",
   "csrf_token": "FIXTURE_CSRF_TOKEN",
-  "offers": []
+  "offers": [],
+  "note": null
 }

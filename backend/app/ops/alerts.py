@@ -6,6 +6,7 @@ from app.clock import Clock
 from app.logging import get_logger
 
 log = get_logger(__name__)
+THROTTLE_KEY_PREFIX = "alert_throttle:"
 
 
 class Alerter(Protocol):
@@ -72,12 +73,31 @@ def make_alerter(settings: Any) -> Alerter:
 
 
 class AlertThrottle:
-    def __init__(self, clock: Clock, min_gap: timedelta) -> None:
+    """Mỗi `key` gửi tối đa một lần trong `min_gap`.
+
+    Có `redis` (client redis.asyncio): `SET key NX EX` — mọi tiến trình và bản sao scheduler dùng
+    chung một throttle, sống qua restart. Không có (test, công cụ): dict trong bộ nhớ. Redis lỗi thì
+    rơi về bộ nhớ: không vì throttle mà nuốt cảnh báo.
+    """
+
+    def __init__(self, clock: Clock, min_gap: timedelta, redis: Any | None = None) -> None:
         self._clock = clock
         self._gap = min_gap
+        self._redis = redis
         self._last: dict[str, datetime] = {}
 
-    def should_send(self, key: str) -> bool:
+    async def should_send(self, key: str) -> bool:
+        if self._redis is not None:
+            try:
+                ok = await self._redis.set(
+                    THROTTLE_KEY_PREFIX + key,
+                    "1",
+                    nx=True,
+                    ex=max(1, int(self._gap.total_seconds())),
+                )
+                return bool(ok)
+            except Exception:  # noqa: BLE001
+                log.warning("alert_throttle_redis_failed", key=key, exc_info=True)
         now = self._clock.now()
         last = self._last.get(key)
         if last is not None and now - last < self._gap:

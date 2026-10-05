@@ -139,9 +139,22 @@ Ràng buộc: listing dùng chung giữa tenant (tạm dừng một kênh ảnh 
 
 Kết quả chạy thật 02/10 (quận Trung tâm TP.HCM, 1 đêm): Booking báo 370 KS còn phòng; một lượt khám phá 25 request ghép được 234 (63%). Trước đó phân trang bằng `offset` chỉ được 25.
 
+## L. Bảo mật, hạn mức, đúng dữ liệu (05/10, plan `plans/261005-1159-hoan-thien-he-thong/`)
+
+| Bước | Màn hình | API | Ghi chú |
+|---|---|---|---|
+| 1 | `/login` | `POST /auth/login` | Giới hạn 5 lần/phút theo email, 10/phút theo IP, 20/giờ theo email → 429 kèm `Retry-After`. Email không tồn tại vẫn tốn thời gian băm như tài khoản thật. Tenant bị tắt → 403. Mỗi lần đăng nhập/thất bại ghi `audit_events`. |
+| 2 | Menu người dùng › Đổi mật khẩu / Đăng xuất mọi thiết bị | `POST /auth/change-password`, `POST /auth/logout-all` | Cần mật khẩu hiện tại. JWT mang `tv` (users.token_version): đổi mật khẩu, khoá, đổi vai trò, tắt tenant đều làm phiên cũ 401 ngay; phiên vừa đổi mật khẩu được cấp cookie mới. |
+| 3 | `/forgot` → email → `/reset?token=` | `POST /auth/forgot` (luôn 204), `POST /auth/reset` | Token một lần, băm SHA-256 trong `password_reset_tokens`, hết hạn 30 phút (`PASSWORD_RESET_TTL_MINUTES`), 5 yêu cầu/phút/IP. Cần SMTP. |
+| 4 | Mọi thao tác ghi từ trình duyệt | middleware CSRF | Request có cookie phiên và `Origin`/`Referer` không thuộc `APP_BASE_URL`/`CORS_ORIGINS`, hoặc `Sec-Fetch-Site: cross-site` → 403 `csrf check failed`. Client không gửi Origin (CLI) không bị chặn. |
+| 5 | Cài đặt › Khách sạn / Quét ngay / Bản tin | `POST /watchlist`, `POST /watchlist/scan-now`, `POST /insights/generate` | Hạn mức theo tenant (`tenants.limits`, mặc định `QUOTA_*`): số khách sạn theo dõi, số lần "Quét ngay"/ngày, số bản tin theo yêu cầu/ngày → 429 `quota exceeded`. Operator đặt ở `/admin/tenants` (`PATCH /tenants/{id} {limits}`), không bị hạn mức. |
+| 6 | Cài đặt › Khách sạn › kênh của khách sạn dùng chung | `POST /watchlist/{id}/listings`, `PATCH …/listings/{lid}` | Thay URL, tạm dừng, quét lại, thử lại listing của khách sạn mà tenant khác cũng theo dõi → 403 (operator được). `last_error` tenant chỉ thấy mã ngắn (`blocked`, `not_found`, `duplicate`, `error`); operator thấy nguyên văn. |
+| 7 | Cài đặt › Nhập PMS | `POST /pms/preview`, `/import` | Tệp > 5 MB → 413; > 5.000 dòng → 422 `too many rows`; lưu tối đa 200 lỗi/lần nhập. Decode: UTF-8 → cp1258 → UTF-16 chỉ khi có BOM → latin-1. |
+| 8 | Vận hành | `GET /healthz`, `GET /metrics`, `/docs` | `/healthz` ping DB + Redis (503 khi lỗi). `/metrics` cần `METRICS_TOKEN` (Bearer); `APP_ENV=prod` không token thì 404, `/docs` tắt, và API từ chối khởi động nếu `JWT_SECRET` mặc định/ngắn, `COOKIE_SECURE=false`, `CORS_ORIGINS=*`. |
+| 9 | Dữ liệu (không có màn hình) | collector/analytics | Giá Booking probe nhiều đêm chia theo đêm, thuế phí ghi riêng được cộng vào, tiền tệ lạ → probe `error: currency_mismatch` (parser v6; `sb reparse --since-days 30` để tính lại). Trang challenge trả 200 → `blocked`, listing chỉ `broken` sau 3 lần không tồn tại liên tiếp. Probe lỗi không xoá giá cuối trên heatmap: ô giữ giá kèm `stale_since` (giao diện đánh dấu "dữ liệu cũ"). Gợi ý giá theo từng khách sạn "self" (`hotel_id`), so giá hoàn huỷ khi có (`price_basis`). |
+
 ## Điều còn để ngỏ
 
-- Đổi mật khẩu chưa vô hiệu hoá phiên đang đăng nhập ở thiết bị khác (token còn hạn tối đa 12 giờ).
-- `/events?highlight=<id>` chỉ đánh dấu khi sự kiện nằm trong trang hiện tại (chưa có endpoint lấy một sự kiện).
-- Quét thủ công không chặn trùng với đợt theo lịch đang chạy.
-- Chưa có thông báo (email/chat) cho tenant khi có bản tin mới; cảnh báo vận hành chỉ ghi log (`ops_alert`).
+- `/events?highlight=<id>` chỉ đánh dấu khi sự kiện nằm trong trang hiện tại (chưa có endpoint lấy một sự kiện) — phase 3.
+- Quét thủ công không chặn trùng với đợt theo lịch đang chạy — phase 3.
+- Cảnh báo vận hành: `OPS_ALERT_EMAILS` + Alertmanager (phase 2.5); thông báo trong app khi có bản tin mới — phase 5.

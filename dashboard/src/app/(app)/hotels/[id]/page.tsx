@@ -2,12 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { api, type DateCell } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { isWeekend, num, useFmt } from "@/lib/format";
+import { parseIdParam } from "@/lib/params";
 import { useLabel } from "@/lib/labels";
 import { channelName, hotelTitle, sortChannels, withChannel } from "@/lib/channels";
 import { Card, ErrorBox, PageHeader, ROW_CLASS, SkeletonBlock, StatStrip, Table, Td, Th, cx } from "@/components/ui";
@@ -68,13 +69,15 @@ function HotelView() {
   const { cellMark } = useMarks();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const hotelId = Number(id);
+  const hotelId = parseIdParam(id);
   const { isOperator } = useSession();
   const { start, end } = useDateRange();
   const [channelParam, setChannel] = useChannelParam();
-  const { data, error, loading } = useApi(Number.isFinite(hotelId) ? `hotel:${hotelId}:${start}:${end}:${channelParam ?? ""}` : null, () =>
-    api.hotel(hotelId, { start, end, channel: channelParam }),
+  const { data, error, loading } = useApi(hotelId === null ? null : `hotel:${hotelId}:${start}:${end}:${channelParam ?? ""}`, () =>
+    api.hotel(hotelId!, { start, end, channel: channelParam }),
   );
+  // id không phải số nguyên dương: trang 404 thay vì skeleton xoay mãi (gọi sau mọi hook để thứ tự hook không đổi).
+  if (hotelId === null) notFound();
 
   const title = data ? hotelTitle(data.hotel, data.label) : t("fallbackTitle");
   const channel = data?.channel ?? null;

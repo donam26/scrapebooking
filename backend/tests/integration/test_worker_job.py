@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -238,39 +239,106 @@ async def test_other_job_finishing_does_not_close_run_while_one_waits_for_retry(
     assert finished == [run_id]
 
 
+class NotFoundCollector(FakeCollector):
+    """Kênh nói rõ listing không tồn tại (404 thật) ở mọi đêm."""
+
+    async def probe(self, hotel, checkin, nights, adults):  # type: ignore[no-untyped-def]
+        self.probe_calls.append((hotel.id, checkin, nights, adults))
+        return failed_result(
+            ProbeStatus.ERROR,
+            method=ProbeMethod.HTTP,
+            checkin=checkin,
+            nights=nights,
+            adults=adults,
+            error="not_found",
+            http_status=404,
+        )
+
+
+async def _listing_state(db: AsyncSession, channel: str = "booking") -> tuple[str, int]:
+    db.expire_all()
+    row = (
+        await db.execute(
+            select(Listing.status, Listing.not_found_count).where(Listing.channel == channel)
+        )
+    ).one()
+    return str(row[0]), int(row[1])
+
+
 async def test_hotel_page_not_found_stops_job_early(db: AsyncSession) -> None:
     # URL/slug sai (Booking 404): không probe tiếp từng ngày trong horizon, báo lỗi rõ ràng.
-    class NotFound(FakeCollector):
-        async def probe(self, hotel, checkin, nights, adults):  # type: ignore[no-untyped-def]
-            self.probe_calls.append((hotel.id, checkin, nights, adults))
-            return failed_result(
-                ProbeStatus.ERROR,
-                method=ProbeMethod.HTTP,
-                checkin=checkin,
-                nights=nights,
-                adults=adults,
-                error="not_found",
-                http_status=404,
-            )
-
     run_id, hotel_id = await _seed(db, horizon=5)
-    collector = NotFound()
+    collector = NotFoundCollector()
     try:
         # Lỗi vĩnh viễn: dù chưa phải lần cuối cũng không chờ arq thử lại.
         await run_probe_hotel(
             _deps(db, collector, MemoryRawStore()), run_id, hotel_id, final_attempt=False
         )
     except PermanentJobFailure as exc:
-        assert "404" in str(exc)
+        assert "not found" in str(exc)
     else:
         raise AssertionError("expected PermanentJobFailure")
     assert len(collector.probe_calls) == 1
     db.expire_all()
     job = (await db.execute(select(ScanJob))).scalar_one()
-    assert job.status == "failed" and "404" in (job.error or "")
-    # Listing hỏng thì ngừng quét tới khi người dùng sửa; listing kênh khác không bị ảnh hưởng.
+    assert job.status == "failed" and "not found" in (job.error or "")
+    # Một lần not_found chưa đủ để kết luận listing hỏng (có thể là chặn mềm trả 404 giả): chỉ đếm.
+    assert await _listing_state(db) == ("active", 1)
     statuses = dict((await db.execute(select(Listing.channel, Listing.status))).tuples().all())
-    assert statuses == {"booking": "broken", "agoda": "active"}
+    assert statuses == {"booking": "active", "agoda": "active"}
+
+
+async def _run_not_found(db: AsyncSession, hotel_id: int, key: str, threshold: int = 3) -> None:
+    run = await ScanRunRepository(db).create_run(key, NOW, [HotelJobPlan(hotel_id, START, 2)])
+    assert run is not None
+    await db.commit()
+    deps = _deps(db, NotFoundCollector(), MemoryRawStore())
+    deps.not_found_threshold = threshold
+    with pytest.raises(PermanentJobFailure):
+        await run_probe_hotel(deps, run.id, hotel_id, final_attempt=True)
+
+
+async def test_not_found_streak_marks_broken_only_at_threshold(db: AsyncSession) -> None:
+    _, hotel_id = await _seed(db, horizon=2)
+    await _run_not_found(db, hotel_id, "nf:1")
+    await _run_not_found(db, hotel_id, "nf:2")
+    assert await _listing_state(db) == ("active", 2)  # 2 lần: vẫn quét
+    await _run_not_found(db, hotel_id, "nf:3")
+    assert await _listing_state(db) == ("broken", 3)  # lần 3 đạt ngưỡng: ngừng quét
+    db.expire_all()
+    listing = (await db.execute(select(Listing).where(Listing.channel == "booking"))).scalar_one()
+    assert "not found" in (listing.last_error or "")
+    agoda = (await db.execute(select(Listing).where(Listing.channel == "agoda"))).scalar_one()
+    assert (agoda.status, agoda.not_found_count) == ("active", 0)
+
+
+async def test_usable_probe_resets_not_found_streak(db: AsyncSession) -> None:
+    run_id, hotel_id = await _seed(db, horizon=2)
+    await _run_not_found(db, hotel_id, "nf:1")
+    await _run_not_found(db, hotel_id, "nf:2")
+    assert await _listing_state(db) == ("active", 2)
+    collector = FakeCollector()
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
+    collector.set_probe(hotel_id, START + timedelta(days=1), ProbeStatus.SOLD_OUT)
+    summary = await run_probe_hotel(
+        _deps(db, collector, MemoryRawStore()), run_id, hotel_id, final_attempt=True
+    )
+    assert summary.probed == 2
+    assert await _listing_state(db) == ("active", 0)  # kênh có dữ liệu: chuỗi đứt
+    # Lại not_found: đếm từ đầu, chưa broken.
+    await _run_not_found(db, hotel_id, "nf:4")
+    assert await _listing_state(db) == ("active", 1)
+
+
+async def test_blocked_or_error_probes_do_not_touch_not_found_streak(db: AsyncSession) -> None:
+    run_id, hotel_id = await _seed(db, horizon=1)
+    await _run_not_found(db, hotel_id, "nf:1")
+    collector = FakeCollector()
+    collector.set_probe(hotel_id, START, ProbeStatus.BLOCKED, raw_html=None)
+    await run_probe_hotel(
+        _deps(db, collector, MemoryRawStore()), run_id, hotel_id, final_attempt=True
+    )
+    assert await _listing_state(db) == ("active", 1)  # chặn không xác nhận cũng không bác bỏ
 
 
 async def test_job_uses_listing_of_the_run_channel(db: AsyncSession) -> None:

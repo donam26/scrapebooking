@@ -17,7 +17,7 @@ from app.db.partitions import (
     drop_room_snapshot_partitions_older_than,
     ensure_room_snapshot_partitions,
 )
-from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus
+from app.domain.models import PageOutcome, ProbeMethod, ProbeResult, ProbeStatus
 from app.logging import configure_logging
 from app.repo.runs import ScanRunRepository
 from app.repo.snapshots import SnapshotRepository
@@ -276,9 +276,16 @@ def reparse(
             if html is None:
                 missing += 1
                 continue
-            page = parse_hotel_page(html, settings.scan_currency, probe.adults)
+            page = parse_hotel_page(html, settings.scan_currency, probe.adults, probe.nights)
+            if page.outcome == PageOutcome.WRONG_CURRENCY:
+                reparse_status = ProbeStatus.ERROR
+            elif page.offers:
+                reparse_status = ProbeStatus.OK
+            else:
+                reparse_status = ProbeStatus.NO_ROOMS_1N
             result = ProbeResult(
-                status=ProbeStatus.OK if page.offers else ProbeStatus.NO_ROOMS_1N,
+                status=reparse_status,
+                error=page.note,
                 method=ProbeMethod(probe.method or "http"),
                 checkin=probe.checkin,
                 checkout=probe.checkout,
@@ -354,6 +361,7 @@ def analyze(
 ) -> None:
     """Chạy analytics cho một scan run đã chốt (mặc định: run chốt gần nhất)."""
     from app.analytics.service import AnalyticsService
+    from app.market.occupancy_service import reset_occupancy_marker
 
     async def _do(s: AsyncSession) -> list[str]:
         settings = get_settings()
@@ -371,6 +379,7 @@ def analyze(
         out = []
         for rid in run_ids:
             report = await svc.run(rid)
+            await reset_occupancy_marker(s, rid)  # cron ước tính lại công suất cho lượt này
             await s.commit()
             out.append(
                 f"run {rid}: hotel_dates={report.hotel_dates} events={report.events} "
@@ -383,14 +392,14 @@ def analyze(
 
 
 @app.command("insight")
-def insight(tenant_id: int, sync: bool = typer.Option(True, "--sync/--batch")) -> None:
-    """Sinh insight cho một tenant ngay (gọi đồng bộ) hoặc qua Batch API."""
+def insight(tenant_id: int) -> None:
+    """Sinh insight cho một tenant ngay (gọi model đồng bộ)."""
     from app.insight.service import InsightService, build_insight_client
 
     async def _do(s: AsyncSession) -> str:
         settings = get_settings()
         svc = InsightService(s, client=build_insight_client(settings), settings=settings)
-        row = await svc.generate(tenant_id, trigger="on_demand", use_batch=not sync)
+        row = await svc.generate(tenant_id, trigger="on_demand")
         await s.commit()
         return f"insight {row.id} status={row.status} model={row.model} cost=${row.cost_usd}"
 

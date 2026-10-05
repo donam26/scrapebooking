@@ -66,6 +66,7 @@
       "stopTitle": "Ngừng quét khách sạn này trên mọi kênh (có thể bật lại bất cứ lúc nào)",
       "resumeTitle": "Bật quét lại khách sạn này",
       "stopAria": "Ngừng quét {name}",
+      "stopConfirm": "Ngừng quét {name} trên mọi kênh? Dữ liệu đã quét vẫn giữ và bạn có thể bật lại bất cứ lúc nào.",
       "resumeAria": "Quét lại {name}",
       "stop": "Ngừng quét",
       "resume": "Quét lại",

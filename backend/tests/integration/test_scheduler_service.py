@@ -1,13 +1,13 @@
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.clock import FixedClock
 from app.db.models import Probe, ScanJob, ScanRun, Tenant, TenantHotel
 from app.ops.alerts import NullAlerter
 from app.scheduler.channel_pause import MemoryChannelPauses
-from app.scheduler.service import SchedulerService
+from app.scheduler.service import SCHEDULER_LOCK_NAME, SchedulerService
 from tests.integration.seed import add_hotel, add_listing, scan_run
 
 
@@ -338,3 +338,43 @@ async def test_high_block_rate_pauses_only_that_channel_and_alerts(db: AsyncSess
     assert (await svc.tick()).paused_channels == []
     clock.advance(minutes=30)
     assert not await pauses.is_paused("agoda")
+
+
+# ---- khoá leader giữa các bản sao scheduler (pg_try_advisory_lock) ----
+
+LOCK_SQL = text("SELECT pg_try_advisory_lock(hashtext(:name))")
+UNLOCK_SQL = text("SELECT pg_advisory_unlock(hashtext(:name))")
+
+
+async def test_tick_is_skipped_while_another_scheduler_holds_the_lock(db: AsyncSession) -> None:
+    _, h1, h2 = await _seed(db)
+    queue = FakeQueue()
+    clock = FixedClock(SLOT)
+    params = {"name": SCHEDULER_LOCK_NAME}
+    async with db.bind.connect() as other:  # type: ignore[union-attr]  # "scheduler kia"
+        assert (await other.execute(LOCK_SQL, params)).scalar_one() is True
+        report = await _service(db, queue, clock).tick()
+        assert report.skipped is True and report.created_runs == [] and queue.enqueued == []
+        assert (await db.execute(select(ScanRun))).scalars().all() == []
+        await other.execute(UNLOCK_SQL, params)
+        await other.commit()
+
+    report = await _service(db, queue, clock).tick()
+    assert report.skipped is False and len(report.created_runs) == 1
+    assert sorted(queue.enqueued) == [(report.created_runs[0], h1), (report.created_runs[0], h2)]
+
+
+async def test_lock_is_released_after_each_tick(db: AsyncSession) -> None:
+    await _seed(db)
+    clock = FixedClock(SLOT)
+    svc = _service(db, FakeQueue(), clock)
+    await svc.tick()
+    params = {"name": SCHEDULER_LOCK_NAME}
+    async with db.bind.connect() as other:  # type: ignore[union-attr]
+        assert (await other.execute(LOCK_SQL, params)).scalar_one() is True
+        clock.advance(minutes=1)
+        assert (await svc.tick()).skipped is True
+        await other.execute(UNLOCK_SQL, params)
+        await other.commit()
+    clock.advance(minutes=1)
+    assert (await svc.tick()).skipped is False

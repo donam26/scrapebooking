@@ -290,14 +290,20 @@ function Row({ item, canWrite, isOperator, channels, onChanged, onDiscover }: { 
   const tc = useTranslations("common.actions");
   const labelOf = useLabel();
   const { fmtDate } = useFmt();
+  const name = hotelTitle(item.hotel, item.label);
   const save = useMutation(async () => {
     await api.watchlist.update(item.hotel.id, { label: label.trim() || null, role });
     setEditing(false);
     onChanged();
   });
   const toggle = useMutation(async () => {
-    if (item.active) await api.watchlist.remove(item.hotel.id);
-    else await api.watchlist.update(item.hotel.id, { active: true });
+    if (item.active) {
+      // Ngừng quét = gỡ khỏi watchlist trên mọi kênh (bật lại được): hỏi lại trước khi làm.
+      if (!window.confirm(t("stopConfirm", { name }))) return;
+      await api.watchlist.remove(item.hotel.id);
+    } else {
+      await api.watchlist.update(item.hotel.id, { active: true });
+    }
     onChanged();
   });
   const discover = useMutation(async () => {
@@ -305,7 +311,6 @@ function Row({ item, canWrite, isOperator, channels, onChanged, onDiscover }: { 
     setSearched(out.channels ?? []);
     onDiscover();
   });
-  const name = hotelTitle(item.hotel, item.label);
   const fullName = item.hotel.name && item.hotel.name !== name ? item.hotel.name : null;
   const listings = item.hotel.listings;
   const pending = item.active && !listings.some((l) => l.verified_at) && !item.hotel.name;

@@ -43,6 +43,8 @@ class Tenant(Base):
     # Kênh dùng cho heatmap/compset mặc định (D10).
     reference_channel: Mapped[str] = mapped_column(String(16), default="booking")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Hạn mức riêng (app/api/quotas.py): {"max_hotels": 25, "manual_scans_per_day": 6, …}.
+    limits: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -88,6 +90,9 @@ class Listing(Base):
     status: Mapped[str] = mapped_column(String(16))
     match_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
     last_error: Mapped[str | None] = mapped_column(Text)
+    # Số lần probe/verify trả "không tồn tại" liên tiếp (qua session khác nhau). Đạt ngưỡng mới
+    # đánh `broken`; một trang challenge trả 200 không giết listing. Về 0 khi có dữ liệu.
+    not_found_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -307,6 +312,9 @@ class HotelDateMetric(Base):
     exact_rooms_left: Mapped[int | None] = mapped_column(Integer)
     exact_share: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     last_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Probe mới nhất không dùng được (blocked/error): giá và số phòng giữ từ lần dùng được cuối,
+    # `stale_since` = lúc dữ liệu bắt đầu cũ. None khi lần quan sát mới nhất dùng được.
+    stale_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +331,37 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16))  # operator | tenant_admin | viewer
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Tăng khi đổi mật khẩu/khoá/"đăng xuất mọi thiết bị": JWT mang `tv` cũ bị từ chối ngay.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AuditEvent(Base):
+    """Nhật ký thao tác nhạy cảm (đăng nhập, đổi mật khẩu, tạo/khoá user, đổi cài đặt, sửa
+    listing…). Chỉ ghi, không sửa; operator đọc qua DB/CLI."""
+
+    __tablename__ = "audit_events"
+    __table_args__ = (Index("ix_audit_events_tenant_at", "tenant_id", "at"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    tenant_id: Mapped[int | None] = mapped_column(ForeignKey("tenants.id", ondelete="SET NULL"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    action: Mapped[str] = mapped_column(String(48))
+    target: Mapped[str | None] = mapped_column(String(120))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    ip: Mapped[str | None] = mapped_column(String(64))
+
+
+class PasswordResetToken(Base):
+    """Token đặt lại mật khẩu dùng một lần (lưu băm SHA-256, hết hạn sau ít phút)."""
+
+    __tablename__ = "password_reset_tokens"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

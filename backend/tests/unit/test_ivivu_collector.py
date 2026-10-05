@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from app.clock import FixedClock
-from app.collector.base import ListingNotFound
+from app.collector.base import ListingBlocked, ListingNotFound
 from app.collector.factory import CollectorDeps
 from app.collector.fetch import FetchResponse
 from app.collector.ivivu import collector as ivivu_collector
@@ -223,14 +223,56 @@ async def test_probe_resolves_hotel_id_from_page_once(fixtures_dir: Path) -> Non
     assert sum("khach-san-phu-quoc" in u for u in h.public_calls) == 1
 
 
-async def test_unknown_hotel_page_is_not_found(fixtures_dir: Path) -> None:
+async def test_unknown_hotel_page_is_not_found_only_on_404(fixtures_dir: Path) -> None:
     listing = ListingRef(**{**MELIA.__dict__, "external_id": None})
     h = Harness(fixtures_dir, FakeFetcher())
     r = await h.collector.probe(listing, DAY, 1, 2)
     assert r.status == ProbeStatus.ERROR and r.error == "not_found" and h.launched == []
-    h.public[listing.listing_key] = (200, "<html><body>Trang vùng</body></html>")
     with pytest.raises(ListingNotFound):
         await h.collector.verify(listing)
+
+
+async def test_hotel_page_200_without_ng_state_is_blocked_not_broken(fixtures_dir: Path) -> None:
+    # Trang challenge/chặn mềm trả 200 không có ng-state: BLOCKED (thử lại), không phải not_found
+    # (trước đây listing bị đánh broken vĩnh viễn).
+    listing = ListingRef(**{**MELIA.__dict__, "external_id": None})
+    h = Harness(fixtures_dir, FakeFetcher())
+    h.public[listing.listing_key] = (200, "<html><body><h1>Vui lòng chờ…</h1></body></html>")
+    with pytest.raises(ListingBlocked):
+        await h.collector.verify(listing)
+    r = await h.collector.probe(listing, DAY, 1, 2)
+    assert r.status == ProbeStatus.BLOCKED and r.error and r.error.startswith("verify:")
+    assert h.launched == [] and h.fetcher.posts == []  # không tốn token/giá khi chưa có id
+
+
+async def test_price_api_200_html_challenge_is_blocked_and_rotates_session(
+    fixtures_dir: Path,
+) -> None:
+    challenge = resp(200, "<!DOCTYPE html><html><body>Checking your browser…</body></html>")
+    fetcher = FakeFetcher(challenge, challenge)
+    first, second = FakeMinter(["t1"]), FakeMinter(["t2"])
+    h = Harness(fixtures_dir, fetcher, [first, second])
+    r = await h.collector.probe(MELIA, DAY, 1, 2)
+    assert r.status == ProbeStatus.BLOCKED and r.error == "not_json"
+    assert first.closed and second.closed and len(h.launched) == 2
+    assert fetcher.closed == [p[3] for p in fetcher.posts]  # client của cả hai session đã đóng
+
+
+async def test_price_api_empty_hotels_is_error_not_sold_out(fixtures_dir: Path) -> None:
+    h = Harness(fixtures_dir, FakeFetcher(resp(200, '{"Hotels":[],"MSG":""}')))
+    r = await h.collector.probe(MELIA, DAY, 1, 2)
+    assert (r.status, r.error) == (ProbeStatus.ERROR, "empty_hotels")
+    assert h.public_calls == []  # không gọi tín hiệu cầu cho kết quả lỗi
+
+
+async def test_retired_session_is_forgotten_by_rate_limiter(fixtures_dir: Path) -> None:
+    fetcher = FakeFetcher(price_ok(fixtures_dir), price_ok(fixtures_dir))
+    h = Harness(fixtures_dir, fetcher, max_requests=3)
+    await h.collector.probe(MELIA, DAY, 1, 2)
+    await h.collector.probe(MELIA, DAY, 1, 2)
+    old_sid, new_sid = fetcher.posts[0][3], fetcher.posts[1][3]
+    limiter = h.collector._deps.limiter
+    assert old_sid not in limiter._last and new_sid in limiter._last
 
 
 async def test_suggest_scores_and_filters_country(fixtures_dir: Path) -> None:
@@ -277,7 +319,7 @@ async def test_suggest_tries_english_name_then_core_name(fixtures_dir: Path) -> 
 
 def test_worker_constants() -> None:
     assert ivivu_collector.DROPDOWN_CAP == 99
-    assert ivivu_collector.PARSER_VERSION == "2"
+    assert ivivu_collector.PARSER_VERSION == "3"
 
 
 async def test_calendar_is_unsupported(fixtures_dir: Path) -> None:

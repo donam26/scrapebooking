@@ -230,9 +230,7 @@ async def test_insight_without_scan_data_fails_fast(db: AsyncSession) -> None:
         }
     )
     settings = Settings(_env_file=None, database_url="x", redis_url="x", proxy_url_template="x")
-    row = await InsightService(db, client, settings).generate(
-        tenant.id, "on_demand", use_batch=False
-    )
+    row = await InsightService(db, client, settings).generate(tenant.id, "on_demand")
     assert row.status == "failed" and "no scan data" in (row.error or "")
     assert client.requests == []  # không tốn token
 
@@ -262,14 +260,14 @@ async def test_daily_dispatch_catch_up_and_failure_cap(db: AsyncSession) -> None
     assert daily_due_today([tenant], before) == []
     assert await select_daily_dispatch(db, before) == []
     assert await select_daily_dispatch(db, after) == [(tenant.id, "daily:2026-10-04", 0)]
-    # đã có bản tin daily hôm nay (batch_pending) -> không đẩy nữa
+    # đã có bản tin daily hôm nay (đang chạy: pending) -> không đẩy nữa
     row = Insight(
         tenant_id=tenant.id,
         period_start=date(2026, 10, 4),
         period_end=date(2026, 11, 2),
         generated_at=after,
         trigger="daily",
-        status="batch_pending",
+        status="pending",
         model="m",
         prompt_version="1",
         input_json={},
@@ -389,6 +387,6 @@ async def test_snapshot_then_insight_end_to_end_with_manual_run(db: AsyncSession
     )
     settings = Settings(_env_file=None, database_url="x", redis_url="x", proxy_url_template="x")
     row = await InsightService(db, client, settings).generate(
-        tenant.id, "on_demand", use_batch=False, now=NOW + timedelta(hours=1)
+        tenant.id, "on_demand", now=NOW + timedelta(hours=1)
     )
     assert row.status == "completed" and row.scan_run_id == run.id

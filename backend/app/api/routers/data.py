@@ -128,6 +128,7 @@ def _cell(d: date, m: HotelDateMetric | None, basis: PriceBasis = PriceBasis.ANY
         restocked_at=m.restocked_at,
         last_observed_at=m.last_observed_at,
         days_to_arrival=m.days_to_arrival,
+        stale_since=m.stale_since,
     )
 
 
@@ -640,15 +641,16 @@ async def list_run_jobs(
     hotel_ids = await tenant_hotel_ids(session, tenant_id, include_inactive=True)
     if not hotel_ids:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "run not found")
-    labels = dict(
-        (
+    labels: dict[int, str | None] = {
+        int(row[0]): row[1]
+        for row in (
             await session.execute(
                 select(TenantHotel.hotel_id, func.coalesce(TenantHotel.label, Hotel.name))
                 .join(Hotel, Hotel.id == TenantHotel.hotel_id)
                 .where(TenantHotel.tenant_id == tenant_id)
             )
         ).all()
-    )
+    }
     jobs = list(
         (
             await session.execute(

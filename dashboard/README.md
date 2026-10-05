@@ -37,6 +37,7 @@ Khi backend đổi API: cập nhật `docs/api/openapi.json`, chạy `npm run ge
 |---|---|---|
 | `API_INTERNAL_URL` | runtime | URL backend mà server Next.js gọi tới, đọc ở mỗi request (trong Docker Compose: `http://api:8000`). |
 | `NEXT_PUBLIC_API_URL` | build arg | Nhận để tương thích `infra/docker-compose.yml`; hiện không dùng vì trình duyệt luôn gọi cùng origin. |
+| `ENABLE_HSTS` | build arg | `1` để thêm `Strict-Transport-Security` vào mọi response (chỉ khi reverse proxy đã có TLS). `headers()` trong `next.config.ts` được serialize lúc build nên không đọc được env lúc chạy. |
 | `PORT`, `HOSTNAME` | runtime | Cổng/host của `server.js` (mặc định 3000 / 0.0.0.0 trong Dockerfile). |
 
 ## Docker

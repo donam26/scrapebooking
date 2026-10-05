@@ -180,5 +180,9 @@
   "email.weekly.cta": "Mở Tổng quan 14 đêm tới",
   "email.test.title": "Email thử từ ScrapeBooking",
   "email.test.body": "Địa chỉ này đã nhận được email của ScrapeBooking. Cảnh báo về đối thủ và bản tin sáng sẽ được gửi tới đây theo cài đặt thông báo.",
-  "email.test.cta": "Mở cài đặt thông báo"
+  "email.test.cta": "Mở cài đặt thông báo",
+
+  "auth.reset.subject": "Đặt lại mật khẩu OTARadar",
+  "auth.reset.body": "Bạn (hoặc ai đó) vừa yêu cầu đặt lại mật khẩu. Mở liên kết sau trong {minutes} phút để đặt mật khẩu mới:\n{link}\n\nNếu không phải bạn, bỏ qua email này; mật khẩu không đổi.",
+  "auth.reset.body_html": "Bạn (hoặc ai đó) vừa yêu cầu đặt lại mật khẩu. Mở liên kết sau trong {minutes} phút để đặt mật khẩu mới. Nếu không phải bạn, bỏ qua email này; mật khẩu không đổi."
 }

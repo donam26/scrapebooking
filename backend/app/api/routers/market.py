@@ -24,7 +24,7 @@ from app.market.pace_report import (
     tenant_today,
 )
 from app.market.pacing import Pace
-from app.market.price_suggest import Suggestion, reason_text
+from app.market.price_suggest import Suggestion, reason_text, thresholds_from_settings
 from app.market.weather import WeatherUnavailable, fetch_weather
 
 router = APIRouter(prefix="/market", tags=["market"])
@@ -60,6 +60,9 @@ class SuggestionOut(BaseModel):
     confidence: Literal["high", "medium"]
     reasons: list[str]
     decision: Literal["applied", "dismissed"] | None
+    hotel_id: int  # khách sạn self được gợi ý (tenant chuỗi: mỗi cơ sở một gợi ý)
+    # Cơ sở giá so sánh: "refundable" = giá hoàn huỷ được của bạn và đối thủ; "any" = giá thấp nhất.
+    price_basis: Literal["refundable", "any"]
 
 
 class PaceNightOut(BaseModel):
@@ -81,7 +84,8 @@ class PaceNightOut(BaseModel):
     comp_pickup_7d: int | None
     comp_pickup_hotels: int
     comp_pace: PaceOut
-    suggestion: SuggestionOut | None
+    suggestion: SuggestionOut | None  # của khách sạn self chính (own_hotel_id), giữ tương thích
+    suggestions: list[SuggestionOut]  # mọi khách sạn self của tenant (theo hotel_id)
 
 
 class CalibrationOut(BaseModel):
@@ -184,17 +188,19 @@ def _pace(p: Pace) -> PaceOut:
     return PaceOut(reference=p.reference, references=p.references, delta=p.delta)
 
 
-def _suggestion(s: Suggestion, decision: str | None, locale: str) -> SuggestionOut:
+def _suggestion(s: Suggestion, hotel_id: int, decision: str | None, locale: str) -> SuggestionOut:
     return SuggestionOut(
         kind=s.kind,
         change_pct=s.change_pct,
         confidence=s.confidence,
         reasons=[reason_text(r, locale) for r in s.reasons],
         decision=decision,
+        hotel_id=hotel_id,
+        price_basis=s.price_basis,
     )
 
 
-def _night(n: NightReport, locale: str) -> PaceNightOut:
+def _night(n: NightReport, own_hotel_id: int | None, locale: str) -> PaceNightOut:
     o = n.own_obs
     return PaceNightOut(
         stay_date=n.stay_date,
@@ -226,7 +232,12 @@ def _night(n: NightReport, locale: str) -> PaceNightOut:
         comp_pickup_7d=n.comp_pickup_7d,
         comp_pickup_hotels=n.comp_pickup_hotels,
         comp_pace=_pace(n.comp_pace),
-        suggestion=_suggestion(n.suggestion, n.decision, locale) if n.suggestion else None,
+        suggestion=_suggestion(n.suggestion, own_hotel_id, n.decision, locale)
+        if n.suggestion and own_hotel_id is not None
+        else None,
+        suggestions=[
+            _suggestion(o.suggestion, o.hotel_id, o.decision, locale) for o in n.suggestions
+        ],
     )
 
 
@@ -242,7 +253,7 @@ def _out(r: PaceReport, locale: str) -> MarketPaceOut:
             mean_abs_error_pts=r.calibration.mean_abs_error_pts,
             bias_pts=r.calibration.bias_pts,
         ),
-        nights=[_night(n, locale) for n in r.nights],
+        nights=[_night(n, r.own_hotel_id, locale) for n in r.nights],
     )
 
 
@@ -253,10 +264,32 @@ async def _tenant(session: SessionDep, tenant_id: int) -> Tenant:
     return tenant
 
 
+async def _self_hotel(session: SessionDep, tenant_id: int, hotel_id: int | None) -> int:
+    """Khách sạn `self` được gợi ý: `hotel_id` nếu đúng là self đang theo dõi của tenant (không thì
+    404), mặc định khách sạn self chính (id nhỏ nhất, cùng quy ước với `own_hotel_id`)."""
+    q = (
+        select(TenantHotel.hotel_id)
+        .where(
+            TenantHotel.tenant_id == tenant_id,
+            TenantHotel.role == "self",
+            TenantHotel.active.is_(True),
+        )
+        .order_by(TenantHotel.hotel_id)
+        .limit(1)
+    )
+    if hotel_id is not None:
+        q = q.where(TenantHotel.hotel_id == hotel_id)
+    found = (await session.execute(q)).scalar_one_or_none()
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "self hotel not found")
+    return int(found)
+
+
 @router.get("/pace", response_model=MarketPaceOut)
 async def get_pace(
     tenant_id: TenantDep,
     session: SessionDep,
+    settings: SettingsDep,
     locale: LocaleDep,
     start: date | None = None,
     end: date | None = None,
@@ -269,7 +302,10 @@ async def get_pace(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"range must be 1–{MAX_RANGE_DAYS} nights"
         )
-    return _out(await build_pace_report(session, tenant_id, s, e, today, locale), locale)
+    report = await build_pace_report(
+        session, tenant_id, s, e, today, locale, thresholds_from_settings(settings)
+    )
+    return _out(report, locale)
 
 
 @router.put("/suggestions/{stay_date}/{kind}", response_model=SuggestionOut)
@@ -280,41 +316,53 @@ async def decide_suggestion(
     tenant_id: TenantDep,
     principal: WriterDep,
     session: SessionDep,
+    settings: SettingsDep,
     locale: LocaleDep,
+    hotel_id: int | None = None,
 ) -> SuggestionOut:
-    """Ghi nhận đã áp dụng hoặc bỏ qua gợi ý (tính lại tại chỗ, không tin số từ client)."""
+    """Ghi nhận đã áp dụng hoặc bỏ qua gợi ý (tính lại tại chỗ, không tin số từ client).
+    `hotel_id`: khách sạn self của tenant chuỗi (mặc định khách sạn self chính)."""
     tenant = await _tenant(session, tenant_id)
+    hid = await _self_hotel(session, tenant_id, hotel_id)
     report = await build_pace_report(
-        session, tenant_id, stay_date, stay_date, tenant_today(tenant), locale
+        session,
+        tenant_id,
+        stay_date,
+        stay_date,
+        tenant_today(tenant),
+        locale,
+        thresholds_from_settings(settings),
     )
-    night = report.nights[0]
-    sug = night.suggestion
-    if sug is None or sug.kind != kind:
+    own = next((o for o in report.nights[0].suggestions if o.hotel_id == hid), None)
+    if own is None or own.suggestion.kind != kind:
         raise HTTPException(status.HTTP_409_CONFLICT, "no such suggestion for this night anymore")
     values = dict(
         tenant_id=tenant_id,
+        hotel_id=hid,
         stay_date=stay_date,
         kind=kind,
         decision=body.decision,
-        change_pct=sug.change_pct,
-        own_price=night.own_price,
-        currency=night.currency,
+        change_pct=own.suggestion.change_pct,
+        own_price=own.own_price,
+        currency=own.currency,
         decided_by=principal.user_id,
     )
+    key = ("tenant_id", "hotel_id", "stay_date", "kind")
     await session.execute(
         insert(PriceSuggestionDecision)
         .values(**values)
         .on_conflict_do_update(
             index_elements=[
                 PriceSuggestionDecision.tenant_id,
+                PriceSuggestionDecision.hotel_id,
                 PriceSuggestionDecision.stay_date,
                 PriceSuggestionDecision.kind,
             ],
-            set_={k: v for k, v in values.items() if k not in ("tenant_id", "stay_date", "kind")},
+            set_={k: v for k, v in values.items() if k not in key},
         )
     )
     await session.commit()
-    return _suggestion(sug, body.decision, locale)
+    return _suggestion(own.suggestion, hid, body.decision, locale)
 
 
 @router.delete("/suggestions/{stay_date}/{kind}", status_code=status.HTTP_204_NO_CONTENT)
@@ -324,10 +372,13 @@ async def undo_decision(
     tenant_id: TenantDep,
     _: WriterDep,
     session: SessionDep,
+    hotel_id: int | None = None,
 ) -> None:
+    hid = await _self_hotel(session, tenant_id, hotel_id)
     await session.execute(
         delete(PriceSuggestionDecision).where(
             PriceSuggestionDecision.tenant_id == tenant_id,
+            PriceSuggestionDecision.hotel_id == hid,
             PriceSuggestionDecision.stay_date == stay_date,
             PriceSuggestionDecision.kind == kind,
         )
@@ -447,7 +498,7 @@ def _event_out(e: LocalEvent) -> LocalEventOut:
     return LocalEventOut(
         id=e.id,
         name=e.name,
-        category=e.category,  # type: ignore[arg-type]
+        category=e.category,
         start_date=e.start_date,
         end_date=e.end_date,
         expected_uplift_pct=e.expected_uplift_pct,

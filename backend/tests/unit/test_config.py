@@ -1,4 +1,4 @@
-from app.config import Settings
+from app.config import AGODA_INITIATOR_API_KEY, MYTOUR_WEB_SECRET, Settings
 
 
 def test_settings_read_env(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -24,3 +24,22 @@ def test_settings_defaults(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     assert s.low_stock_threshold == 3
     assert s.price_change_threshold_pct == 3.0
     assert s.cors_origin_list == ["http://localhost:3000"]
+    assert s.listing_not_found_threshold == 3
+    assert s.agoda_initiator_api_key == AGODA_INITIATOR_API_KEY
+    assert s.agoda_initiator_version == "6_0"
+    assert s.mytour_web_secret == MYTOUR_WEB_SECRET
+
+
+def test_channel_keys_overridable_from_env(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@h:5432/db")
+    monkeypatch.setenv("REDIS_URL", "redis://h:6379/1")
+    monkeypatch.setenv("PROXY_URL_TEMPLATE", "http://a-{country}-{session}:b@p:1")
+    monkeypatch.setenv("MYTOUR_WEB_SECRET", "rotated")
+    monkeypatch.setenv("AGODA_INITIATOR_VERSION", "7_0")
+    monkeypatch.setenv("LISTING_NOT_FOUND_THRESHOLD", "5")
+    s = Settings(_env_file=None)
+    assert (s.mytour_web_secret, s.agoda_initiator_version, s.listing_not_found_threshold) == (
+        "rotated",
+        "7_0",
+        5,
+    )

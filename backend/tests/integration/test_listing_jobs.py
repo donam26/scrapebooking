@@ -129,14 +129,48 @@ async def test_verify_does_not_overwrite_known_hotel_fields(db: AsyncSession) ->
     assert hotel.address == "19 - 23 Lam Son Square, District 1"  # trường còn trống thì điền
 
 
-async def test_verify_not_found_marks_broken(db: AsyncSession) -> None:
+async def test_verify_not_found_marks_broken_after_streak(db: AsyncSession) -> None:
+    # Kênh nói rõ không tồn tại: đếm qua các lần thử (session/proxy khác), lần 3 mới broken.
     _, listing_id = await _unverified(db)
     deps, discovered = _deps(db, ScriptedChannel(identity=ListingNotFound("http 404")))
-    assert await run_verify_listing(deps, listing_id, final_attempt=False) == "broken"
+    for expected_count in (1, 2):
+        with pytest.raises(ListingRetry):
+            await run_verify_listing(deps, listing_id, final_attempt=False)
+        db.expire_all()
+        listing = await db.get(Listing, listing_id)
+        assert listing is not None and listing.status == "unverified"
+        assert (listing.not_found_count, listing.last_error) == (expected_count, "not_found")
+    assert await run_verify_listing(deps, listing_id, final_attempt=True) == "broken"
     db.expire_all()
     listing = await db.get(Listing, listing_id)
     assert listing is not None and listing.status == "broken"
-    assert listing.last_error == "not_found" and discovered == []
+    assert listing.last_error == "not_found" and listing.not_found_count == 3
+    assert discovered == []
+
+
+async def test_verify_not_found_on_final_attempt_below_threshold_keeps_status(
+    db: AsyncSession,
+) -> None:
+    _, listing_id = await _unverified(db)
+    deps, _ = _deps(db, ScriptedChannel(identity=ListingNotFound("http 404")))
+    deps.not_found_threshold = 5
+    assert await run_verify_listing(deps, listing_id, final_attempt=True) == "not_found"
+    db.expire_all()
+    listing = await db.get(Listing, listing_id)
+    assert listing is not None and listing.status == "unverified"
+    assert (listing.not_found_count, listing.last_error) == (1, "not_found")
+
+
+async def test_verify_success_resets_not_found_streak(db: AsyncSession) -> None:
+    _, listing_id = await _unverified(db)
+    deps, _ = _deps(db, ScriptedChannel(identity=ListingNotFound("http 404")))
+    with pytest.raises(ListingRetry):
+        await run_verify_listing(deps, listing_id, final_attempt=False)
+    deps, _ = _deps(db, ScriptedChannel())
+    assert await run_verify_listing(deps, listing_id, final_attempt=False) == "active"
+    db.expire_all()
+    listing = await db.get(Listing, listing_id)
+    assert listing is not None and (listing.status, listing.not_found_count) == ("active", 0)
 
 
 async def test_verify_blocked_retries_then_keeps_status(db: AsyncSession) -> None:

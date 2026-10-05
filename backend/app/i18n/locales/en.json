@@ -180,5 +180,9 @@
   "email.weekly.cta": "Open the 14-night overview",
   "email.test.title": "Test email from ScrapeBooking",
   "email.test.body": "This address has received an email from ScrapeBooking. Competitor alerts and the morning brief will be sent here according to your notification settings.",
-  "email.test.cta": "Open notification settings"
+  "email.test.cta": "Open notification settings",
+
+  "auth.reset.subject": "Reset your OTARadar password",
+  "auth.reset.body": "You (or someone) requested a password reset. Open this link within {minutes} minutes to set a new password:\n{link}\n\nIf this was not you, ignore this email; your password stays unchanged.",
+  "auth.reset.body_html": "You (or someone) requested a password reset. Open the link below within {minutes} minutes to set a new password. If this was not you, ignore this email; your password stays unchanged."
 }

@@ -6,16 +6,16 @@ from datetime import date
 from typing import Any
 from urllib.parse import urlencode
 
-from app.collector.base import ListingBlocked, ListingNotFound
+from app.collector.base import Collector, ListingBlocked, ListingNotFound
 from app.collector.booking.browser import BrowserCollector
 from app.collector.booking.hybrid import HybridCollector
 from app.collector.booking.identity import autocomplete_hotels, first_hotel_slug, parse_identity
 from app.collector.booking.playwright_bootstrap import PlaywrightBootstrapper
 from app.collector.booking.urls import canonical_url
 from app.collector.factory import CollectorDeps
-from app.collector.fetch import CurlFetcher, FetchOutcome
+from app.collector.fetch import CurlFetcher, Fetcher, FetchOutcome
 from app.collector.matching import match_score, search_names
-from app.collector.session import SessionManager
+from app.collector.session import ScrapeSession, SessionBootstrapper, SessionManager
 from app.domain.models import (
     CalendarResult,
     ListingCandidate,
@@ -34,27 +34,43 @@ SEARCH_PAGE_MARKERS = ("nbResultsTotal", 'data-testid="property-card"', "propert
 
 
 class BookingCollector:
-    def __init__(self, deps: CollectorDeps) -> None:
+    def __init__(
+        self,
+        deps: CollectorDeps,
+        *,
+        fetcher: Fetcher | None = None,
+        bootstrapper: SessionBootstrapper | None = None,
+        fallback: Collector | None = None,
+    ) -> None:
         self._deps = deps
+        self._fetcher: Fetcher = fetcher or CurlFetcher()
         self._sessions = SessionManager(
-            bootstrapper=PlaywrightBootstrapper(headless=deps.headless),
+            bootstrapper=bootstrapper or PlaywrightBootstrapper(headless=deps.headless),
             proxy_provider=deps.proxy_provider,
             max_age=deps.session_max_age,
             max_requests=deps.session_max_requests,
             clock=deps.clock,
             listener=deps.session_listener,
+            on_retire=[self._on_session_retired],
         )
-        self._fetcher = CurlFetcher()
+        if fallback is None:
+            fallback = BrowserCollector(
+                deps.proxy_provider, headless=deps.headless, currency=deps.currency
+            )
         self._hybrid = HybridCollector(
             sessions=self._sessions,
             fetcher=self._fetcher,
             limiter=deps.limiter,
-            fallback=BrowserCollector(
-                deps.proxy_provider, headless=deps.headless, currency=deps.currency
-            ),
+            fallback=fallback,
             currency=deps.currency,
             budget=deps.budget,
         )
+
+    async def _on_session_retired(self, session: ScrapeSession, reason: str) -> None:
+        """Session hết hạn/bị chặn: đóng client curl_cffi của nó (không rò AsyncSession mỗi lần
+        xoay), bỏ mốc giãn cách của session."""
+        await self._fetcher.close(session.id)
+        self._deps.limiter.forget(session.id)
 
     async def fetch_calendar(
         self, listing: ListingRef, start: date, days: int, adults: int
@@ -66,10 +82,11 @@ class BookingCollector:
     ) -> ProbeResult:
         return await self._hybrid.probe(listing, checkin, nights, adults)
 
-    async def _get_page(
+    async def _fetch(
         self, url: str, warmup_url: str, expect: tuple[str, ...] | None = None
-    ) -> str:
-        """`expect`: trang 200 mà không chứa dấu hiệu nào trong đây là chặn mềm (bỏ session)."""
+    ) -> tuple[str, ScrapeSession]:
+        """`expect`: trang 200 mà không chứa dấu hiệu nào trong đây là chặn mềm (bỏ session).
+        ListingNotFound chỉ khi Booking trả 404 thật."""
         session = await self._sessions.get(self._deps.country, warmup_url)
         await self._deps.budget.acquire()
         await self._deps.limiter.wait(session.id)
@@ -83,12 +100,17 @@ class BookingCollector:
             and not any(marker in response.text for marker in expect)
         )
         if response.outcome == FetchOutcome.BLOCKED or soft_block:
-            await self._sessions.retire(session, reason="blocked")
-            await self._fetcher.close(session.id)
+            await self._sessions.retire(session, reason="blocked")  # hook đóng client của session
             raise ListingBlocked(url)
         if response.outcome != FetchOutcome.OK:
             raise ListingBlocked(f"http {response.status}: {url}")
-        return response.text
+        return response.text, session
+
+    async def _get_page(
+        self, url: str, warmup_url: str, expect: tuple[str, ...] | None = None
+    ) -> str:
+        text, _ = await self._fetch(url, warmup_url, expect)
+        return text
 
     async def search_page(self, url: str) -> str:
         """Trang kết quả tìm kiếm (thị trường toàn thành phố, app/marketscan): cùng session, proxy,
@@ -97,10 +119,13 @@ class BookingCollector:
         return await self._get_page(url, "https://www.booking.com/", expect=SEARCH_PAGE_MARKERS)
 
     async def verify(self, listing: ListingRef) -> ListingIdentity:
-        html = await self._get_page(listing.url.replace(".html", ".en-gb.html"), listing.url)
+        html, session = await self._fetch(listing.url.replace(".html", ".en-gb.html"), listing.url)
         identity = parse_identity(html, listing.listing_key)
         if not identity.name and not identity.external_id:
-            raise ListingNotFound(listing.url)
+            # 200 nhưng không có dữ liệu khách sạn: trang challenge/chặn mềm không có dấu hiệu WAF.
+            # URL sai thì Booking trả 404 thật (ListingNotFound ở _fetch).
+            await self._sessions.retire(session, reason="blocked")
+            raise ListingBlocked(f"no hotel data: {listing.url}")
         return identity
 
     async def suggest(self, query: ListingQuery) -> list[ListingCandidate]:
@@ -171,7 +196,9 @@ class BookingCollector:
         return sorted(out, key=lambda c: -c.score)
 
     async def close(self) -> None:
-        await self._fetcher.close_all()
+        close_all = getattr(self._fetcher, "close_all", None)
+        if close_all is not None:
+            await close_all()
 
 
 def build(deps: CollectorDeps) -> BookingCollector:

@@ -11,7 +11,7 @@ mọi thứ chưa có khách đòi (Traveloka/Expedia, Zalo, self-serve, ML).
 
 | # | Phase | Mục tiêu | Ước lượng (1 senior) | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|---|
-| 0 | [Khôi phục nền & hygiene](phase-00-khoi-phuc-nen-ci-hygiene.md) | CI main xanh, script onboarding chạy, repo sạch, rules đúng stack | 1–2 ngày | — | todo |
+| 0 | [Khôi phục nền & hygiene](phase-00-khoi-phuc-nen-ci-hygiene.md) | CI main xanh, script onboarding chạy, repo sạch, rules đúng stack | 1–2 ngày | — | done (05/10, nhánh claude/gracious-pascal-wf42ez) |
 | 1 | [Đúng dữ liệu](phase-01-dung-du-lieu-collector-analytics-insight.md) | Giá/tồn kho/sự kiện/bản tin đúng; soft-block không giết listing | 1–1,5 tuần | 0 | todo |
 | 2 | [Bảo mật & vận hành sản xuất](phase-02-bao-mat-va-van-hanh-san-xuat.md) | Không secret mặc định, không cổng mở, TLS, backup offsite, alert, HA scheduler | 1,5–2 tuần | 0 | todo |
 | 3 | [Hiệu năng & dữ liệu](phase-03-hieu-nang-index-retention-run-lifecycle.md) | Index hot path, vòng đời run kín, retention, N+1, budget ưu tiên | 1 tuần | 1, 2 | todo |

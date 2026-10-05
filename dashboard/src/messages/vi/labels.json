@@ -47,7 +47,6 @@
   },
   "insightStatus": {
     "pending": "Đang tạo",
-    "batch_pending": "Chờ batch",
     "completed": "Hoàn tất",
     "failed": "Thất bại"
   },

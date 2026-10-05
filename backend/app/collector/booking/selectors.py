@@ -3,7 +3,8 @@ from datetime import date
 
 # 4: đối chiếu HTML thật 2026-09 (ô loại phòng <th>, "We have N left", giờ chót, Booking Basic)
 # 5: chuẩn giá đa kênh (D3): cờ thuế, giá gạch, nhãn khuyến mãi
-PARSER_VERSION = "5"
+# 6: giá chia theo đêm (probe min-LOS > 1), cộng thuế phí ghi riêng, từ chối tiền tệ lạ
+PARSER_VERSION = "6"
 
 # Trang đã sẵn sàng (đã qua challenge) khi có một trong các phần tử này.
 READY_SELECTOR = (

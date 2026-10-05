@@ -3,8 +3,9 @@
 Tính tại chỗ từ hotel_date_metrics + own_hotel_daily, không lưu bảng riêng.
 """
 
+from collections import Counter
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 
@@ -13,6 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.rules import median
 from app.db.models import HotelDateMetric, OwnHotelDaily, TenantHotel
+
+# Giá giữ lại từ lần dùng được cuối (probe sau đó bị chặn/lỗi) còn đem so tới ngưỡng này, tính từ
+# quan sát mới nhất của đêm đó; lâu hơn thì đối thủ coi như không quan sát được (đối thủ paused/
+# broken không đóng góp giá hai tuần tuổi vào trung vị).
+STALE_PRICE_MAX_AGE = timedelta(hours=24)
 
 
 class PriceBasis(StrEnum):
@@ -25,6 +31,14 @@ class PriceBasis(StrEnum):
 
 def metric_price(m: HotelDateMetric, basis: PriceBasis) -> Decimal | None:
     return m.min_refundable_price if basis == PriceBasis.REFUNDABLE else m.min_price
+
+
+def price_is_fresh(m: HotelDateMetric, as_of: datetime | None) -> bool:
+    """Giá của metric còn dùng được: lần quan sát mới nhất dùng được (`stale_since` None), hoặc giá
+    giữ lại chưa cũ quá `STALE_PRICE_MAX_AGE` so với `as_of` (quan sát mới nhất của đêm)."""
+    if m.stale_since is None:
+        return True
+    return (as_of or m.last_observed_at) - m.stale_since <= STALE_PRICE_MAX_AGE
 
 
 @dataclass(frozen=True)
@@ -45,6 +59,8 @@ class CompsetDay:
     # hạng) và số khách sạn có giá (gồm bạn). Không có giá của bạn thì hạng là None.
     own_rank: int | None
     priced_hotels: int
+    # Đối thủ có giá nhưng khác tiền tệ với `currency` (của bạn, hoặc đa số): bị loại khỏi trung vị.
+    dropped_currency: int = 0
 
 
 def price_rank(own_price: Decimal | None, competitor_prices: list[Decimal]) -> int | None:
@@ -68,6 +84,26 @@ async def load_watchlist(session: AsyncSession, tenant_id: int) -> tuple[list[in
     return own, comp
 
 
+def _observed(m: HotelDateMetric, as_of: datetime | None) -> bool:
+    """Đối thủ "quan sát được" đêm đó: trạng thái dùng được, hoặc probe lỗi nhưng giá giữ lại còn
+    mới (lần dùng được cuối là còn phòng)."""
+    if m.availability_status != "unknown":
+        return True
+    return m.min_price is not None and price_is_fresh(m, as_of)
+
+
+def _reference_currency(owns: list[HotelDateMetric], comps: list[HotelDateMetric]) -> str | None:
+    """Tiền tệ đem so: của khách sạn bạn (khách sạn self nhỏ nhất trước); không có thì tiền tệ
+    phổ biến nhất trong đối thủ có giá (hoà → mã nhỏ hơn)."""
+    own = next((m.currency for m in owns if m.currency), None)
+    if own is not None:
+        return own
+    counts = Counter(m.currency for m in comps if m.currency and m.min_price is not None)
+    if not counts:
+        return None
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+
+
 async def compset_by_day(
     session: AsyncSession,
     tenant_id: int,
@@ -76,11 +112,16 @@ async def compset_by_day(
     basis: PriceBasis = PriceBasis.ANY,
     channel: str = "booking",
 ) -> list[CompsetDay]:
-    """Compset của một kênh (D10): giá giữa các kênh khác cơ sở, không trộn vào một trung vị."""
+    """Compset của một kênh (D10): giá giữa các kênh khác cơ sở, không trộn vào một trung vị.
+
+    Chỉ so giá cùng tiền tệ (`dropped_currency` đếm đối thủ bị loại); giá giữ lại sau probe lỗi
+    dùng tới 24h. Nhiều khách sạn `self`: trạng thái/PMS lấy theo khách sạn self nhỏ nhất (ổn
+    định), giá của bạn là giá thấp nhất trong các khách sạn self."""
     own_ids, comp_ids = await load_watchlist(session, tenant_id)
     all_ids = own_ids + comp_ids
     if not all_ids:
         return []
+    primary_own = min(own_ids) if own_ids else None
     metrics = (
         (
             await session.execute(
@@ -95,7 +136,7 @@ async def compset_by_day(
         .scalars()
         .all()
     )
-    own_daily = {}
+    own_daily: dict[tuple[int, date], OwnHotelDaily] = {}
     if own_ids:
         rows = (
             (
@@ -111,7 +152,7 @@ async def compset_by_day(
             .scalars()
             .all()
         )
-        own_daily = {r.stay_date: r for r in rows}
+        own_daily = {(r.hotel_id, r.stay_date): r for r in rows}
 
     by_date: dict[date, list[HotelDateMetric]] = {}
     for m in metrics:
@@ -121,17 +162,27 @@ async def compset_by_day(
     d = start
     while d <= end:
         rows_d = by_date.get(d, [])
-        comps = [m for m in rows_d if m.hotel_id in comp_ids and m.availability_status != "unknown"]
-        owns = [m for m in rows_d if m.hotel_id in own_ids]
+        newest = max((m.last_observed_at for m in rows_d), default=None)
+        comps = [m for m in rows_d if m.hotel_id in comp_ids and _observed(m, newest)]
+        owns = sorted((m for m in rows_d if m.hotel_id in own_ids), key=lambda m: m.hotel_id)
         sold_out = [m for m in comps if m.availability_status == "sold_out"]
-        prices = [p for m in comps if (p := metric_price(m, basis)) is not None]
-        currency = next((m.currency for m in comps if m.currency), None)
+        currency = _reference_currency(owns, comps)
+        priced = [(m, p) for m in comps if (p := metric_price(m, basis)) is not None]
+        prices = [p for m, p in priced if currency is None or m.currency == currency]
         own_price = min(
-            (p for m in owns if (p := metric_price(m, basis)) is not None), default=None
+            (
+                p
+                for m in owns
+                if price_is_fresh(m, newest)
+                and (currency is None or m.currency == currency)
+                and (p := metric_price(m, basis)) is not None
+            ),
+            default=None,
         )
-        own_status = owns[0].availability_status if owns else None
+        own_primary = next((m for m in owns if m.hotel_id == primary_own), None)
+        own_status = own_primary.availability_status if own_primary else None
         med = median(prices)
-        own_row = own_daily.get(d)
+        own_row = own_daily.get((primary_own, d)) if primary_own is not None else None
         price_index = (
             (own_price / med * 100).quantize(Decimal("0.1"))
             if own_price is not None and med not in (None, Decimal(0))
@@ -157,6 +208,7 @@ async def compset_by_day(
                 price_index=price_index,
                 own_rank=price_rank(own_price, prices),
                 priced_hotels=len(prices) + (1 if own_price is not None else 0),
+                dropped_currency=len(priced) - len(prices),
             )
         )
         d = d.fromordinal(d.toordinal() + 1)

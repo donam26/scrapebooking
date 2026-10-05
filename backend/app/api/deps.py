@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import COOKIE_NAME, InvalidToken, Principal, decode_token
 from app.config import Settings, get_settings
-from app.db.models import TenantHotel, User
+from app.db.models import Tenant, TenantHotel, User
 from app.i18n import parse_accept_language
 
 
@@ -60,17 +60,32 @@ async def get_principal(request: Request, settings: SettingsDep, session: Sessio
         principal = decode_token(token, settings.jwt_secret)
     except InvalidToken as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid session") from exc
-    # Tài khoản bị khoá hoặc đổi vai trò phải mất hiệu lực ngay, không đợi token hết hạn.
+    # Tài khoản bị khoá, đổi vai trò, đổi mật khẩu (token_version) hay tenant bị tắt phải mất hiệu
+    # lực ngay, không đợi token hết hạn.
     row = (
         await session.execute(
-            select(User.active, User.role, User.tenant_id).where(User.id == principal.user_id)
+            select(User.active, User.role, User.tenant_id, User.token_version, Tenant.active)
+            .outerjoin(Tenant, Tenant.id == User.tenant_id)
+            .where(User.id == principal.user_id)
         )
     ).first()
     if row is None or not row[0]:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "user disabled")
+    if int(row[3] or 0) != principal.token_version:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "session revoked")
+    if row[2] is not None and row[4] is False:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "tenant disabled")
     if row[1] != principal.role or row[2] != principal.tenant_id:
-        return Principal(principal.user_id, principal.email, row[1], row[2])
+        return Principal(principal.user_id, principal.email, row[1], row[2], int(row[3] or 0))
     return principal
+
+
+def client_ip(request: Request) -> str:
+    """IP thật của trình duyệt: proxy dashboard/Caddy đặt X-Forwarded-For; không có thì socket."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",", 1)[0].strip()[:64]
+    return (request.client.host if request.client else "unknown")[:64]
 
 
 PrincipalDep = Annotated[Principal, Depends(get_principal)]

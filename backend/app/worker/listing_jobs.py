@@ -19,6 +19,7 @@ from app.collector.factory import ChannelCollector
 from app.db.models import Hotel, Listing
 from app.domain.models import ListingQuery, ListingRef
 from app.logging import get_logger
+from app.repo.snapshots import SnapshotRepository
 
 log = get_logger(__name__)
 
@@ -37,6 +38,8 @@ class ListingJobDeps:
     clock: Clock
     channel: str
     enqueue_discover: object | None = None  # async (hotel_id, channel) -> None
+    # Số lần kênh báo "không tồn tại" liên tiếp trước khi listing thành `broken`.
+    not_found_threshold: int = 3
 
 
 async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attempt: bool) -> str:
@@ -61,9 +64,15 @@ async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attemp
         )
     try:
         identity = await deps.collector.verify(ref)
-    except ListingNotFound:
-        await _set_status(deps, listing_id, "broken", "not_found")
-        return "broken"
+    except ListingNotFound as exc:
+        # Kênh nói rõ không tồn tại (404 thật / mã riêng). Đếm chuỗi qua các lần thử (mỗi lần cách
+        # nhau, có thể session/proxy khác): đủ ngưỡng mới `broken`, chặn mềm trả 404 giả không
+        # giết listing; URL sai thật vẫn thành broken trong một job (3 lần thử).
+        if await _record_not_found(deps, ref):
+            return "broken"
+        if not final_attempt:
+            raise ListingRetry(str(exc)) from exc
+        return "not_found"
     except ListingBlocked as exc:
         if not final_attempt:
             raise ListingRetry(str(exc)) from exc
@@ -96,6 +105,7 @@ async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attemp
         listing.name = (identity.name or listing.name or "")[:300] or None
         listing.verified_at = now
         listing.last_error = None
+        listing.not_found_count = 0
         # Khách sạn (property) lấy thông tin từ listing xác minh đầu tiên; không ghi đè.
         hotel.name = hotel.name or (identity.name[:300] if identity.name else None)
         hotel.address = hotel.address or identity.address
@@ -135,6 +145,16 @@ async def _hotel_with_external_id(
             stmt = stmt.where(Listing.id != listing_id)
         row = (await s.execute(stmt.limit(1))).first()
     return int(row[0]) if row else None
+
+
+async def _record_not_found(deps: ListingJobDeps, ref: ListingRef) -> bool:
+    """Tăng đếm not_found của listing (khoá (hotel_id, channel)); True khi vừa thành broken."""
+    async with deps.session_factory() as s:
+        broken = await SnapshotRepository(s, page_cap=0).record_not_found(
+            ref.hotel_id, ref.channel, "not_found", deps.not_found_threshold
+        )
+        await s.commit()
+    return broken
 
 
 async def _set_status(

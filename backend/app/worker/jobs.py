@@ -22,7 +22,7 @@ RunFinishedHook = Callable[[int], Awaitable[None]]
 
 
 class HotelPageNotFound(RuntimeError):
-    pass
+    """Kênh nói rõ listing không tồn tại (404 thật / mã riêng): mọi đêm khác cũng vậy, dừng job."""
 
 
 class JobFailed(RuntimeError):
@@ -63,6 +63,8 @@ class WorkerDeps:
     worker_id: str
     on_run_finished: RunFinishedHook | None = None
     tiers: TierPolicy | None = field(default_factory=TierPolicy)
+    # Số lần kênh báo "không tồn tại" liên tiếp trước khi listing thành `broken`.
+    not_found_threshold: int = 3
 
 
 @dataclass
@@ -126,6 +128,7 @@ async def run_probe_hotel(
 
     status, error = "done", None
     permanent = False
+    streak_reset = False  # đã đặt lại đếm not_found của listing trong job này
     try:
         calendar = await deps.collector.fetch_calendar(
             hotel, start_date, horizon, deps.default_adults
@@ -189,7 +192,8 @@ async def run_probe_hotel(
                     key = None
 
             async with deps.session_factory() as s:
-                await SnapshotRepository(s, deps.page_cap).write_probe(
+                snaps = SnapshotRepository(s, deps.page_cap)
+                await snaps.write_probe(
                     scan_run_id,
                     hotel_id,
                     channel,
@@ -200,6 +204,10 @@ async def run_probe_hotel(
                     hotel.country_code,
                     fetched_at,
                 )
+                if not streak_reset and result.status in (ProbeStatus.OK, ProbeStatus.SOLD_OUT):
+                    # Kênh có dữ liệu cho listing: chuỗi "không tồn tại" (nếu có) đứt.
+                    await snaps.reset_not_found(hotel_id, channel)
+                    streak_reset = True
                 await s.commit()
 
             PROBES_TOTAL.labels(str(result.status), str(result.method)).inc()
@@ -208,8 +216,9 @@ async def run_probe_hotel(
             if result.status in (ProbeStatus.BLOCKED, ProbeStatus.ERROR):
                 summary.failed += 1
             if result.status == ProbeStatus.ERROR and result.error == "not_found":
-                # Trang khách sạn 404 (URL/slug sai): mọi ngày khác cũng 404, dừng thay vì quét hết.
-                raise HotelPageNotFound(f"hotel page not found (http 404): {hotel.url}")
+                # Kênh nói rõ listing không tồn tại (404 thật / mã riêng, không phải chặn mềm):
+                # mọi đêm khác cũng vậy, dừng thay vì quét hết horizon.
+                raise HotelPageNotFound(f"listing not found on {channel}: {hotel.url}")
     except Exception as exc:  # noqa: BLE001
         status, error = "failed", f"{type(exc).__name__}: {exc}"
         permanent = isinstance(exc, HotelPageNotFound)
@@ -224,10 +233,12 @@ async def run_probe_hotel(
         )
         await runs.finish_job(scan_run_id, hotel_id, job_status, now, error)
         if permanent:
-            # URL listing hỏng (404): ngừng quét listing này tới khi người dùng sửa URL.
-            await SnapshotRepository(s, deps.page_cap).mark_listing_broken(
-                hotel_id, channel, error or "not found"
+            # Đếm chuỗi not_found; đủ ngưỡng mới `broken` (ngừng quét tới khi người dùng sửa URL).
+            # Một lần lọt lưới (chặn mềm trả 404 giả) không giết listing.
+            broken = await SnapshotRepository(s, deps.page_cap).record_not_found(
+                hotel_id, channel, error or "not_found", deps.not_found_threshold
             )
+            log_ctx.warning("listing_not_found", channel=channel, broken=broken)
         if job_status != "retrying":
             summary.run_finished = await runs.try_finish_run(scan_run_id, now)
         await s.commit()

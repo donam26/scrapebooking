@@ -5,6 +5,7 @@ from app.analytics.rules import (
     DateStatus,
     EventType,
     HotelDateObs,
+    KnownValues,
     RoomObs,
     Thresholds,
     compute_metrics,
@@ -14,6 +15,7 @@ from app.analytics.rules import (
     median,
     paired_exact_pickup,
     pct_change,
+    usable_nearest,
 )
 from app.domain.models import StockConfidence as C
 
@@ -25,8 +27,10 @@ def room(rt: int, left: int | None, conf: C, price: str | None = "100") -> RoomO
     return RoomObs(rt, left, conf, Decimal(price) if price else None)
 
 
-def obs(run: int, at: datetime, status: DateStatus, *rooms: RoomObs) -> HotelDateObs:
-    return HotelDateObs(run, at, status, {r.room_type_id: r for r in rooms}, "VND")
+def obs(
+    run: int, at: datetime, status: DateStatus, *rooms: RoomObs, currency: str | None = "VND"
+) -> HotelDateObs:
+    return HotelDateObs(run, at, status, {r.room_type_id: r for r in rooms}, currency)
 
 
 def test_probe_status_mapping() -> None:
@@ -117,6 +121,22 @@ def test_price_events_hotel_and_room_level_with_threshold() -> None:
     ]
 
 
+def test_price_events_require_same_currency() -> None:
+    # Proxy trả trang USD: 100 VND -> 5 USD không phải "giảm giá 95%", cả mức khách sạn lẫn loại phòng.
+    prev = obs(1, T0 - timedelta(hours=8), DateStatus.AVAILABLE, room(1, None, C.HIDDEN, "100"))
+    cur = obs(2, T0, DateStatus.AVAILABLE, room(1, None, C.HIDDEN, "5"), currency="USD")
+    assert diff_events(prev, cur, TH) == []
+    # Cùng tiền tệ thì vẫn sinh sự kiện như cũ.
+    same = obs(2, T0, DateStatus.AVAILABLE, room(1, None, C.HIDDEN, "5"))
+    assert [e.event_type for e in diff_events(prev, same, TH)] == [
+        EventType.PRICE_DOWN,
+        EventType.PRICE_DOWN,
+    ]
+    # Không biết tiền tệ một bên: không so.
+    unknown = obs(2, T0, DateStatus.AVAILABLE, room(1, None, C.HIDDEN, "5"), currency=None)
+    assert diff_events(prev, unknown, TH) == []
+
+
 def test_room_type_new_and_gone() -> None:
     prev = obs(1, T0 - timedelta(hours=8), DateStatus.AVAILABLE, room(1, 2, C.EXACT))
     cur = obs(2, T0, DateStatus.AVAILABLE, room(2, 4, C.EXACT))
@@ -146,6 +166,68 @@ def test_paired_exact_pickup() -> None:
     assert paired_exact_pickup(older, obs(2, T0, DateStatus.SOLD_OUT)) == 7
     no_exact = obs(1, T0 - timedelta(days=1), DateStatus.AVAILABLE, room(1, 10, C.CAPPED))
     assert paired_exact_pickup(no_exact, newer) is None
+    # rt3 có room_type_gone cùng run (kênh/parser bỏ loại phòng): không tính là bán hết 2 phòng.
+    assert paired_exact_pickup(older, newer, frozenset({3})) == 2
+    # Chỉ loại phòng biến mất mới có gì để bỏ: không còn cặp exact nào -> None.
+    only_gone = obs(1, T0 - timedelta(days=1), DateStatus.AVAILABLE, room(3, 2, C.EXACT))
+    assert paired_exact_pickup(only_gone, newer, frozenset({3})) is None
+    assert paired_exact_pickup(only_gone, newer) == 2
+
+
+def test_usable_nearest_picks_closest_within_tolerance() -> None:
+    target = T0 - timedelta(hours=24)
+    far = obs(1, target - timedelta(hours=3), DateStatus.AVAILABLE, room(1, 9, C.EXACT))
+    before = obs(2, target - timedelta(minutes=90), DateStatus.AVAILABLE, room(1, 8, C.EXACT))
+    after = obs(3, target + timedelta(hours=1), DateStatus.AVAILABLE, room(1, 7, C.EXACT))
+    unknown = obs(4, target, DateStatus.UNKNOWN)
+    tol = timedelta(hours=2)
+    # Gần mốc nhất (sau mốc 1h thắng trước mốc 1h30); unknown không được chọn dù đúng mốc.
+    assert usable_nearest([far, before, after, unknown], target, tol) is after
+    assert usable_nearest([far, before], target, tol) is before
+    # Ngoài dung sai: None (không lấy "≤ mốc" xa 3 giờ).
+    assert usable_nearest([far], target, tol) is None
+    # Hoà khoảng cách: lấy lần sớm hơn (ổn định).
+    tie_a = obs(5, target - timedelta(hours=1), DateStatus.AVAILABLE, room(1, 1, C.EXACT))
+    tie_b = obs(6, target + timedelta(hours=1), DateStatus.AVAILABLE, room(1, 1, C.EXACT))
+    assert usable_nearest([tie_b, tie_a], target, tol) is tie_a
+
+
+def test_compute_metrics_reference_windows_have_tolerance() -> None:
+    cur = obs(9, T0, DateStatus.AVAILABLE, room(1, 3, C.EXACT, "110"))
+    # 24h: quan sát 30h trước (ngoài ±2h) không dùng -> pickup None; 25h trước thì dùng.
+    h30 = obs(1, T0 - timedelta(hours=30), DateStatus.AVAILABLE, room(1, 6, C.EXACT, "100"))
+    assert compute_metrics(cur, [h30], 1).pickup_24h is None
+    h25 = obs(2, T0 - timedelta(hours=25), DateStatus.AVAILABLE, room(1, 6, C.EXACT, "100"))
+    assert compute_metrics(cur, [h25], 1).pickup_24h == 3
+    # 72h: ±4h; 7d: ±12h.
+    h77 = obs(3, T0 - timedelta(hours=77), DateStatus.AVAILABLE, room(1, 9, C.EXACT, "100"))
+    assert compute_metrics(cur, [h77], 1).velocity_3d is None
+    h75 = obs(4, T0 - timedelta(hours=75), DateStatus.AVAILABLE, room(1, 9, C.EXACT, "100"))
+    assert compute_metrics(cur, [h75], 1).velocity_3d == (Decimal(6) / Decimal(75) * 24).quantize(
+        Decimal("0.001")
+    )
+    d7_13h = obs(
+        5, T0 - timedelta(days=7, hours=13), DateStatus.AVAILABLE, room(1, 9, C.EXACT, "100")
+    )
+    assert compute_metrics(cur, [d7_13h], 1).price_change_7d_pct is None
+    d7_11h = obs(
+        6, T0 - timedelta(days=7, hours=11), DateStatus.AVAILABLE, room(1, 9, C.EXACT, "100")
+    )
+    assert compute_metrics(cur, [d7_11h], 1).price_change_7d_pct == Decimal("10.00")
+    # Mốc 7 ngày khác tiền tệ: không có % thay đổi.
+    d7_usd = obs(
+        7, T0 - timedelta(days=7), DateStatus.AVAILABLE, room(1, 9, C.EXACT, "4"), currency="USD"
+    )
+    assert compute_metrics(cur, [d7_usd], 1).price_change_7d_pct is None
+
+
+def test_compute_metrics_pickup_skips_room_types_gone_this_run() -> None:
+    ref = obs(
+        1, T0 - timedelta(hours=24), DateStatus.AVAILABLE, room(1, 5, C.EXACT), room(2, 4, C.EXACT)
+    )
+    cur = obs(2, T0, DateStatus.AVAILABLE, room(1, 3, C.EXACT))
+    assert compute_metrics(cur, [ref], 1).pickup_24h == 6
+    assert compute_metrics(cur, [ref], 1, gone_room_types=frozenset({2})).pickup_24h == 2
 
 
 def test_compute_metrics_pickup_velocity_price_change_exact_share() -> None:
@@ -168,17 +250,56 @@ def test_compute_metrics_pickup_velocity_price_change_exact_share() -> None:
     assert m.exact_share == Decimal("1.0000")
 
 
-def test_compute_metrics_unknown_current_keeps_nulls() -> None:
+def test_compute_metrics_unknown_current_without_known_values_keeps_nulls() -> None:
     cur = obs(5, T0, DateStatus.UNKNOWN)
     m = compute_metrics(cur, [], 3)
     assert m.min_price is None and m.pickup_24h is None and m.exact_share is None
-    assert m.availability_status == DateStatus.UNKNOWN
+    assert m.availability_status == DateStatus.UNKNOWN and m.stale_since is None
+
+
+def test_compute_metrics_unknown_current_keeps_known_values_and_marks_stale() -> None:
+    # Probe bị chặn: giữ giá/số phòng của bản metric hiện có, chỉ đổi trạng thái + stale_since.
+    seen_at = T0 - timedelta(hours=8)
+    known = KnownValues(Decimal("100"), Decimal("120"), "VND", 4, seen_at)
+    m = compute_metrics(obs(5, T0, DateStatus.UNKNOWN), [], 3, known)
+    assert (m.min_price, m.min_refundable_price, m.currency, m.exact_rooms_left) == (
+        Decimal("100"),
+        Decimal("120"),
+        "VND",
+        4,
+    )
+    assert m.availability_status == DateStatus.UNKNOWN and m.stale_since == seen_at
+    assert m.pickup_24h is None and m.last_observed_at == T0
+    # Bản hiện có đã cũ sẵn (lần chặn thứ hai): giữ mốc cũ hơn.
+    older = T0 - timedelta(hours=16)
+    again = KnownValues(Decimal("100"), None, "VND", 4, seen_at, stale_since=older)
+    assert (
+        compute_metrics(
+            obs(6, T0 + timedelta(hours=8), DateStatus.UNKNOWN), [], 3, again
+        ).stale_since
+        == older
+    )
+    # Lần dùng được kế tiếp xoá stale_since và dùng giá mới.
+    fresh = compute_metrics(
+        obs(7, T0, DateStatus.AVAILABLE, room(1, 2, C.EXACT, "90")), [], 3, again
+    )
+    assert (
+        fresh.stale_since is None
+        and fresh.min_price == Decimal("90")
+        and fresh.exact_rooms_left == 2
+    )
+    # Hết phòng (dùng được) không giữ giá cũ.
+    sold = compute_metrics(obs(8, T0, DateStatus.SOLD_OUT), [], 3, known)
+    assert sold.min_price is None and sold.stale_since is None
 
 
 def test_pct_change_and_median() -> None:
     assert pct_change(Decimal("100"), Decimal("103")) == Decimal("3.00")
     assert pct_change(None, Decimal("1")) is None
     assert pct_change(Decimal("0"), Decimal("1")) is None
+    assert pct_change(Decimal("100"), Decimal("103"), "VND", "VND") == Decimal("3.00")
+    assert pct_change(Decimal("100"), Decimal("5"), "VND", "USD") is None
+    assert pct_change(Decimal("100"), Decimal("5"), "VND", None) is None
     assert median([]) is None
     assert median([Decimal(3), Decimal(1), Decimal(2)]) == Decimal(2)
     assert median([Decimal(1), Decimal(2)]) == Decimal("1.50")

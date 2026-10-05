@@ -3038,7 +3038,7 @@
      "market"
     ],
     "summary": "Decide Suggestion",
-    "description": "Ghi nhận đã áp dụng hoặc bỏ qua gợi ý (tính lại tại chỗ, không tin số từ client).",
+    "description": "Ghi nhận đã áp dụng hoặc bỏ qua gợi ý (tính lại tại chỗ, không tin số từ client).\n`hotel_id`: khách sạn self của tenant chuỗi (mặc định khách sạn self chính).",
     "operationId": "decide_suggestion_market_suggestions__stay_date___kind__put",
     "parameters": [
      {
@@ -3063,6 +3063,22 @@
        ],
        "type": "string",
        "title": "Kind"
+      }
+     },
+     {
+      "name": "hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Hotel Id"
       }
      },
      {
@@ -3146,6 +3162,22 @@
        ],
        "type": "string",
        "title": "Kind"
+      }
+     },
+     {
+      "name": "hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Hotel Id"
       }
      },
      {
@@ -5475,6 +5507,18 @@
        }
       ],
       "title": "Days To Arrival"
+     },
+     "stale_since": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stale Since"
      }
     },
     "type": "object",
@@ -7967,6 +8011,13 @@
         "type": "null"
        }
       ]
+     },
+     "suggestions": {
+      "items": {
+       "$ref": "#/components/schemas/SuggestionOut"
+      },
+      "type": "array",
+      "title": "Suggestions"
      }
     },
     "type": "object",
@@ -7989,7 +8040,8 @@
      "comp_pickup_7d",
      "comp_pickup_hotels",
      "comp_pace",
-     "suggestion"
+     "suggestion",
+     "suggestions"
     ],
     "title": "PaceNightOut"
    },
@@ -8727,6 +8779,18 @@
        }
       ],
       "title": "Decision"
+     },
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "price_basis": {
+      "type": "string",
+      "enum": [
+       "refundable",
+       "any"
+      ],
+      "title": "Price Basis"
      }
     },
     "type": "object",
@@ -8735,7 +8799,9 @@
      "change_pct",
      "confidence",
      "reasons",
-     "decision"
+     "decision",
+     "hotel_id",
+     "price_basis"
     ],
     "title": "SuggestionOut"
    },

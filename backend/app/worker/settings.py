@@ -12,7 +12,7 @@ from arq.worker import func
 
 from app.clock import SystemClock
 from app.collector.budget import RedisRequestBudget
-from app.collector.factory import CollectorDeps, build_collector
+from app.collector.factory import ChannelKeys, CollectorDeps, build_collector
 from app.collector.proxy import StaticProxyProvider
 from app.collector.ratelimit import RateLimiter
 from app.collector.storage import S3RawStore
@@ -86,6 +86,11 @@ async def startup(ctx: dict[str, Any]) -> None:
             session_max_requests=settings.session_max_requests,
             session_listener=DbSessionListener(session_factory, worker_id, max_age),
             budget=RedisRequestBudget(queue.redis, channel, settings.channel_budget(channel)),
+            keys=ChannelKeys(
+                agoda_initiator_api_key=settings.agoda_initiator_api_key,
+                agoda_initiator_version=settings.agoda_initiator_version,
+                mytour_web_secret=settings.mytour_web_secret,
+            ),
         ),
     )
     parser_version, page_cap = _channel_constants(channel, settings.page_dropdown_cap)
@@ -116,6 +121,7 @@ async def startup(ctx: dict[str, Any]) -> None:
             mid_max_age=timedelta(hours=settings.tier_mid_max_age_hours),
             far_max_age=timedelta(hours=settings.tier_far_max_age_hours),
         ),
+        not_found_threshold=settings.listing_not_found_threshold,
     )
     ctx["listing_deps"] = ListingJobDeps(
         session_factory=session_factory,
@@ -123,6 +129,7 @@ async def startup(ctx: dict[str, Any]) -> None:
         clock=SystemClock(),
         channel=channel,
         enqueue_discover=queue.enqueue_discover,
+        not_found_threshold=settings.listing_not_found_threshold,
     )
     log.info("worker_started", worker=worker_id, channel=channel, queue=collector_queue(channel))
 

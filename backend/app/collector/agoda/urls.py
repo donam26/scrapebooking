@@ -12,8 +12,7 @@ from app.domain.models import ListingRef
 BASE = "https://www.agoda.com"
 LOCALE = "vi-vn"
 ROOM_GRID_PATH = "/api/v1/property/room-grid"
-# Khoá public của web Agoda (header ag-initiator-api-key), không phải bí mật của tài khoản.
-INITIATOR_API_KEY = "b3949fd5-9553-4b4e-b221-48be2a1b84a8"
+# Khoá public của web Agoda (ag-initiator-api-key/-version): Settings → CollectorDeps.keys.
 CURRENCY_IDS = {"VND": 78}
 
 # /vi-vn/<slug>/hotel/<thành-phố>.html, tiền tố ngôn ngữ tuỳ chọn (bản tiếng Anh không có).

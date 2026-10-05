@@ -1,8 +1,10 @@
-"""InsightService: sinh bản tin hằng ngày (Batch API) và theo yêu cầu (đồng bộ)."""
+"""InsightService: sinh bản tin hằng ngày (job cron) và theo yêu cầu, đều gọi đồng bộ.
+
+OpenRouter không có Batch API nên không còn trạng thái `batch_pending`: một bản tin đi
+`pending` → gọi model → `completed`/`failed` trong cùng một giao dịch của job."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
-from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
@@ -16,7 +18,6 @@ from app.insight.client import (
     FakeInsightClient,
     InsightClient,
     OpenRouterInsightClient,
-    RedisBatchStore,
     estimate_cost,
 )
 from app.insight.input_builder import InsightInput, build_input
@@ -49,8 +50,9 @@ def build_insight_client(settings: Settings) -> InsightClient:
     return OpenRouterInsightClient(
         api_key=settings.openrouter_api_key,
         base_url=settings.openrouter_base_url,
-        store=RedisBatchStore(settings.redis_url),
         headers=headers or None,
+        timeout_seconds=settings.openrouter_timeout_seconds,
+        max_output_tokens=settings.openrouter_max_output_tokens,
     )
 
 
@@ -123,27 +125,25 @@ class InsightService:
         if not request_key or not request_key.startswith("daily:"):
             return None
         day = request_key.split(":", 1)[1]
-        rows = (
+        return (
             (
                 await self._s.execute(
                     select(Insight).where(
                         Insight.tenant_id == tenant_id,
                         Insight.trigger == "daily",
                         Insight.period_start == datetime.fromisoformat(day).date(),
-                        Insight.status.in_(["completed", "batch_pending"]),
+                        Insight.status == "completed",
                     )
                 )
             )
             .scalars()
             .first()
         )
-        return rows
 
     async def generate(
         self,
         tenant_id: int,
         trigger: str,
-        use_batch: bool,
         request_key: str | None = None,
         now: datetime | None = None,
     ) -> Insight:
@@ -156,7 +156,9 @@ class InsightService:
             log.info("insight_already_generated", tenant=tenant_id, key=request_key)
             return done
 
-        built = await build_input(self._s, tenant, now)
+        built = await build_input(
+            self._s, tenant, now, max_hotels=self._settings.insight_max_hotels
+        )
         row = await self._find_pending(tenant_id, request_key)
         if row is None:
             row = Insight(
@@ -193,23 +195,14 @@ class InsightService:
             return row
 
         request = self._request(row.id, built, tenant.insight_language)
-        if use_batch:
-            row.batch_id = await self._client.submit_batch([request])
-            row.status = "batch_pending"
-            INSIGHTS_TOTAL.labels("batch_pending").inc()
-            await self._s.flush()
-            return row
-
         result = await self._client.complete(request)
-        self._apply_result(row, built, result, batch=False)
+        self._apply_result(row, built, result)
         await self._s.flush()
         return row
 
-    def _apply_result(
-        self, row: Insight, built: InsightInput, result: CompletionResult, batch: bool
-    ) -> None:
+    def _apply_result(self, row: Insight, built: InsightInput, result: CompletionResult) -> None:
         row.tokens_in, row.tokens_out = result.tokens_in, result.tokens_out
-        row.cost_usd = estimate_cost(result.tokens_in, result.tokens_out, batch=batch)
+        row.cost_usd = estimate_cost(result.tokens_in, result.tokens_out)
         if result.error or result.output_json is None:
             row.status = "failed"
             row.error = result.error or "no json output"
@@ -238,56 +231,6 @@ class InsightService:
             insight_id=row.id,
             highlights=len(validated.output["highlights"]),
             dropped=len(validated.dropped),
+            tokens_in=row.tokens_in,
             cost_usd=str(row.cost_usd),
         )
-
-    async def poll_batches(self) -> int:
-        """Hoàn tất các bản tin đang chờ Batch API. Trả về số bản tin cập nhật."""
-        pending = (
-            (
-                await self._s.execute(
-                    select(Insight).where(
-                        Insight.status == "batch_pending", Insight.batch_id.is_not(None)
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        by_batch: dict[str, list[Insight]] = {}
-        for row in pending:
-            assert row.batch_id is not None
-            by_batch.setdefault(row.batch_id, []).append(row)
-        updated = 0
-        for batch_id, rows in by_batch.items():
-            status = await self._client.poll_batch(batch_id)
-            if not status.done:
-                continue
-            results = {r.custom_id: r for r in status.results}
-            for row in rows:
-                result = results.get(f"insight-{row.id}")
-                if result is None:
-                    result = CompletionResult(
-                        f"insight-{row.id}", None, error=f"batch {status.status} without result"
-                    )
-                built = _rebuild_from_stored(row)
-                self._apply_result(row, built, result, batch=True)
-                updated += 1
-        await self._s.flush()
-        return updated
-
-
-def _rebuild_from_stored(row: Insight) -> InsightInput:
-    """Dựng lại tập ref hợp lệ từ input_json đã lưu để kiểm tra bằng chứng khi batch về."""
-    payload: dict[str, Any] = row.input_json or {}
-    refs: set[str] = set()
-    hotel_ids: set[int] = set()
-    for h in payload.get("hotels", []):
-        hotel_ids.add(int(h["hotel_id"]))
-        for d in h.get("days", []):
-            if d.get("status") != "no_data":
-                refs.add(d["ref"])
-    for key in ("events_24h", "events_7d", "compset"):
-        for item in payload.get(key, []):
-            refs.add(item["ref"])
-    return InsightInput(payload, refs, hotel_ids, row.period_start, row.period_end, row.scan_run_id)

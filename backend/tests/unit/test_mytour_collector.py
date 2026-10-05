@@ -7,7 +7,7 @@ import pytest
 
 from app.clock import FixedClock
 from app.collector.base import ListingBlocked, ListingNotFound
-from app.collector.factory import CollectorDeps
+from app.collector.factory import ChannelKeys, CollectorDeps
 from app.collector.fetch import FetchResponse
 from app.collector.mytour.api import app_hash
 from app.collector.mytour.collector import HttpMethod, MytourCollector
@@ -122,7 +122,18 @@ async def test_probe_gives_up_when_never_completed() -> None:
     pending = ok(fixture("availability_pending.json"))
     result = await build(ScriptedTransport(pending, pending, pending)).probe(LISTING, CHECKIN, 1, 2)
     assert result.status == ProbeStatus.ERROR
-    assert result.error == "incomplete after 3 polls"
+    assert result.error == "availability_pending"
+
+
+async def test_probe_partial_offers_after_max_polls_are_not_recorded_as_ok() -> None:
+    # Có vài nguồn đã trả giá nhưng chưa `completed`: giá thấp nhất có thể sai → ERROR, không OK.
+    payload = json.loads(fixture("availability_sol_by_melia_1n.json"))
+    payload["data"]["completed"] = False
+    partial = ok(json.dumps(payload))
+    transport = ScriptedTransport(partial, partial, partial)
+    result = await build(transport).probe(LISTING, CHECKIN, 1, 2)
+    assert (result.status, result.error) == (ProbeStatus.ERROR, "availability_pending")
+    assert result.offers == () and len(transport.calls) == 3
 
 
 async def test_probe_blocked_retries_on_new_session_then_reports_blocked() -> None:
@@ -153,10 +164,53 @@ async def test_probe_empty_result_for_unknown_hotel_is_not_found() -> None:
 
 
 async def test_probe_api_error_code() -> None:
-    bad_hash = ok('{"code":3004,"message":"Hash không tồn tại"}')
-    result = await build(ScriptedTransport(bad_hash)).probe(LISTING, CHECKIN, 1, 2)
+    bad = ok('{"code":5000,"message":"Lỗi hệ thống"}')
+    result = await build(ScriptedTransport(bad)).probe(LISTING, CHECKIN, 1, 2)
     assert result.status == ProbeStatus.ERROR
-    assert result.error == "api 3004: Hash không tồn tại"
+    assert result.error == "api 5000: Lỗi hệ thống"
+
+
+async def test_rotated_web_secret_is_blocked_so_channel_pauses_and_ops_is_alerted() -> None:
+    bad_hash = ok('{"code":3004,"message":"Hash không tồn tại"}')
+    transport = ScriptedTransport(bad_hash, bad_hash)
+    collector = build(transport)
+    result = await collector.probe(LISTING, CHECKIN, 1, 2)
+    assert (result.status, result.error) == (ProbeStatus.BLOCKED, "mytour_secret_rotated")
+    assert len(transport.calls) == 1  # không phải lỗi session: không đổi session thử lại
+    with pytest.raises(ListingBlocked, match="mytour_secret_rotated"):
+        await collector.verify(LISTING)
+
+
+async def test_web_secret_comes_from_settings() -> None:
+    transport = ScriptedTransport(ok(fixture("availability_sol_by_melia_1n.json")))
+    deps = CollectorDeps(
+        proxy_provider=StaticProxyProvider("http://u-{country}-{session}:p@h:1"),
+        clock=FixedClock(NOW),
+        limiter=RateLimiter(min_interval=0, jitter=0, sleep=no_sleep),
+        currency="VND",
+        headless=True,
+        session_max_age=timedelta(minutes=20),
+        session_max_requests=100,
+        keys=ChannelKeys(mytour_web_secret="new-secret"),
+    )
+    await MytourCollector(deps, transport=transport, backoff=no_sleep).probe(LISTING, CHECKIN, 1, 2)
+    sent = transport.calls[0][2]["appHash"]
+    assert sent == app_hash(NOW.timestamp(), "new-secret") != app_hash(NOW.timestamp())
+
+
+async def test_probe_200_html_challenge_is_blocked_and_rotates_session() -> None:
+    challenge = ok("<!DOCTYPE html><html><body>Checking your browser…</body></html>")
+    transport = ScriptedTransport(challenge, challenge)
+    result = await build(transport).probe(LISTING, CHECKIN, 1, 2)
+    assert (result.status, result.error) == (ProbeStatus.BLOCKED, "not_json")
+    assert transport.sessions[0] != transport.sessions[1]
+    assert transport.closed == transport.sessions  # hook đóng client của session bị thu hồi
+
+
+async def test_verify_200_html_challenge_is_blocked() -> None:
+    challenge = ok("<html><body>Checking your browser…</body></html>")
+    with pytest.raises(ListingBlocked, match="not json"):
+        await build(ScriptedTransport(challenge)).verify(LISTING)
 
 
 async def test_probe_currency_mismatch() -> None:

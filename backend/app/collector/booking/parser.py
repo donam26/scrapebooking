@@ -14,6 +14,14 @@ _SYMBOLS: dict[str, str] = {
 }  # fmt: skip
 _NUMBER_RE = re.compile(r"\d[\d.,\s ]*\d|\d")
 _CODE_RE = re.compile(r"\b([A-Z]{3})\b")
+# Chỉ nhận mã ISO thật; chữ in hoa 3 ký tự khác trong ô giá ("NEW", "THE") không phải tiền tệ.
+_KNOWN_CODES = frozenset(
+    {
+        "VND", "USD", "EUR", "GBP", "THB", "JPY", "KRW", "SGD", "MYR", "IDR", "PHP", "AUD",
+        "CNY", "HKD", "TWD", "INR", "CAD", "CHF", "NZD", "PLN", "KHR", "LAK", "AED",
+    }
+)  # fmt: skip
+_TWO_PLACES = Decimal("0.01")
 
 
 def parse_price(text: str, fallback_currency: str) -> tuple[Decimal, str] | None:
@@ -36,9 +44,9 @@ def parse_price(text: str, fallback_currency: str) -> tuple[Decimal, str] | None
     except InvalidOperation:
         return None
     currency = fallback_currency
-    code = _CODE_RE.search(cleaned)
-    if code:
-        currency = code.group(1)
+    codes = [c for c in _CODE_RE.findall(cleaned) if c in _KNOWN_CODES]
+    if codes:
+        currency = codes[0]
     else:
         for symbol, iso in sorted(_SYMBOLS.items(), key=lambda kv: -len(kv[0])):
             if symbol in cleaned:
@@ -81,6 +89,25 @@ def _taxes_included(row: Node) -> bool | None:
     return None
 
 
+def _taxes_amount(row: Node, currency: str) -> Decimal | None:
+    """Số thuế phí Booking ghi riêng ("+VND 576,690 taxes and charges"), cùng tiền tệ với giá.
+    Cộng vào giá để mọi giá Booking cùng cơ sở đã gồm thuế (chuẩn D3)."""
+    note = _text(row.css_first(S.TAXES_NOTE))
+    if "+" not in note or "tax" not in note.lower():
+        return None
+    parsed = parse_price(note, currency)
+    if parsed is None or parsed[1] != currency or parsed[0] <= 0:
+        return None
+    return parsed[0]
+
+
+def _per_night(amount: Decimal, nights: int) -> Decimal:
+    """Booking hiện tổng tiền cả kỳ lưu trú; chuẩn giá là /phòng/đêm."""
+    if nights <= 1:
+        return amount
+    return (amount / nights).quantize(_TWO_PLACES)
+
+
 def _original_price(row: Node, currency: str, current: Decimal) -> Decimal | None:
     parsed = parse_price(_text(row.css_first(S.ORIGINAL_PRICE)), currency)
     return parsed[0] if parsed is not None and parsed[0] > current else None
@@ -94,12 +121,24 @@ def _promo_label(row: Node) -> str | None:
     return label[:64] if label else None
 
 
-def _rate_plan(row: Node, expected_currency: str, default_persons: int | None) -> RatePlan | None:
+def _rate_plan(
+    row: Node, expected_currency: str, default_persons: int | None, nights: int = 1
+) -> RatePlan | None:
     price_node = row.css_first(S.PRICE_TEXT)
     parsed = parse_price(_text(price_node), expected_currency) if price_node is not None else None
     if parsed is None:
         return None
     price, currency = parsed
+    taxes_included = _taxes_included(row)
+    original = _original_price(row, currency, price)
+    if taxes_included is False:
+        tax = _taxes_amount(row, currency)
+        if tax is not None:
+            price += tax
+            original = original + tax if original is not None else None
+            taxes_included = True
+    price = _per_night(price, nights)
+    original = _per_night(original, nights) if original is not None else None
     conditions = _text(row.css_first(S.CONDITIONS_CELL)).lower()
     refundable: bool | None
     if "non-refundable" in conditions or "non refundable" in conditions:
@@ -125,8 +164,8 @@ def _rate_plan(row: Node, expected_currency: str, default_persons: int | None) -
         refundable=refundable,
         breakfast=breakfast,
         max_persons=_max_occupancy(row) or default_persons,
-        price_original=_original_price(row, currency, price),
-        taxes_included=_taxes_included(row),
+        price_original=original,
+        taxes_included=taxes_included,
         promo_label=_promo_label(row),
     )
 
@@ -173,9 +212,15 @@ def _hotel_name(tree: HTMLParser) -> str | None:
     return None
 
 
-def parse_hotel_page(html: str, expected_currency: str, adults: int | None = None) -> ParsedPage:
+def parse_hotel_page(
+    html: str, expected_currency: str, adults: int | None = None, nights: int = 1
+) -> ParsedPage:
     """`adults`: số người lớn đã tìm; dòng giá cho ít khách hơn (VD "Only for 1 guest") bị bỏ để
-    giá thấp nhất so sánh được giữa các khách sạn. None: giữ mọi dòng."""
+    giá thấp nhất so sánh được giữa các khách sạn. None: giữ mọi dòng.
+
+    `nights`: số đêm của probe (min-LOS từ calendar). Booking hiện tổng tiền cả kỳ nên giá được
+    chia theo đêm. Giá ở tiền tệ khác `expected_currency` → outcome WRONG_CURRENCY, không ghi
+    giá."""
     tree = HTMLParser(html)
     hotel_id_match = S.HOTEL_ID_RE.search(html)
     external_id = hotel_id_match.group(1) if hotel_id_match else None
@@ -211,7 +256,9 @@ def parse_hotel_page(html: str, expected_currency: str, adults: int | None = Non
             continue
         rates = tuple(
             r
-            for r in (_rate_plan(row, expected_currency, g["occupancy"]) for row in own_rows)
+            for r in (
+                _rate_plan(row, expected_currency, g["occupancy"], nights) for row in own_rows
+            )
             if r and (adults is None or r.max_persons is None or r.max_persons >= adults)
         )
         # Nhãn "We have N left" ở ô loại phòng (tín hiệu cả loại phòng) hoặc ở ô điều kiện.
@@ -228,6 +275,12 @@ def parse_hotel_page(html: str, expected_currency: str, adults: int | None = Non
                 rates=rates,
             )
         )
+    seen = sorted({r.currency for o in offers for r in o.rates})
+    foreign = [c for c in seen if c != expected_currency]
+    if foreign:
+        # Giá ở tiền tệ khác: proxy sai nước hoặc Booking bỏ selected_currency. Không ghi giá.
+        note = f"currency_mismatch: saw {','.join(seen)} expected {expected_currency}"
+        return ParsedPage(PageOutcome.WRONG_CURRENCY, external_id, hotel_name, csrf, (), note)
     outcome = PageOutcome.ROOMS if offers else PageOutcome.EMPTY
     return ParsedPage(outcome, external_id, hotel_name, csrf, tuple(offers))
 

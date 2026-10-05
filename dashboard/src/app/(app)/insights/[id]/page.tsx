@@ -1,12 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useApi, useInterval } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { useFmt } from "@/lib/format";
 import { INSIGHT_STATUS_TONE, useLabel } from "@/lib/labels";
+import { parseIdParam } from "@/lib/params";
 import { Badge, ErrorBox, Note, PageHeader, SkeletonBlock, Spinner, cx } from "@/components/ui";
 import { InsightView, parseDropped, parseInsightOutput } from "../insight-view";
 
@@ -16,17 +17,19 @@ export default function InsightDetailPage() {
   const { fmtPeriod, fmtDateTime, fmtInt, fmtNum, fmtWhen } = useFmt();
   const label = useLabel();
   const { id } = useParams<{ id: string }>();
-  const insightId = Number(id);
+  const insightId = parseIdParam(id);
   const { isOperator } = useSession();
-  const insight = useApi(Number.isFinite(insightId) ? `insight:${insightId}` : null, () => api.insights.get(insightId));
+  const insight = useApi(insightId === null ? null : `insight:${insightId}`, () => api.insights.get(insightId!));
   const hotels = useApi("watchlist:all", () => api.watchlist.list(true));
   // Sự kiện làm bằng chứng: lấy các sự kiện quanh thời điểm tạo bản tin để hiện tên, loại, đêm.
   const hasEvt = JSON.stringify(insight.data?.output_json ?? {}).includes('"evt:');
   const since = insight.data ? new Date(new Date(insight.data.generated_at).getTime() - 10 * 86_400_000).toISOString() : null;
   const evs = useApi(hasEvt && since ? `insight-events:${insightId}` : null, () => api.events({ observed_since: since, limit: 2000 }));
   const eventOf = (eid: number) => evs.data?.find((e) => e.id === eid);
-  const pending = insight.data?.status === "pending" || insight.data?.status === "batch_pending";
+  const pending = insight.data?.status === "pending";
   useInterval(insight.reload, pending ? 5000 : 0);
+  // id không phải số nguyên dương: trang 404 thay vì skeleton xoay mãi (gọi sau mọi hook để thứ tự hook không đổi).
+  if (insightId === null) notFound();
 
   const d = insight.data;
   const out = d ? parseInsightOutput(d.output_json) : null;

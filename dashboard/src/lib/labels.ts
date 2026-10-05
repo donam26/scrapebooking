@@ -80,7 +80,6 @@ export const RUN_STATUS_TONE: Record<string, Tone> = {
 
 export const INSIGHT_STATUS_TONE: Record<string, Tone> = {
   pending: "blue",
-  batch_pending: "amber",
   completed: "green",
   failed: "red",
 };

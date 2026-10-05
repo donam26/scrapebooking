@@ -119,8 +119,14 @@ class Thresholds:
     price_change_pct: Decimal = Decimal("3")
 
 
-def pct_change(old: Decimal | None, new: Decimal | None) -> Decimal | None:
-    if old is None or new is None or old == 0:
+def pct_change(
+    old: Decimal | None,
+    new: Decimal | None,
+    old_currency: str | None = None,
+    new_currency: str | None = None,
+) -> Decimal | None:
+    """% thay đổi giá. Khác tiền tệ (ví dụ proxy trả trang USD) thì không so: None."""
+    if old is None or new is None or old == 0 or old_currency != new_currency:
         return None
     return ((new - old) / old * 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -132,8 +138,10 @@ def _price_events(
     prev_run: int,
     thresholds: Thresholds,
     confidence: str,
+    old_currency: str | None,
+    new_currency: str | None,
 ) -> list[EventDraft]:
-    change = pct_change(old, new)
+    change = pct_change(old, new, old_currency, new_currency)
     if change is None or abs(change) < thresholds.price_change_pct:
         return []
     return [
@@ -157,11 +165,13 @@ def diff_events(
     - Không sinh sự kiện khi hiện tại là `unknown` hoặc không có lần trước dùng được.
     - `sold_out` / `restock` ở mức khách sạn theo chuyển trạng thái.
     - Mức loại phòng chỉ khi cả hai lần đều `available`.
+    - Giá chỉ so khi hai lần cùng tiền tệ (tiền tệ mức quan sát, dùng cho cả mức loại phòng).
     """
     if not cur.usable or prev is None or not prev.usable:
         return []
     events: list[EventDraft] = []
     prev_run = prev.scan_run_id
+    currencies = (prev.currency, cur.currency)
 
     if prev.status == DateStatus.AVAILABLE and cur.status == DateStatus.SOLD_OUT:
         events.append(
@@ -194,7 +204,11 @@ def diff_events(
         return events
 
     # Cả hai đều available: sự kiện mức khách sạn về giá, rồi mức loại phòng.
-    events.extend(_price_events(prev.min_price, cur.min_price, None, prev_run, thresholds, "exact"))
+    events.extend(
+        _price_events(
+            prev.min_price, cur.min_price, None, prev_run, thresholds, "exact", *currencies
+        )
+    )
 
     for rt_id, room in cur.rooms.items():
         before = prev.rooms.get(rt_id)
@@ -245,7 +259,9 @@ def diff_events(
                     )
                 )
         events.extend(
-            _price_events(before.min_price, room.min_price, rt_id, prev_run, thresholds, "exact")
+            _price_events(
+                before.min_price, room.min_price, rt_id, prev_run, thresholds, "exact", *currencies
+            )
         )
 
     for rt_id, before in prev.rooms.items():
@@ -270,15 +286,32 @@ def last_usable_before(history: Sequence[HotelDateObs], at: datetime) -> HotelDa
     return max(candidates, key=lambda h: h.scanned_at) if candidates else None
 
 
-def usable_at_or_before(history: Sequence[HotelDateObs], at: datetime) -> HotelDateObs | None:
-    """Lần quan sát dùng được gần nhất có scanned_at <= at (dùng cho mốc 24h/72h/7d)."""
-    candidates = [h for h in history if h.usable and h.scanned_at <= at]
-    return max(candidates, key=lambda h: h.scanned_at) if candidates else None
+def usable_nearest(
+    history: Sequence[HotelDateObs], at: datetime, tolerance: timedelta
+) -> HotelDateObs | None:
+    """Lần quan sát dùng được gần mốc `at` nhất trong ±`tolerance`; ngoài dung sai thì None.
+
+    Dùng cho mốc 24h/72h/7d: lấy "≤ mốc" khiến pickup "24h" thực tế là 32h (3 lượt/ngày) và mốc
+    7 ngày có thể là hàng tuần trước."""
+    candidates = [h for h in history if h.usable and abs(h.scanned_at - at) <= tolerance]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda h: (abs(h.scanned_at - at), h.scanned_at))
 
 
-def paired_exact_pickup(older: HotelDateObs, newer: HotelDateObs) -> int | None:
+# (khoảng lùi, dung sai) của các mốc tham chiếu.
+REF_24H = (timedelta(hours=24), timedelta(hours=2))
+REF_72H = (timedelta(hours=72), timedelta(hours=4))
+REF_7D = (timedelta(days=7), timedelta(hours=12))
+
+
+def paired_exact_pickup(
+    older: HotelDateObs, newer: HotelDateObs, gone_room_types: frozenset[int] = frozenset()
+) -> int | None:
     """Số phòng bán được giữa hai lần quan sát, chỉ tính loại phòng `exact` ở cả hai lần.
-    Loại phòng có ở lần cũ (exact) nhưng biến mất ở lần mới tính là bán hết số đó."""
+    Loại phòng có ở lần cũ (exact) nhưng biến mất ở lần mới tính là bán hết số đó, trừ loại phòng
+    trong `gone_room_types` (có sự kiện `room_type_gone` cùng run: nhiều khả năng kênh/parser bỏ
+    loại phòng, không phải bán hết)."""
     if older.status != DateStatus.AVAILABLE:
         return None
     if newer.status == DateStatus.SOLD_OUT:
@@ -291,12 +324,28 @@ def paired_exact_pickup(older: HotelDateObs, newer: HotelDateObs) -> int | None:
             continue
         after = newer.rooms.get(rt_id)
         if after is None:
+            if rt_id in gone_room_types:
+                continue
             total += before.rooms_left
             paired = True
         elif after.exact and after.rooms_left is not None:
             total += before.rooms_left - after.rooms_left
             paired = True
     return total if paired else None
+
+
+@dataclass(frozen=True)
+class KnownValues:
+    """Giá/số phòng của bản metric hiện có, giữ lại khi lần quan sát mới không dùng được
+    (blocked/error): một probe lỗi không xoá ô heatmap. `last_observed_at` là mốc của bản đó,
+    `stale_since` là mốc dữ liệu bắt đầu cũ nếu bản đó đã cũ sẵn."""
+
+    min_price: Decimal | None
+    min_refundable_price: Decimal | None
+    currency: str | None
+    exact_rooms_left: int | None
+    last_observed_at: datetime
+    stale_since: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -312,17 +361,24 @@ class MetricsDraft:
     exact_rooms_left: int | None
     exact_share: Decimal | None
     last_observed_at: datetime
+    # Lần quan sát mới nhất không dùng được: giá/số phòng giữ từ lần dùng được cuối, cũ từ lúc này.
+    stale_since: datetime | None = None
 
 
 def compute_metrics(
     cur: HotelDateObs,
     history: Sequence[HotelDateObs],
     stay_date_ordinal_diff: int,
+    known: KnownValues | None = None,
+    gone_room_types: frozenset[int] = frozenset(),
 ) -> MetricsDraft:
     """Chỉ số cho (hotel, stay_date) tính tại lần quan sát `cur`.
 
     `history` là các lần quan sát trước (không gồm cur), bất kỳ thứ tự.
-    `stay_date_ordinal_diff` = stay_date - ngày của cur.scanned_at.
+    `stay_date_ordinal_diff` = stay_date - ngày địa phương của cur.scanned_at.
+    `known`: bản metric hiện có; khi `cur` không dùng được, giá/số phòng giữ từ đó và
+    `stale_since` = lúc bản đó được quan sát (hoặc mốc cũ hơn nếu đã cũ sẵn).
+    `gone_room_types`: loại phòng có `room_type_gone` ở run này, không tính là bán hết.
     """
     now = cur.scanned_at
     all_obs = [*history, cur]
@@ -331,18 +387,18 @@ def compute_metrics(
     velocity: Decimal | None = None
     price_change: Decimal | None = None
     if cur.usable:
-        ref24 = usable_at_or_before(history, now - timedelta(hours=24))
+        ref24 = usable_nearest(history, now - REF_24H[0], REF_24H[1])
         if ref24 is not None:
-            pickup_24h = paired_exact_pickup(ref24, cur)
-        ref72 = usable_at_or_before(history, now - timedelta(hours=72))
+            pickup_24h = paired_exact_pickup(ref24, cur, gone_room_types)
+        ref72 = usable_nearest(history, now - REF_72H[0], REF_72H[1])
         if ref72 is not None:
-            p = paired_exact_pickup(ref72, cur)
+            p = paired_exact_pickup(ref72, cur, gone_room_types)
             if p is not None:
                 hours = (now - ref72.scanned_at).total_seconds() / 3600
                 velocity = (Decimal(p) / Decimal(hours) * 24).quantize(Decimal("0.001"))
-        ref7d = usable_at_or_before(history, now - timedelta(days=7))
+        ref7d = usable_nearest(history, now - REF_7D[0], REF_7D[1])
         if ref7d is not None and ref7d.status == DateStatus.AVAILABLE:
-            price_change = pct_change(ref7d.min_price, cur.min_price)
+            price_change = pct_change(ref7d.min_price, cur.min_price, ref7d.currency, cur.currency)
 
     window = [h for h in all_obs if h.usable and h.scanned_at >= now - timedelta(days=7)]
     exact_share: Decimal | None = None
@@ -350,18 +406,31 @@ def compute_metrics(
         n_exact = sum(1 for h in window if h.exact_rooms_left is not None)
         exact_share = (Decimal(n_exact) / Decimal(len(window))).quantize(Decimal("0.0001"))
 
+    if cur.usable:
+        carried = KnownValues(
+            cur.min_price, cur.min_refundable_price, cur.currency, cur.exact_rooms_left, now
+        )
+        stale_since: datetime | None = None
+    elif known is not None:
+        carried = known
+        stale_since = known.stale_since or known.last_observed_at
+    else:
+        carried = KnownValues(None, None, None, None, now)
+        stale_since = None
+
     return MetricsDraft(
         days_to_arrival=stay_date_ordinal_diff,
         pickup_24h=pickup_24h,
         velocity_3d=velocity,
-        min_price=cur.min_price if cur.usable else None,
-        min_refundable_price=cur.min_refundable_price if cur.usable else None,
-        currency=cur.currency if cur.usable else None,
+        min_price=carried.min_price,
+        min_refundable_price=carried.min_refundable_price,
+        currency=carried.currency,
         price_change_7d_pct=price_change,
         availability_status=cur.status,
-        exact_rooms_left=cur.exact_rooms_left if cur.usable else None,
+        exact_rooms_left=carried.exact_rooms_left,
         exact_share=exact_share,
         last_observed_at=now,
+        stale_since=stale_since,
     )
 
 

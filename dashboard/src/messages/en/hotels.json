@@ -48,7 +48,6 @@
     "fallbackTitle": "Hotel",
     "crumb": "Competitors",
     "nightCrumb": "Night of {night}",
-    "invalidDate": "Invalid date",
     "title": "{weekday}, {date}",
     "onChannel": "on {channel}",
     "lastScan": "Last scanned {when}",

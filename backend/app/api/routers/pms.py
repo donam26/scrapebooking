@@ -7,8 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
-from app.api.deps import SessionDep, TenantDep, WriterDep, ensure_hotel_in_tenant
+from app.api.deps import SessionDep, SettingsDep, TenantDep, WriterDep, ensure_hotel_in_tenant
 from app.api.schemas import ORM
+from app.config import Settings
 from app.db.models import OwnHotelDaily, PmsColumnMapping, PmsImport, TenantHotel
 from app.pms.base import ADAPTERS, CANONICAL_COLUMNS, ImportSummary, PmsAdapterError
 from app.pms.csv_adapter import CsvAdapter, template_csv
@@ -137,18 +138,39 @@ async def put_mapping(
     )
 
 
+async def _read_upload(file: UploadFile, settings: Settings) -> bytes:
+    """Đọc tệp tải lên có trần kích thước (413): kiểm `size` trước, rồi đọc theo khối để không
+    tin vào Content-Length."""
+    limit = settings.pms_max_upload_bytes
+    if file.size is not None and file.size > limit:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, f"file larger than {limit} bytes"
+        )
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(256 * 1024):
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, f"file larger than {limit} bytes"
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 @router.post("/preview", response_model=PreviewOut)
 async def preview(
     tenant_id: TenantDep,
     _: WriterDep,
     session: SessionDep,
+    settings: SettingsDep,
     file: Annotated[UploadFile, File()],
     adapter: Annotated[str, Form()] = "csv",
 ) -> PreviewOut:
     ad = _adapter(adapter)
-    content = await file.read()
+    content = await _read_upload(file, settings)
     try:
-        table = ad.read_table(content, file.filename or "upload")
+        table = ad.read_table(content, file.filename or "upload", max_rows=settings.pms_max_rows)
     except PmsAdapterError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
     mapping = effective_mapping(
@@ -171,6 +193,7 @@ async def import_file(
     tenant_id: TenantDep,
     _: WriterDep,
     session: SessionDep,
+    settings: SettingsDep,
     file: Annotated[UploadFile, File()],
     hotel_id: Annotated[int, Form()],
     adapter: Annotated[str, Form()] = "csv",
@@ -188,10 +211,10 @@ async def import_file(
             status.HTTP_422_UNPROCESSABLE_ENTITY, "PMS data only for role=self hotel"
         )
     ad = _adapter(adapter)
-    content = await file.read()
+    content = await _read_upload(file, settings)
     filename = file.filename or "upload"
     try:
-        table = ad.read_table(content, filename)
+        table = ad.read_table(content, filename, max_rows=settings.pms_max_rows)
     except PmsAdapterError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
     mapping = effective_mapping(
@@ -240,7 +263,7 @@ async def import_file(
         adapter=adapter,
         row_count=summary.row_count,
         ok_count=summary.ok_count,
-        errors=[e.__dict__ for e in errors],
+        errors=[e.__dict__ for e in errors[: settings.pms_max_errors_stored]],
         status=summary.status,
     )
     session.add(record)

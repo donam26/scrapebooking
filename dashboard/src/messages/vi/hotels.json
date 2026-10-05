@@ -48,7 +48,6 @@
     "fallbackTitle": "Khách sạn",
     "crumb": "Đối thủ",
     "nightCrumb": "Đêm {night}",
-    "invalidDate": "Ngày không hợp lệ",
     "title": "{weekday}, {date}",
     "onChannel": "trên {channel}",
     "lastScan": "Quét gần nhất {when}",

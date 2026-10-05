@@ -9,8 +9,14 @@ import { Button, ErrorBox, Field, Input, cx } from "@/components/ui";
 import { BrandMark, IconArrowRight, IconChevronLeft, IconLock } from "@/components/icons";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 
+/**
+ * Đường dẫn quay lại sau đăng nhập: chỉ đường dẫn nội bộ. Một "/" ở đầu (không "//" hay "/\" vì
+ * trình duyệt đọc thành host khác → open redirect), chỉ ký tự URL thông thường, không quay về /login.
+ */
+const SAFE_NEXT = /^\/(?!\/)(?!\\)(?:[A-Za-z0-9_.?=&%-]|\/)*$/;
+
 function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/login")) return "/dashboard";
+  if (!raw || !SAFE_NEXT.test(raw) || raw.startsWith("/login")) return "/dashboard";
   return raw;
 }
 

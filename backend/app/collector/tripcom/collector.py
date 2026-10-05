@@ -89,11 +89,17 @@ class TripcomCollector:
             max_requests=deps.session_max_requests,
             clock=deps.clock,
             listener=deps.session_listener,
+            on_retire=[self._on_session_retired],
         )
         self._timeout_s = load_timeout_s
         self._block_retries = block_retries
         self._http: Any = None  # curl_cffi AsyncSession cho verify/suggest
         self._http_proxy: ProxyEndpoint | None = None
+
+    async def _on_session_retired(self, session: ScrapeSession, reason: str) -> None:
+        """Session hết hạn/bị chặn/đóng: đóng Chromium của nó, bỏ mốc giãn cách."""
+        await self._browsers.close(session.proxy.id)
+        self._deps.limiter.forget(session.id)
 
     async def fetch_calendar(
         self, listing: ListingRef, start: date, days: int, adults: int
@@ -105,12 +111,28 @@ class TripcomCollector:
     ) -> ProbeResult:
         url = build_detail_url(listing, checkin, nights, adults, self._deps.currency)
         attempts = 0
+        t0 = time.monotonic()
         while True:
-            session = await self._sessions.get(self._deps.country, WARMUP_URL)
+            try:
+                session = await self._sessions.get(self._deps.country, WARMUP_URL)
+            except Exception as exc:  # noqa: BLE001 - mở Chromium/proxy hỏng: không nổ job
+                log.warning("tripcom_bootstrap_failed", error=f"{type(exc).__name__}: {exc}")
+                if attempts < self._block_retries:
+                    attempts += 1
+                    continue
+                return self._failed(
+                    ProbeStatus.BLOCKED,
+                    checkin,
+                    nights,
+                    adults,
+                    f"bootstrap: {type(exc).__name__}: {exc}",
+                    None,
+                    t0,
+                )
             await self._browsers.close_others(session.proxy.id)
             browser = self._browsers.live.get(session.proxy.id)
             if browser is None:  # trình duyệt đã đóng (VD sau close()): bỏ session, mở mới
-                await self._sessions.retire(session, reason="closed")
+                await self._retire(session, "closed")
                 continue
             await self._deps.budget.acquire()
             await self._deps.limiter.wait(session.id)
@@ -129,27 +151,42 @@ class TripcomCollector:
                     t0,
                 )
             self._sessions.mark_request(session)
-            if self._blocked(load):
-                log.warning("tripcom_probe_blocked", hotel=listing.id, checkin=str(checkin))
+            reason = self._block_reason(load)
+            if reason is not None:
+                log.warning(
+                    "tripcom_probe_blocked", hotel=listing.id, checkin=str(checkin), reason=reason
+                )
                 await self._retire(session, "blocked")
                 if attempts < self._block_retries:
                     attempts += 1
                     continue
                 return self._failed(
-                    ProbeStatus.BLOCKED, checkin, nights, adults, "blocked", session, t0, load
+                    ProbeStatus.BLOCKED,
+                    checkin,
+                    nights,
+                    adults,
+                    f"blocked: {reason}",
+                    session,
+                    t0,
+                    load,
                 )
             return self._result(listing, load, checkin, nights, adults, session, t0)
 
     @staticmethod
-    def _blocked(load: DetailLoad) -> bool:
+    def _block_reason(load: DetailLoad) -> str | None:
+        """Trang rời trang chi tiết: "signin" (nghi bot) hoặc chuyển hướng khác (trang chủ…).
+        Trip.com không trả 404 cho id sai mà chuyển hướng y như khi chặn mềm, không phân biệt
+        được → coi là chặn (đổi session), không bao giờ là "không tồn tại". Hoặc API báo spider."""
         if load.left == "signin":
-            return True
+            return "signin"
+        if load.left is not None:
+            return f"redirected to {load.final_url}"
         if load.room_list is None:
-            return False
+            return None
         try:
-            return is_spider_blocked(json.loads(load.room_list))
+            return "spider" if is_spider_blocked(json.loads(load.room_list)) else None
         except json.JSONDecodeError:
-            return False
+            return None
 
     def _result(
         self,
@@ -162,7 +199,7 @@ class TripcomCollector:
         t0: float,
     ) -> ProbeResult:
         if load.room_list is None:
-            error = "not_found" if load.left == "other" else "timeout: room list not loaded"
+            error = "timeout: room list not loaded"
             return self._failed(ProbeStatus.ERROR, checkin, nights, adults, error, session, t0)
         try:
             payload = json.loads(load.room_list)
@@ -199,7 +236,7 @@ class TripcomCollector:
         nights: int,
         adults: int,
         error: str,
-        session: ScrapeSession,
+        session: ScrapeSession | None,
         t0: float,
         load: DetailLoad | None = None,
     ) -> ProbeResult:
@@ -213,14 +250,13 @@ class TripcomCollector:
             offers=(),
             raw_html=load.room_list if load else None,
             http_status=load.http_status if load else None,
-            session_id=session.id,
+            session_id=session.id if session else None,
             duration_ms=int((time.monotonic() - t0) * 1000),
             error=error,
         )
 
     async def _retire(self, session: ScrapeSession, reason: str) -> None:
-        await self._sessions.retire(session, reason=reason)
-        await self._browsers.close(session.proxy.id)
+        await self._sessions.retire(session, reason=reason)  # hook đóng Chromium của session
 
     # ------------------------------------------------------------ verify / suggest (curl_cffi)
 
@@ -257,9 +293,10 @@ class TripcomCollector:
             raise ListingBlocked(f"http {status}: {url}")
         page = parse_hotel_page(html)
         if page.hotel_id is None and page.name is None:
-            if "detail" not in final_url.lower():  # id sai: Trip.com chuyển về trang chủ
-                raise ListingNotFound(url)
-            raise ListingBlocked(f"no hotel data: {url}")
+            # 200 nhưng không có dữ liệu khách sạn (kể cả bị chuyển về trang chủ): Trip.com không
+            # nói rõ "không tồn tại", chặn mềm cũng chuyển hướng y hệt → đổi proxy, thử lại sau.
+            await self._drop_http()
+            raise ListingBlocked(f"no hotel data: {url} -> {final_url}")
         return ListingIdentity(
             external_id=page.hotel_id,
             name=page.name,

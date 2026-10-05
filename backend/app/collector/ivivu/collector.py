@@ -193,12 +193,15 @@ class IvivuCollector:
                 )
             session.scrape.request_count += 1
             invalid_token = is_invalid_token(response.status, response.text)
-            if invalid_token or response.outcome == FetchOutcome.BLOCKED:
+            # 200 nhưng body không phải JSON (trang challenge không có dấu hiệu WAF): chặn mềm.
+            not_json = response.status == 200 and response.text.lstrip()[:1] not in ("{", "[")
+            if invalid_token or not_json or response.outcome == FetchOutcome.BLOCKED:
                 log.warning(
                     "ivivu_probe_blocked",
                     hotel=listing.id,
                     status=response.status,
                     invalid_token=invalid_token,
+                    not_json=not_json,
                     attempt=attempts,
                 )
                 await self._retire(session, "blocked")
@@ -206,9 +209,10 @@ class IvivuCollector:
                     attempts += 1
                     await self._backoff(self._backoff_seconds * attempts)
                     continue
+                error = "invalid_token" if invalid_token else "not_json" if not_json else "http"
                 return failed(
                     ProbeStatus.BLOCKED,
-                    "invalid_token" if invalid_token else f"http {response.status}",
+                    error if error != "http" else f"http {response.status}",
                     http_status=response.status,
                     session_id=sid,
                     raw=response.text[:2000],
@@ -246,14 +250,18 @@ class IvivuCollector:
             )
 
     async def verify(self, listing: ListingRef) -> ListingIdentity:
+        """ListingNotFound chỉ khi ivivu trả 404 thật. Trang 200 không có `ng-state` của một khách
+        sạn (challenge Cloudflare, trang chặn mềm) → ListingBlocked + đổi proxy công khai."""
         status, text = await self._public(listing.url)
         if status == 404:
             raise ListingNotFound(listing.url)
         if status != 200:  # 403/429/503 của Cloudflare…: thử lại sau
+            await self._drop_public_client()
             raise ListingBlocked(f"http {status}: {listing.url}")
         identity = parse_hotel_page(text, listing.url)
         if identity is None or not identity.external_id:
-            raise ListingNotFound(listing.url)  # 200 nhưng không phải trang một khách sạn
+            await self._drop_public_client()
+            raise ListingBlocked(f"no hotel data: {listing.url}")
         self._hotel_ids[listing.listing_key] = int(identity.external_id)
         return identity
 
@@ -288,6 +296,10 @@ class IvivuCollector:
     async def close(self) -> None:
         if self._session is not None:
             await self._retire(self._session, "closed")
+        await self._drop_public_client()
+
+    async def _drop_public_client(self) -> None:
+        """Đóng client công khai (proxy hiện tại bị chặn): lần gọi sau lấy proxy mới."""
         if self._client is not None:
             await self._client.close()
             self._client = None
@@ -341,6 +353,7 @@ class IvivuCollector:
         except Exception as exc:  # noqa: BLE001
             log.warning("ivivu_minter_close_failed", error=f"{type(exc).__name__}: {exc}")
         await self._fetcher.close(s.scrape.id)
+        self._deps.limiter.forget(s.scrape.id)
         if self._deps.session_listener:
             await self._deps.session_listener.session_retired(s.scrape, reason)
 

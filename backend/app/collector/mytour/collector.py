@@ -21,6 +21,7 @@ from app.collector.mytour.api import (
     AVAILABILITY_PATH,
     CODE_HOTEL_NOT_FOUND,
     CODE_OK,
+    CODE_SECRET_ROTATED,
     DETAIL_PATH,
     HOME_URL,
     SUGGEST_PATH,
@@ -133,6 +134,7 @@ class MytourCollector:
             max_requests=deps.session_max_requests,
             clock=deps.clock,
             listener=deps.session_listener,
+            on_retire=[self._on_session_retired],
         )
         self._transport = transport or CurlTransport()
         self._backoff = backoff
@@ -140,6 +142,11 @@ class MytourCollector:
         self._http_retries = http_retries
         self._backoff_seconds = backoff_seconds
         self._known_hotels: set[int] = set()
+
+    async def _on_session_retired(self, session: ScrapeSession, reason: str) -> None:
+        """Session hết hạn/bị chặn: đóng AsyncSession curl_cffi của nó, bỏ mốc giãn cách."""
+        await self._transport.close(session.id)
+        self._deps.limiter.forget(session.id)
 
     async def _session(self) -> ScrapeSession:
         session = await self._sessions.get(self._deps.country, HOME_URL)
@@ -159,7 +166,12 @@ class MytourCollector:
         await self._deps.budget.acquire()
         await self._deps.limiter.wait(session.id)
         now_s = self._deps.clock.now().timestamp()
-        headers = api_headers(session.extra["device_id"], self._deps.currency, now_s)
+        headers = api_headers(
+            session.extra["device_id"],
+            self._deps.currency,
+            now_s,
+            self._deps.keys.mytour_web_secret,
+        )
         try:
             return await self._transport.send(
                 session, method, API_BASE + path, headers, json_body=json_body, params=params
@@ -168,13 +180,13 @@ class MytourCollector:
             self._sessions.mark_request(session)
 
     async def _retire_blocked(self, session: ScrapeSession) -> None:
-        await self._sessions.retire(session, reason="blocked")
-        await self._transport.close(session.id)
+        await self._sessions.retire(session, reason="blocked")  # hook đóng client của session
 
     async def _api(
         self, method: HttpMethod, path: str, json_body: dict[str, Any] | None = None, **params: str
     ) -> dict[str, Any]:
-        """Gọi API cho verify/suggest: lỗi mạng/chặn → ListingBlocked (thử lại sau)."""
+        """Gọi API cho verify/suggest: lỗi mạng/chặn (kể cả 200 không phải JSON) → ListingBlocked
+        (thử lại sau)."""
         session = await self._session()
         try:
             response = await self._send(session, method, path, json_body, params or None)
@@ -185,10 +197,12 @@ class MytourCollector:
             raise ListingBlocked(f"http {response.status}: {path}")
         if response.outcome != FetchOutcome.OK:
             raise ListingBlocked(f"http {response.status}: {path}")
-        try:
-            payload: dict[str, Any] = json.loads(response.text)
-        except json.JSONDecodeError as exc:
-            raise ListingBlocked(f"invalid json: {exc.msg}") from exc
+        payload = _json_object(response.text)
+        if payload is None:
+            await self._retire_blocked(session)
+            raise ListingBlocked(f"not json: {path}")
+        if payload.get("code") == CODE_SECRET_ROTATED:
+            raise ListingBlocked("mytour_secret_rotated")
         return payload
 
     async def fetch_calendar(
@@ -248,12 +262,24 @@ class MytourCollector:
                     await self._backoff(self._backoff_seconds)
                     continue
                 return failed(ProbeStatus.ERROR, f"http {status}", response.text)
-            try:
-                payload = json.loads(response.text)
-            except json.JSONDecodeError:
-                return failed(ProbeStatus.ERROR, "invalid json", response.text)
+            payload = _json_object(response.text)
+            if payload is None:
+                # 200 nhưng không phải JSON (trang challenge không có dấu hiệu WAF): chặn mềm.
+                log.warning("mytour_probe_not_json", hotel=listing.id, status=status)
+                await self._retire_blocked(session)
+                if blocked < self._http_retries:
+                    blocked += 1
+                    await self._backoff(self._backoff_seconds * blocked)
+                    continue
+                return failed(ProbeStatus.BLOCKED, "not_json", response.text[:2000])
             if payload.get("code") != CODE_OK:
                 code, message = payload.get("code"), payload.get("message")
+                if code == CODE_SECRET_ROTATED:
+                    # Mytour đổi khoá web: mọi request đều hỏng như nhau. BLOCKED để scheduler
+                    # ngắt kênh + cảnh báo vận hành (đặt MYTOUR_WEB_SECRET mới), không ERROR
+                    # lặng lẽ từng đêm.
+                    log.error("mytour_secret_rotated", code=code, message=message)
+                    return failed(ProbeStatus.BLOCKED, "mytour_secret_rotated", response.text)
                 return failed(ProbeStatus.ERROR, f"api {code}: {message}", response.text)
             data = payload.get("data") or {}
             availability = parse_availability(
@@ -262,13 +288,9 @@ class MytourCollector:
             if not availability.completed:
                 polls += 1
                 if polls >= self._max_polls:
-                    if availability.offers:
-                        # Đêm sát ngày (01–03/10, Park Hyatt) có thể không bao giờ "completed": dùng
-                        # các nguồn đã trả giá thay vì bỏ cả đêm.
-                        log.info("mytour_partial_availability", polls=polls)
-                        break
-                    error = f"incomplete after {polls} polls"
-                    return failed(ProbeStatus.ERROR, error, response.text)
+                    # Chưa "completed" sau max_polls: giá dở dang (thiếu nguồn → giá thấp nhất
+                    # sai) không được ghi OK; đêm này ghi lỗi, lượt sau quét lại.
+                    return failed(ProbeStatus.ERROR, "availability_pending", response.text)
                 continue
             break
 
@@ -352,6 +374,15 @@ class MytourCollector:
 
 def hotel_id_of(listing: ListingRef) -> int:
     return int(listing.external_id or listing.listing_key)
+
+
+def _json_object(text: str) -> dict[str, Any] | None:
+    """Body JSON object của API; None nếu không phải (trang HTML challenge trả 200)."""
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
 def build(deps: CollectorDeps) -> MytourCollector:

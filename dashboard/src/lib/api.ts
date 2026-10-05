@@ -274,9 +274,11 @@ export const api = {
   },
   market: {
     pace: (query: { start?: string; end?: string }) => request<MarketPaceOut>("GET", "/market/pace", { query }),
-    decide: (stayDate: string, kind: string, decision: "applied" | "dismissed") =>
-      request<SuggestionOut>("PUT", `/market/suggestions/${stayDate}/${kind}`, { body: { decision } }),
-    undo: (stayDate: string, kind: string) => request<void>("DELETE", `/market/suggestions/${stayDate}/${kind}`),
+    /** `hotelId`: khách sạn self của gợi ý (tenant chuỗi); bỏ trống = khách sạn self chính. */
+    decide: (stayDate: string, kind: string, decision: "applied" | "dismissed", hotelId?: number) =>
+      request<SuggestionOut>("PUT", `/market/suggestions/${stayDate}/${kind}`, { body: { decision }, query: { hotel_id: hotelId } }),
+    undo: (stayDate: string, kind: string, hotelId?: number) =>
+      request<void>("DELETE", `/market/suggestions/${stayDate}/${kind}`, { query: { hotel_id: hotelId } }),
     /** Ngày lễ theo nước của tenant (mặc định từ đầu tháng này, 12 tháng). */
     holidays: (query: { start?: string; end?: string } = {}) => request<HolidayOut[]>("GET", "/market/holidays", { query }),
     /** Dự báo thời tiết 5 ngày tại khách sạn của bạn (OpenWeather). */

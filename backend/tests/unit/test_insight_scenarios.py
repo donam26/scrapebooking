@@ -61,11 +61,9 @@ def test_request_body_uses_structured_outputs_and_fixed_system_prompt() -> None:
     assert (
         fmt["json_schema"]["strict"] is True and fmt["json_schema"]["schema"] == INSIGHT_JSON_SCHEMA
     )
-    assert PROMPT_VERSION == "2"
+    assert PROMPT_VERSION == "3"
 
 
 def test_cost_estimate_matches_research_pricing() -> None:
-    # 20.000 token vào, 2.000 token ra: 0.002 + 0.001 = $0.003.
-    # OpenRouter không có chiết khấu batch nên batch=True cho cùng chi phí.
+    # 20.000 token vào, 2.000 token ra: 0.002 + 0.001 = $0.003 (giá list, không chiết khấu).
     assert str(estimate_cost(20_000, 2_000)) == "0.003000"
-    assert str(estimate_cost(20_000, 2_000, batch=True)) == "0.003000"

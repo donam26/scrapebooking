@@ -310,11 +310,43 @@ class SnapshotRepository:
                 .values(name=name[:300])
             )
 
-    async def mark_listing_broken(self, hotel_id: int, channel: str, error: str) -> None:
+    async def record_not_found(
+        self, hotel_id: int, channel: str, error: str, threshold: int
+    ) -> bool:
+        """Kênh báo listing không tồn tại (404 thật / mã "không tồn tại" rõ ràng): tăng đếm liên
+        tiếp, ghi lỗi. Đạt `threshold` mới đánh `broken` (ngừng quét tới khi người dùng sửa URL);
+        một lần lọt lưới (chặn mềm) không giết listing. Trả True khi listing vừa thành broken."""
+        count = (
+            await self._s.execute(
+                update(Listing)
+                .where(Listing.hotel_id == hotel_id, Listing.channel == channel)
+                .values(not_found_count=Listing.not_found_count + 1, last_error=error[:1000])
+                .returning(Listing.not_found_count)
+            )
+        ).scalar_one_or_none()
+        if count is None or count < threshold:
+            return False
         await self._s.execute(
             update(Listing)
-            .where(Listing.hotel_id == hotel_id, Listing.channel == channel)
-            .values(status="broken", last_error=error[:1000])
+            .where(
+                Listing.hotel_id == hotel_id,
+                Listing.channel == channel,
+                Listing.status != "paused",  # người dùng tạm dừng thì giữ nguyên
+            )
+            .values(status="broken")
+        )
+        return True
+
+    async def reset_not_found(self, hotel_id: int, channel: str) -> None:
+        """Probe có dữ liệu (ok / hết phòng): chuỗi not_found đứt."""
+        await self._s.execute(
+            update(Listing)
+            .where(
+                Listing.hotel_id == hotel_id,
+                Listing.channel == channel,
+                Listing.not_found_count > 0,
+            )
+            .values(not_found_count=0)
         )
 
     async def last_usable_probe_at(

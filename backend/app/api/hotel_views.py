@@ -11,7 +11,31 @@ from app.db.models import Hotel, Listing, Tenant, TenantHotel
 __all__ = ["hotel_out", "hotel_outs", "sort_channels", "tenant_channel", "tenant_channels"]
 
 
-async def hotel_outs(session: AsyncSession, hotels: list[Hotel]) -> dict[int, HotelOut]:
+def listing_out(row: Listing, *, operator: bool = False) -> ListingOut:
+    """`last_error` chứa lỗi kỹ thuật (proxy, mã lỗi kênh): tenant chỉ thấy mã ngắn, operator
+    thấy nguyên văn."""
+    out = ListingOut.model_validate(row)
+    if not operator and out.last_error:
+        out.last_error = short_listing_error(out.last_error)
+    return out
+
+
+def short_listing_error(error: str) -> str:
+    head = error.split(":", 1)[0].strip().lower()
+    if head.startswith("duplicate"):
+        return "duplicate"
+    if "not_found" in head or "404" in head:
+        return "not_found"
+    if "block" in head or "challenge" in head or "token" in head:
+        return "blocked"
+    if "identity" in head or "mismatch" in head:
+        return "identity_mismatch"
+    return "error"
+
+
+async def hotel_outs(
+    session: AsyncSession, hotels: list[Hotel], *, operator: bool = False
+) -> dict[int, HotelOut]:
     ids = [h.id for h in hotels]
     listings: dict[int, list[ListingOut]] = {i: [] for i in ids}
     if ids:
@@ -21,7 +45,7 @@ async def hotel_outs(session: AsyncSession, hotels: list[Hotel]) -> dict[int, Ho
             )
         ).scalars()
         for row in sorted(rows, key=lambda r: (CHANNEL_ORDER.get(r.channel, 99), r.id)):
-            listings[row.hotel_id].append(ListingOut.model_validate(row))
+            listings[row.hotel_id].append(listing_out(row, operator=operator))
     return {
         h.id: HotelOut(
             id=h.id,
@@ -38,8 +62,8 @@ async def hotel_outs(session: AsyncSession, hotels: list[Hotel]) -> dict[int, Ho
     }
 
 
-async def hotel_out(session: AsyncSession, hotel: Hotel) -> HotelOut:
-    return (await hotel_outs(session, [hotel]))[hotel.id]
+async def hotel_out(session: AsyncSession, hotel: Hotel, *, operator: bool = False) -> HotelOut:
+    return (await hotel_outs(session, [hotel], operator=operator))[hotel.id]
 
 
 async def tenant_channels(session: AsyncSession, tenant_id: int) -> list[str]:

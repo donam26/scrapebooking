@@ -170,26 +170,39 @@ class CsvAdapter:
 
     name = "csv"
 
-    def read_table(self, content: bytes, filename: str) -> Table:
+    def read_table(self, content: bytes, filename: str, max_rows: int | None = None) -> Table:
+        """`max_rows`: trần số dòng dữ liệu (chống tệp XLSX hàng triệu dòng làm hết RAM); vượt
+        trần → PmsAdapterError."""
         lower = filename.lower()
         if lower.endswith((".xlsx", ".xlsm")):
-            return self._read_excel(content)
+            return self._read_excel(content, max_rows)
         if lower.endswith(".xls") or content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
             raise PmsAdapterError("old excel format (.xls) not supported; save as .xlsx or .csv")
         if content[:2] == b"PK":
-            return self._read_excel(content)
-        return self._read_csv(content)
+            return self._read_excel(content, max_rows)
+        return self._read_csv(content, max_rows)
 
     @staticmethod
-    def _read_csv(content: bytes) -> Table:
-        for enc in ("utf-8-sig", "utf-16", "cp1258", "latin-1"):
+    def _check_rows(count: int, max_rows: int | None) -> None:
+        if max_rows is not None and count > max_rows:
+            raise PmsAdapterError(f"too many rows (more than {max_rows}); split the file")
+
+    @staticmethod
+    def _decode(content: bytes) -> str:
+        """UTF-8 (có/không BOM) trước; UTF-16 chỉ khi có BOM (không BOM thì gần như mọi chuỗi byte
+        chẵn đều "decode được" thành rác); rồi cp1258 (Excel Windows tiếng Việt); latin-1 cuối."""
+        if content[:2] in (b"\xff\xfe", b"\xfe\xff"):
+            return content.decode("utf-16")
+        for enc in ("utf-8-sig", "cp1258"):
             try:
-                text = content.decode(enc)
-                break
+                return content.decode(enc)
             except UnicodeDecodeError:
                 continue
-        else:
-            raise PmsAdapterError("cannot decode file")
+        return content.decode("latin-1")
+
+    @classmethod
+    def _read_csv(cls, content: bytes, max_rows: int | None = None) -> Table:
+        text = cls._decode(content)
         sample = text[:4096]
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
@@ -199,35 +212,41 @@ class CsvAdapter:
         columns = [c.strip() for c in (reader.fieldnames or []) if c is not None]
         if not columns:
             raise PmsAdapterError("empty file or missing header row")
-        rows = [
-            {
-                k.strip(): (v.strip() if isinstance(v, str) else v)
-                for k, v in r.items()
-                if k is not None
-            }
-            for r in reader
-        ]
+        rows = []
+        for r in reader:
+            rows.append(
+                {
+                    k.strip(): (v.strip() if isinstance(v, str) else v)
+                    for k, v in r.items()
+                    if k is not None
+                }
+            )
+            cls._check_rows(len(rows), max_rows)
         return Table(columns=columns, rows=rows)
 
-    @staticmethod
-    def _read_excel(content: bytes) -> Table:
+    @classmethod
+    def _read_excel(cls, content: bytes, max_rows: int | None = None) -> Table:
         from openpyxl import load_workbook
 
         try:
             wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
         except Exception as exc:  # noqa: BLE001
             raise PmsAdapterError(f"cannot read excel: {exc}") from exc
-        ws = wb.worksheets[0]
-        it = ws.iter_rows(values_only=True)
-        header = next(it, None)
-        if not header:
-            raise PmsAdapterError("empty sheet")
-        columns = [str(c).strip() if c is not None else f"col{i}" for i, c in enumerate(header)]
-        rows = []
-        for raw in it:
-            if raw is None or all(v is None for v in raw):
-                continue
-            rows.append({columns[i]: raw[i] for i in range(min(len(columns), len(raw)))})
+        try:
+            ws = wb.worksheets[0]
+            it = ws.iter_rows(values_only=True)
+            header = next(it, None)
+            if not header:
+                raise PmsAdapterError("empty sheet")
+            columns = [str(c).strip() if c is not None else f"col{i}" for i, c in enumerate(header)]
+            rows = []
+            for raw in it:
+                if raw is None or all(v is None for v in raw):
+                    continue
+                rows.append({columns[i]: raw[i] for i in range(min(len(columns), len(raw)))})
+                cls._check_rows(len(rows), max_rows)
+        finally:
+            wb.close()
         return Table(columns=columns, rows=rows)
 
     def suggest_mapping(self, columns: list[str]) -> dict[str, str]:

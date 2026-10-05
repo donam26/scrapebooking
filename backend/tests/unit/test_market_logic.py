@@ -1,9 +1,20 @@
 from datetime import date, timedelta
 from decimal import Decimal as D
 
+from app.config import Settings
 from app.market.occupancy import RoomState, estimate, inventory_from
 from app.market.pacing import calibrate, compset_curve, occ_at_lead, pace
-from app.market.price_suggest import NightSignals, reason_text, suggest
+from app.market.price_suggest import (
+    NightSignals,
+    PricePick,
+    PriceQuote,
+    SuggestionThresholds,
+    comparable,
+    price_basis,
+    reason_text,
+    suggest,
+    thresholds_from_settings,
+)
 
 
 def test_inventory_uses_max_exact_or_capped_floor() -> None:
@@ -113,3 +124,52 @@ def test_estimate_rejects_available_without_rooms_and_wide_ranges() -> None:
     )
     assert wide is not None and wide.coverage == D("0.5")
     assert wide.occ_high - wide.occ_low == D("0.45") and not wide.reliable
+
+
+def _settings(**kw: object) -> Settings:
+    return Settings(_env_file=None, database_url="x", redis_url="x", proxy_url_template="x", **kw)  # type: ignore[arg-type]
+
+
+def test_thresholds_default_from_settings_and_tunable() -> None:
+    assert thresholds_from_settings(_settings()) == SuggestionThresholds()
+    th = thresholds_from_settings(
+        _settings(
+            suggest_index_raise_below=90,
+            suggest_change_max_raise_pct=10,
+            suggest_sold_share_tight=0.6,
+        )
+    )
+    assert th.index_raise_below == 90.0 and th.change_max_raise_pct == 10
+    assert th.sold_share_tight == D("0.6")
+    # Chỉ số 95: mặc định (< 97) gợi ý tăng; ngưỡng 90 thì không.
+    assert suggest(night(own_price=D("95"), comp_sold_out=2)) is not None
+    assert suggest(night(own_price=D("95"), comp_sold_out=2), th) is None
+    # 2/4 hết phòng không còn "căng" với ngưỡng 0.6; 3/4 thì có, trần tăng 10%.
+    assert suggest(night(comp_sold_out=2), th) is None
+    capped = suggest(night(comp_sold_out=3), th)
+    assert capped is not None and capped.kind == "raise" and capped.change_pct == 10
+
+
+def test_price_basis_refundable_needs_own_and_half_of_priced_comps() -> None:
+    own = PriceQuote("VND", D("80"), D("90"))
+    comps = [
+        PriceQuote("VND", D("100"), D("110")),
+        PriceQuote("VND", D("120"), None),
+        PriceQuote("VND", None, None),  # hết phòng: không có giá, không tính vào "nửa"
+    ]
+    pick = price_basis(own, comps)
+    assert pick == PricePick("refundable", D("90"), (D("110"),))
+    comps.append(PriceQuote("VND", D("130"), None))  # 1/3 đối thủ có giá hoàn huỷ: dưới nửa
+    assert price_basis(own, comps) == PricePick("any", D("80"), (D("100"), D("120"), D("130")))
+    assert price_basis(PriceQuote("VND", D("80"), None), comps[:1]).basis == "any"
+    assert price_basis(None, comps[:2]) == PricePick("any", None, (D("100"), D("120")))
+    s = suggest(night(comp_sold_out=2, price_basis="refundable"))
+    assert s is not None and s.price_basis == "refundable"
+    assert suggest(night(comp_sold_out=2)).price_basis == "any"  # type: ignore[union-attr]
+
+
+def test_comparable_skips_other_currency_but_keeps_sold_out() -> None:
+    assert comparable("VND", PriceQuote("VND", D("100"), None))
+    assert not comparable("VND", PriceQuote("USD", D("5"), None))
+    assert comparable("VND", PriceQuote(None, None, None))  # hết phòng: vẫn đếm vào thị trường
+    assert comparable(None, PriceQuote("USD", D("5"), None))  # bạn chưa có giá: không lọc

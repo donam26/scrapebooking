@@ -1,0 +1,39 @@
+name: tools
+
+# Việc cần npm/PyPI mà máy dev không có mạng ra registry: chạy ở đây rồi tải artifact về commit.
+# - lockfile: cài thêm devDependencies cho dashboard (vitest, testing-library…) và xuất
+#   package.json + package-lock.json.
+on:
+  workflow_dispatch:
+    inputs:
+      npm_packages:
+        description: "Gói npm cài thêm vào dashboard (devDependencies), cách nhau khoảng trắng"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Install requested packages
+        if: inputs.npm_packages != ''
+        run: npm install --save-dev --no-audit --no-fund ${{ inputs.npm_packages }}
+      - run: git diff --stat -- package.json package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-lockfile
+          path: |
+            dashboard/package.json
+            dashboard/package-lock.json
+          if-no-files-found: error

@@ -12,7 +12,7 @@ from sqlalchemy import case, exists, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import HotelDateSnapshot, Probe, RoomSnapshot, ScanRun
+from app.db.models import Hotel, HotelDateSnapshot, Probe, RoomSnapshot, ScanRun
 from app.logging import get_logger
 from app.market.models import OccupancyEstimate, OccupancyEstimateRun
 from app.market.occupancy import RoomState, estimate
@@ -117,6 +117,12 @@ class OccupancyService:
             ).scalars()
         )
         rooms = await self._run_rooms(run_id) if snaps else {}
+        totals: dict[int, int | None] = {}
+        if snaps:
+            for hid, total in await self._s.execute(
+                select(Hotel.id, Hotel.rooms_total).where(Hotel.id.in_({x.hotel_id for x in snaps}))
+            ):
+                totals[hid] = total
         inventories: dict[tuple[int, str], dict[int, int]] = {}
         written = 0
         for snap in snaps:
@@ -125,7 +131,10 @@ class OccupancyService:
                 last = max(s.scanned_at for s in snaps if (s.hotel_id, s.channel) == key)
                 inventories[key] = await self._inventory(snap.hotel_id, snap.channel, last)
             est = estimate(
-                snap.status, rooms.get((snap.hotel_id, snap.stay_date), []), inventories[key]
+                snap.status,
+                rooms.get((snap.hotel_id, snap.stay_date), []),
+                inventories[key],
+                totals.get(snap.hotel_id),
             )
             if est is None:
                 continue

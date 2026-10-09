@@ -51,7 +51,6 @@ async def test_every_enqueued_job_goes_to_a_worker_that_has_the_function() -> No
     queue = ArqJobQueue(redis)  # type: ignore[arg-type]
     await queue.enqueue_probe(1, 2, "booking")
     await queue.enqueue_verify(5, "booking")
-    await queue.enqueue_discover(2, "booking")
     await queue.enqueue_analytics(1)
     await queue.enqueue_insight(1, "on_demand", "req1")
 
@@ -67,17 +66,14 @@ async def test_every_enqueued_job_goes_to_a_worker_that_has_the_function() -> No
         assert function in by_queue[queue_name], (function, queue_name)
 
 
-async def test_collector_jobs_go_to_the_channel_queue() -> None:
-    # Mỗi kênh một hàng đợi riêng (D9): kênh bị chặn không chặn hàng đợi kênh khác.
+async def test_collector_jobs_go_to_the_booking_queue() -> None:
     redis = _RecordingRedis()
     queue = ArqJobQueue(redis)  # type: ignore[arg-type]
-    await queue.enqueue_probe(1, 2, "agoda")
-    await queue.enqueue_verify(5, "ivivu")
-    await queue.enqueue_discover(2, "tripcom")
+    await queue.enqueue_probe(1, 2, "booking")
+    await queue.enqueue_verify(5, "booking")
     assert redis.calls == [
-        ("probe_hotel", "arq:queue:collector:agoda"),
-        ("verify_listing", "arq:queue:collector:ivivu"),
-        ("discover_listing", "arq:queue:collector:tripcom"),
+        ("probe_hotel", "arq:queue:collector:booking"),
+        ("verify_listing", "arq:queue:collector:booking"),
     ]
 
 

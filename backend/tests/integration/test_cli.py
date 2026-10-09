@@ -78,7 +78,7 @@ async def test_add_hotel_rejects_bad_url(db: AsyncSession) -> None:
     r = await invoke("add-hotel", str(tenant.id), "https://www.booking.com/searchresults.html")
     assert r.exit_code == 1 and "booking.com/hotel/vn/ten-khach-san.html" in r.output
     r = await invoke("add-hotel", str(tenant.id), "https://example.com/hotel/x")
-    assert r.exit_code == 1 and "Chưa hỗ trợ trang này" in r.output
+    assert r.exit_code == 1 and "Chỉ hỗ trợ trang khách sạn trên Booking.com" in r.output
 
 
 async def test_scan_now_creates_run_without_queue(db: AsyncSession) -> None:

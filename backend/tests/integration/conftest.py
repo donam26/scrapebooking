@@ -18,7 +18,6 @@ class FakeQueue:
         self.probes: list[tuple[int, int]] = []
         self.probe_channels: list[str] = []
         self.verifies: list[tuple[int, str]] = []
-        self.discovers: list[tuple[int, str]] = []
 
     async def enqueue_probe(self, scan_run_id: int, hotel_id: int, channel: str) -> None:
         self.probes.append((scan_run_id, hotel_id))
@@ -26,9 +25,6 @@ class FakeQueue:
 
     async def enqueue_verify(self, listing_id: int, channel: str) -> None:
         self.verifies.append((listing_id, channel))
-
-    async def enqueue_discover(self, hotel_id: int, channel: str) -> None:
-        self.discovers.append((hotel_id, channel))
 
     async def enqueue_insight(self, tenant_id: int, trigger: str, request_key: str) -> None:
         self.insights.append((tenant_id, trigger, request_key))

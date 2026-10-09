@@ -1,5 +1,4 @@
-"""Worker thu dữ liệu của một kênh (WORKER_CHANNEL). Mỗi kênh một hàng đợi và số tiến trình riêng
-(D9): kênh chậm/bị chặn không làm chậm kênh khác."""
+"""Worker thu dữ liệu Booking.com: probe khách sạn, verify listing, quét danh sách thị trường."""
 
 import importlib
 import os
@@ -22,6 +21,7 @@ from app.logging import configure_logging, get_logger
 from app.marketscan.jobs import scan_market_list
 from app.ops.alerts import make_alerter
 from app.ops.metrics import start_metrics_server
+from app.ops.proxy_check import ProxyHealthStore
 from app.scheduler.channel_pause import RedisChannelPauses
 from app.scheduler.queue import ArqJobQueue, collector_queue, worker_redis_settings
 from app.worker.jobs import (
@@ -35,7 +35,6 @@ from app.worker.jobs import (
 from app.worker.listing_jobs import (
     ListingJobDeps,
     ListingRetry,
-    run_discover_listing,
     run_verify_listing,
 )
 from app.worker.session_listener import DbSessionListener
@@ -72,10 +71,17 @@ async def startup(ctx: dict[str, Any]) -> None:
 
     queue = await ArqJobQueue.connect(settings.redis_url)
     max_age = timedelta(minutes=settings.session_max_age_minutes)
+    proxies = StaticProxyProvider(settings.proxy_templates)
+    proxy_health = ProxyHealthStore(queue.redis)
+
+    async def sync_proxy_health() -> None:
+        # Template mà lần kiểm tra gần nhất của scheduler báo hỏng: bỏ qua khi chọn proxy.
+        proxies.set_shared_down(await proxy_health.down_labels())
+
     collector = build_collector(
         channel,
         CollectorDeps(
-            proxy_provider=StaticProxyProvider(settings.proxy_templates),
+            proxy_provider=proxies,
             clock=SystemClock(),
             limiter=RateLimiter(
                 settings.request_min_interval_seconds, settings.request_jitter_seconds
@@ -116,13 +122,13 @@ async def startup(ctx: dict[str, Any]) -> None:
             mid_max_age=timedelta(hours=settings.tier_mid_max_age_hours),
             far_max_age=timedelta(hours=settings.tier_far_max_age_hours),
         ),
+        before_job=sync_proxy_health,
     )
     ctx["listing_deps"] = ListingJobDeps(
         session_factory=session_factory,
         collector=collector,
         clock=SystemClock(),
         channel=channel,
-        enqueue_discover=queue.enqueue_discover,
     )
     log.info("worker_started", worker=worker_id, channel=channel, queue=collector_queue(channel))
 
@@ -170,14 +176,6 @@ async def verify_listing(ctx: dict[str, Any], listing_id: int) -> str:
         raise Retry(defer=RETRY_DEFER_SECONDS * 2) from None
 
 
-async def discover_listing(ctx: dict[str, Any], hotel_id: int) -> str:
-    final_attempt = int(ctx.get("job_try", 1)) >= LISTING_MAX_TRIES
-    try:
-        return await run_discover_listing(ctx["listing_deps"], hotel_id, final_attempt)
-    except ListingRetry:
-        raise Retry(defer=RETRY_DEFER_SECONDS * 2) from None
-
-
 class WorkerSettings:
     # Số lần thử theo từng hàm: probe_hotel coi lần MAX_TRIES là lần cuối (tự chốt run), nên arq
     # phải dừng đúng ở đó; scan_market_list một lần (chuỗi đêm tự đi tiếp/bù, không chạy lại đêm).
@@ -185,7 +183,6 @@ class WorkerSettings:
     functions = [
         func(probe_hotel, max_tries=MAX_TRIES),
         func(verify_listing, max_tries=LISTING_MAX_TRIES),
-        func(discover_listing, max_tries=LISTING_MAX_TRIES),
         func(scan_market_list, max_tries=1),
     ]
     on_startup = startup

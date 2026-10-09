@@ -40,7 +40,7 @@ def test_booking_non_hotel_path_is_rejected_with_booking_hint(bad: str) -> None:
 
 
 def test_lookalike_host_is_not_booking() -> None:
-    with pytest.raises(UnsupportedUrl, match="Chưa hỗ trợ trang này"):
+    with pytest.raises(UnsupportedUrl, match="Chỉ hỗ trợ trang khách sạn trên Booking.com"):
         parse_listing_url("https://notbooking.com/hotel/vn/x.html")
 
 
@@ -48,7 +48,7 @@ def test_lookalike_host_is_not_booking() -> None:
 def test_unsupported_host_lists_supported_channels(bad: str) -> None:
     with pytest.raises(UnsupportedUrl, match="Booking.com") as exc:
         parse_listing_url(bad)
-    assert "Chưa hỗ trợ trang này" in str(exc.value)
+    assert "Chỉ hỗ trợ trang khách sạn trên Booking.com" in str(exc.value)
 
 
 @pytest.mark.parametrize("bad", ["not a url", "www.booking.com/hotel/vn/x.html", "ftp://x/y"])
@@ -64,10 +64,8 @@ def test_booking_is_registered_and_collectable() -> None:
     assert channel_name("nowhere") == "nowhere"
 
 
-def test_sort_channels_by_market_order_unknown_last() -> None:
-    assert sort_channels(["zz", "agoda", "booking", "agoda", "ivivu"]) == [
-        "booking",
-        "agoda",
-        "ivivu",
-        "zz",
-    ]
+def test_only_booking_is_registered() -> None:
+    assert list(channels()) == [ChannelCode.BOOKING]
+    assert sort_channels(["zz", "booking", "booking"]) == ["booking", "zz"]
+    with pytest.raises(UnsupportedUrl, match="Booking.com"):
+        parse_listing_url("https://www.agoda.com/vi-vn/abc/hotel/ho-chi-minh-city-vn.html")

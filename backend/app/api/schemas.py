@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -53,9 +53,9 @@ class TenantOut(ORM):
     insight_language: str
     insight_hour: str
     country_code: str
-    reference_channel: str
     active: bool
     created_at: datetime
+    source_markets: list[str] = []
 
 
 def _check_language(value: str | None) -> str | None:
@@ -73,7 +73,6 @@ class TenantCreate(BaseModel):
     insight_language: str = "vi"
     insight_hour: str = "07:30"
     country_code: str = Field(default="vn", min_length=2, max_length=2)
-    reference_channel: str = "booking"
 
     _language = field_validator("insight_language")(_check_language)
 
@@ -86,10 +85,24 @@ class TenantUpdate(BaseModel):
     insight_language: str | None = None
     insight_hour: str | None = None
     country_code: str | None = Field(default=None, min_length=2, max_length=2)
-    reference_channel: str | None = None
     active: bool | None = None
+    # Thị trường nguồn khách theo dõi lịch nghỉ (roadmap 7.5): cn, kr, jp, tw, ru, in, us, au.
+    source_markets: list[str] | None = None
 
     _language = field_validator("insight_language")(_check_language)
+
+    @field_validator("source_markets")
+    @classmethod
+    def _markets(cls, v: list[str] | None) -> list[str] | None:
+        from app.holidays.data import SOURCE_MARKETS
+
+        if v is None:
+            return v
+        out = sorted({m.strip().lower() for m in v if m.strip()})
+        bad = [m for m in out if m not in SOURCE_MARKETS]
+        if bad:
+            raise ValueError(f"unknown source markets: {', '.join(bad)}")
+        return out
 
 
 # ---- kênh & listing ----
@@ -99,8 +112,8 @@ class ChannelOut(BaseModel):
     code: str
     name: str
     example_url: str
-    hosts: list[str]  # tên miền gốc, VD ["trip.com"]
-    collectable: bool  # đã quét được (có collector); False: nhận diện URL nhưng chưa hỗ trợ
+    hosts: list[str]  # tên miền gốc: ["booking.com"]
+    collectable: bool
 
 
 class ListingOut(ORM):
@@ -111,7 +124,7 @@ class ListingOut(ORM):
     url: str
     external_id: str | None
     name: str | None
-    # suggested (chờ xác nhận) | unverified (đang kiểm tra) | active | broken | paused
+    # unverified (đang kiểm tra) | active | broken | paused
     status: str
     match_score: Decimal | None
     last_error: str | None
@@ -123,18 +136,8 @@ class ListingCreate(BaseModel):
 
 
 class ListingAction(BaseModel):
-    # confirm: nhận gợi ý; reject: bỏ gợi ý; pause/resume: ngừng/quét lại; retry: kiểm tra lại
-    action: str = Field(pattern="^(confirm|reject|pause|resume|retry)$")
-
-
-class DemandSignalOut(ORM):
-    channel: str
-    kind: str
-    value: Decimal
-    window_hours: int | None
-    stay_date: date | None
-    raw_text: str | None
-    observed_at: datetime
+    # pause/resume: ngừng/quét lại; retry: kiểm tra lại listing hỏng
+    action: str = Field(pattern="^(pause|resume|retry)$")
 
 
 # ---- watchlist ----
@@ -150,6 +153,10 @@ class HotelOut(BaseModel):
     lat: float | None = None
     lng: float | None = None
     listings: list[ListingOut] = []
+    # Tổng số phòng công bố/người dùng nhập (5.6); điểm và số review mới nhất (trang kết quả).
+    rooms_total: int | None = None
+    review_score: Decimal | None = None
+    review_count: int | None = None
 
 
 class WatchItemOut(BaseModel):
@@ -158,10 +165,14 @@ class WatchItemOut(BaseModel):
     label: str | None
     active: bool
     added_at: datetime
+    # Compset theo khách sạn của bạn (5.5): null = dùng chung; chính/phụ (7.3).
+    compset_of: int | None = None
+    tier: Literal["primary", "secondary"] = "primary"
+    weight: Decimal = Decimal(1)
 
 
 class WatchItemCreate(BaseModel):
-    # Đường dẫn trang khách sạn trên bất kỳ kênh được hỗ trợ (Booking, Agoda, ivivu, Trip.com…).
+    # Đường dẫn trang khách sạn trên Booking.com.
     url: str = Field(min_length=8, max_length=2000)
     role: str = Field(default="competitor", pattern="^(self|competitor)$")
     label: str | None = Field(default=None, max_length=120)
@@ -171,6 +182,25 @@ class WatchItemUpdate(BaseModel):
     role: str | None = Field(default=None, pattern="^(self|competitor)$")
     label: str | None = Field(default=None, max_length=120)
     active: bool | None = None
+    compset_of: int | None = None
+    tier: Literal["primary", "secondary"] | None = None
+    weight: Decimal | None = Field(default=None, ge=0, le=10)
+    # Tổng số phòng của khách sạn (công bố trên website/OTA, hoặc số thật với khách sạn của bạn).
+    rooms_total: int | None = Field(default=None, ge=1, le=5000)
+
+
+class CompsetReviewOut(BaseModel):
+    """Rà soát compset theo quy tắc CoStar STR (7.3): ≥4 đối thủ, ≥3 không cùng chủ (chưa kiểm
+    được), không khách sạn nào quá 50% số phòng compset; nhắc rà soát ≥2 lần/năm."""
+
+    own_hotel_id: int | None
+    primary: int
+    secondary: int
+    rooms_known: int
+    warnings: list[str]  # mã: too_few | dominant_hotel | rooms_unknown | review_due
+    dominant_hotel_id: int | None = None
+    dominant_share: Decimal | None = None
+    last_change_at: datetime | None = None
 
 
 # ---- data ----
@@ -190,6 +220,14 @@ class DateCell(BaseModel):
     restocked_at: datetime | None
     last_observed_at: datetime | None
     days_to_arrival: int | None
+    # Năm trạng thái (roadmap 2.7): available | sold_out | restricted | no_price | error | null.
+    state: str | None = None
+    # Số đêm tối thiểu kênh yêu cầu (>1 = đêm bị hạn chế số đêm, giá không so với giá 1 đêm).
+    min_stay: int | None = None
+    # Nhãn khuyến mãi đang chạy trên các gói công khai → độ sâu % (so giá gạch) hoặc null.
+    promos: dict[str, str | None] | None = None
+    # Quan sát cũ hơn 48 giờ: không vào trung vị compset (1.13).
+    stale: bool = False
 
 
 class HotelRow(BaseModel):
@@ -212,9 +250,19 @@ class CompsetDayOut(BaseModel):
     own_occupancy_pct: Decimal | None
     own_rooms_available: int | None
     price_index: Decimal | None
-    # Hạng giá của bạn (1 = rẻ nhất) trong `priced_hotels` khách sạn có giá đêm đó (gồm bạn).
+    # Vị trí giá của bạn (1 = rẻ nhất) trong `priced_hotels` khách sạn có giá đêm đó (gồm bạn).
     own_rank: int | None
     priced_hotels: int
+    # Cỡ mẫu (1.9): n đối thủ có giá cùng điều kiện / N đối thủ compset chính. sample: ok (≥4),
+    # small (3, hiện mờ), insufficient (<3: không tính trung vị/chỉ số/vị trí).
+    competitors_total: int = 0
+    competitors_priced: int = 0
+    competitors_restricted: int = 0
+    competitors_low: int = 0
+    competitors_stale: int = 0
+    sample: Literal["ok", "small", "insufficient"] = "insufficient"
+    own_hotel_id: int | None = None
+    own_min_stay: int | None = None
 
 
 class HolidayOut(BaseModel):
@@ -225,13 +273,25 @@ class HolidayOut(BaseModel):
     group: str
 
 
+class DataStatusOut(BaseModel):
+    """Độ tin cậy dữ liệu Booking.com của tenant (roadmap 0.6, 0.7)."""
+
+    now: datetime
+    stale_after_hours: int
+    # Quan sát có dữ liệu gần nhất (không phải lượt quét kết thúc gần nhất).
+    last_data_at: datetime | None
+    # % lượt đọc trang thành công 7 ngày (ok, hết phòng, không có phòng 1 đêm / tổng có request).
+    success_rate_7d: Decimal | None = None
+    probes_7d: int = 0
+    failed_7d: int = 0
+    # Không có dữ liệu mới quá một chu kỳ quét (`stale_after_hours`).
+    stale: bool = False
+
+
 class OverviewOut(BaseModel):
     start: date
     end: date
-    # Kênh của ô heatmap/compset (D10): mặc định kênh tham chiếu của tenant.
-    channel: str
-    # Kênh có listing đang quét trong watchlist của tenant (để chọn).
-    channels: list[str]
+    channel: str  # luôn "booking"
     # Đêm xa nhất trong phạm vi quét của tenant (hôm nay + horizon - 1): đêm sau mốc này chưa
     # được quét nên ô trống là "ngoài phạm vi", không phải thiếu dữ liệu.
     horizon_end: date
@@ -278,27 +338,29 @@ class HotelDateSnapshotOut(ORM):
     currency: str | None
 
 
-class ChannelDayOut(BaseModel):
-    """Một kênh cho (khách sạn, đêm): đặt các kênh cạnh nhau (D4: không cộng số phòng)."""
+class RateDetailOut(BaseModel):
+    """Giá và tình trạng Booking.com của (khách sạn, đêm) ở lần quét gần nhất."""
 
-    channel: str
     availability_status: str | None
     exact_rooms_left: int | None
     min_price: Decimal | None
     min_refundable_price: Decimal | None
     currency: str | None
     last_observed_at: datetime | None
-    # Giá kênh này đã gồm thuế phí, theo phòng/đêm (D3): chỉ so rẻ/đắt giữa các kênh có cờ này.
-    tax_inclusive: bool
+    min_breakfast_price: Decimal | None = None
+    min_room_only_price: Decimal | None = None
+    min_stay: int | None = None
+    # Gói rẻ nhất: nhãn KM, giá trước KM (giá gạch), khoá gói "hoàn huỷ|bữa sáng".
+    cheapest_rate: dict[str, Any] | None = None
+    prices_by_key: dict[str, str] | None = None
 
 
 class DayDetailOut(BaseModel):
     hotel: HotelOut
     label: str | None = None  # nhãn tenant đặt cho khách sạn
     stay_date: date
-    channel: str  # kênh của phần chi tiết loại phòng/lịch sử
-    channels: list[ChannelDayOut] = []
-    demand_signals: list[DemandSignalOut] = []
+    channel: str  # luôn "booking"
+    rate: RateDetailOut | None = None
     room_types: list[RoomTypeOut]
     # Lần quét gần nhất của ngày: trạng thái (available | sold_out | unknown) và thời điểm.
     # `latest` chỉ gồm loại phòng của đúng lần quét đó (rỗng khi hết phòng/không rõ).
@@ -337,6 +399,10 @@ class EventOut(BaseModel):
     previous_scan_run_id: int | None
     scan_run_id: int
     observed_at: datetime
+    # Lý do: lowest_rate_shift (cheapest_gone, cheapest_back, rate_gone, rate_back, mix); khoá gói
+    # "hoàn huỷ|bữa sáng" của đổi giá.
+    reason: str | None = None
+    detail: dict[str, Any] | None = None
 
 
 class HotelDetailOut(BaseModel):
@@ -344,7 +410,6 @@ class HotelDetailOut(BaseModel):
     role: str
     label: str | None
     channel: str
-    demand_signals: list[DemandSignalOut] = []
     horizon_end: date  # như OverviewOut.horizon_end
     metrics: list[DateCell]
     events: list[EventOut]
@@ -448,6 +513,49 @@ class NotificationSettingsOut(BaseModel):
     email_configured: bool
     recipients: list[RecipientOut]
     rules: list[NotificationRuleOut]
+    # Zalo ZNS đã cấu hình (OA xác thực + template duyệt) chưa (3.3).
+    zalo_configured: bool = False
+    channels: list[str] = ["email", "zalo", "webhook"]
+
+
+NotifyChannel = Literal["email", "zalo", "webhook"]
+SUBSCRIPTION_KINDS = ("alerts", "daily_insight", "weekly_report", "data_stale")
+_HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
+
+
+class SubscriptionIn(BaseModel):
+    """Đăng ký nhận tin của một người (3.4). kinds rỗng = mọi loại tin."""
+
+    channel: NotifyChannel
+    target: str = Field(min_length=3, max_length=500)
+    kinds: list[Literal["alerts", "daily_insight", "weekly_report", "data_stale"]] = []
+    quiet_start: str | None = Field(default=None, pattern=_HHMM)
+    quiet_end: str | None = Field(default=None, pattern=_HHMM)
+    max_per_day: int | None = Field(default=None, ge=1, le=50)
+    active: bool = True
+
+
+class SubscriptionOut(SubscriptionIn):
+    id: int
+    user_id: int | None
+    created_at: datetime
+
+
+class EngagementWeekOut(BaseModel):
+    week: str  # "2026-W41"
+    channel: str
+    sent: int
+    failed: int
+    skipped: int
+    clicked: int
+    resolved: int
+    cost_vnd: Decimal
+
+
+class EngagementOut(BaseModel):
+    """Đo O4: tin tới đúng chỗ và có hành động (lượt nhấn, "Đã xử lý") theo tuần, theo kênh."""
+
+    weeks: list[EngagementWeekOut]
 
 
 class NotificationLogOut(BaseModel):
@@ -463,6 +571,8 @@ class NotificationLogOut(BaseModel):
     detail: str | None
     created_at: datetime
     sent_at: datetime | None
+    channel: str = "email"
+    resolved_at: datetime | None = None
 
 
 OverviewOut.model_rebuild()

@@ -299,32 +299,38 @@ async def test_overview_hotel_day_events(client: AsyncClient, db: AsyncSession) 
     comp_cell = body["hotels"][1]["cells"][0]
     assert comp_cell["availability_status"] == "available" and comp_cell["restocked_at"] is not None
     assert body["hotels"][0]["cells"][1]["availability_status"] is None
-    assert (
-        body["compset"][0]["competitors_observed"] == 1
-        and body["compset"][0]["price_index"] == "110.0"
+    # Một đối thủ có giá: dưới ngưỡng cỡ mẫu CoStar STR (≥4) nên không có trung vị/chỉ số/vị trí,
+    # nhưng vẫn báo n/N để giao diện ghi "chưa đủ mẫu".
+    c0 = body["compset"][0]
+    assert c0["competitors_observed"] == 1 and c0["price_index"] is None
+    assert (c0["competitors_priced"], c0["competitors_total"], c0["sample"]) == (
+        1,
+        1,
+        "insufficient",
     )
-    # Bạn 110, đối thủ 100: rẻ thứ 2 trong 2 khách sạn có giá; đêm không có giá của bạn thì không hạng
-    assert body["compset"][0]["own_rank"] == 2 and body["compset"][0]["priced_hotels"] == 2
+    assert c0["own_rank"] is None and c0["priced_hotels"] == 2 and c0["min_price"] == "100.00"
     assert body["compset"][1]["own_rank"] is None
     assert body["holidays"] == []
     assert body["last_run"]["id"] == run2
     r = await client.get("/overview", params={"start": "2026-09-01", "end": "2026-09-03"})
+    # Quốc khánh 2026 nghỉ 29/8–2/9: 1/9 là ngày nghỉ liền kề, 2/9 là ngày lễ.
     assert r.json()["holidays"] == [
-        {"date": "2026-09-02", "name": "Quốc khánh", "kind": "holiday", "group": "national_day"},
         {
-            "date": "2026-09-03",
+            "date": "2026-09-01",
             "name": "Quốc khánh (nghỉ bù)",
             "kind": "holiday",
             "group": "national_day",
         },
+        {"date": "2026-09-02", "name": "Quốc khánh", "kind": "holiday", "group": "national_day"},
     ]
     r = await client.get(
         "/overview",
         params={"start": "2026-09-01", "end": "2026-09-02"},
         headers={"Accept-Language": "en"},
     )
-    assert r.json()["holidays"] == [
-        {"date": "2026-09-02", "name": "National Day", "kind": "holiday", "group": "national_day"}
+    assert [h["name"] for h in r.json()["holidays"]] == [
+        "National Day (day off in lieu)",
+        "National Day",
     ]
 
     r = await client.get(
@@ -343,7 +349,8 @@ async def test_overview_hotel_day_events(client: AsyncClient, db: AsyncSession) 
     assert len(d["room_types"]) == 1 and len(d["history"]) == 2 and len(d["latest"]) == 1
     assert d["latest"][0]["rooms_left"] == 1 and d["latest"][0]["stock_confidence"] == "exact"
     assert [o["status"] for o in d["observations"]] == ["available", "available"]
-    assert d["compset"]["own_rank"] == 2 and d["compset"]["median_price"] == "100.00"
+    assert d["compset"]["own_rank"] is None and d["compset"]["median_price"] is None
+    assert d["compset"]["sample"] == "insufficient"
     assert d["holiday"] is None
 
     r = await client.get("/events", params={"event_type": "restock,rooms_decrease"})
@@ -500,11 +507,17 @@ async def test_last_run_and_runs_are_scoped_to_tenant(
     a = (await client.get("/overview", params={"tenant_id": ids["t1"]})).json()["last_run"]
     assert a["id"] == shared_id and a["status"] == "completed"
     assert (a["total_jobs"], a["total_probes"], a["ok_count"], a["blocked_count"]) == (1, 1, 1, 0)
+    # Lượt duy nhất của tenant B không thu được dữ liệu (bị chặn): không phải "cập nhật lúc…" (C2),
+    # nhưng vẫn hiện trong danh sách lượt quét.
     b = (await client.get("/overview", params={"tenant_id": ids["t2"]})).json()["last_run"]
-    assert b["id"] == shared_id and b["status"] == "partial"
-    assert (b["total_jobs"], b["total_probes"], b["ok_count"], b["blocked_count"]) == (1, 1, 0, 1)
+    assert b is None
     runs_b = (await client.get("/runs", params={"tenant_id": ids["t2"]})).json()
     assert [r["id"] for r in runs_b] == [shared_id]
+    assert (runs_b[0]["status"], runs_b[0]["ok_count"], runs_b[0]["blocked_count"]) == (
+        "partial",
+        0,
+        1,
+    )
     runs_a = (await client.get("/runs", params={"tenant_id": ids["t1"]})).json()
     assert len(runs_a) == 3 and runs_a[0]["blocked_count"] == 0
 
@@ -660,11 +673,17 @@ async def test_overview_refundable_price_basis(client: AsyncClient, db: AsyncSes
     params = {"start": STAY.isoformat(), "end": STAY.isoformat()}
     any_ = (await client.get("/overview", params=params)).json()
     assert any_["hotels"][0]["cells"][0]["min_price"] == "90.00"
-    assert any_["compset"][0]["price_index"] == "90.0" and any_["compset"][0]["own_rank"] == 1
+    assert any_["compset"][0]["own_min_price"] == "90.00"
 
     ref = (await client.get("/overview", params={**params, "price_basis": "refundable"})).json()
     assert ref["hotels"][0]["cells"][0]["min_price"] == "120.00"
-    assert ref["compset"][0]["price_index"] == "120.0" and ref["compset"][0]["own_rank"] == 2
+    assert (
+        ref["compset"][0]["own_min_price"] == "120.00"
+        and ref["compset"][0]["min_price"] == "100.00"
+    )
+    # Cơ sở giá mới: có bữa sáng / chỉ phòng (gói không rõ bữa sáng không vào cơ sở nào).
+    bf = (await client.get("/overview", params={**params, "price_basis": "breakfast"})).json()
+    assert bf["hotels"][0]["cells"][0]["min_price"] is None
 
     bad = await client.get("/overview", params={**params, "price_basis": "cheapest"})
     assert bad.status_code == 422
@@ -686,7 +705,8 @@ async def test_export_overview_and_events_csv(client: AsyncClient, db: AsyncSess
     lines = text.lstrip("﻿").strip().split("\r\n")
     assert len(lines) == 3  # tiêu đề + 2 khách sạn × 1 đêm
     assert lines[1].startswith(
-        "Booking.com,Mine,Khách sạn của bạn,2026-10-05,T2,Còn phòng,1,110,VND,0,1,100,10,2,2,"
+        # 1 đối thủ: chưa đủ mẫu nên trung vị, chỉ số giá niêm yết, vị trí giá để trống.
+        "Booking.com,Mine,Khách sạn của bạn,2026-10-05,T2,Còn phòng,1,110,VND,0,1,,,,2,"
     )
 
     r = await client.get("/export/events.csv", params={"event_type": "restock"})

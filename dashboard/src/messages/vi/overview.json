@@ -8,7 +8,6 @@
       "thatHotel": "{price} của khách sạn đó",
       "medianInYours": "Trung vị đối thủ (trong dải của bạn)",
       "hint": "Rê chuột hoặc Tab vào một đêm để so cả chồng; bấm ô để mở chi tiết đêm.",
-      "channelNote": "Số phòng và giá trên {channel}; mỗi kênh đếm riêng, không cộng giữa các kênh.",
       "perNight": "{price} mỗi đêm",
       "hintSingle": "Rê chuột hoặc Tab vào một đêm để xem số liệu; bấm ô để mở chi tiết đêm."
     },
@@ -16,16 +15,19 @@
       "month": "Th {month}"
     },
     "market": {
-      "aria": "Thị trường",
-      "title": "Thị trường",
-      "observed": "{count} đối thủ có dữ liệu trên {channel}",
-      "noneObserved": "Chưa có đối thủ nào có dữ liệu trên {channel}",
+      "aria": "Compset",
+      "title": "Compset",
+      "observed": "{count} đối thủ có dữ liệu trên Booking.com",
+      "noneObserved": "Chưa có đối thủ nào có dữ liệu trên Booking.com",
       "yourRate": "Giá của bạn",
       "median": "Trung vị đối thủ",
       "lowest": "Thấp nhất đối thủ",
       "soldOutPerNight": "Đối thủ hết phòng mỗi đêm",
       "noneSoldOut": "chưa đối thủ nào hết phòng trong {count} đêm này",
-      "perNight": "{price} mỗi đêm"
+      "perNight": "{price} mỗi đêm",
+      "observedOf": "{count}/{total} đối thủ có dữ liệu trên Booking.com",
+      "restrictedNote": "· chấm vàng: có đối thủ bị hạn chế (không tính là hết)",
+      "restrictedTitle": "{count} đối thủ bị hạn chế (min-stay, đóng ngày đến), không tính là hết phòng"
     },
     "vsMedian": {
       "title": "Giá bạn so trung vị đối thủ (%)",
@@ -46,10 +48,10 @@
       "pmsOcc": "Công suất theo PMS"
     },
     "noData": {
-      "notTracked": "Chưa theo dõi trên {channel}",
-      "broken": "Đường dẫn trên {channel} bị lỗi",
-      "paused": "Đang tạm dừng trên {channel}",
-      "unverified": "Đang kiểm tra đường dẫn trên {channel}",
+      "notTracked": "Chưa theo dõi trên Booking.com",
+      "broken": "Đường dẫn trên Booking.com bị lỗi",
+      "paused": "Đang tạm dừng trên Booking.com",
+      "unverified": "Đang kiểm tra đường dẫn trên Booking.com",
       "waiting": "Đang chờ lượt quét đầu tiên"
     },
     "status": {
@@ -57,16 +59,21 @@
       "soldOut": "Hết phòng",
       "unknown": "Không rõ",
       "available": "Còn phòng",
-      "roomsLeft": "Còn {count} phòng"
+      "roomsLeft": "Còn {count} phòng",
+      "restricted": "Hạn chế",
+      "minStay": "Từ {count} đêm",
+      "noPrice": "Không giá"
     },
     "readout": {
       "soldOut": "Đối thủ hết phòng",
       "median": "Trung vị đối thủ",
       "vsMedian": "Giá bạn so trung vị",
-      "rank": "Hạng giá của bạn",
+      "rank": "Vị trí giá của bạn",
       "pmsOcc": "Công suất PMS",
       "roomsLeft": "còn {rooms}",
-      "rel": "{days, plural, =0 {Đêm nay} =1 {Đêm mai} other {# ngày nữa}}"
+      "rel": "{days, plural, =0 {Đêm nay} =1 {Đêm mai} other {# ngày nữa}}",
+      "restricted": "Đối thủ bị hạn chế",
+      "sample": "Đối thủ có giá"
     }
   }
 }

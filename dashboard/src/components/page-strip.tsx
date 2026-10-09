@@ -3,7 +3,7 @@ import { cx } from "./ui";
 
 /**
  * Dải đầu trang kiểu OTARadar (như "Terminal+ | ngày giờ | mùa … | N khách sạn | cập nhật"):
- * tên tab màu xanh, các mục thông tin ngăn nhau, công cụ (chọn kênh, kỳ xem) bên phải.
+ * tên tab màu xanh, các mục thông tin ngăn nhau, công cụ (chọn khách sạn, kỳ xem) bên phải.
  */
 export function PageStrip({ title, meta, aside, actions, className }: { title: ReactNode; meta?: ReactNode; aside?: ReactNode; actions?: ReactNode; className?: string }) {
   return (

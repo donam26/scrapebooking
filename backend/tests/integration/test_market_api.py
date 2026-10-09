@@ -205,17 +205,33 @@ async def test_pace_estimates_suggestion_and_decision_flow(
     assert n["own_occ"]["occ_mid"] == "0.2500" and n["own_occ"]["reliable"] is True
     assert n["comp_occ"] == "0.9500" and n["comp_occ_hotels"] == 2
     assert n["comp_sold_out"] == 1 and n["comp_observed"] == 2
+    # Chỉ 1 đối thủ có giá: chưa đủ mẫu để lấy trung vị và chưa có giá gốc → chưa gợi ý (1.9).
+    assert n["suggestion"] is None and n["comp_priced"] == 1
+
+    # Chiến lược giá (6.1): giá gốc dùng khi compset chưa đủ mẫu; làm tròn tới 1 (giá test nhỏ).
+    strat = {"base_price": "100", "round_to": 0, "max_daily_change_pct": 15}
+    assert (await client.put("/market/strategy", json=strat)).status_code == 403
+    await _login(client, "admin@rex.vn", "admin-pass-1")
+    st = await client.put("/market/strategy", json=strat)
+    assert st.status_code == 200 and st.json()["configured"] is True, st.text
+    bad = await client.put("/market/strategy", json={"floor_price": "90", "ceiling_price": "80"})
+    assert bad.status_code == 422
+    await _login(client, "view@rex.vn", "view-pass-1")
+    n = (await client.get("/market/pace", params=params)).json()["nights"][0]
     sug = n["suggestion"]
+    # Giá gốc 100, đối thủ lấp đầy ≈95% (+5%) → 105, chặn đổi tối đa 15% so với 80 → 92.
     assert sug["kind"] == "raise" and sug["change_pct"] == 15 and sug["decision"] is None
-    assert "1/2 đối thủ đã hết phòng" in sug["reasons"]
+    assert sug["target_price"] == "92" and sug["clamped"] == "max_change"
+    assert [a["key"] for a in sug["adjustments"]] == ["base_price", "comp_occ", "clamp_max_change"]
+    assert "chỉ báo lấp đầy đối thủ trên kênh ≈95% (thử nghiệm) (+5%)" in sug["reasons"]
     en = (await client.get("/market/pace", params=params, headers={"Accept-Language": "en"})).json()
-    assert "1/2 competitors sold out" in en["nights"][0]["suggestion"]["reasons"]
+    assert "capped at 15% change per update" in en["nights"][0]["suggestion"]["reasons"]
 
     path = f"/market/suggestions/{NIGHT.isoformat()}/raise"
     assert (await client.put(path, json={"decision": "applied"})).status_code == 403
     await _login(client, "admin@rex.vn", "admin-pass-1")
     put = await client.put(path, json={"decision": "applied"}, headers={"Accept-Language": "en"})
-    assert put.status_code == 200 and "1/2 competitors sold out" in put.json()["reasons"]
+    assert put.status_code == 200 and "capped at 15% change per update" in put.json()["reasons"]
     again = (await client.get("/market/pace", params=params)).json()["nights"][0]
     assert again["suggestion"]["decision"] == "applied"
     wrong = f"/market/suggestions/{NIGHT.isoformat()}/lower"

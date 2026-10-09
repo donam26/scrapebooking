@@ -1,0 +1,76 @@
+{
+  "page": {
+    "title": "Radar cạnh tranh",
+    "nights": "{count} đêm từ {start}",
+    "source": "Từ dữ liệu đã quét, không tốn thêm lượt quét",
+    "hotelFallback": "Khách sạn #{id}",
+    "yourHotel": "Khách sạn của bạn"
+  },
+  "promos": {
+    "title": "Khuyến mãi đối thủ",
+    "info": "Nhãn khuyến mãi trên Booking.com và độ sâu so với giá gạch, gộp theo nhãn. “Booking.com áp” là Genius, giá chỉ trên app hay mã giảm giá do Booking.com áp; “KS bật” là deal khách sạn tự bật (Late Escape, Early Bird…).",
+    "stripLabel": "Tỷ lệ đối thủ đang khuyến mãi theo đêm",
+    "stripHint": "Cột càng cao, càng nhiều đối thủ đang chạy KM đêm đó.",
+    "nightTitle": "{night}: {running}/{observed} đối thủ đang KM",
+    "nightNoData": "{night}: chưa có dữ liệu",
+    "nights": "{count} đêm",
+    "since": "từ {date}",
+    "range": "đêm {first}–{last}",
+    "rangeOne": "đêm {first}",
+    "sinceTitle": "Thấy lần đầu lúc {time}",
+    "origin": {
+      "channel": "Booking.com áp",
+      "channelTitle": "Booking.com tự áp (Genius, giá chỉ trên app, mã giảm giá): giá khách thấy thấp hơn nhưng không phải deal khách sạn tự bật",
+      "hotel": "KS bật",
+      "hotelTitle": "Khách sạn tự bật khuyến mãi trên Booking.com (Early Bird, Last-minute, Late Escape…)"
+    },
+    "none": "Không có KM trong kỳ",
+    "emptyTitle": "Chưa thấy khuyến mãi nào",
+    "emptyBody": "Trong kỳ này chưa có đối thủ nào chạy khuyến mãi trên Booking.com."
+  },
+  "restrictions": {
+    "title": "Hạn chế bán",
+    "info": "Đêm đối thủ vẫn bán trên Booking.com nhưng có điều kiện: ở tối thiểu N đêm hoặc không nhận khách đến ngày đó. Đây không phải hết phòng.",
+    "minStay": "≥{count} đêm",
+    "minStayTitle": "Chỉ bán khi ở từ {count} đêm",
+    "cta": "không nhận khách",
+    "ctaTitle": "Không nhận khách đến ngày này",
+    "count": "{count} đêm hạn chế",
+    "more": "+{count} đêm",
+    "less": "Thu gọn",
+    "emptyTitle": "Không có hạn chế",
+    "emptyBody": "Không đối thủ nào đặt hạn chế trong kỳ."
+  },
+  "cancellation": {
+    "title": "Chính sách huỷ",
+    "info": "Mỗi đêm có giá: có gói huỷ miễn phí không, và gói không hoàn huỷ rẻ hơn gói linh hoạt cùng bữa sáng bao nhiêu (trung vị các cặp cùng đêm). Mức phổ biến là 10–20%.",
+    "col": {
+      "hotel": "Khách sạn",
+      "refundable": "% đêm có gói huỷ miễn phí",
+      "nrNights": "Đêm có gói không hoàn huỷ",
+      "nrDiscount": "Gói không hoàn huỷ rẻ hơn (trung vị)"
+    },
+    "nightsPriced": "/{count} đêm có giá",
+    "pairs": "{count} cặp",
+    "emptyTitle": "Chưa có dữ liệu giá",
+    "emptyBody": "Chưa có đêm nào có giá trên Booking.com trong kỳ này."
+  },
+  "scarcity": {
+    "title": "Khan phòng khu vực",
+    "description": "{area} · số chỗ ở còn phòng trên Booking ở lần quét gần nhất",
+    "info": "Mỗi đêm: số khách sạn/chỗ ở trong khu vực còn phòng theo trang tìm kiếm của Booking, ở lần quét gần nhất; so với cùng đêm ở lần quét cách đó ít nhất 7 ngày. Số giảm nhanh = khu vực đang kín dần.",
+    "left": "còn {count} chỗ ở trống",
+    "nightTitle": "{night}: còn {count} chỗ ở trống",
+    "nightChange": "{pct} so tuần trước ({before})",
+    "nightNoData": "{night}: chưa quét",
+    "tightening": "Đêm kín dần nhanh nhất",
+    "change": "{pct} so tuần trước",
+    "noTightening": "Chưa có đêm nào giảm so với tuần trước (cần ít nhất 7 ngày dữ liệu quét).",
+    "legendDrop": "giảm ≥10% so tuần trước",
+    "legendOther": "còn lại",
+    "noAreaTitle": "Chưa có khu vực thị trường",
+    "noAreaBody": "Thêm khu vực (thành phố hoặc quận) ở Cài đặt › Thị trường để theo dõi số chỗ ở còn trống của cả khu vực.",
+    "noAreaAction": "Thiết lập khu vực",
+    "emptyBody": "Khu vực chưa có lượt quét nào cho các đêm này."
+  }
+}

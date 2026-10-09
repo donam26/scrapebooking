@@ -1,9 +1,9 @@
 {
   "meta": {
-    "title": "OTARadar · Track competitor availability and rates on Booking.com, Agoda, iVIVU, Trip.com",
-    "description": "OTARadar reads the Booking.com, Agoda, iVIVU and Trip.com pages of your hotel and your competitors three times a day, records rooms left and rates for every night of the next 30 days, then sends you an evidence-backed morning brief.",
+    "title": "OTARadar · Track competitor availability and rates on Booking.com",
+    "description": "OTARadar reads the Booking.com pages of your hotel and your competitors three times a day, records rooms left and rates for every night of the next 30 days, then sends you an evidence-backed morning brief.",
     "ogTitle": "OTARadar · Know how many rooms your competitors have left before you set your rate",
-    "ogDescription": "Competitor availability and rates on Booking.com, Agoda, iVIVU and Trip.com, three times a day, 30 nights ahead."
+    "ogDescription": "Competitor availability and rates on Booking.com, three times a day, 30 nights ahead."
   },
   "skip": "Skip to content",
   "homeLink": "OTARadar, home",
@@ -23,19 +23,19 @@
     "eyebrow": "Hotel competitor tracking",
     "title": "Know how many rooms your competitors have left before you set your rate",
     "ticks": {
-      "rates": "Competitor availability and rates on Booking.com, Agoda, iVIVU and Trip.com, 3 times a day",
+      "rates": "Competitor availability and rates on Booking.com, 3 times a day",
       "events": "Sell-outs, restocks and rate changes for every night of the next 30 days",
       "brief": "AI brief at 07:30, with evidence behind every insight"
     },
     "price": "<strong>Contact us for pricing</strong><span>, and we will set it up with you</span>",
     "sample": "See the sample board",
-    "assure": "No booking channel logins needed, no software to install",
+    "assure": "No Booking.com account of yours needed, nothing to install",
     "trustLabel": "Service at a glance",
     "trust": {
       "scans": "<b>3 scans</b> a day",
       "nights": "<b>30 nights</b> ahead, by room type",
       "events": "<b>9 event types</b> between scans",
-      "channels": "Public data from <b>Booking.com, Agoda, iVIVU, Trip.com</b>"
+      "source": "Public data from <b>Booking.com</b>"
     }
   },
   "visual": {
@@ -66,7 +66,7 @@
       "badge": "Only 2 rooms left",
       "note": "<b>{count, plural, one {# room left.} other {# rooms left.}}</b> Nearly full: a night to hold or raise your rate"
     },
-    "confidenceTitle": "Channels don't publish room counts. We tell you exactly how sure we are.",
+    "confidenceTitle": "Booking.com doesn't publish room counts. We say exactly how sure we are.",
     "confidence": {
       "exact": {
         "name": "Exact",
@@ -161,7 +161,7 @@
     "lead": "The principles we follow when reading public data for you.",
     "public": {
       "title": "Public pages only",
-      "text": "We never log in to a booking channel, never use your extranet account and never collect guests' personal data."
+      "text": "We never log in to Booking.com, never use your extranet account and never collect guests' personal data."
     },
     "pace": {
       "title": "A considerate pace",
@@ -173,11 +173,11 @@
     },
     "archive": {
       "title": "Source pages kept",
-      "text": "Source pages are stored for a while (30 days by default). When a channel changes its layout, the data is re-read instead of lost."
+      "text": "Original pages are kept for a while (30 days by default). When Booking.com changes its layout, the data is re-read instead of lost."
     },
     "limits": {
       "title": "Clear about limits",
-      "text": "We currently track Booking.com, Agoda, iVIVU and Trip.com, counting rooms separately for each channel. Every search assumes 2 adults, so single-occupancy room types don't appear."
+      "text": "We currently track Booking.com only. Every search assumes 2 adults, so single-occupancy room types don't appear."
     }
   },
   "faq": {
@@ -188,15 +188,15 @@
     },
     "accuracy": {
       "q": "How accurate are the rooms-left counts?",
-      "a": "Booking channels usually only show an exact number when few rooms are left. That is why every number in OTARadar carries a confidence level: exact, at least, hidden or sold out. Pace is only calculated from pairs of exact counts."
+      "a": "Booking.com usually shows an exact count only when few rooms are left. That's why every figure on OTARadar comes with a confidence level: exact, at least, hidden or sold out. Sales pace is only calculated from pairs of exact counts."
     },
     "hotels": {
       "q": "Which hotels can I track?",
-      "a": "Any hotel with a page on Booking.com, Agoda, iVIVU or Trip.com: paste the link to add it to your list. Your own hotel sits in the same list, so it always appears next to your competitors."
+      "a": "Any hotel with a page on Booking.com: paste the link to add it to your list. Your own hotel sits in the same list, so it always appears next to your competitors."
     },
     "channels": {
-      "q": "Which channels are tracked?",
-      "a": "Booking.com, Agoda, iVIVU and Trip.com. Each channel has its own inventory, so rooms are counted per channel and never added together. Expedia and Traveloka are not supported yet."
+      "q": "Where does the data come from?",
+      "a": "From public pages on Booking.com: rooms left, rates, promotions and sales restrictions for every night. OTARadar currently tracks Booking.com only."
     },
     "timing": {
       "q": "How soon will I see data?",
@@ -233,10 +233,10 @@
     "emailSubject": "OTARadar enquiry"
   },
   "footer": {
-    "tagline": "Competitor availability and rate tracking on Booking.com, Agoda, iVIVU and Trip.com for hotels in Vietnam.",
+    "tagline": "Competitor availability and rate tracking on Booking.com for hotels in Vietnam.",
     "linksLabel": "Footer links",
     "contact": "Contact",
-    "disclaimer": "OTARadar is an independent service, not affiliated with Booking.com, Agoda, iVIVU or Trip.com. These names are trademarks of their respective owners.",
+    "disclaimer": "OTARadar is an independent service, not affiliated with Booking.com. Booking.com is a trademark of its respective owner.",
     "credits": "Photos: <list></list> on Unsplash."
   },
   "photos": {

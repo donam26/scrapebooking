@@ -2,33 +2,46 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useState } from "react";
-import type { DemandSignalOut, OverviewOut, OwnDailyOut, PaceNightOut, WeatherOut } from "@/lib/api";
-import { channelName } from "@/lib/channels";
-import { addDays, dateRange, num, parseDate, useFmt } from "@/lib/format";
-import { bookablePrice, cellOn, competitorRows, marketSnapshot, rowName, selfRow } from "@/lib/market-metrics";
+import { cellState, type CalibrationOut, type OverviewOut, type OwnDailyOut, type PaceNightOut, type WeatherOut } from "@/lib/api";
+import { addDays, dateRange, num, useFmt } from "@/lib/format";
+import type { FreshnessState } from "@/lib/freshness";
+import { DEMAND_COLOR, DEMAND_SOFT, bookablePrice, cellOn, competitorRows, demandLevel, fillReading, marketSnapshot, rowName, selfRow } from "@/lib/market-metrics";
+import { DataUpdated } from "@/components/freshness";
+import { useFillText } from "@/components/fill";
+import { SampleTag, sampleFade } from "@/components/compset-sample";
 import { Card, ErrorBox, cx } from "@/components/ui";
 import { RingGauge } from "@/components/gauge";
-import { IconCloud, IconPin, IconTrend } from "@/components/icons";
+import { IconCloud, IconPin } from "@/components/icons";
 
-/** Bốn thẻ hàng đầu của Terminal+: chỉ báo thị trường, thời tiết, tín hiệu đặt phòng, doanh thu PMS. */
+/** Ba thẻ hàng đầu của Terminal+: chỉ báo compset, thời tiết, doanh thu PMS. */
 
 const CARD = "h-full";
 
-/** Trạng thái thị trường theo công suất ước tính: mềm < 50%, cân bằng 50–74%, căng ≥ 75%. */
-function marketMood(pct: number | null): { key: "noData" | "tight" | "balanced" | "soft"; cls: string; color: string } {
+/** Trạng thái theo chỉ báo lấp đầy ≈ (0–100), cùng thang mức chung `DEMAND_THRESHOLDS`: mềm / cân bằng / căng. */
+export function marketMood(pct: number | null): { key: "noData" | "tight" | "balanced" | "soft"; cls: string; color: string } {
   if (pct === null) return { key: "noData", cls: "bg-sunken text-muted", color: "var(--sb-faint)" };
-  if (pct >= 75) return { key: "tight", cls: "bg-hot-soft text-hot", color: "var(--sb-hot)" };
-  if (pct >= 50) return { key: "balanced", cls: "bg-brand-soft text-brand", color: "var(--sb-brand)" };
-  return { key: "soft", cls: "bg-yours-soft text-yours-deep", color: "var(--sb-yours)" };
+  const level = demandLevel(pct);
+  return { key: level === "high" ? "tight" : level === "moderate" ? "balanced" : "soft", cls: DEMAND_SOFT[level], color: DEMAND_COLOR[level] };
 }
 
-export function MarketIndicator({ o, tonight }: { o: OverviewOut; tonight: PaceNightOut | undefined }) {
+export function MarketIndicator({
+  o,
+  tonight,
+  calibration,
+  fresh,
+}: {
+  o: OverviewOut;
+  tonight: PaceNightOut | undefined;
+  calibration?: CalibrationOut;
+  fresh: FreshnessState;
+}) {
   const t = useTranslations("terminal");
-  const { fmtCompact, fmtInt, fmtMoney, fmtWhen } = useFmt();
+  const { fmtInt, fmtMoney, fmtPriceShort } = useFmt();
+  const { fillText, hiddenText } = useFillText();
   const s = marketSnapshot(o);
   const self = selfRow(o);
-  const occ = num(tonight?.comp_occ);
+  const reading = fillReading(tonight, calibration);
+  const occ = reading.value;
   const pct = occ === null ? null : Math.round(occ * 100);
   const mood = marketMood(pct);
   // "Ho Chi Minh Municipality" / "Ho Chi Minh City" → "Ho Chi Minh"
@@ -39,11 +52,9 @@ export function MarketIndicator({ o, tonight }: { o: OverviewOut; tonight: PaceN
     .filter((p): p is { name: string; self: boolean; v: number } => p.v !== null);
   const lo = Math.min(...prices.map((p) => p.v));
   const hi = Math.max(...prices.map((p) => p.v));
-  const withRooms = o.hotels.filter((h) => {
-    const c = cellOn(h, o.start);
-    return c?.availability_status && c.availability_status !== "sold_out" && c.availability_status !== "unknown";
-  }).length;
-  const run = o.last_run;
+  const currency = s.currency ?? "VND";
+  // Còn bán 1 đêm (không gồm hết phòng, bị hạn chế, không giá, lỗi).
+  const withRooms = o.hotels.filter((h) => cellState(cellOn(h, o.start)) === "available").length;
   return (
     <Card
       className={CARD}
@@ -51,9 +62,10 @@ export function MarketIndicator({ o, tonight }: { o: OverviewOut; tonight: PaceN
       icon={<IconPin size={15} />}
       info={t("indicator.info")}
     >
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center" title={reading.hidden ? hiddenText(reading) : (fillText(reading) ?? undefined)}>
         <RingGauge value={pct} color={mood.color} sub={t("occGauge")} />
-        <span className={cx("mt-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.04em]", mood.cls)}>{t(`mood.${mood.key}`)}</span>
+        {reading.low !== null && reading.high !== null && <span className="mt-1 text-[11px] text-muted tabular">{fillText(reading)}</span>}
+        <span className={cx("mt-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.04em]", mood.cls)}>{reading.hidden ? t("indicator.fillHidden") : t(`mood.${mood.key}`)}</span>
       </div>
       <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
         <div>
@@ -67,8 +79,13 @@ export function MarketIndicator({ o, tonight }: { o: OverviewOut; tonight: PaceN
           </dd>
         </div>
         <div>
-          <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-faint">{t("indicator.avgRate")}</dt>
-          <dd className="text-md font-bold text-ink tabular">{s.avgRate === null ? "—" : fmtCompact(s.avgRate)}</dd>
+          <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-faint">{t("indicator.medianRate")}</dt>
+          <dd className={cx("text-md font-bold text-ink tabular", sampleFade(s.compset))}>{s.medianRate === null ? "—" : fmtPriceShort(s.medianRate, currency)}</dd>
+          {s.compset && (
+            <dd className="text-[10px] leading-tight">
+              <SampleTag c={s.compset} short />
+            </dd>
+          )}
         </div>
       </dl>
       {prices.length > 1 && (
@@ -78,22 +95,26 @@ export function MarketIndicator({ o, tonight }: { o: OverviewOut; tonight: PaceN
             {prices.map((p) => (
               <span
                 key={p.name}
-                title={`${p.name}: ${fmtMoney(p.v, "VND")}`}
+                title={`${p.name}: ${fmtMoney(p.v, currency)}`}
                 className={cx("absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow", p.self ? "bg-brand" : "bg-ink")}
                 style={{ left: `${hi === lo ? 50 : ((p.v - lo) / (hi - lo)) * 100}%` }}
               />
             ))}
           </div>
           <div className="mt-1.5 flex justify-between text-[11px] text-muted tabular">
-            <span>{fmtCompact(lo)}</span>
+            <span>{fmtPriceShort(lo, currency)}</span>
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-brand" /> {t("indicator.yours")}
             </span>
-            <span>{fmtCompact(hi)}</span>
+            <span>{fmtPriceShort(hi, currency)}</span>
           </div>
         </div>
       )}
-      {run && <p className="mt-3 text-center text-[11px] text-faint">{t("indicator.scannedAt", { when: fmtWhen(run.finished_at ?? run.started_at) })}</p>}
+      {fresh.loaded && (
+        <p className="mt-3 text-center text-[11px] text-faint">
+          <DataUpdated f={fresh} />
+        </p>
+      )}
     </Card>
   );
 }
@@ -157,75 +178,13 @@ export function WeatherCard({ data, error }: { data: WeatherOut | undefined; err
 }
 
 /**
- * Tín hiệu đặt phòng từ kênh (thay thẻ chuyến bay của mẫu): "đặt N lần hôm nay" kênh công bố cho
- * các khách sạn đang theo dõi. Chỉ lấy tín hiệu thấy trong 24 giờ qua và chỉ một kênh (kênh có
- * nhiều khách sạn báo nhất) để không cộng lẫn thông điệp của các kênh. Luôn ghi nguồn.
+ * Doanh thu 14 ngày tới từ PMS (doanh thu đã đặt; thiếu doanh thu thì số phòng bán × ADR). Chưa có số
+ * PMS thì không ước tính thay (giá niêm yết × chỉ báo lấp đầy không phải doanh thu): chỉ hiện lời mời
+ * nhập dữ liệu PMS.
  */
-export function BookingSignalsCard({
-  signals,
-  loading,
-  error,
-}: {
-  signals: Array<{ name: string; self: boolean; items: DemandSignalOut[] }>;
-  loading: boolean;
-  error?: unknown;
-}) {
-  const t = useTranslations("terminal.signals");
-  const { fmtInt } = useFmt();
-  const [since] = useState(() => Date.now() - 24 * 3600 * 1000);
-  const fresh = (s: DemandSignalOut) => new Date(s.observed_at).getTime() >= since;
-  const count = new Map<string, number>();
-  for (const h of signals) for (const s of h.items) if (s.kind === "bookings_today" && fresh(s)) count.set(s.channel, (count.get(s.channel) ?? 0) + 1);
-  const channel = [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
-  const pick = (h: (typeof signals)[number], kind: string) => h.items.find((s) => s.channel === channel && s.kind === kind && fresh(s));
-  const today = signals
-    .map((h) => ({ name: h.name, self: h.self, s: pick(h, "bookings_today"), d24: pick(h, "bookings_24h") }))
-    .filter((h): h is typeof h & { s: DemandSignalOut } => h.s !== undefined)
-    .map((h) => ({ name: h.name, self: h.self, n: Math.round(num(h.s.value) ?? 0), d24: h.d24 ? Math.round(num(h.d24.value) ?? 0) : null }))
-    .sort((a, b) => b.n - a.n);
-  const total = today.reduce((a, b) => a + b.n, 0);
-  const with24 = today.filter((h) => h.d24 !== null);
-  const day24 = with24.reduce((a, b) => a + (b.d24 ?? 0), 0);
-  return (
-    <Card className={CARD} title={t("title")} info={t("info")}>
-      {error ? (
-        <ErrorBox error={error} />
-      ) : loading ? (
-        <div className="h-40 sb-skeleton rounded-lg" />
-      ) : today.length === 0 ? (
-        <div className="flex min-h-[180px] flex-col items-center justify-center text-center text-sm text-muted">
-          <IconTrend size={28} className="mb-2 text-faint" />
-          {t("empty")}
-        </div>
-      ) : (
-        <div className="text-center">
-          <IconTrend size={26} className="mx-auto text-brand" />
-          <div className="mt-1 text-[40px] font-bold leading-tight text-ink tabular">{fmtInt(total)}</div>
-          <div className="text-sm text-muted">
-            {with24.length === today.length && day24 ? t("summary24h", { hotels: today.length, day24: fmtInt(day24) }) : t("summary", { hotels: today.length })}
-          </div>
-          <ul className="mt-3 space-y-1 text-sm">
-            {today.slice(0, 4).map((h) => (
-              <li key={h.name} className="flex items-center justify-between gap-2">
-                <span className={cx("truncate", h.self ? "font-semibold text-brand" : "text-body")}>{h.name}</span>
-                <span className="font-semibold text-ink tabular">{fmtInt(h.n)}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-[11px] text-faint">{t("source", { channel: channelName(channel) })}</p>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-/**
- * Doanh thu 14 ngày: có PMS thì dùng doanh thu đã đặt (on-the-books); chưa có thì ước tính
- * = giá thấp nhất của bạn × công suất ước tính × tồn kho, chỉ trên đêm ước tính đủ tin cậy (ghi "≈").
- */
-export function RevenueCard({ rows, nights, today, loading }: { rows: OwnDailyOut[]; nights: PaceNightOut[]; today: string; loading: boolean }) {
+export function RevenueCard({ rows, today, loading }: { rows: OwnDailyOut[]; today: string; loading: boolean }) {
   const t = useTranslations("terminal.revenue");
-  const { fmtCompact, fmtMoney } = useFmt();
+  const { fmtCompact, fmtMoney, fmtNight } = useFmt();
   const days = dateRange(today, addDays(today, 13));
   // Mỗi đêm lấy bản nhập PMS mới nhất.
   const latest = new Map<string, OwnDailyOut>();
@@ -234,7 +193,7 @@ export function RevenueCard({ rows, nights, today, loading }: { rows: OwnDailyOu
     const prev = latest.get(d);
     if (!prev || r.imported_at > prev.imported_at) latest.set(d, r);
   }
-  const pmsValues = days.map((d) => {
+  const values = days.map((d) => {
     const r = latest.get(d);
     if (!r) return null;
     const rev = num(r.revenue as string | null);
@@ -242,58 +201,39 @@ export function RevenueCard({ rows, nights, today, loading }: { rows: OwnDailyOu
     const adr = num(r.adr as string | null);
     return adr !== null && r.rooms_sold !== null ? adr * r.rooms_sold : null;
   });
-  const usePms = pmsValues.some((v) => v !== null);
-  const byNight = new Map(nights.map((n) => [n.stay_date, n]));
-  const estValues = days.map((d) => {
-    const n = byNight.get(d);
-    const price = num(n?.own_price);
-    const occ = n?.own_occ;
-    if (!n || price === null || !occ?.reliable) return null;
-    return price * (num(occ.occ_mid) ?? 0) * occ.inventory;
-  });
-  const values = usePms ? pmsValues : estValues;
   const known = values.filter((v): v is number => v !== null);
   const total = known.reduce((a, b) => a + b, 0);
   const max = Math.max(1, ...known);
-  return (
-    <Card
-      className={CARD}
-      title={t("title")}
-      info={t("info")}
-    >
-      {loading ? (
-        <div className="h-40 sb-skeleton rounded-lg" />
-      ) : known.length === 0 ? (
+  if (!loading && known.length === 0) {
+    return (
+      <Card className={CARD} title={t("noPmsTitle")} info={t("noPmsInfo")}>
         <div className="flex min-h-[180px] flex-col items-center justify-center text-center text-sm text-muted">
-          {t("empty")}
+          {t("noPms")}
           <Link href="/settings?tab=pms" className="mt-1 font-semibold text-brand hover:underline">
             {t("importPms")}
           </Link>
         </div>
+      </Card>
+    );
+  }
+  return (
+    <Card className={CARD} title={t("title")} info={t("info")}>
+      {loading ? (
+        <div className="h-40 sb-skeleton rounded-lg" />
       ) : (
         <div className="text-center">
-          <div className="text-[32px] font-bold leading-tight text-brand tabular">
-            {usePms ? "" : "≈"}
-            {fmtCompact(total)}
-          </div>
-          <div className="text-sm text-muted">
-            {t("caption", { source: usePms ? "pms" : "est", known: known.length })}
-          </div>
+          <div className="text-[32px] font-bold leading-tight text-brand tabular">{fmtCompact(total)}</div>
+          <div className="text-sm text-muted">{t("caption", { known: known.length })}</div>
           <div className="mt-4 flex h-16 items-end gap-1">
             {values.map((v, i) => (
               <span
                 key={days[i]}
-                title={`${parseDate(days[i]).getDate()}/${parseDate(days[i]).getMonth() + 1}: ${v === null ? t("barNoData") : `${usePms ? "" : "≈"}${fmtMoney(Math.round(v), "VND")}`}`}
+                title={`${fmtNight(days[i])}: ${v === null ? t("barNoData") : fmtMoney(Math.round(v), "VND")}`}
                 className={cx("flex-1 rounded-t-[3px]", v === null ? "bg-sunken" : "bg-brand")}
                 style={{ height: `${v === null ? 12 : Math.max(10, (v / max) * 100)}%` }}
               />
             ))}
           </div>
-          {!usePms && (
-            <Link href="/settings?tab=pms" className="mt-2 inline-block text-[11px] font-semibold text-brand hover:underline">
-              {t("importForActual")}
-            </Link>
-          )}
         </div>
       )}
     </Card>

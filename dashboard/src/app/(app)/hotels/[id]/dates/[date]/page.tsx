@@ -4,17 +4,18 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { api, type ChannelDayOut, type DayDetailOut, type RoomSnapshotOut, type ScanRunOut } from "@/lib/api";
+import { api, cheapestRate, type DayDetailOut, type RateDetailOut, type RoomSnapshotOut, type ScanRunOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { addDays, num, useFmt } from "@/lib/format";
 import { useLabel } from "@/lib/labels";
-import { channelName, hotelTitle, sortChannels, withChannel } from "@/lib/channels";
-import { Button, ButtonLink, Card, EmptyState, ErrorBox, Note, PageHeader, ROW_CLASS, Segmented, SkeletonBlock, Table, Tabs, Td, Th, cx } from "@/components/ui";
-import { DemandSignals, useChannelParam } from "@/components/channels";
+import { useRateText } from "@/lib/rate-text";
+import { hotelTitle } from "@/lib/hotels";
+import { Button, ButtonLink, Card, EmptyState, ErrorBox, Note, PageHeader, ROW_CLASS, Segmented, SkeletonBlock, Table, Td, Th, cx } from "@/components/ui";
+import { SampleTag, sampleFade, useSampleText } from "@/components/compset-sample";
 import { EventTable } from "@/components/event-table";
 import { LineChart, type Series } from "@/components/line-chart";
-import { MarkChip, MarkSwatch, MarksLegend, useMarks, type Mark, type Marks } from "@/components/marks";
+import { MarkChip, MarkSwatch, MarksLegend, PromoDot, useMarks, type Mark, type Marks } from "@/components/marks";
 import { IconBed, IconCheck, IconChevronLeft, IconChevronRight, IconInfo, IconRefresh } from "@/components/icons";
 import { useNightReason } from "@/lib/night-reason";
 
@@ -52,18 +53,25 @@ function RateList({ rates, currency, minPrice }: { rates: Record<string, unknown
   );
 }
 
-function statusMark(cellMark: Marks["cellMark"], status: string, exact: number | null): Mark {
+function statusMark(cellMark: Marks["cellMark"], status: string, exact: number | null, minStay: number | null = null): Mark {
+  // Còn bán nhưng chỉ từ N đêm = bị hạn chế (không phải hết phòng), như `DateCell.state` của backend.
+  const state = status === "available" && (minStay ?? 1) > 1 ? "restricted" : null;
   return cellMark({
     availability_status: status,
     exact_rooms_left: exact,
+    min_stay: minStay,
+    state,
+    stale: false,
   } as Parameters<typeof cellMark>[0]);
 }
 
-function shortMark(t: ShortMarkTranslator, m: Mark): string {
+function shortMark(t: ShortMarkTranslator, m: Mark, minStay?: number | null): string {
   if (m.kind === "exact") return t("exact", { count: Number(m.text) });
   if (m.kind === "hidden") return t("hidden");
   if (m.kind === "sold_out") return t("soldOut");
-  if (m.kind === "unknown") return t("unknown");
+  if (m.kind === "restricted") return (minStay ?? 1) > 1 ? t("minStay", { count: minStay ?? 2 }) : t("restricted");
+  if (m.kind === "no_price") return t("noPrice");
+  if (m.kind === "unknown" || m.kind === "error") return t("unknown");
   return m.label; // "Chưa có dữ liệu" hoặc "Ngoài phạm vi quét"
 }
 
@@ -147,23 +155,33 @@ function NoDataReason({ data }: { data: DayDetailOut }) {
 }
 
 /** Cùng đêm trên thị trường: mọi khách sạn trong watchlist, khách sạn đang xem được đánh dấu. */
-function SameNight({ date, hotelId, channel }: { date: string; hotelId: number; channel: string }) {
+function SameNight({ date, hotelId }: { date: string; hotelId: number }) {
   const t = useTranslations("hotels.day.sameNight");
   const tMark = useTranslations("hotels.day.shortMark");
   const { fmtMoney } = useFmt();
   const { cellMark } = useMarks();
-  const market = useApi(`market:${date}:${channel}`, () => api.overview({ start: date, end: date, channel }));
+  const sample = useSampleText();
+  const market = useApi(`market:${date}`, () => api.overview({ start: date, end: date }));
   const d = market.data;
   const c = d?.compset.find((x) => x.stay_date === date);
   return (
     <Card
-      title={t("title", { channel: channelName(channel) })}
+      title={t("title")}
       description={
-        !d
-          ? undefined
-          : c && c.competitors_observed > 0
-            ? t("summary", { soldOut: c.competitors_sold_out, observed: c.competitors_observed, median: fmtMoney(c.median_price, c.currency) })
-            : t("noCompetitors")
+        !d ? undefined : c && c.competitors_observed > 0 ? (
+          <span className="flex flex-col gap-0.5">
+            <span>
+              {t("soldOut", { soldOut: c.competitors_sold_out, observed: c.competitors_observed })}
+              {c.competitors_restricted > 0 && ` · ${t("restricted", { count: c.competitors_restricted })}`}
+            </span>
+            <span className={sampleFade(c)} title={sample.title(c)}>
+              {c.sample === "insufficient" ? sample.status(c) : t("median", { median: fmtMoney(c.median_price, c.currency) })}{" "}
+              {c.sample !== "insufficient" && <SampleTag c={c} short />}
+            </span>
+          </span>
+        ) : (
+          t("noCompetitors")
+        )
       }
       padded={false}
     >
@@ -183,17 +201,23 @@ function SameNight({ date, hotelId, channel }: { date: string; hotelId: number; 
             return (
               <li key={h.hotel.id}>
                 <Link
-                  href={withChannel(`/hotels/${h.hotel.id}/dates/${date}`, channel)}
+                  href={`/hotels/${h.hotel.id}/dates/${date}`}
                   aria-current={current ? "page" : undefined}
                   className={cx("flex items-center gap-3 px-5 py-2.5 transition-colors", current ? "bg-brand-softer" : "hover:bg-subtle")}
                 >
-                  <MarkSwatch mark={mark} size={26} />
+                  <span className="relative">
+                    <MarkSwatch mark={mark} size={26} />
+                    <PromoDot promo={mark.promo} />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className={cx("block truncate text-base", h.role === "self" ? "font-bold text-yours-deep" : current ? "font-bold text-ink" : "font-medium text-body")}>
                       {name}
                       {h.role === "self" && <span className="ml-1.5 text-xs font-semibold text-yours-deep">{t("yours")}</span>}
                     </span>
-                    <span className="block text-xs text-muted">{shortMark(tMark, mark)}</span>
+                    <span className="block text-xs text-muted" title={mark.label}>
+                      {shortMark(tMark, mark, cell?.min_stay)}
+                      {mark.stale && ` · ${tMark("stale")}`}
+                    </span>
                   </span>
                   <span className="shrink-0 text-base font-semibold text-ink tabular">{fmtMoney(cell?.min_price, cell?.currency)}</span>
                 </Link>
@@ -207,67 +231,65 @@ function SameNight({ date, hotelId, channel }: { date: string; hotelId: number; 
 }
 
 /**
- * "So kênh": mỗi kênh một cột cho đêm này (tình trạng, số phòng chính xác, giá thấp nhất).
- * Mỗi kênh có quota phòng riêng nên không bao giờ cộng số phòng giữa các kênh.
+ * Giá Booking.com của khách sạn đêm này ở lần quét gần nhất: tình trạng, giá thấp nhất (kèm giá gạch
+ * và nhãn KM của gói rẻ nhất), điều kiện gói, giá có bữa sáng / chỉ phòng / hoàn huỷ, số đêm tối thiểu.
  */
-function ChannelCompare({ rows, channels, current }: { rows: ChannelDayOut[]; channels: string[]; current: string }) {
-  const t = useTranslations("hotels.day.compare");
+function NightRate({ rate }: { rate: RateDetailOut }) {
+  const t = useTranslations("hotels.day.nightRate");
   const tMark = useTranslations("hotels.day.shortMark");
   const { fmtMoney, fmtWhen } = useFmt();
   const { cellMark } = useMarks();
-  const byChannel = new Map(rows.map((r) => [r.channel, r]));
-  // Chỉ so giá giữa các kênh cùng cơ sở (đã gồm thuế phí, theo phòng/đêm) và đang còn phòng.
-  const comparable = rows.filter((r) => r.tax_inclusive && r.availability_status === "available" && num(r.min_price) !== null);
-  const cheapest = comparable.length >= 2 ? Math.min(...comparable.map((r) => num(r.min_price)!)) : null;
+  const { rateConditions } = useRateText();
+  const mark = rate.availability_status ? statusMark(cellMark, rate.availability_status, rate.exact_rooms_left, rate.min_stay ?? null) : cellMark(undefined);
+  const cr = cheapestRate(rate);
+  const original = num(cr?.price_original);
+  const price = num(rate.min_price);
+  const promoed = original !== null && price !== null && original > price;
+  const conditions = rate.min_price ? rateConditions(cr?.key) : null;
+  const refundDiffers = rate.min_refundable_price && rate.min_refundable_price !== rate.min_price;
+  const extras = [
+    refundDiffers ? t("refundableFrom", { price: fmtMoney(rate.min_refundable_price, rate.currency) }) : null,
+    rate.min_breakfast_price ? t("breakfastFrom", { price: fmtMoney(rate.min_breakfast_price, rate.currency) }) : null,
+    rate.min_room_only_price ? t("roomOnlyFrom", { price: fmtMoney(rate.min_room_only_price, rate.currency) }) : null,
+  ].filter((x): x is string => x !== null);
   return (
-    <section aria-label={t("aria")} className="rounded-xl border border-line bg-surface shadow-card">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pt-3.5">
+    <section aria-label={t("title")} className="rounded-xl border border-line bg-surface px-5 py-3.5 shadow-card">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-md font-bold text-ink">{t("title")}</h2>
-        <span className="text-xs text-muted">{t("hint")}</span>
+        <span className="text-xs text-muted">{rate.last_observed_at ? t("scannedAt", { when: fmtWhen(rate.last_observed_at) }) : t("notScanned")}</span>
       </header>
-      <ul className="sb-scroll mt-2.5 flex flex-col border-t border-line sm:flex-row sm:overflow-x-auto">
-        {channels.map((c) => {
-          const r = byChannel.get(c);
-          const mark = r?.availability_status ? statusMark(cellMark, r.availability_status, r.exact_rooms_left) : cellMark(undefined);
-          const on = c === current;
-          const refundDiffers = r?.min_refundable_price && r.min_refundable_price !== r.min_price;
-          const isCheapest = cheapest !== null && r !== undefined && comparable.includes(r) && num(r.min_price) === cheapest;
-          return (
-            <li
-              key={c}
-              aria-current={on ? "true" : undefined}
-              className={cx(
-                "flex items-start justify-between gap-3 border-t border-line px-4 py-3 first:border-t-0 sm:block sm:min-w-[170px] sm:flex-1 sm:border-l sm:border-t-0 sm:px-5 sm:first:border-l-0",
-                on && "bg-brand-softer",
-              )}
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline gap-x-1.5 text-sm font-semibold text-ink">
-                  {channelName(c)}
-                  {on && <span className="whitespace-nowrap text-xs font-semibold text-brand-hover">{t("viewing")}</span>}
-                </div>
-                <div className="mt-1.5 flex items-center gap-2 sm:mt-2" title={mark.label}>
-                  <MarkSwatch mark={mark} size={24} />
-                  <span className="text-sm text-body">{shortMark(tMark, mark)}</span>
-                </div>
-              </div>
-              <div className="shrink-0 text-right sm:mt-1.5 sm:text-left">
-                <div className="flex items-center justify-end gap-1.5 sm:justify-start">
-                  <span className="text-base font-semibold text-ink tabular">{r?.min_price ? fmtMoney(r.min_price, r.currency) : <span className="font-normal text-faint">{t("noPrice")}</span>}</span>
-                  {isCheapest && (
-                    <span className="rounded-full bg-sunken px-1.5 text-xs font-semibold text-ink" title={t("cheapestHint")}>
-                      {t("cheapest")}
-                    </span>
-                  )}
-                </div>
-                {r?.min_price && !r.tax_inclusive && <div className="text-xs text-muted">{t("taxExclusive")}</div>}
-                {refundDiffers && <div className="text-xs text-muted tabular">{t("refundableFrom", { price: fmtMoney(r.min_refundable_price, r.currency) })}</div>}
-                <div className="mt-1 text-xs text-muted">{r?.last_observed_at ? t("scannedAt", { when: fmtWhen(r.last_observed_at) }) : t("notScanned")}</div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="mt-2.5 flex flex-wrap items-start gap-x-8 gap-y-3">
+        <div className="flex items-center gap-2" title={mark.label}>
+          <MarkSwatch mark={mark} size={28} />
+          <span className="text-sm text-body">{shortMark(tMark, mark, rate.min_stay)}</span>
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="text-lg font-bold text-ink tabular">{rate.min_price ? fmtMoney(rate.min_price, rate.currency) : <span className="text-base font-normal text-faint">{t("noPrice")}</span>}</span>
+            {promoed && (
+              <span className="text-sm text-muted line-through tabular" title={t("priceBeforePromo")}>
+                {fmtMoney(original, rate.currency)}
+              </span>
+            )}
+            {cr?.promo_label && <span className="rounded bg-[#fce7f3] px-1.5 text-xs font-semibold text-[#9d174d]">{cr.promo_label}</span>}
+          </div>
+          {conditions && (
+            <div className="mt-0.5 text-xs text-muted" title={t("conditionsTitle")}>
+              {conditions}
+            </div>
+          )}
+          {cr?.source_supplier && <div className="text-xs text-muted">{t("supplier", { supplier: cr.source_supplier })}</div>}
+          {rate.min_price && cr?.taxes_included === false && <div className="text-xs text-muted">{t("taxExclusive")}</div>}
+        </div>
+        {(extras.length > 0 || (rate.min_stay ?? 1) > 1) && (
+          <ul className="space-y-0.5 text-sm text-body tabular">
+            {extras.map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+            {(rate.min_stay ?? 1) > 1 && <li className="font-semibold text-warning-deep">{t("minStay", { count: rate.min_stay ?? 2 })}</li>}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }
@@ -282,20 +304,7 @@ export default function DayDetailPage() {
   const hotelId = Number(id);
   const valid = Number.isFinite(hotelId) && /^\d{4}-\d{2}-\d{2}$/.test(date);
   const [historyDays, setHistoryDays] = useState<number>(14);
-  const [channelParam, setChannel] = useChannelParam();
-  const { isOperator } = useSession();
-  const { data, error, loading } = useApi(valid ? `day:${hotelId}:${date}:${historyDays}:${channelParam ?? ""}` : null, () =>
-    api.day(hotelId, date, historyDays, channelParam),
-  );
-  const channel = data?.channel ?? channelParam ?? "";
-  // Kênh của khách sạn: có số liệu đêm này, hoặc đang/đã quét (kể cả tạm dừng, đường dẫn lỗi).
-  const hotelChannels = data
-    ? sortChannels([
-        ...data.channels.map((c) => c.channel),
-        ...data.hotel.listings.filter((l) => l.status === "active" || l.status === "paused" || l.status === "broken").map((l) => l.channel),
-        data.channel,
-      ])
-    : [];
+  const { data, error, loading } = useApi(valid ? `day:${hotelId}:${date}:${historyDays}` : null, () => api.day(hotelId, date, historyDays));
 
   const roomName = (rtId: number) => data?.room_types.find((r) => r.id === rtId)?.name ?? t("roomTypeFallback", { id: rtId });
 
@@ -351,14 +360,13 @@ export default function DayDetailPage() {
       <PageHeader
         crumbs={[
           { href: "/competitors", label: t("crumb") },
-          { href: withChannel(`/hotels/${hotelId}`, channelParam), label: title },
+          { href: `/hotels/${hotelId}`, label: title },
           { label: valid ? t("nightCrumb", { night: fmtNight(date) }) : t("invalidDate") },
         ]}
         title={valid ? t("title", { weekday: fmtWeekday(date), date: fmtDate(date) }) : t("invalidDate")}
         subtitle={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="font-semibold text-body">{title}</span>
-            {channel && <span>{t("onChannel", { channel: channelName(channel) })}</span>}
             {latestAt && (
               <span className="inline-flex items-center gap-2">
                 {t("lastScan", { when: fmtWhen(latestAt) })}
@@ -375,10 +383,10 @@ export default function DayDetailPage() {
         actions={
           valid && (
             <div className="flex items-center gap-1">
-              <ButtonLink href={withChannel(`/hotels/${hotelId}/dates/${prev}`, channelParam)} variant="ghost" size="sm" icon={<IconChevronLeft size={15} />}>
+              <ButtonLink href={`/hotels/${hotelId}/dates/${prev}`} variant="ghost" size="sm" icon={<IconChevronLeft size={15} />}>
                 {fmtNight(prev!)}
               </ButtonLink>
-              <ButtonLink href={withChannel(`/hotels/${hotelId}/dates/${next}`, channelParam)} variant="ghost" size="sm">
+              <ButtonLink href={`/hotels/${hotelId}/dates/${next}`} variant="ghost" size="sm">
                 {fmtNight(next!)} <IconChevronRight size={15} />
               </ButtonLink>
             </div>
@@ -388,7 +396,7 @@ export default function DayDetailPage() {
       <ErrorBox error={error} className="mb-4" />
       {data && market && (
         <Note tone="info" icon={<IconInfo size={16} />} className="mb-4">
-          <span className="font-semibold text-ink">{hotelChannels.length > 1 ? t("marketOn", { channel: channelName(channel) }) : t("market")}</span> {market}
+          <span className="font-semibold text-ink">{t("market")}</span> {market}
         </Note>
       )}
       {!data && !error && (
@@ -399,216 +407,207 @@ export default function DayDetailPage() {
       )}
       {data && (
         <div className={cx("space-y-5 transition-opacity duration-200", loading && "opacity-60")}>
-          {hotelChannels.length > 1 && <ChannelCompare rows={data.channels} channels={hotelChannels} current={data.channel} />}
-          <DemandSignals signals={data.demand_signals} isOperator={isOperator} />
-          {hotelChannels.length > 1 && (
-            <Tabs
-              className="!mb-0"
-              value={data.channel}
-              onChange={setChannel}
-              items={hotelChannels.map((c) => ({ key: c, label: t("detailOn", { channel: channelName(c) }) }))}
-            />
-          )}
-          <div role={hotelChannels.length > 1 ? "tabpanel" : undefined} id={hotelChannels.length > 1 ? `panel-${data.channel}` : undefined} aria-labelledby={hotelChannels.length > 1 ? `tab-${data.channel}` : undefined} className="space-y-5">
-            <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <Card
-                title={t("latest.title")}
-                description={data.latest.length ? t("latest.description", { count: data.latest.length, channel: channelName(data.channel) }) : undefined}
-                padded={false}
-              >
-                {data.latest.length === 0 ? (
-                  <div className="p-5">
-                    {latestStatus === null ? (
-                      <NoDataReason key={date} data={data} />
-                    ) : (
-                      <EmptyState icon={<IconBed />} compact>
-                        {latestStatus === "sold_out"
-                          ? t("latest.soldOut", { when: fmtWhen(latestAt) })
-                          : latestStatus === "unknown"
-                            ? t("latest.unknown", { when: fmtWhen(latestAt) })
-                            : t("latest.empty", { when: fmtWhen(latestAt) })}
-                      </EmptyState>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <Table>
-                      <thead>
-                        <tr>
-                          <Th className="pl-5">{t("cols.roomType")}</Th>
-                          <Th>{t("cols.roomsLeft")}</Th>
-                          <Th right>{t("cols.lowestPrice")}</Th>
-                          <Th className="hidden md:table-cell">{t("cols.rates")}</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.latest.map((s) => {
-                          const rt = data.room_types.find((r) => r.id === s.room_type_id);
-                          const mark = roomMark(s);
-                          const refundDiffers = s.min_refundable_price !== null && s.min_refundable_price !== s.min_price;
-                          return (
-                            <tr key={s.id} className={cx(ROW_CLASS, s.stock_confidence === "sold_out" && "opacity-60")}>
-                              <Td className="min-w-[150px] pl-5 sm:min-w-[180px]">
-                                <div className="font-semibold text-ink">{roomName(s.room_type_id)}</div>
-                                {rt?.max_occupancy ? <div className="text-xs text-muted">{t("latest.maxGuests", { count: rt.max_occupancy })}</div> : null}
-                                <div className="mt-1.5 md:hidden">
-                                  <RateList rates={s.rates} currency={s.currency} minPrice={s.min_price} />
-                                </div>
-                              </Td>
-                              <Td>
-                                <MarkChip mark={mark} />
-                              </Td>
-                              <Td right className="whitespace-nowrap">
-                                <div className="font-semibold text-ink">{fmtMoney(s.min_price, s.currency)}</div>
-                                {refundDiffers && <div className="text-xs text-muted">{t("latest.refundableFrom", { price: fmtMoney(s.min_refundable_price, s.currency) })}</div>}
-                              </Td>
-                              <Td className="hidden md:table-cell">
-                                <RateList rates={s.rates} currency={s.currency} minPrice={s.min_price} />
-                              </Td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
-                    <div className="border-t border-line px-5 py-3">
-                      <MarksLegend variant="room">
-                        {rateScoped && <li className="text-faint">{t("latest.rateScoped")}</li>}
-                      </MarksLegend>
-                    </div>
-                  </>
-                )}
-              </Card>
-              <SameNight date={date} hotelId={hotelId} channel={data.channel} />
-            </div>
-
-            {/* Đêm chưa từng được quét: không có lịch sử nào để vẽ, phần giải thích ở trên là đủ. */}
-            {latestStatus !== null && (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                  <h2 className="text-lg font-bold text-ink">{t("history.title")}</h2>
-                  <div className="flex items-center gap-2 text-sm text-muted">
-                    {t("history.lookBack")}
-                    <Segmented label={t("history.range")} size="sm" value={historyDays} onChange={setHistoryDays} items={HISTORY_OPTIONS.map((d) => ({ value: d, label: t("history.days", { count: d }) }))} />
-                  </div>
-                </div>
-
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <Card title={t("history.roomsChart")}>
-                    {onlyFloor ? (
-                      <div className="flex h-[220px] flex-col items-center justify-center gap-2 rounded-lg bg-subtle px-6 text-center">
-                        <MarkSwatch mark={{ kind: "capped", cls: "sb-mark-capped", text: `≥${floorMax}`, label: "" }} size={34} className="!w-auto px-1.5" />
-                        <p className="max-w-sm text-base text-body">
-                          {t.rich("history.onlyFloor", { count: floorMax, channel: channelName(data.channel), b: (c) => <span className="font-semibold">{c}</span> })}
-                        </p>
-                      </div>
-                    ) : (
-                      <LineChart series={roomsSeries} zeroBased formatY={(v) => fmtInt(Math.round(v))} formatX={(v) => fmtDayTime(new Date(v).toISOString())} emptyText={t("history.roomsEmpty")} />
-                    )}
-                  </Card>
-                  <Card title={currency ? t("history.priceChartCurrency", { currency }) : t("history.priceChart")}>
-                    <LineChart series={priceSeries} formatY={(v) => fmtCompact(v)} formatX={(v) => fmtDayTime(new Date(v).toISOString())} emptyText={t("history.priceEmpty")} />
-                  </Card>
-                </div>
-
-                <Card title={t("observations.title")} description={t("observations.description", { count: data.observations.length, days: historyDays })} padded={false}>
-                  {data.observations.length === 0 ? (
-                    <div className="p-5">
-                      <EmptyState compact>{t("observations.empty", { days: historyDays })}</EmptyState>
-                    </div>
+          {data.rate && <NightRate rate={data.rate} />}
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <Card
+              title={t("latest.title")}
+              description={data.latest.length ? t("latest.description", { count: data.latest.length }) : undefined}
+              padded={false}
+            >
+              {data.latest.length === 0 ? (
+                <div className="p-5">
+                  {latestStatus === null ? (
+                    <NoDataReason key={date} data={data} />
                   ) : (
-                    <Table dense>
-                      <thead>
-                        <tr>
-                          <Th className="pl-5">{t("cols.scannedAt")}</Th>
-                          <Th>{t("cols.status")}</Th>
-                          <Th right>{t("cols.exactRooms")}</Th>
-                          <Th right>{t("cols.roomTypesOpenSold")}</Th>
-                          <Th right>{t("cols.lowestPrice")}</Th>
-                          <Th right className="pr-5">
-                            {t("cols.run")}
-                          </Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...data.observations].reverse().map((o) => (
-                          <tr key={`${o.scan_run_id}-${o.scanned_at}`} className={ROW_CLASS}>
-                            <Td className="whitespace-nowrap pl-5 font-medium text-ink">{fmtWhen(o.scanned_at)}</Td>
+                    <EmptyState icon={<IconBed />} compact>
+                      {latestStatus === "sold_out"
+                        ? t("latest.soldOut", { when: fmtWhen(latestAt) })
+                        : latestStatus === "restricted"
+                          ? t("latest.restricted", { when: fmtWhen(latestAt) })
+                          : latestStatus === "unknown"
+                          ? t("latest.unknown", { when: fmtWhen(latestAt) })
+                          : t("latest.empty", { when: fmtWhen(latestAt) })}
+                    </EmptyState>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <thead>
+                      <tr>
+                        <Th className="pl-5">{t("cols.roomType")}</Th>
+                        <Th>{t("cols.roomsLeft")}</Th>
+                        <Th right>{t("cols.lowestPrice")}</Th>
+                        <Th className="hidden md:table-cell">{t("cols.rates")}</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.latest.map((s) => {
+                        const rt = data.room_types.find((r) => r.id === s.room_type_id);
+                        const mark = roomMark(s);
+                        const refundDiffers = s.min_refundable_price !== null && s.min_refundable_price !== s.min_price;
+                        return (
+                          <tr key={s.id} className={cx(ROW_CLASS, s.stock_confidence === "sold_out" && "opacity-60")}>
+                            <Td className="min-w-[150px] pl-5 sm:min-w-[180px]">
+                              <div className="font-semibold text-ink">{roomName(s.room_type_id)}</div>
+                              {rt?.max_occupancy ? <div className="text-xs text-muted">{t("latest.maxGuests", { count: rt.max_occupancy })}</div> : null}
+                              <div className="mt-1.5 md:hidden">
+                                <RateList rates={s.rates} currency={s.currency} minPrice={s.min_price} />
+                              </div>
+                            </Td>
                             <Td>
-                              <span className="inline-flex items-center gap-2">
-                                <MarkSwatch mark={statusMark(cellMark, o.status, o.exact_rooms_left)} size={20} />
-                                {label("availability", o.status)}
-                              </span>
+                              <MarkChip mark={mark} />
                             </Td>
-                            <Td right>{fmtInt(o.exact_rooms_left)}</Td>
-                            <Td right>
-                              {fmtInt(o.room_types_available)} / {fmtInt(o.room_types_sold_out)}
+                            <Td right className="whitespace-nowrap">
+                              <div className="font-semibold text-ink">{fmtMoney(s.min_price, s.currency)}</div>
+                              {refundDiffers && <div className="text-xs text-muted">{t("latest.refundableFrom", { price: fmtMoney(s.min_refundable_price, s.currency) })}</div>}
                             </Td>
-                            <Td right className="whitespace-nowrap font-semibold text-ink">
-                              {fmtMoney(o.min_price, o.currency)}
-                            </Td>
-                            <Td right className="pr-5 text-muted">
-                              #{o.scan_run_id}
+                            <Td className="hidden md:table-cell">
+                              <RateList rates={s.rates} currency={s.currency} minPrice={s.min_price} />
                             </Td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </Table>
+                        );
+                      })}
+                    </tbody>
+                  </Table>
+                  <div className="border-t border-line px-5 py-3">
+                    <MarksLegend variant="room">
+                      {rateScoped && <li className="text-faint">{t("latest.rateScoped")}</li>}
+                    </MarksLegend>
+                  </div>
+                </>
+              )}
+            </Card>
+            <SameNight date={date} hotelId={hotelId} />
+          </div>
+
+          {/* Đêm chưa từng được quét: không có lịch sử nào để vẽ, phần giải thích ở trên là đủ. */}
+          {latestStatus !== null && (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <h2 className="text-lg font-bold text-ink">{t("history.title")}</h2>
+                <div className="flex items-center gap-2 text-sm text-muted">
+                  {t("history.lookBack")}
+                  <Segmented label={t("history.range")} size="sm" value={historyDays} onChange={setHistoryDays} items={HISTORY_OPTIONS.map((d) => ({ value: d, label: t("history.days", { count: d }) }))} />
+                </div>
+              </div>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Card title={t("history.roomsChart")}>
+                  {onlyFloor ? (
+                    <div className="flex h-[220px] flex-col items-center justify-center gap-2 rounded-lg bg-subtle px-6 text-center">
+                      <MarkSwatch mark={{ kind: "capped", cls: "sb-mark-capped", text: `≥${floorMax}`, label: "" }} size={34} className="!w-auto px-1.5" />
+                      <p className="max-w-sm text-base text-body">
+                        {t.rich("history.onlyFloor", { count: floorMax, b: (c) => <span className="font-semibold">{c}</span> })}
+                      </p>
+                    </div>
+                  ) : (
+                    <LineChart series={roomsSeries} zeroBased formatY={(v) => fmtInt(Math.round(v))} formatX={(v) => fmtDayTime(new Date(v).toISOString())} emptyText={t("history.roomsEmpty")} />
                   )}
                 </Card>
-
-                <details className="group rounded-xl border border-line bg-surface shadow-card">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 text-md font-bold text-ink [&::-webkit-details-marker]:hidden">
-                    <span>
-                      {t.rich("roomHistory.title", { count: data.history.length, muted: (c) => <span className="font-normal text-muted">{c}</span> })}
-                    </span>
-                    <IconChevronRight size={16} className="text-muted transition-transform group-open:rotate-90" />
-                  </summary>
-                  <div className="border-t border-line">
-                    <Table dense>
-                      <thead>
-                        <tr>
-                          <Th className="pl-5">{t("cols.scannedAt")}</Th>
-                          <Th>{t("cols.roomType")}</Th>
-                          <Th>{t("cols.roomsLeft")}</Th>
-                          <Th right>{t("cols.lowestPrice")}</Th>
-                          <Th right className="pr-5">
-                            {t("cols.refundablePrice")}
-                          </Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...data.history].reverse().map((s) => {
-                          const mark = roomMark(s);
-                          return (
-                            <tr key={s.id} className={ROW_CLASS}>
-                              <Td className="whitespace-nowrap pl-5">{fmtWhen(s.scanned_at)}</Td>
-                              <Td>{roomName(s.room_type_id)}</Td>
-                              <Td>
-                                <span className="inline-flex items-center gap-2" title={mark.label}>
-                                  <MarkSwatch mark={mark} size={20} className={mark.kind === "capped" ? "!w-auto min-w-[26px] px-1" : undefined} />
-                                  <span className="text-xs text-muted">{label("stockConfidence", s.stock_confidence)}</span>
-                                </span>
-                              </Td>
-                              <Td right className="whitespace-nowrap">
-                                {fmtMoney(s.min_price, s.currency)}
-                              </Td>
-                              <Td right className="whitespace-nowrap pr-5">
-                                {fmtMoney(s.min_refundable_price, s.currency)}
-                              </Td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
-                  </div>
-                </details>
-
-                <Card title={t("events.title")} description={t("events.description", { count: data.events.length })} padded={false}>
-                  <EventTable events={data.events} showHotel={false} emptyText={t("events.empty")} />
+                <Card title={currency ? t("history.priceChartCurrency", { currency }) : t("history.priceChart")}>
+                  <LineChart series={priceSeries} formatY={(v) => fmtCompact(v)} formatX={(v) => fmtDayTime(new Date(v).toISOString())} emptyText={t("history.priceEmpty")} />
                 </Card>
-              </>
-            )}
-          </div>
+              </div>
+
+              <Card title={t("observations.title")} description={t("observations.description", { count: data.observations.length, days: historyDays })} padded={false}>
+                {data.observations.length === 0 ? (
+                  <div className="p-5">
+                    <EmptyState compact>{t("observations.empty", { days: historyDays })}</EmptyState>
+                  </div>
+                ) : (
+                  <Table dense>
+                    <thead>
+                      <tr>
+                        <Th className="pl-5">{t("cols.scannedAt")}</Th>
+                        <Th>{t("cols.status")}</Th>
+                        <Th right>{t("cols.exactRooms")}</Th>
+                        <Th right>{t("cols.roomTypesOpenSold")}</Th>
+                        <Th right>{t("cols.lowestPrice")}</Th>
+                        <Th right className="pr-5">
+                          {t("cols.run")}
+                        </Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...data.observations].reverse().map((o) => (
+                        <tr key={`${o.scan_run_id}-${o.scanned_at}`} className={ROW_CLASS}>
+                          <Td className="whitespace-nowrap pl-5 font-medium text-ink">{fmtWhen(o.scanned_at)}</Td>
+                          <Td>
+                            <span className="inline-flex items-center gap-2">
+                              <MarkSwatch mark={statusMark(cellMark, o.status, o.exact_rooms_left)} size={20} />
+                              {label("availability", o.status)}
+                            </span>
+                          </Td>
+                          <Td right>{fmtInt(o.exact_rooms_left)}</Td>
+                          <Td right>
+                            {fmtInt(o.room_types_available)} / {fmtInt(o.room_types_sold_out)}
+                          </Td>
+                          <Td right className="whitespace-nowrap font-semibold text-ink">
+                            {fmtMoney(o.min_price, o.currency)}
+                          </Td>
+                          <Td right className="pr-5 text-muted">
+                            #{o.scan_run_id}
+                          </Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </Card>
+
+              <details className="group rounded-xl border border-line bg-surface shadow-card">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 text-md font-bold text-ink [&::-webkit-details-marker]:hidden">
+                  <span>
+                    {t.rich("roomHistory.title", { count: data.history.length, muted: (c) => <span className="font-normal text-muted">{c}</span> })}
+                  </span>
+                  <IconChevronRight size={16} className="text-muted transition-transform group-open:rotate-90" />
+                </summary>
+                <div className="border-t border-line">
+                  <Table dense>
+                    <thead>
+                      <tr>
+                        <Th className="pl-5">{t("cols.scannedAt")}</Th>
+                        <Th>{t("cols.roomType")}</Th>
+                        <Th>{t("cols.roomsLeft")}</Th>
+                        <Th right>{t("cols.lowestPrice")}</Th>
+                        <Th right className="pr-5">
+                          {t("cols.refundablePrice")}
+                        </Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...data.history].reverse().map((s) => {
+                        const mark = roomMark(s);
+                        return (
+                          <tr key={s.id} className={ROW_CLASS}>
+                            <Td className="whitespace-nowrap pl-5">{fmtWhen(s.scanned_at)}</Td>
+                            <Td>{roomName(s.room_type_id)}</Td>
+                            <Td>
+                              <span className="inline-flex items-center gap-2" title={mark.label}>
+                                <MarkSwatch mark={mark} size={20} className={mark.kind === "capped" ? "!w-auto min-w-[26px] px-1" : undefined} />
+                                <span className="text-xs text-muted">{label("stockConfidence", s.stock_confidence)}</span>
+                              </span>
+                            </Td>
+                            <Td right className="whitespace-nowrap">
+                              {fmtMoney(s.min_price, s.currency)}
+                            </Td>
+                            <Td right className="whitespace-nowrap pr-5">
+                              {fmtMoney(s.min_refundable_price, s.currency)}
+                            </Td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </Table>
+                </div>
+              </details>
+
+              <Card title={t("events.title")} description={t("events.description", { count: data.events.length })} padded={false}>
+                <EventTable events={data.events} showHotel={false} emptyText={t("events.empty")} />
+              </Card>
+            </>
+          )}
         </div>
       )}
     </>

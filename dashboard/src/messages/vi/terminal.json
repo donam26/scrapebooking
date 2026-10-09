@@ -2,21 +2,18 @@
   "strip": {
     "season": "Mùa: {name}",
     "nextHoliday": "Lễ gần nhất: {name} · {days, plural, =0 {hôm nay} other {còn # ngày}}",
-    "hotelsTracked": "{count} khách sạn theo dõi",
-    "updated": "Cập nhật {ago}",
-    "noScan": "Chưa có lượt quét",
-    "channel": "Kênh {name}"
+    "hotelsTracked": "{count} khách sạn theo dõi"
   },
   "mood": {
     "noData": "Chưa đủ số",
-    "tight": "Thị trường căng",
-    "balanced": "Thị trường cân bằng",
-    "soft": "Thị trường mềm"
+    "tight": "Căng",
+    "balanced": "Cân bằng",
+    "soft": "Mềm"
   },
-  "occGauge": "Công suất ≈",
+  "occGauge": "Lấp đầy ≈",
   "city": {
     "title": "Thị trường {name}",
-    "info": "Công suất ước tính từ {coverage} khách sạn quét chi tiết có đủ số. Số khách sạn còn phòng là con số Booking.com báo cho đêm này. Giá TB và phân bố giá tính trên {priced} khách sạn có giá đã thấy ở trang kết quả (mẫu).",
+    "info": "Chỉ báo lấp đầy ≈ ước tính từ {coverage} khách sạn quét chi tiết có đủ số (không phải công suất). Số khách sạn còn phòng là con số Booking.com báo cho đêm này. Giá TB và phân bố giá tính trên {priced} khách sạn có giá đã thấy ở trang kết quả (mẫu). Mức: căng từ 75, cân bằng từ 50.",
     "roomsLeft": "Phòng còn",
     "roomsLeftTitle": "Tổng phòng còn của các khách sạn quét chi tiết có số chính xác",
     "inventory": "Tổng ≈",
@@ -34,15 +31,15 @@
     "explore": "Khám phá"
   },
   "indicator": {
-    "title": "Chỉ báo thị trường",
-    "cityTitle": "Thị trường {city}",
-    "info": "Công suất ước tính của đối thủ đêm nay (từ số phòng còn trên kênh tham chiếu), số phòng còn của các khách sạn có số chính xác và phân bố giá thấp nhất đêm nay.",
+    "title": "Chỉ báo compset",
+    "cityTitle": "Compset tại {city}",
+    "info": "Chỉ báo lấp đầy ≈ của các đối thủ đêm nay (từ số phòng còn trên Booking.com, không phải công suất; căng từ 75, cân bằng từ 50), số phòng còn của các khách sạn có số chính xác và phân bố giá niêm yết thấp nhất đêm nay.",
     "roomsLeft": "Phòng còn",
     "withRooms": "Còn phòng",
-    "avgRate": "Giá TB",
+    "medianRate": "Giá trung vị",
     "distribution": "Phân bố giá đêm nay",
     "yours": "của bạn",
-    "scannedAt": "Quét lúc {when}"
+    "fillHidden": "Ẩn: sai số lớn"
   },
   "weather": {
     "title": "Thời tiết",
@@ -53,22 +50,15 @@
     "restOfToday": "{description} (các giờ còn lại hôm nay)",
     "today": "Nay"
   },
-  "signals": {
-    "title": "Tín hiệu đặt phòng hôm nay",
-    "info": "Số lượt đặt do kênh tự hiển thị trên trang khách sạn (ví dụ “đặt 37 lần hôm nay”), chỉ tính tín hiệu thấy trong 24 giờ qua. Đây là thông điệp marketing của kênh, không phải số đặt phòng thật.",
-    "empty": "Kênh chưa hiển thị lượt đặt cho các khách sạn đang theo dõi trong 24 giờ qua",
-    "summary": "lượt đặt hôm nay ở {hotels} khách sạn",
-    "summary24h": "lượt đặt hôm nay ở {hotels} khách sạn · {day24} trong 24 giờ",
-    "source": "(Theo {channel} công bố)"
-  },
   "revenue": {
     "title": "Doanh thu 14 ngày",
-    "info": "Có PMS: doanh thu đã đặt theo đêm (thiếu doanh thu thì số phòng bán × ADR). Chưa có PMS: ước tính = giá thấp nhất của bạn × công suất ước tính × số phòng thấy trên kênh, chỉ tính đêm ước tính đủ tin cậy.",
-    "empty": "Chưa đủ số để tính doanh thu 14 ngày tới.",
+    "info": "Doanh thu đã đặt theo đêm từ dữ liệu PMS bạn nhập (thiếu doanh thu thì số phòng bán × ADR).",
+    "noPmsTitle": "Doanh thu của bạn",
+    "noPmsInfo": "Doanh thu chỉ lấy từ PMS. Hệ thống không ước tính doanh thu từ giá niêm yết và số phòng còn.",
+    "noPms": "Chưa có dữ liệu PMS. Nhập số phòng đã bán và doanh thu theo đêm để xem doanh thu đã đặt 14 ngày tới.",
     "importPms": "Nhập PMS ở Cài đặt",
-    "caption": "{source, select, pms {doanh thu đã đặt (PMS)} other {doanh thu dự kiến (ước tính)}} · {known}/14 đêm có số",
-    "barNoData": "chưa đủ số",
-    "importForActual": "Nhập PMS để có số thật"
+    "caption": "doanh thu đã đặt (PMS) · {known}/14 đêm có số",
+    "barNoData": "chưa có số PMS"
   },
   "calendar": {
     "title": "Sự kiện 12 tháng tới",
@@ -76,7 +66,9 @@
     "kind": {
       "tet": "Tết",
       "holiday": "Ngày lễ",
-      "travel": "Cầu du lịch"
+      "travel": "Cầu du lịch",
+      "source_market": "Lễ thị trường nguồn",
+      "season": "Mùa nghỉ"
     },
     "addEvent": "+ Thêm sự kiện",
     "month": "Th{month}",

@@ -5,18 +5,19 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { api, apiUrl } from "@/lib/api";
+import { ExportMenu } from "@/components/export-menu";
 import { useApi, useTenantToday } from "@/lib/hooks";
-import { addDays, parseDate, useFmt } from "@/lib/format";
-import { channelName } from "@/lib/channels";
-import { ButtonLink, EmptyState, ErrorBox, SkeletonBlock, cx } from "@/components/ui";
-import { PageStrip, StripDivider } from "@/components/page-strip";
-import { ChannelSwitcher, useChannelParam } from "@/components/channels";
-import { IconBuilding, IconChevronLeft, IconChevronRight, IconDownload } from "@/components/icons";
+import { addDays, parseDate } from "@/lib/format";
+import { useDataFreshness } from "@/lib/freshness";
+import { EmptyState, ErrorBox, SkeletonBlock, cx } from "@/components/ui";
+import { PageStrip } from "@/components/page-strip";
+import { DataUpdated } from "@/components/freshness";
+import { IconBuilding, IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { hotelColors } from "@/lib/market-metrics";
 import { HeatLegend, HeatmapTable } from "./heatmap-table";
 import { OccupancyAnalysis } from "./occupancy-analysis";
 
-/** Phòng trống: heatmap 16 đêm (Trước/Sau), dòng tổng thị trường và phân tích công suất 30 đêm. */
+/** Phòng trống: heatmap 16 đêm (Trước/Sau, dấu ngày lễ), dòng tổng và chỉ báo lấp đầy ≈ 30 đêm. */
 
 const WINDOW = 16;
 const ANALYSIS_DAYS = 30;
@@ -34,14 +35,13 @@ function AvailabilityView() {
   const raw = params.get("start");
   const start = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : today;
   const end = start ? addDays(start, WINDOW - 1) : "";
-  const [channelParam, setChannel] = useChannelParam();
   const t = useTranslations("availability.page");
-  const { fmtWhen } = useFmt();
 
-  const overview = useApi(start && `avail:ov:${start}:${channelParam ?? ""}`, () => api.overview({ start: start!, end, channel: channelParam }));
+  const overview = useApi(start && `avail:ov:${start}`, () => api.overview({ start: start!, end }));
+  const o = overview.data;
   const pace = useApi(start && `avail:pace:${start}`, () => api.market.pace({ start: start!, end: addDays(start!, ANALYSIS_DAYS - 1) }));
   const occupancy = useApi(start && `avail:occ:${start}`, () => api.market.occupancy({ start: start!, end: addDays(start!, ANALYSIS_DAYS - 1) }));
-  const o = overview.data;
+  const fresh = useDataFreshness();
   const nights = pace.data?.nights ?? [];
 
   function go(nextStart: string) {
@@ -61,24 +61,9 @@ function AvailabilityView() {
     <>
       <PageStrip
         title={t("title")}
-        meta={
-          o && (
-            <>
-              <span>{t("subtitle")}</span>
-              <StripDivider />
-              <span>{t.rich("channel", { channel: channelName(o.channel), b: (c) => <span className="font-semibold text-ink">{c}</span> })}</span>
-            </>
-          )
-        }
-        aside={o?.last_run && <span>{t("scannedAt", { when: fmtWhen(o.last_run.finished_at ?? o.last_run.started_at) })}</span>}
-        actions={
-          <>
-            {o && <ChannelSwitcher channels={o.channels} value={o.channel} onChange={setChannel} />}
-            <ButtonLink href={apiUrl("/export/overview.csv", { start, end, channel: channelParam })} download size="sm" icon={<IconDownload size={15} />}>
-              {t("downloadCsv")}
-            </ButtonLink>
-          </>
-        }
+        meta={o && <span>{t("subtitle")}</span>}
+        aside={fresh.loaded && <DataUpdated f={fresh} />}
+        actions={<ExportMenu csvHref={apiUrl("/export/overview.csv", { start, end })} start={start} end={end} month={today.slice(0, 7)} />}
       />
       <ErrorBox error={overview.error} className="mb-4" />
       {!o && !overview.error && <SkeletonBlock className="h-[460px] w-full rounded-[10px]" />}
@@ -110,12 +95,12 @@ function AvailabilityView() {
                 {t("next")} <IconChevronRight size={15} />
               </button>
             </div>
-            <HeatmapTable data={o} nights={nights} today={today} channelParam={channelParam} />
+            <HeatmapTable data={o} nights={nights} calibration={pace.data?.calibration} today={today} />
             <div className="border-t border-line px-5 py-3">
               <HeatLegend />
             </div>
           </section>
-          <OccupancyAnalysis nights={nights} perHotel={occupancy.data} colors={hotelColors(o)} />
+          <OccupancyAnalysis nights={nights} calibration={pace.data?.calibration} perHotel={occupancy.data} colors={hotelColors(o)} />
         </div>
       )}
     </>

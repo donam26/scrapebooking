@@ -1,8 +1,6 @@
 {
   "title": "Lịch sử quét",
-  "meta": "{count, number} lượt gần nhất trên mọi kênh",
-  "channelFilter": "Lọc theo kênh",
-  "allChannels": "Tất cả",
+  "meta": "{count, number} lượt quét Booking.com gần nhất",
   "trigger": {
     "manual": "Quét ngay",
     "catchup": "Bù lịch",
@@ -15,7 +13,7 @@
     "successRateInfo": "Lượt đọc trang có dữ liệu (còn phòng hoặc hết phòng) trên tổng lượt đọc trong 24 giờ.",
     "successRateSub": "{count, number} lượt có dữ liệu",
     "blocked": "Bị chặn",
-    "blockedInfo": "Kênh chặn bot (captcha, 403…). Hệ thống tự giãn nhịp và tạm ngắt kênh khi bị chặn nhiều.",
+    "blockedInfo": "Booking.com chặn bot (captcha, 403…). Hệ thống tự giãn nhịp và tạm ngắt quét khi bị chặn nhiều.",
     "blockedSub": "lượt đọc trong 24 giờ",
     "empty": "Lượt không có dữ liệu",
     "emptySub": "trong 24 giờ"
@@ -24,7 +22,6 @@
     "title": "Các lượt quét",
     "info": "Bấm vào một lượt để xem từng khách sạn: trạng thái, số trang đọc được, bị chặn, lỗi.",
     "run": "Lượt",
-    "channel": "Kênh",
     "trigger": "Kích hoạt",
     "started": "Bắt đầu",
     "duration": "Thời lượng",

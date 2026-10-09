@@ -1,33 +1,23 @@
-"""Job vòng đời listing (D8), chạy trên hàng đợi của kênh (worker có session/proxy của kênh).
-
-- verify_listing: URL người dùng dán → kênh trả khách sạn nào (tên, id, toạ độ) → active | broken.
-- discover_listing: tìm cùng khách sạn trên kênh này theo tên + toạ độ → listing `suggested` chờ
-  người dùng xác nhận (không bao giờ tự gắn: sai định danh làm hỏng compset).
-"""
+"""Job vòng đời listing: verify_listing — URL Booking.com người dùng dán → khách sạn nào (tên, id,
+toạ độ) → active | broken."""
 
 from dataclasses import dataclass
-from decimal import Decimal
 
 from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.channels.registry import channels
 from app.clock import Clock
 from app.collector.base import ListingBlocked, ListingNotFound
 from app.collector.factory import ChannelCollector
 from app.db.models import Hotel, Listing
-from app.domain.models import ListingQuery, ListingRef
+from app.domain.models import ListingRef
 from app.logging import get_logger
 
 log = get_logger(__name__)
 
-# Điểm khớp tối thiểu để đưa thành gợi ý (người dùng vẫn phải xác nhận).
-SUGGEST_MIN_SCORE = 0.7
-
 
 class ListingRetry(RuntimeError):
-    """Bị chặn khi verify/discover: để arq thử lại sau."""
+    """Bị chặn khi verify: để arq thử lại sau."""
 
 
 @dataclass
@@ -36,7 +26,6 @@ class ListingJobDeps:
     collector: ChannelCollector
     clock: Clock
     channel: str
-    enqueue_discover: object | None = None  # async (hotel_id, channel) -> None
 
 
 async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attempt: bool) -> str:
@@ -78,7 +67,7 @@ async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attemp
         return "error"
     other_hotel = await _hotel_with_external_id(deps, listing_id, identity.external_id)
     if other_hotel is not None:
-        # Hai URL khác nhau cùng trỏ một khách sạn của kênh (VD slug Agoda đổi, có redirect): không
+        # Hai URL khác nhau cùng trỏ một khách sạn (VD slug Booking đổi, có redirect): không
         # quét trùng, báo người dùng gắn vào khách sạn đã có.
         await _set_status(
             deps,
@@ -104,32 +93,20 @@ async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attemp
             hotel.lat, hotel.lng = identity.lat, identity.lng
         if hotel.star_rating is None and identity.star_rating is not None:
             hotel.star_rating = identity.star_rating
-        hotel_id = hotel.id
-        existing = {
-            r[0]
-            for r in await s.execute(select(Listing.channel).where(Listing.hotel_id == hotel_id))
-        }
         await s.commit()
     log.info("listing_verified", listing_id=listing_id, channel=deps.channel, name=identity.name)
-    if deps.enqueue_discover is not None:
-        for code, info in channels().items():
-            if info.collectable and str(code) not in existing:
-                await deps.enqueue_discover(hotel_id, str(code))  # type: ignore[operator]
     return "active"
 
 
 async def _hotel_with_external_id(
-    deps: ListingJobDeps,
-    listing_id: int | None,
-    external_id: str | None,
-    channel: str | None = None,
+    deps: ListingJobDeps, listing_id: int | None, external_id: str | None
 ) -> int | None:
-    """hotel_id của listing KHÁC cùng kênh đã mang `external_id` này (None nếu không có)."""
+    """hotel_id của listing KHÁC đã mang `external_id` này (None nếu không có)."""
     if not external_id:
         return None
     async with deps.session_factory() as s:
         stmt = select(Listing.hotel_id).where(
-            Listing.channel == (channel or deps.channel), Listing.external_id == external_id
+            Listing.channel == deps.channel, Listing.external_id == external_id
         )
         if listing_id is not None:
             stmt = stmt.where(Listing.id != listing_id)
@@ -149,76 +126,3 @@ async def _set_status(
     async with deps.session_factory() as s:
         await s.execute(stmt.values(**values))
         await s.commit()
-
-
-async def run_discover_listing(deps: ListingJobDeps, hotel_id: int, final_attempt: bool) -> str:
-    async with deps.session_factory() as s:
-        hotel = (await s.execute(select(Hotel).where(Hotel.id == hotel_id))).scalar_one_or_none()
-        if hotel is None or not hotel.name:
-            return "no-hotel"
-        already = (
-            await s.execute(
-                select(Listing.id).where(
-                    Listing.hotel_id == hotel_id, Listing.channel == deps.channel
-                )
-            )
-        ).first()
-        if already is not None:
-            return "exists"
-        query = ListingQuery(
-            name=hotel.name,
-            city=hotel.city,
-            country_code=hotel.country_code,
-            lat=hotel.lat,
-            lng=hotel.lng,
-        )
-    try:
-        candidates = await deps.collector.suggest(query)
-    except ListingBlocked as exc:
-        if not final_attempt:
-            raise ListingRetry(str(exc)) from exc
-        return "blocked"
-    except Exception as exc:  # noqa: BLE001
-        log.warning("listing_discover_error", hotel_id=hotel_id, error=repr(exc))
-        if not final_attempt:
-            raise ListingRetry(repr(exc)) from exc
-        return "error"
-    best = None
-    for c in candidates:
-        if c.score < SUGGEST_MIN_SCORE:
-            continue
-        taken = await _hotel_with_external_id(deps, None, c.external_id, channel=deps.channel)
-        if taken is None or taken == hotel_id:
-            best = c
-            break
-    if best is None:
-        log.info("listing_discover_none", hotel_id=hotel_id, channel=deps.channel)
-        return "none"
-    async with deps.session_factory() as s:
-        s.add(
-            Listing(
-                hotel_id=hotel_id,
-                channel=deps.channel,
-                listing_key=best.listing_key[:300],
-                external_id=(best.external_id or None),
-                url=best.url,
-                name=best.name[:300] if best.name else None,
-                status="suggested",
-                match_score=Decimal(str(round(best.score, 3))),
-            )
-        )
-        try:
-            await s.commit()
-        except IntegrityError:
-            # Listing này đã thuộc một khách sạn khác (cùng property được thêm hai lần
-            # qua hai kênh khác nhau): không tự gộp.
-            await s.rollback()
-            log.warning(
-                "listing_discover_conflict",
-                hotel_id=hotel_id,
-                channel=deps.channel,
-                listing_key=best.listing_key,
-            )
-            return "conflict"
-    log.info("listing_suggested", hotel_id=hotel_id, channel=deps.channel, score=best.score)
-    return "suggested"

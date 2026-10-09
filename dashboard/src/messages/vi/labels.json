@@ -9,20 +9,24 @@
     "price_down": "Giảm giá",
     "room_type_new": "Loại phòng mới",
     "room_type_gone": "Mất loại phòng",
-    "channel_closed": "Đóng bán trên kênh",
-    "parity_gap": "Rẻ hơn trên kênh này"
+    "lowest_rate_shift": "Đổi gói rẻ nhất",
+    "restricted": "Bị hạn chế",
+    "restriction_lifted": "Hết hạn chế",
+    "min_stay_change": "Đổi số đêm tối thiểu",
+    "promo_start": "Bật khuyến mãi",
+    "promo_end": "Tắt khuyến mãi"
   },
   "listingStatus": {
     "active": "Đang quét",
     "unverified": "Đang kiểm tra",
-    "suggested": "Gợi ý",
     "broken": "Lỗi đường dẫn",
     "paused": "Tạm dừng"
   },
   "availability": {
     "available": "Còn phòng",
     "sold_out": "Hết phòng",
-    "unknown": "Không rõ"
+    "unknown": "Không rõ",
+    "restricted": "Bị hạn chế"
   },
   "stockConfidence": {
     "exact": "Chính xác",
@@ -56,10 +60,11 @@
     "on_demand": "Theo yêu cầu"
   },
   "notificationKind": {
-    "alerts": "Cảnh báo đối thủ",
+    "alerts": "Cảnh báo",
     "daily_insight": "Bản tin sáng",
     "weekly_report": "Báo cáo tuần",
-    "test": "Email thử"
+    "test": "Email thử",
+    "data_stale": "Dữ liệu cũ"
   },
   "notificationStatus": {
     "sent": "Đã gửi",
@@ -100,5 +105,17 @@
     "some": "Vừa (11–20)",
     "many": "Khá (21–30)",
     "plenty": "Nhiều (>30)"
+  },
+  "cellState": {
+    "available": "Còn bán",
+    "sold_out": "Hết phòng",
+    "restricted": "Bị hạn chế",
+    "no_price": "Không có giá",
+    "error": "Lỗi đọc trang"
+  },
+  "notifyChannel": {
+    "email": "Email",
+    "zalo": "Zalo",
+    "webhook": "Webhook"
   }
 }

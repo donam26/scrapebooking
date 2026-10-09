@@ -11,5 +11,7 @@
   "durationHours": "{hours}h {minutes}m",
   "tonight": "Tonight",
   "tomorrowNight": "Tomorrow night",
-  "daysAway": "{count, plural, one {In # day} other {In # days}}"
+  "daysAway": "{count, plural, one {In # day} other {In # days}}",
+  "priceThousand": "{value}k",
+  "priceMillion": "{value}M"
 }

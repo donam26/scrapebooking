@@ -1,0 +1,107 @@
+{
+  "strategy": {
+    "title": "Price strategy",
+    "description": "A suggestion is built in four steps: reference price (competitors' median listed rate × your target position, or your base price when the sample is too small) → add up adjustments with numbers (tight night, your OTB and pace, day of week, holiday, last minute) → clamp to floor/ceiling and the maximum daily change → round.",
+    "defaults": "Using defaults (position 100, max change 15%/day). Save to apply a strategy of your own for this hotel.",
+    "driftNote": "The target position also drives the “Your rate drifted from your target position” alert in <link>Notifications</link>.",
+    "noOwnTitle": "No hotel of yours yet",
+    "noOwnBody": "Add your hotel (role “Your hotel”) to the watchlist to set a price strategy.",
+    "addOwn": "Open watchlist",
+    "save": "Save strategy",
+    "saved": "Saved",
+    "sections": {
+      "limits": "Base price, floor and ceiling",
+      "position": "Position versus competitors",
+      "weekday": "Day-of-week adjustments",
+      "special": "Holidays and last minute"
+    },
+    "field": {
+      "base": "Base price",
+      "baseHint": "Used when fewer than 3 competitors have a price to compare.",
+      "floor": "Floor price",
+      "floorHint": "Never suggest below this.",
+      "ceiling": "Ceiling price",
+      "ceilingHint": "Never suggest above this.",
+      "optional": "Optional, VND",
+      "targetIndex": "Target position",
+      "targetIndexHint": "100 = equal to the comp set's median listed rate; 105 = 5% above; 95 = 5% below.",
+      "targetPreview": "Reference price = competitor median × {factor}",
+      "targetEqual": "Reference price = competitor median",
+      "roundTo": "Round to",
+      "roundNone": "No rounding",
+      "maxChange": "Maximum change per day",
+      "maxChangeHint": "Versus your current rate, 1–50%.",
+      "weekdayHint": "% added or removed for each night of the week, −30% to +50%. Empty = 0.",
+      "holiday": "Holiday uplift",
+      "holidayHint": "% for public holidays, Lunar New Year and source-market holidays, −30% to +50%.",
+      "lastMinuteDays": "Last-minute window",
+      "lastMinuteDaysHint": "Days before arrival (0–14). 0 = off.",
+      "lastMinuteAdj": "Last-minute adjustment",
+      "lastMinuteAdjHint": "−30% to 0%, only when the market isn't tight and you still have plenty of rooms."
+    },
+    "weekday": {
+      "0": "Mon",
+      "1": "Tue",
+      "2": "Wed",
+      "3": "Thu",
+      "4": "Fri",
+      "5": "Sat",
+      "6": "Sun"
+    },
+    "weekdayAria": "Adjustment for {day}",
+    "invalid": {
+      "price": "Prices must be numbers above 0.",
+      "floorCeiling": "The floor price must be at or below the ceiling price.",
+      "baseRange": "The base price must sit between the floor and ceiling prices.",
+      "targetIndex": "The target position must be from 50 to 200.",
+      "maxChange": "The maximum daily change must be a whole number from 1 to 50.",
+      "weekday": "Day-of-week adjustments must be whole numbers from −30 to 50.",
+      "holiday": "The holiday uplift must be a whole number from −30 to 50.",
+      "lastMinuteDays": "The last-minute window must be a whole number from 0 to 14.",
+      "lastMinuteAdj": "The last-minute adjustment must be a whole number from −30 to 0."
+    }
+  },
+  "outcomes": {
+    "title": "Applied suggestions → results",
+    "description": "Last {days} days. Occupancy and ADR are actual PMS numbers after the stay night.",
+    "info": "On target: raised and still reached ≥85% occupancy, or lowered and reached ≥70%. To review: raised but occupancy <60%, or lowered but <50%. Holds aren't scored. Backtest: re-runs the suggestion rules on competitor prices {lead} days before each past night, then compares with actual occupancy.",
+    "applyRate": "Apply rate",
+    "applyRateHint": "{applied}/{decided} suggestions handled",
+    "good": "On target",
+    "goodHint": "Out of {count} nights with PMS numbers",
+    "review": "To review",
+    "reviewHint": "Raised and stayed empty, or lowered and still empty",
+    "backtest": "{days}-day backtest",
+    "backtestHint": "On target {good}/{scored} nights (raise {raise}, lower {lower})",
+    "backtestNone": "Not enough nights with PMS numbers yet",
+    "emptyTitle": "Not enough data to measure",
+    "emptyBody": "Needs actual PMS numbers after the stay (Settings › PMS import) and suggestions marked “Applied” or “Dismissed”.",
+    "recent": "Recent nights",
+    "showAll": "Show all {count} nights",
+    "col": {
+      "night": "Night",
+      "suggestion": "Suggestion",
+      "decision": "Decision",
+      "price": "Rate before → set",
+      "occ": "Occupancy (PMS)",
+      "adr": "ADR (PMS)",
+      "verdict": "Result"
+    },
+    "decision": {
+      "applied": "Applied",
+      "dismissed": "Dismissed"
+    },
+    "verdict": {
+      "good": "On target",
+      "review": "To review",
+      "neutral": "Neutral",
+      "pending": "Awaiting actuals"
+    },
+    "showLess": "Show less"
+  },
+  "pace": {
+    "strategyLink": "Price strategy",
+    "holds": "{count, plural, =0 {} one {# other night is priced about right (hold).} other {# other nights are priced about right (hold).}}",
+    "pendingHolds": "{count} nights on hold"
+  }
+}

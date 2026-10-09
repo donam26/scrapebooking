@@ -44,8 +44,20 @@ def ev(
     )
 
 
+# Loại cảnh báo Phase 3 tắt mặc định trong các test của loại cũ (bật riêng ở test của chúng).
+PHASE3 = (
+    "market_tight",
+    "competitor_price_rise",
+    "competitor_promo",
+    "own_position_drift",
+    "own_closed",
+)
+
+
 def rules(**overrides: tuple[bool, dict[str, int]]) -> dict[K, object]:
-    return effective_rules({k: v for k, v in overrides.items()})  # type: ignore[return-value]
+    stored = {k: (False, {}) for k in PHASE3}
+    stored.update(overrides)
+    return effective_rules(stored)  # type: ignore[return-value]
 
 
 def test_normalize_params_merges_defaults_and_validates() -> None:
@@ -111,7 +123,7 @@ def test_price_drop_threshold_and_disabled_rule() -> None:
     items = evaluate_alerts(rules(), events, {}, TODAY)
     assert [i.event_id for i in items] == [8]
     assert items[0].headline == "Caravelle giảm giá 12% đêm T2 05/10"
-    assert items[0].detail == "giá thấp nhất 7.200.000 ₫ → 6.300.000 ₫"
+    assert items[0].detail == "cùng loại phòng, cùng gói: 7.200.000 ₫ → 6.300.000 ₫"
     off = rules(competitor_price_drop=(False, {}))
     assert evaluate_alerts(off, events, {}, TODAY) == []
 

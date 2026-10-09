@@ -106,12 +106,12 @@ def test_price_reasons_in_english() -> None:
         stay_date=date(2026, 10, 10),
         days_to_arrival=8,
         own_status="available",
-        own_price=Decimal("80"),
+        own_price=Decimal("800000"),
         own_rooms_left=1,
         own_occ=None,
         comp_observed=4,
         comp_sold_out=2,
-        comp_median_price=Decimal("100"),
+        comp_median_price=Decimal("1000000"),
         comp_occ=None,
         comp_pace=None,
         holiday="National Day",
@@ -119,12 +119,13 @@ def test_price_reasons_in_english() -> None:
     s = suggest(n)
     assert s is not None and s.kind == "raise"
     assert [reason_text(r, "en") for r in s.reasons] == [
-        "2/4 competitors sold out",
-        "your price is 20% below the competitor median",
-        "you only have 1 room left on Booking",
-        "falls on National Day",
+        "reference = median of 4 competitors 1.000.000 ₫ × target position 100",
+        "2/4 competitors sold out or ≤3 rooms left (+5%)",
+        "you only have 1 room left on Booking (+5%)",
+        "falls on National Day (+10%)",
+        "capped at 15% change per update",
     ]
-    assert reason_text(s.reasons[0], "vi") == "2/4 đối thủ đã hết phòng"
+    assert reason_text(s.reasons[1], "vi") == "2/4 đối thủ hết hoặc còn ≤3 phòng (+5%)"
 
 
 def test_url_error_in_english() -> None:
@@ -144,12 +145,12 @@ def test_url_error_in_english() -> None:
 def test_holiday_names_in_english() -> None:
     start, end = date(2026, 9, 1), date(2026, 9, 3)
     assert [h.name for h in holidays_between("vn", start, end, "en")] == [
-        "National Day",
         "National Day (day off in lieu)",
+        "National Day",
     ]
     assert [h.name for h in holidays_between("vn", start, end)] == [
-        "Quốc khánh",
         "Quốc khánh (nghỉ bù)",
+        "Quốc khánh",
     ]
 
 
@@ -202,10 +203,18 @@ def test_email_formatting_and_subjects_in_english() -> None:
         ),
     ]
     market = {date(2026, 10, 3): NightMarket(2, 3)}
-    items = evaluate_alerts(effective_rules({}), events, market, today, "en")
+    # Loại cảnh báo Phase 3 (đêm căng…) tắt để kiểm tra đúng hai loại cũ.
+    off = {
+        k: (False, {})
+        for k in ("market_tight", "competitor_price_rise", "competitor_promo", "own_closed")
+    }
+    items = evaluate_alerts(effective_rules(off), events, market, today, "en")
     assert [(i.headline, i.detail) for i in items] == [
         ("Caravelle sold out for Sat 03/10", "2/3 competitors sold out for this night"),
-        ("Rex cut prices 20% for Sun 04/10", "lowest price ₫1,500,000 → ₫1,200,000"),
+        (
+            "Rex cut prices 20% for Sun 04/10",
+            "same room type and rate plan: ₫1,500,000 → ₫1,200,000",
+        ),
     ]
     email = render_alerts("Rex Hotel", items, "http://x", "en")
     assert email.subject == "Caravelle sold out for Sat 03/10 and 1 other change"
@@ -246,7 +255,7 @@ def test_email_formatting_and_subjects_in_english() -> None:
 def test_holiday_kind_and_group_are_stable_across_languages() -> None:
     tet = holidays_between("vn", date(2027, 2, 5), date(2027, 2, 9), "en")
     assert {(h.kind, h.group) for h in tet} == {("tet", "tet")} and len(tet) == 5
-    sept = holidays_between("vn", date(2026, 9, 2), date(2026, 9, 3))
+    sept = holidays_between("vn", date(2026, 9, 1), date(2026, 9, 3))
     assert [(h.kind, h.group) for h in sept] == [
         ("holiday", "national_day"),
         ("holiday", "national_day"),

@@ -2,9 +2,6 @@
   "page": {
     "title": "Phòng trống",
     "subtitle": "Số phòng còn của từng khách sạn theo đêm",
-    "channel": "Kênh <b>{channel}</b>",
-    "scannedAt": "Quét lúc {when}",
-    "downloadCsv": "Tải CSV",
     "emptyTitle": "Chưa theo dõi khách sạn nào",
     "emptyBody": "Thêm khách sạn ở <link>Cài đặt › Khách sạn</link>.",
     "prev": "Trước",
@@ -18,9 +15,9 @@
     "roomNightsTitle": "Tổng phòng-đêm còn trong {count} đêm",
     "roomNights": "Phòng-đêm",
     "marketTotalTitle": "Cộng mọi khách sạn trong bảng, gồm cả khách sạn của bạn",
-    "marketTotal": "Tổng thị trường",
-    "occTitle": "Công suất ước tính của đối thủ từ số phòng còn",
-    "occ": "Công suất ≈ %",
+    "marketTotal": "Tổng các khách sạn",
+    "occTitle": "Chỉ báo lấp đầy ≈ của đối thủ từ số phòng còn trên Booking.com (thử nghiệm, không phải công suất). Màu: cam từ 75, xanh dương từ 50.",
+    "occ": "Lấp đầy ≈ %",
     "cellTitle": "{hotel} · {weekday} {date}: {status}",
     "cellAria": "{hotel} {date}: {status}",
     "sumPartial": "{known} ô có số, {missing} ô không lộ số hoặc chưa quét: tổng là mức tối thiểu",
@@ -29,28 +26,32 @@
       "noData": "Chưa có dữ liệu",
       "soldOut": "Hết phòng",
       "unknown": "Không đọc được (bị chặn hoặc lỗi)",
-      "hidden": "Còn phòng, kênh không lộ số",
+      "hidden": "Còn phòng, Booking.com không lộ số",
       "rooms": "Còn {count} phòng"
-    }
+    },
+    "occHidden": "ẩn"
   },
   "legend": {
     "title": "Chú giải:",
     "hidden": "Còn, không lộ số",
     "notScanned": "Chưa quét",
-    "trend": "▼▲ thay đổi 24 giờ"
+    "trend": "▼ phòng còn giảm · ▲ phòng còn tăng (24 giờ)",
+    "holiday": "Ngày lễ"
   },
   "occupancy": {
-    "title": "Phân tích công suất",
-    "info": "Công suất ước tính từ số phòng còn trên kênh tham chiếu (≈), chỉ vẽ đêm có ước tính đủ tin cậy (độ phủ ≥ 50%). Nét đứt đen là trung vị đối thủ; nét đứt xanh lá là công suất thật từ PMS khi bạn đã nhập.",
+    "title": "Chỉ báo lấp đầy (thử nghiệm)",
+    "info": "Ước tính từ số phòng còn trên Booking.com (≈), là tỷ lệ phòng Booking.com mở bán đã không còn bán, không phải công suất khách sạn. Chỉ vẽ đêm có ước tính đủ tin cậy (độ phủ ≥ 50%). Nét đứt đen là trung vị đối thủ; nét đứt xanh lá là công suất thật từ PMS khi bạn đã nhập.",
     "compMedian": "Trung vị compset ≈",
     "hotelSeries": "{name} ≈",
     "pms": "Của bạn (PMS)",
-    "avg": "Công suất compset TB {count} đêm",
+    "avg": "Lấp đầy ≈ TB của compset, {count} đêm",
     "peak": "Cao nhất",
     "peakOn": "Cao nhất: {night}",
     "low": "Thấp nhất",
     "lowOn": "Thấp nhất: {night}",
     "hotFirstNight": "KS ≈≥90% đêm đầu",
-    "empty": "Chưa đủ dữ liệu để ước tính công suất"
+    "empty": "Chưa đủ dữ liệu để ước tính chỉ báo lấp đầy",
+    "hiddenNights": "{count} đêm bị ẩn vì sai số so PMS quá ngưỡng ở nhóm lead time đó",
+    "source": "Trên Booking.com, cùng dữ liệu với heatmap"
   }
 }

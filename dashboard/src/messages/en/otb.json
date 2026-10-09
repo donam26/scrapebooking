@@ -1,0 +1,86 @@
+{
+  "import": {
+    "title": "Daily OTB",
+    "description": "OTB (on the books) is the number of rooms booked for each upcoming night, from your PMS. With OTB you get your own pickup, pace versus 4 weeks earlier, same time last year (STLY) and a forecast, and price suggestions use it too.",
+    "kindLabel": "File type",
+    "kind": {
+      "otb_report": {
+        "label": "Daily rooms-on-the-books report",
+        "body": "One row per night: rooms booked, revenue, rooms available (optional: as-of date, cancellations, group rooms). Import once a day; days don't overwrite each other, which gives you pickup."
+      },
+      "bookings": {
+        "label": "Detailed bookings file",
+        "body": "One row per booking: booking date, arrival, departure, cancellation date, status, rooms, revenue. The past OTB is rebuilt from it, so pickup, pace and STLY are available right away."
+      }
+    },
+    "hotel": "Hotel",
+    "file": "CSV or Excel file",
+    "asOf": "As-of date",
+    "asOfHint": "Empty = today. Use it when re-importing an older day's report.",
+    "rooms": "Rooms available",
+    "roomsHint": "Optional: use when the file has no rooms-available column.",
+    "template": "Download template",
+    "submit": "Import OTB",
+    "noSelf": "Add your hotel (role “Your hotel”) under <link>Hotels</link> before importing OTB.",
+    "importError": "Couldn't import OTB",
+    "invalidRooms": "Rooms available must be a whole number above 0.",
+    "result": {
+      "summary": "Read <b>{rows}</b> rows · wrote <b>{snapshots}</b> snapshots · {asOf} as-of dates · {stays} nights",
+      "failedRows": "{count} rows with errors",
+      "done": "OTB now shows in <pace>Booking pace</pace> and <today>Today</today>."
+    }
+  },
+  "panel": {
+    "title": "Your OTB",
+    "info": "OTB = rooms booked for each night, from your PMS. Pickup = rooms added (net of cancellations) versus 1 or 7 days ago. Versus 4 weeks earlier = current OTB versus the same weekday 4 weeks earlier, at the same days before arrival. Same time last year (STLY) = the same weekday 364 days earlier, at the same days before arrival. Forecast = OTB + average historical pickup from now to arrival (same weekdays).",
+    "asOf": "Latest snapshot: {date}",
+    "kpi": {
+      "occ": "Occupancy · PMS, last 30 days",
+      "occHint": "{sold}/{available} room nights",
+      "adr": "ADR · PMS, last 30 days",
+      "adrHint": "Room revenue / rooms sold",
+      "revpar": "RevPAR · PMS, last 30 days",
+      "revparHint": "Room revenue / rooms available",
+      "noPms": "No PMS numbers for the last 30 days",
+      "otb": "OTB this period",
+      "otbHint": "{rooms} room nights · {revenue}",
+      "otbNone": "No OTB for this period yet",
+      "index": "Listed-price index (median)",
+      "indexHint": "{count} nights with enough sample · 100 = competitor median",
+      "indexNone": "Not enough priced competitors to compare"
+    },
+    "col": {
+      "night": "Night",
+      "otb": "OTB",
+      "adr": "OTB ADR",
+      "pickup1": "Pickup 1 day",
+      "pickup7": "Pickup 7 days",
+      "pace4w": "Vs 4 weeks earlier (same weekday)",
+      "stly": "Same time last year",
+      "forecast": "Forecast"
+    },
+    "rooms": "{count} rooms",
+    "ref4w": "4 weeks earlier: {count} rooms",
+    "stlyRooms": "Last year: {count} rooms",
+    "forecastBasis": "Based on {count} past nights on the same weekday",
+    "showAll": "Show all {count} nights",
+    "showLess": "Show less",
+    "noSelfTitle": "No hotel of yours yet",
+    "noSelfBody": "Add your hotel to the watchlist to see OTB and KPIs.",
+    "noSelfAction": "Open watchlist",
+    "emptyTitle": "No daily OTB yet",
+    "emptyBody": "OTB is the number of rooms booked for each night, from your PMS. Import a rooms-on-the-books report every day, or one detailed bookings file to get pickup, pace and same time last year right away.",
+    "emptyViewer": "Ask your hotel admin to import OTB under Settings › PMS import.",
+    "importAction": "Import OTB"
+  },
+  "compact": {
+    "title": "Your OTB & KPIs",
+    "details": "Details",
+    "next": "Next 7 nights",
+    "pickup7": "+7 days",
+    "vsStly": "vs last year",
+    "forecast": "forecast",
+    "empty": "No daily OTB yet: import it from your PMS to see pickup and same time last year.",
+    "importLink": "Import OTB"
+  }
+}

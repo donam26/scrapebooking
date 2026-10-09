@@ -9,7 +9,7 @@ import { IconRefresh } from "./icons";
 import { Button, cx } from "./ui";
 
 /**
- * "Quét ngay" một khách sạn (chỉ quản trị): đưa khách sạn vào hàng đợi quét trên mọi kênh đang quét,
+ * "Quét ngay" một khách sạn (chỉ quản trị): đưa khách sạn vào hàng đợi quét Booking.com,
  * không đợi mốc giờ. Trong 10 phút bấm lại trả về lượt đang chạy.
  */
 export function ScanHotelButton({ hotelId, className }: { hotelId: number; className?: string }) {

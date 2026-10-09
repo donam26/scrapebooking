@@ -2,27 +2,35 @@
   "page": {
     "title": "Competitors",
     "count": "{count, plural, one {# competitor} other {# competitors}} in the comp set",
-    "channel": "Channel <b>{channel}</b>",
-    "scannedAt": "Scanned {when}",
     "addHotel": "Add hotel",
     "emptyTitle": "No hotels tracked yet",
-    "emptyBody": "Add your hotel and competitors using the hotel page link from a booking channel."
+    "emptyBody": "Add your hotel and competitors using the hotel page link on Booking.com.",
+    "signLegend": "“Vs your rate”: the competitor's rate relative to yours on the same night. (+) competitor more expensive than you / (−) cheaper."
   },
   "rooms": {
     "notScanned": "Not scanned",
     "soldOut": "Sold out",
     "unknown": "Could not read",
     "available": "Available",
-    "left": "{count} left"
+    "left": "{count} left",
+    "restricted": "Restricted",
+    "minStay": "{count}+ nights",
+    "noPrice": "No price"
   },
   "card": {
     "yourHotel": "Your hotel",
     "stars": "{count, plural, one {# star} other {# stars}}",
     "distance": "{km} km from you",
     "tonightRate": "Rate tonight",
+    "nightRate": "Rate {night}",
     "vsYours": "Vs your rate",
+    "vsYoursTitle": "Competitor rate relative to yours: (+) competitor more expensive, (−) cheaper",
     "change7d": "7-day change",
-    "nextNights": "Rates, next {count, plural, one {# night} other {# nights}}",
-    "details": "Details"
+    "nextNights": "Rates, {count, plural, one {# night} other {# nights}} in view",
+    "details": "Details",
+    "minStayPrice": "rate for {count}+ night stays",
+    "promo": "Promo: {promos}",
+    "stale": "Stale data · {ago}",
+    "staleTitle": "Observation older than 48 hours: excluded from the comp set median"
   }
 }

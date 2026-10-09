@@ -45,10 +45,6 @@ const RULES: Rule[] = [
   [/^at most (\d+) scan_times per day$/, "scanTimesMax", (m) => ({ max: m[1] })],
   // watchlist, quét
   [/^listing not found$/, "listingNotFound"],
-  [/^only suggestions can be rejected$/, "onlySuggestions"],
-  [/^listing is not a suggestion$/, "notSuggestion"],
-  [/^unknown channel (.+)$/, "unknownChannel", (m) => ({ value: m[1] })],
-  [/^reference_channel must be one of .*$/, "referenceChannel"],
   [/^hotel not in watchlist$/, "hotelNotInWatchlist"],
   [/^hotel not found$/, "hotelNotFound"],
   [/^watchlist is empty$/, "watchlistEmpty"],
@@ -84,6 +80,23 @@ const RULES: Rule[] = [
   [/^unknown params for (\w+): (.+)$/, "ruleUnknownParams", (m) => ({ value: m[2] })],
   [/^(\w+) must be an integer$/, "ruleNotInteger"],
   [/^(\w+) must be between (\d+) and (\d+)$/, "ruleRange", (m) => ({ min: m[2], max: m[3] })],
+  // đăng ký nhận tin, "Đã xử lý" (Phase 3)
+  [/^invalid email$/, "invalidEmail"],
+  [/^invalid Vietnamese phone number$/, "invalidPhone"],
+  [/^webhook must be https:\/\/$/, "webhookHttps"],
+  [/^at most (\d+) subscriptions$/, "subscriptionsMax", (m) => ({ max: m[1] })],
+  [/^subscription already exists$/, "subscriptionExists"],
+  [/^subscription not found$/, "subscriptionNotFound"],
+  [/^not your subscription$/, "notYourSubscription"],
+  [/^notification not found$/, "notificationNotFound"],
+  // OTB, chiến lược giá, báo cáo (Phase 5–7)
+  [/^no own hotel \(role=self\) in watchlist$/, "noOwnHotel"],
+  [/^OTB only for role=self hotel$/, "otbSelfOnly"],
+  [/^rooms_otb missing or negative$/, "roomsOtbMissing"],
+  [/^departure must be after arrival$/, "departureBeforeArrival"],
+  [/^(?:Value error, )?floor_price above ceiling_price$/, "floorAboveCeiling"],
+  [/^(?:Value error, )?weekday_adj: .*$/, "weekdayAdjRange"],
+  [/^month must be YYYY-MM$/, "monthFormat"],
   // tenant
   [/^(?:Value error, )?insight_language must be one of (.+)$/, "reportLanguageInvalid", (m) => ({ value: m[1] })],
   // dữ liệu
@@ -118,6 +131,7 @@ const RULES: Rule[] = [
   [/^String should have at least (\d+) characters?$/, "minLength", (m) => ({ min: m[1] })],
   [/^String should have at most (\d+) characters?$/, "maxLength", (m) => ({ max: m[1] })],
   [/^Input should be greater than or equal to (.+)$/, "gte", (m) => ({ value: m[1] })],
+  [/^Input should be greater than (.+)$/, "gt", (m) => ({ value: m[1] })],
   [/^Input should be less than or equal to (.+)$/, "lte", (m) => ({ value: m[1] })],
   [/^value is not a valid email address.*$/, "invalidEmail"],
   [/^String should match pattern .*$/, "invalidValue"],

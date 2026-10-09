@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import type { ScanRunOut } from "@/lib/api";
 import { useFmt } from "@/lib/format";
-import { channelName } from "@/lib/channels";
 import { RUN_STATUS_TONE, useLabel } from "@/lib/labels";
 import { Badge, Stat, cx } from "./ui";
 
@@ -24,7 +23,6 @@ export function RunSummary({ run }: { run: ScanRunOut | null }) {
           </span>
         }
       />
-      <Stat label={t("channel")} value={channelName(run.channel)} />
       <Stat label={t("finished")} value={fmtDateTime(run.finished_at)} />
       <Stat label={t("duration")} value={fmtDuration(run.started_at, run.finished_at)} />
       <Stat label={t("probesOk")} value={`${fmtInt(run.ok_count)} / ${fmtInt(run.total_probes)}${okRate !== null ? ` (${okRate}%)` : ""}`} />

@@ -69,6 +69,5 @@ def test_collector_functions_have_their_own_max_tries() -> None:
     assert tries == {
         "probe_hotel": MAX_TRIES,
         "verify_listing": 3,
-        "discover_listing": 3,
         "scan_market_list": 1,
     }

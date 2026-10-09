@@ -9,14 +9,12 @@ from app.db.models import (
     Hotel,
     HotelCalendar,
     Listing,
-    ListingDemandSignal,
     Probe,
     RoomSnapshot,
     RoomType,
 )
 from app.domain.models import (
     CalendarResult,
-    DemandSignal,
     ProbeMethod,
     ProbeResult,
     ProbeStatus,
@@ -176,49 +174,8 @@ class SnapshotRepository:
             await self.update_listing_identity(
                 hotel_id, channel, result.external_id, result.hotel_name
             )
-        await self.write_demand_signals(
-            scan_run_id, hotel_id, channel, stay_date, result.demand_signals, fetched_at
-        )
         await self._s.flush()
         return probe_id
-
-    async def write_demand_signals(
-        self,
-        scan_run_id: int,
-        hotel_id: int,
-        channel: str,
-        stay_date: date,
-        signals: tuple[DemandSignal, ...],
-        observed_at: datetime,
-    ) -> None:
-        """Tín hiệu cả khách sạn (stay_date None) lặp lại ở mọi probe của lượt: giữ một dòng mỗi
-        (run, kênh, loại). Tín hiệu theo đêm: một dòng mỗi (run, kênh, loại, đêm)."""
-        for sig in signals:
-            sig_date = sig.stay_date
-            await self._s.execute(
-                delete(ListingDemandSignal).where(
-                    ListingDemandSignal.scan_run_id == scan_run_id,
-                    ListingDemandSignal.hotel_id == hotel_id,
-                    ListingDemandSignal.channel == channel,
-                    ListingDemandSignal.kind == str(sig.kind),
-                    ListingDemandSignal.stay_date.is_(None)
-                    if sig_date is None
-                    else ListingDemandSignal.stay_date == sig_date,
-                )
-            )
-            self._s.add(
-                ListingDemandSignal(
-                    hotel_id=hotel_id,
-                    channel=channel,
-                    scan_run_id=scan_run_id,
-                    stay_date=sig_date,
-                    kind=str(sig.kind),
-                    value=sig.value,
-                    window_hours=sig.window_hours,
-                    raw_text=(sig.raw_text or "")[:500] or None,
-                    observed_at=observed_at,
-                )
-            )
 
     async def write_skipped(
         self,

@@ -4,6 +4,7 @@
   "operatorSection": "Vận hành",
   "sessionError": "Không tải được phiên đăng nhập",
   "nav": {
+    "today": "Hôm nay",
     "dashboard": "Bảng điều khiển",
     "competitors": "Đối thủ",
     "availability": "Phòng trống",
@@ -27,8 +28,8 @@
   "freshness": {
     "noScan": "Chưa có lượt quét",
     "scanning": "Đang quét…",
-    "scannedAt": "Quét lúc {when}",
-    "failed": "Lượt quét lỗi, không có dữ liệu mới",
+    "updatedAt": "Cập nhật lúc {when}",
+    "failed": "Lượt quét gần nhất không thu được dữ liệu",
     "overdue": "Lỡ lịch quét · dữ liệu từ {ago}",
     "next": "Lượt tiếp theo {when}"
   },
@@ -37,8 +38,7 @@
     "data": "Dữ liệu",
     "pickTenant": "Chọn tenant để xem",
     "heatTitle": "Màu số phòng còn",
-    "heatNote": "Số phòng còn là của từng kênh, không cộng giữa các kênh. “≥N” là kênh chỉ lộ mức sàn.",
-    "openToday": "Mở màn “Hôm nay” cho điện thoại"
+    "heatNote": "Số phòng còn trên Booking.com. “≥N” là Booking.com chỉ lộ mức sàn."
   },
   "bell": {
     "title": "Thông báo",

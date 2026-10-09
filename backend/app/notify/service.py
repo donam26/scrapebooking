@@ -11,12 +11,15 @@ vì cảnh báo về đối thủ chỉ có giá trị khi kịp thời.
 """
 
 import asyncio
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from functools import partial
+from html import escape, unescape
 from typing import Any, Protocol
+from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import and_, exists, func, select, update
@@ -24,16 +27,18 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.compset import compset_by_day
-from app.channels.registry import sort_channels
 from app.config import Settings
 from app.db.models import (
     AvailabilityEvent,
     Hotel,
     HotelDateSnapshot,
     Insight,
+    Listing,
     Notification,
+    NotificationDelivery,
     NotificationRecipient,
     NotificationRule,
+    NotificationSubscription,
     Probe,
     RoomType,
     ScanRun,
@@ -41,13 +46,22 @@ from app.db.models import (
     TenantHotel,
 )
 from app.holidays.data import holidays_between
-from app.i18n import DEFAULT_LOCALE, normalize_locale
+from app.i18n import DEFAULT_LOCALE, normalize_locale, t
 from app.logging import get_logger
 from app.notify.alert_rules import AlertItem, EventFact, NightMarket, evaluate_alerts
+from app.notify.channels import Message, Notifier, build_notifiers
 from app.notify.email_sender import EmailSender
 from app.notify.kinds import ALERT_KINDS, NotificationKind, RuleConfig, effective_rules
-from app.notify.render import Email, render_alerts, render_insight, render_test, render_weekly
+from app.notify.render import (
+    Email,
+    render_alerts,
+    render_insight,
+    render_stale,
+    render_test,
+    render_weekly,
+)
 from app.notify.weekly import COUNTED, OUTLOOK_NIGHTS, WeekEvent, build_weekly_report
+from app.ops.health_checks import channel_last_success, stale_after_hours
 from app.repo.runs import MARKET_RUN_PREFIX
 
 log = get_logger(__name__)
@@ -70,6 +84,9 @@ SKIP_NO_MATCHES = "no_matches"
 SKIP_NO_RECIPIENTS = "no_recipients"
 SKIP_NOT_CONFIGURED = "smtp_not_configured"
 SKIP_DISABLED = "disabled"
+ROW_STALE = "data_stale"
+# Kênh ngoài email: mỗi (khoá outbox, kênh) một dòng riêng, chỉ khi tenant có người đăng ký kênh đó.
+FANOUT_CHANNELS = ("zalo", "webhook")
 
 
 class TestTooSoon(Exception):
@@ -82,6 +99,7 @@ class DispatchReport:
     insights: int = 0
     weekly: int = 0
     retried: int = 0
+    stale: int = 0
 
 
 class _HasTimezone(Protocol):
@@ -97,7 +115,6 @@ class TenantInfo:
     name: str
     timezone: str
     country_code: str
-    reference_channel: str = "booking"
     language: str = DEFAULT_LOCALE  # ngôn ngữ báo cáo (`insight_language`): chữ của mọi email
 
     @classmethod
@@ -107,7 +124,6 @@ class TenantInfo:
             t.name,
             t.timezone,
             t.country_code,
-            t.reference_channel,
             normalize_locale(t.insight_language),
         )
 
@@ -116,63 +132,9 @@ WEEKLY_HOUR = 8  # thứ Hai, giờ địa phương của tenant
 
 
 def slot_key(trigger_key: str, channel: str) -> str:
-    """Mốc quét của run: bỏ hậu tố ":<kênh>" (run đa kênh cùng mốc gộp một email)."""
+    """Mốc quét của run: bỏ hậu tố ":<kênh>" (khoá run có dạng "<mốc>:booking")."""
     suffix = f":{channel}"
     return trigger_key[: -len(suffix)] if trigger_key.endswith(suffix) else trigger_key
-
-
-def _price_or_max(value: str | None) -> Decimal:
-    try:
-        return Decimal(value) if value else Decimal("Infinity")
-    except ArithmeticError:
-        return Decimal("Infinity")
-
-
-def merge_channel_events(
-    rows: list[tuple[str, EventFact]], reference_channel: str = "booking"
-) -> list[EventFact]:
-    """Gộp cùng một sự kiện (khách sạn, loại phòng, đêm, loại) xảy ra trên nhiều kênh của một mốc
-    thành một dòng mang danh sách kênh. Giá trị lấy từ kênh tham chiếu nếu có. Hết phòng kèm
-    channel_closed (kênh khác vẫn bán) được đánh dấu `open_elsewhere`."""
-    groups: dict[tuple[int, str | None, date, str], list[tuple[str, EventFact]]] = {}
-    for channel, fact in rows:
-        groups.setdefault(
-            (fact.hotel_id, fact.room_type_name, fact.stay_date, fact.event_type), []
-        ).append((channel, fact))
-    closed: dict[tuple[int, date, str], set[str]] = {}
-    for (hotel_id, _rt, stay, et), members in groups.items():
-        if et == "channel_closed":
-            for channel, fact in members:
-                closed.setdefault((hotel_id, stay, channel), set()).update(
-                    c for c in (fact.from_value or "").split(",") if c
-                )
-    out: list[EventFact] = []
-    for (hotel_id, _rt, stay, et), members in groups.items():
-        if et == "channel_closed":
-            continue
-        members.sort(key=lambda m: (m[0] != reference_channel, m[0]))
-        channels = tuple(sort_channels(m[0] for m in members))
-        if et == "parity_gap":
-            # Các run cùng mốc chốt lệch giờ: kênh phân tích trước so với dữ liệu kênh khác chưa có.
-            # Chỉ giữ kênh thật sự rẻ nhất (giá thấp nhất) của đêm đó.
-            members.sort(key=lambda m: _price_or_max(m[1].to_value))
-            channels = (members[0][0],)
-        open_elsewhere: set[str] = set()
-        if et == "sold_out":
-            for channel in channels:
-                open_elsewhere |= closed.get((hotel_id, stay, channel), set())
-            open_elsewhere -= set(channels)
-        base = members[0][1]
-        out.append(
-            EventFact(
-                **{
-                    **base.__dict__,
-                    "channels": channels,
-                    "open_elsewhere": tuple(sort_channels(open_elsewhere)),
-                }
-            )
-        )
-    return sorted(out, key=lambda f: f.event_id)
 
 
 def tenant_now(tenant: _HasTimezone, now: datetime) -> datetime:
@@ -197,11 +159,41 @@ def weekly_due_key(tenant: Any, now: datetime) -> str | None:
     return f"weekly:{tenant.id}:{year}-W{week:02d}"
 
 
+def in_quiet_hours(local: datetime, start: str | None, end: str | None) -> bool:
+    """Giờ im lặng [start, end) theo giờ tenant, có thể qua nửa đêm ("22:00"–"07:00")."""
+    if not start or not end:
+        return False
+    try:
+        a = int(start[:2]) * 60 + int(start[3:5])
+        b = int(end[:2]) * 60 + int(end[3:5])
+    except ValueError:
+        return False
+    m = local.hour * 60 + local.minute
+    return a <= m < b if a < b else (m >= a or m < b)
+
+
+def subscription_matches(kinds: list[str] | None, kind: str) -> bool:
+    return kind == ROW_TEST or not kinds or kind in kinds
+
+
+def _new_token() -> str:
+    import secrets
+
+    return secrets.token_urlsafe(24)
+
+
 class NotificationService:
-    def __init__(self, session: AsyncSession, sender: EmailSender, settings: Settings) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        sender: EmailSender,
+        settings: Settings,
+        notifiers: dict[str, Notifier] | None = None,
+    ) -> None:
         self._s = session
         self._sender = sender
         self._base_url = settings.app_base_url
+        self._notifiers = notifiers if notifiers is not None else build_notifiers(settings)
 
     # ---- cấu hình theo tenant -------------------------------------------------
 
@@ -239,6 +231,7 @@ class NotificationService:
         detail: str | None = None,
         scan_run_id: int | None = None,
         insight_id: int | None = None,
+        channel: str = "email",
     ) -> Notification | None:
         """Chèn dòng outbox; None nếu khoá đã có (đã xử lý trước đó). Dòng "sending" tính là lần
         gửi thứ nhất."""
@@ -260,6 +253,7 @@ class NotificationService:
                 detail=detail,
                 scan_run_id=scan_run_id,
                 insight_id=insight_id,
+                channel=channel,
             )
             .on_conflict_do_nothing(index_elements=[Notification.dedupe_key])
             .returning(Notification.id)
@@ -276,35 +270,222 @@ class NotificationService:
         await self._claim(tenant_id, kind, key, None, now, status="skipped", detail=detail, **extra)
         await self._s.commit()
 
+    async def _subscriptions(
+        self, tenant_id: int, channel: str, kind: str
+    ) -> list[NotificationSubscription]:
+        rows = (
+            await self._s.execute(
+                select(NotificationSubscription)
+                .where(
+                    NotificationSubscription.tenant_id == tenant_id,
+                    NotificationSubscription.channel == channel,
+                    NotificationSubscription.active.is_(True),
+                )
+                .order_by(NotificationSubscription.id)
+            )
+        ).scalars()
+        return [r for r in rows if subscription_matches(r.kinds, kind)]
+
+    async def _sent_today(self, channel: str, target: str, since: datetime) -> int:
+        return int(
+            (
+                await self._s.execute(
+                    select(func.count()).where(
+                        NotificationDelivery.channel == channel,
+                        func.lower(NotificationDelivery.target) == target.lower(),
+                        NotificationDelivery.status == "sent",
+                        NotificationDelivery.created_at >= since,
+                    )
+                )
+            ).scalar_one()
+        )
+
+    async def _gate(
+        self, row: Notification, sub: NotificationSubscription | None, now: datetime
+    ) -> str | None:
+        """Lý do không gửi tới người đăng ký này lúc này (giờ im lặng, quá trần tin/ngày)."""
+        if sub is None or row.kind == ROW_TEST:
+            return None
+        tenant = await self._s.get(Tenant, row.tenant_id)
+        local = tenant_now(tenant, now) if tenant else now
+        if in_quiet_hours(local, sub.quiet_start, sub.quiet_end):
+            return "skipped_quiet"
+        if sub.max_per_day:
+            midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
+            if await self._sent_today(sub.channel, sub.target, midnight) >= sub.max_per_day:
+                return "skipped_limit"
+        return None
+
+    def _tracked(self, token: str, url: str) -> str:
+        path = url[len(self._base_url.rstrip("/")) :] if url.startswith(self._base_url) else url
+        return f"{self._base_url.rstrip('/')}/api/notifications/t/{token}?to={quote(path or '/')}"
+
+    def _resolve_url(self, token: str) -> str:
+        return f"{self._base_url.rstrip('/')}/api/notifications/t/{token}/resolve"
+
+    def _personalize(self, email: Email, token: str, locale: str) -> Email:
+        """Gắn link theo dõi lượt nhấn và nút "Đã xử lý" cho từng người nhận (3.6)."""
+        base = re.escape(self._base_url.rstrip("/"))
+        html = re.sub(
+            rf'href="({base}[^"]*)"',
+            lambda m: f'href="{escape(self._tracked(token, unescape(m.group(1))))}"',
+            email.html,
+        )
+        resolve = self._resolve_url(token)
+        label = t(locale, "email.track.resolve")
+        button = (
+            '<tr><td style="padding:0 28px 20px"><a href="'
+            + escape(resolve)
+            + '" style="font:600 13px/1.8 Arial,sans-serif;color:#16a34a;text-decoration:none">'
+            + f"✓ {escape(label)}</a></td></tr>"
+        )
+        tail = "</table></td></tr></table></body></html>"
+        html = html[: -len(tail)] + button + tail if html.endswith(tail) else html + button
+        return Email(email.subject, f"{email.text}\n\n{label}: {resolve}", html)
+
+    def _main_url(self, row: Notification) -> str:
+        if row.insight_id:
+            return f"{self._base_url.rstrip('/')}/insights/{row.insight_id}"
+        if row.kind == ROW_ALERTS:
+            return f"{self._base_url.rstrip('/')}/today"
+        return f"{self._base_url.rstrip('/')}/dashboard"
+
+    async def _record(
+        self,
+        row: Notification,
+        channel: str,
+        target: str,
+        status: str,
+        token: str,
+        *,
+        external_id: str | None = None,
+        cost: Decimal | None = None,
+        error: str | None = None,
+    ) -> None:
+        self._s.add(
+            NotificationDelivery(
+                notification_id=row.id,
+                tenant_id=row.tenant_id,
+                channel=channel,
+                target=target[:500],
+                status=status,
+                external_id=external_id,
+                cost_vnd=cost,
+                error=(error or None) and error[:500],
+                token=token,
+            )
+        )
+
     async def _deliver(self, row: Notification, now: datetime) -> None:
-        """Gửi tới mọi người nhận (song song, mỗi người một email) và đặt trạng thái cuối."""
-        to = await self.recipients(row.tenant_id)
+        """Gửi tới mọi người nhận của kênh của dòng outbox và đặt trạng thái cuối."""
+        if row.channel != "email":
+            await self._deliver_channel(row, now)
+            return
+        legacy = await self.recipients(row.tenant_id)
+        subs = await self._subscriptions(row.tenant_id, "email", row.kind)
         if not self._sender.configured:
             row.status, row.detail = "skipped", SKIP_NOT_CONFIGURED
             return
-        if not to:
+        targets: dict[str, tuple[str, NotificationSubscription | None]] = {}
+        for addr in legacy:
+            targets.setdefault(addr.lower(), (addr, None))
+        for s_ in subs:
+            targets.setdefault(s_.target.lower(), (s_.target, s_))
+        if not targets:
             row.status, row.detail = "skipped", SKIP_NO_RECIPIENTS
             return
-        email = Email(row.subject, row.body_text, row.body_html)
+        tenant = await self._s.get(Tenant, row.tenant_id)
+        locale = normalize_locale(tenant.insight_language) if tenant else DEFAULT_LOCALE
+        base = Email(row.subject, row.body_text, row.body_html)
+        plan: list[tuple[str, str]] = []  # (địa chỉ, token)
+        for addr, sub in targets.values():
+            token = _new_token()
+            gate = await self._gate(row, sub, now)
+            if gate:
+                await self._record(row, "email", addr, gate, token)
+                continue
+            plan.append((addr, token))
         results = await asyncio.gather(
-            *(self._sender.send(addr, email) for addr in to), return_exceptions=True
+            *(self._sender.send(addr, self._personalize(base, tok, locale)) for addr, tok in plan),
+            return_exceptions=True,
         )
-        ok = [addr for addr, r in zip(to, results, strict=True) if not isinstance(r, BaseException)]
-        errors = [
-            f"{addr}: {type(r).__name__}: {r}"[:300]
-            for addr, r in zip(to, results, strict=True)
-            if isinstance(r, BaseException)
-        ]
-        for err in errors:
-            log.warning(
-                "email_send_failed", notification_id=row.id, error=err.split(":", 2)[1].strip()
-            )
+        ok: list[str] = []
+        errors: list[str] = []
+        for (addr, token), r in zip(plan, results, strict=True):
+            if isinstance(r, BaseException):
+                err = f"{addr}: {type(r).__name__}: {r}"[:300]
+                errors.append(err)
+                log.warning("email_send_failed", notification_id=row.id, error=type(r).__name__)
+                await self._record(row, "email", addr, "failed", token, error=err)
+            else:
+                ok.append(addr)
+                await self._record(row, "email", addr, "sent", token)
         row.recipients = ok
         if ok:
             row.status, row.sent_at = "sent", now
             row.detail = "; ".join(errors) or None
-        else:
+        elif errors:
             row.status, row.detail = "failed", "; ".join(errors)
+        else:
+            row.status, row.detail = "skipped", "quiet_or_limit"
+
+    async def _deliver_channel(self, row: Notification, now: datetime) -> None:
+        notifier = self._notifiers.get(row.channel)
+        if notifier is None or not notifier.configured:
+            row.status, row.detail = "skipped", f"{row.channel}_not_configured"
+            return
+        subs = await self._subscriptions(row.tenant_id, row.channel, row.kind)
+        if not subs:
+            row.status, row.detail = "skipped", SKIP_NO_RECIPIENTS
+            return
+        tenant = await self._s.get(Tenant, row.tenant_id)
+        local = tenant_now(tenant, now) if tenant else now
+        lines = [ln.strip() for ln in (row.body_text or "").splitlines() if ln.strip()]
+        summary = " · ".join(lines[1:3]) if len(lines) > 1 else row.subject
+        ok, errors = [], []
+        for sub in subs:
+            token = _new_token()
+            gate = await self._gate(row, sub, now)
+            if gate:
+                await self._record(row, row.channel, sub.target, gate, token)
+                continue
+            msg = Message(
+                kind=row.kind,
+                subject=row.subject,
+                summary=summary,
+                count=row.item_count,
+                date_label=local.strftime("%d/%m/%Y"),
+                url=self._tracked(token, self._main_url(row)),
+                resolve_url=self._resolve_url(token),
+            )
+            try:
+                res = await notifier.send(sub.target, msg, token)
+            except Exception as exc:  # noqa: BLE001 — một người nhận lỗi không chặn người khác
+                err = f"{sub.target}: {type(exc).__name__}: {exc}"[:300]
+                errors.append(err)
+                log.warning("channel_send_failed", channel=row.channel, error=type(exc).__name__)
+                await self._record(row, row.channel, sub.target, "failed", token, error=err)
+                continue
+            ok.append(sub.target)
+            await self._record(
+                row,
+                row.channel,
+                sub.target,
+                "sent",
+                token,
+                external_id=res.external_id,
+                cost=res.cost_vnd,
+            )
+            if res.cost_vnd is not None:
+                log.info("channel_sent", channel=row.channel, cost_vnd=str(res.cost_vnd))
+        row.recipients = ok
+        if ok:
+            row.status, row.sent_at = "sent", now
+            row.detail = "; ".join(errors) or None
+        elif errors:
+            row.status, row.detail = "failed", "; ".join(errors)
+        else:
+            row.status, row.detail = "skipped", "quiet_or_limit"
 
     async def _send(
         self, tenant_id: int, kind: str, key: str, email: Email, now: datetime, **extra: Any
@@ -316,7 +497,24 @@ class NotificationService:
             await self._s.commit()
             await self._deliver(row, now)
             await self._s.commit()
+            await self._fanout(tenant_id, kind, key, email, now, **extra)
         return row
+
+    async def _fanout(
+        self, tenant_id: int, kind: str, key: str, email: Email, now: datetime, **extra: Any
+    ) -> None:
+        """Cùng tin qua Zalo/webhook cho người đã đăng ký kênh đó (3.1): một dòng mỗi kênh."""
+        for channel in FANOUT_CHANNELS:
+            if not await self._subscriptions(tenant_id, channel, kind):
+                continue
+            row = await self._claim(
+                tenant_id, kind, f"{key}:{channel}"[:128], email, now, channel=channel, **extra
+            )
+            if row is None:
+                continue
+            await self._s.commit()
+            await self._deliver(row, now)
+            await self._s.commit()
 
     async def _guarded(self, unit: str, work: Callable[[], Awaitable[int]]) -> int:
         """Một đơn vị việc lỗi (dữ liệu lạ, DB) chỉ bị bỏ qua lần này, không chặn đơn vị khác."""
@@ -396,9 +594,7 @@ class NotificationService:
         )
         return [TenantInfo.of(t) for t in rows.scalars()]
 
-    async def _run_events(
-        self, tenant_id: int, run_ids: list[int], reference_channel: str = "booking"
-    ) -> list[EventFact]:
+    async def _run_events(self, tenant_id: int, run_ids: list[int]) -> list[EventFact]:
         rows = await self._s.execute(
             select(
                 AvailabilityEvent,
@@ -428,34 +624,39 @@ class NotificationService:
             .where(
                 AvailabilityEvent.scan_run_id.in_(run_ids),
                 AvailabilityEvent.event_type.in_(
-                    ["sold_out", "low_stock_enter", "price_down", "channel_closed", "parity_gap"]
+                    [
+                        "sold_out",
+                        "low_stock_enter",
+                        "rooms_decrease",
+                        "price_down",
+                        "price_up",
+                        "lowest_rate_shift",
+                        "promo_start",
+                        "restricted",
+                    ]
                 ),
                 TenantHotel.active.is_(True),
             )
             .order_by(AvailabilityEvent.id)
         )
-        return merge_channel_events(
-            [
-                (
-                    e.channel,
-                    EventFact(
-                        event_id=e.id,
-                        hotel_id=e.hotel_id,
-                        hotel_name=label or h.name or f"#{h.id}",
-                        room_type_name=rt_name if e.room_type_id is not None else None,
-                        stay_date=e.stay_date,
-                        event_type=e.event_type,
-                        from_value=e.from_value,
-                        to_value=e.to_value,
-                        delta=e.delta,
-                        currency=currency,
-                        role=role,
-                    ),
-                )
-                for e, h, label, role, rt_name, currency in rows.all()
-            ],
-            reference_channel,
-        )
+        return [
+            EventFact(
+                event_id=e.id,
+                hotel_id=e.hotel_id,
+                hotel_name=label or h.name or f"#{h.id}",
+                room_type_name=rt_name if e.room_type_id is not None else None,
+                stay_date=e.stay_date,
+                event_type=e.event_type,
+                from_value=e.from_value,
+                to_value=e.to_value,
+                delta=e.delta,
+                currency=currency,
+                role=role,
+                reason=e.reason,
+                detail=e.detail,
+            )
+            for e, h, label, role, rt_name, currency in rows.all()
+        ]
 
     async def alerts_for_run(
         self, tenant: TenantInfo, run_ids: int | list[int], now: datetime
@@ -464,24 +665,48 @@ class NotificationService:
         if not any(rules[k].active for k in ALERT_KINDS):
             return []
         ids = [run_ids] if isinstance(run_ids, int) else run_ids
-        events = await self._run_events(tenant.id, ids, tenant.reference_channel)
+        events = await self._run_events(tenant.id, ids)
         if not events:
             return []
         dates = sorted({e.stay_date for e in events})
         market = {
-            c.stay_date: NightMarket(c.competitors_sold_out, c.competitors_observed)
+            c.stay_date: NightMarket(
+                c.competitors_sold_out,
+                c.competitors_observed,
+                c.competitors_low,
+                c.price_index,
+                c.sample,
+                c.competitors_priced,
+            )
             for c in await compset_by_day(
                 self._s,
                 tenant.id,
                 dates[0],
                 dates[-1],
-                channel=tenant.reference_channel,
+                now=now,
             )
         }
-        return evaluate_alerts(rules, events, market, tenant_today(tenant, now), tenant.language)
+        target = await self._target_index(tenant.id)
+        return evaluate_alerts(
+            rules, events, market, tenant_today(tenant, now), tenant.language, target
+        )
+
+    async def _target_index(self, tenant_id: int) -> Decimal:
+        """Định vị mục tiêu của khách sạn của bạn (chiến lược giá, Phase 6); mặc định 100."""
+        from app.market.models import PriceStrategy
+
+        v = (
+            await self._s.execute(
+                select(PriceStrategy.target_index)
+                .where(PriceStrategy.tenant_id == tenant_id)
+                .order_by(PriceStrategy.hotel_id)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return Decimal(v) if v is not None else Decimal(100)
 
     async def _alert_unit(self, tenant: TenantInfo, run_ids: list[int], now: datetime) -> int:
-        # Khoá theo run nhỏ nhất của mốc: mốc chỉ có một run (dữ liệu trước đa kênh) giữ khoá cũ.
+        # Khoá theo run nhỏ nhất của mốc (khoá cũ giữ nguyên để không gửi lại).
         run_id = min(run_ids)
         key = f"{ROW_ALERTS}:{tenant.id}:{run_id}"
         if await self._exists(key):
@@ -593,8 +818,8 @@ class NotificationService:
         end = today + timedelta(days=OUTLOOK_NIGHTS - 1)
         report = build_weekly_report(
             today,
-            await self._week_events(tenant.id, now - timedelta(days=7), tenant.reference_channel),
-            await compset_by_day(self._s, tenant.id, today, end, channel=tenant.reference_channel),
+            await self._week_events(tenant.id, now - timedelta(days=7)),
+            await compset_by_day(self._s, tenant.id, today, end),
             holidays_between(tenant.country_code, today, end, tenant.language),
         )
         if report.empty:
@@ -668,6 +893,62 @@ class NotificationService:
             )
         return n
 
+    async def _stale_unit(self, tenant: TenantInfo, now: datetime) -> int:
+        """Báo khách sạn khi dữ liệu một kênh đang quét cũ hơn một chu kỳ (0.7, 3.5): tối đa một
+        tin mỗi ngày mỗi tenant."""
+        key = f"stale:{tenant.id}:{tenant_today(tenant, now).isoformat()}"
+        if await self._exists(key):
+            return 0
+        rule = (await self.rules(tenant.id))[NotificationKind.DATA_STALE]
+        if not rule.active:
+            return 0
+        row = await self._s.get(Tenant, tenant.id)
+        hours = stale_after_hours(list(row.scan_times) if row else [])
+        ids = [
+            h
+            for (h,) in await self._s.execute(
+                select(TenantHotel.hotel_id).where(
+                    TenantHotel.tenant_id == tenant.id, TenantHotel.active.is_(True)
+                )
+            )
+        ]
+        if not ids:
+            return 0
+        channels = {
+            c
+            for (c,) in await self._s.execute(
+                select(Listing.channel)
+                .distinct()
+                .where(Listing.hotel_id.in_(ids), Listing.status == "active")
+            )
+        }
+        if not channels:
+            return 0
+        last = await channel_last_success(self._s, ids, since=now - timedelta(days=30))
+        limit = now - timedelta(hours=hours)
+        # Kênh chưa từng có dữ liệu (listing mới, đang chờ lượt quét đầu) không phải "dữ liệu cũ".
+        stale = sorted(c for c in channels if c in last and last[c] < limit)
+        if not stale:
+            return 0
+        since = min((last[c] for c in stale if c in last), default=None)
+        email = render_stale(
+            tenant.name,
+            stale,
+            tenant_now(tenant, since) if since else None,
+            self._base_url,
+            tenant.language,
+        )
+        sent = await self._send(tenant.id, ROW_STALE, key, email, now, item_count=len(stale))
+        return int(sent is not None and sent.status == "sent")
+
+    async def dispatch_stale(self, now: datetime) -> int:
+        rows = await self._s.execute(select(Tenant).where(Tenant.active.is_(True)))
+        tenants = [TenantInfo.of(t) for t in rows.scalars()]
+        n = 0
+        for tenant in tenants:
+            n += await self._guarded(f"stale:{tenant.id}", partial(self._stale_unit, tenant, now))
+        return n
+
     async def dispatch_due(self, now: datetime | None = None) -> DispatchReport:
         now = now or datetime.now(tz=UTC)
         report = DispatchReport()
@@ -675,6 +956,7 @@ class NotificationService:
         report.alerts = await self.dispatch_alerts(now)
         report.insights = await self.dispatch_insights(now)
         report.weekly = await self.dispatch_weekly(now)
+        report.stale = await self.dispatch_stale(now)
         return report
 
     async def send_test(self, tenant: Tenant, now: datetime | None = None) -> Notification:

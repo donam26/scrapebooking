@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { cx } from "./ui";
 
 /** `key`: khoá trong components.subTabs.tabs (tab dựng sẵn); hoặc truyền `label` đã dịch. */
-type SubTabKey = "aiBriefs" | "events" | "compset" | "market";
+type SubTabKey = "aiBriefs" | "events" | "compset" | "market" | "radar";
 export type SubTabItem = { href: string; exact?: boolean } & ({ label: string } | { key: SubTabKey });
 
 /** Tab con dạng viên thuốc trong một tab chính (VD Bản tin: Bản tin AI | Sự kiện thay đổi). */
@@ -44,5 +44,6 @@ export const BRIEF_TABS: SubTabItem[] = [
 /** Tab con của tab Đối thủ. */
 export const COMPETITOR_TABS: SubTabItem[] = [
   { href: "/competitors", key: "compset", exact: true },
+  { href: "/competitors/radar", key: "radar" },
   { href: "/competitors/market", key: "market" },
 ];

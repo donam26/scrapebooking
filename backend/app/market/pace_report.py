@@ -1,9 +1,9 @@
-"""Báo cáo nhịp đặt phòng của tenant theo từng đêm: công suất ước tính (của bạn và thị trường),
-nhịp so cùng kỳ, đối chiếu PMS, gợi ý giá. Đọc trên kênh tham chiếu của tenant (mặc định Booking),
-nơi số phòng còn được lộ rõ nhất."""
+"""Báo cáo nhịp đặt phòng của tenant theo từng đêm: chỉ báo lấp đầy ước tính (của bạn và đối
+thủ), nhịp so các tuần trước cùng thứ, đối chiếu PMS, gợi ý giá. Đọc trên một kênh (mặc định kênh
+tham chiếu của tenant, nơi số phòng còn được lộ rõ nhất)."""
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -11,22 +11,33 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics.compset import load_compset
 from app.analytics.rules import median
-from app.db.models import HotelDateMetric, OwnHotelDaily, Tenant, TenantHotel
+from app.channels.registry import BOOKING
+from app.db.models import HotelDateMetric, OwnHotelDaily, Tenant
 from app.holidays.data import holidays_between
 from app.i18n import DEFAULT_LOCALE
-from app.market.models import OccupancyEstimate, PriceSuggestionDecision
+from app.market.models import (
+    LocalEvent,
+    OccupancyEstimate,
+    OtbSnapshot,
+    PriceStrategy,
+    PriceSuggestionDecision,
+)
 from app.market.occupancy import Q4, is_reliable
 from app.market.pacing import (
+    LEAD_BUCKETS,
     LEAD_TOLERANCE,
     REFERENCE_WEEKS,
     Calibration,
+    LeadCalibration,
     Pace,
     calibrate,
+    calibrate_by_lead,
     compset_curve,
     pace,
 )
-from app.market.price_suggest import NightSignals, Suggestion, suggest
+from app.market.price_suggest import NightSignals, Strategy, Suggestion, suggest
 
 HISTORY = timedelta(weeks=max(REFERENCE_WEEKS) + 1)
 CALIBRATION_DAYS = 60
@@ -75,6 +86,9 @@ class NightReport:
     comp_median_price: Decimal | None
     comp_occ: Decimal | None
     comp_occ_hotels: int
+    comp_occ_low: Decimal | None
+    comp_occ_high: Decimal | None
+    comp_priced: int
     comp_pickup_7d: int | None
     comp_pickup_hotels: int
     comp_pace: Pace
@@ -90,7 +104,74 @@ class PaceReport:
     own_hotel_id: int | None
     nights: list[NightReport] = field(default_factory=list)
     calibration: Calibration = field(default_factory=lambda: Calibration(0, None, None))
+    calibration_by_lead: list[LeadCalibration] = field(default_factory=list)
     data_since: date | None = None
+    own_hotel_ids: list[int] = field(default_factory=list)
+
+
+def strategy_from(row: PriceStrategy | None) -> Strategy:
+    if row is None:
+        return Strategy()
+    return Strategy(
+        target_source="strategy",
+        base_price=row.base_price,
+        floor=row.floor_price,
+        ceiling=row.ceiling_price,
+        target_index=Decimal(row.target_index),
+        round_to=row.round_to,
+        max_daily_change_pct=row.max_daily_change_pct,
+        weekday_adj={int(k): int(v) for k, v in (row.weekday_adj or {}).items()},
+        holiday_uplift_pct=row.holiday_uplift_pct,
+        last_minute_days=row.last_minute_days,
+        last_minute_adj_pct=row.last_minute_adj_pct,
+    )
+
+
+async def load_strategy(s: AsyncSession, tenant_id: int, hotel_id: int) -> Strategy:
+    return strategy_from(await s.get(PriceStrategy, (tenant_id, hotel_id)))
+
+
+TYPICAL_WINDOW = 30
+
+
+async def typical_index(
+    s: AsyncSession, own_id: int, comp_ids: list[int], channel: str, today: date
+) -> Decimal | None:
+    """Định vị thường ngày của khách sạn: trung vị chỉ số giá niêm yết (giá bạn / trung vị đối
+    thủ × 100) trên các đêm 30 ngày tới có ≥3 đối thủ có giá 1 đêm. Cố định theo ngày, không theo
+    khoảng đang xem, để màn hình và lúc ghi quyết định ra cùng một gợi ý."""
+    rows = await s.execute(
+        select(
+            HotelDateMetric.hotel_id,
+            HotelDateMetric.stay_date,
+            HotelDateMetric.min_price,
+        ).where(
+            HotelDateMetric.hotel_id.in_([own_id, *comp_ids]),
+            HotelDateMetric.channel == channel,
+            HotelDateMetric.stay_date >= today,
+            HotelDateMetric.stay_date < today + timedelta(days=TYPICAL_WINDOW),
+            HotelDateMetric.availability_status == "available",
+            HotelDateMetric.min_stay == 1,
+            HotelDateMetric.min_price.is_not(None),
+        )
+    )
+    own: dict[date, Decimal] = {}
+    comp: dict[date, list[Decimal]] = defaultdict(list)
+    for hid, d, price in rows:
+        if hid == own_id:
+            own[d] = price
+        else:
+            comp[d].append(price)
+    idx = []
+    for d, price in own.items():
+        prices = comp.get(d, [])
+        med = median(prices) if len(prices) >= 3 else None
+        if med:
+            idx.append(price / med * 100)
+    m = median(idx)
+    if m is None:
+        return None
+    return max(Decimal(50), min(Decimal(200), m.quantize(Decimal(1))))
 
 
 def tenant_today(tenant: Tenant, now: datetime | None = None) -> date:
@@ -220,24 +301,20 @@ async def build_pace_report(
     end: date,
     today: date | None = None,
     locale: str = DEFAULT_LOCALE,
+    own_hotel_id: int | None = None,
 ) -> PaceReport:
-    """`locale`: ngôn ngữ tên ngày lễ (cũng là tham số của lý do gợi ý giá)."""
+    """`locale`: ngôn ngữ tên ngày lễ (cũng là tham số của lý do gợi ý giá). `own_hotel_id`:
+    khách sạn của bạn đang xem (5.5); mặc định khách sạn đầu tiên. Dữ liệu Booking.com."""
     tenant = await s.get(Tenant, tenant_id)
     if tenant is None:
         raise LookupError("tenant not found")
     today = today or tenant_today(tenant)
-    channel = tenant.reference_channel or "booking"
-    links = (
-        await s.execute(
-            select(TenantHotel.hotel_id, TenantHotel.role).where(
-                TenantHotel.tenant_id == tenant_id, TenantHotel.active.is_(True)
-            )
-        )
-    ).all()
-    own_ids = [h for h, r in links if r == "self"]
-    comp_ids = [h for h, r in links if r == "competitor"]
-    own_id = own_ids[0] if own_ids else None
-    report = PaceReport(start, end, channel, own_id)
+    channel = BOOKING
+    w = await load_compset(s, tenant_id, own_hotel_id)
+    own_id = own_hotel_id if own_hotel_id in w.own else (w.own[0] if w.own else None)
+    own_ids = [own_id] if own_id else []
+    comp_ids = w.competitors
+    report = PaceReport(start, end, channel, own_id, own_hotel_ids=w.own)
     ids = own_ids + comp_ids
     if not ids:
         return report
@@ -305,6 +382,49 @@ async def build_pace_report(
         )
     }
 
+    strategy = Strategy()
+    if own_id:
+        row = await s.get(PriceStrategy, (tenant_id, own_id))
+        strategy = strategy_from(row)
+        if row is None:
+            typical = await typical_index(s, own_id, comp_ids, channel, today)
+            if typical is not None:
+                strategy = replace(strategy, target_index=typical, target_source="typical")
+    otb_curves: dict[date, dict[int, int]] = {}
+    otb_latest: dict[date, tuple[int, int | None]] = {}  # đêm -> (phòng OTB, sức chứa)
+    if own_id:
+        for as_of, stay, rooms, cap in await s.execute(
+            select(
+                OtbSnapshot.as_of_date,
+                OtbSnapshot.stay_date,
+                OtbSnapshot.rooms_otb,
+                OtbSnapshot.rooms_available,
+            ).where(
+                OtbSnapshot.tenant_id == tenant_id,
+                OtbSnapshot.hotel_id == own_id,
+                OtbSnapshot.stay_date >= start - timedelta(weeks=5),
+                OtbSnapshot.stay_date <= end,
+                OtbSnapshot.as_of_date <= today,
+            )
+        ):
+            otb_curves.setdefault(stay, {})[(stay - as_of).days] = rooms
+            prev = otb_latest.get(stay)
+            if prev is None or (stay - as_of).days <= min(otb_curves[stay]):
+                otb_latest[stay] = (rooms, cap)
+    events = [
+        (ev.start_date, ev.end_date, ev.name, ev.expected_uplift_pct)
+        for ev in (
+            await s.execute(
+                select(LocalEvent).where(
+                    LocalEvent.tenant_id == tenant_id,
+                    LocalEvent.end_date >= start,
+                    LocalEvent.start_date <= end,
+                    LocalEvent.expected_uplift_pct.is_not(None),
+                )
+            )
+        ).scalars()
+    ]
+
     d = start
     while d <= end:
         own_obs = _latest(obs.get(own_id, {}).get(d, [])) if own_id else None
@@ -315,9 +435,12 @@ async def build_pace_report(
             else Pace(None, 0, None)
         )
         comp_latest = [o for c in comp_ids if (o := _latest(obs.get(c, {}).get(d, [])))]
-        reliable = [o.occ_mid for o in comp_latest if o.reliable]
+        reliable_obs = [o for o in comp_latest if o.reliable]
+        reliable = [o.occ_mid for o in reliable_obs]
         comp_med = median(reliable) if len(reliable) >= 2 else None
         comp_occ = comp_med.quantize(Q4) if comp_med is not None else None
+        lo_med = median(o.occ_low for o in reliable_obs) if len(reliable) >= 2 else None
+        hi_med = median(o.occ_high for o in reliable_obs) if len(reliable) >= 2 else None
         comp_curve_now = comp_curves.get(d, {})
         comp_pace = Pace(None, 0, None)
         if comp_curve_now:
@@ -329,8 +452,42 @@ async def build_pace_report(
         comp_m = [
             m for c in comp_ids if (m := metrics.get((c, d))) and m.availability_status != "unknown"
         ]
-        comp_prices = [m.min_price for m in comp_m if m.min_price is not None]
+        # Giá đem so: còn bán, không bị hạn chế số đêm (giá 1 đêm so với giá 1 đêm).
+        comp_prices = [
+            m.min_price
+            for m in comp_m
+            if m.min_price is not None
+            and m.availability_status == "available"
+            and (m.min_stay or 1) == 1
+        ]
         own_occ_for_rules = pms[d] if d in pms else own_occ_now
+        occ_source = "pms" if d in pms else ("estimate" if own_occ_now is not None else None)
+        pace_4w: int | None = None
+        capacity: int | None = None
+        if d in otb_latest:
+            rooms_otb, capacity = otb_latest[d]
+            if capacity:
+                own_occ_for_rules = (Decimal(rooms_otb) / capacity).quantize(Q4)
+                occ_source = "otb"
+            lead_now = (d - today).days
+            ref_curve = otb_curves.get(d - timedelta(weeks=4), {})
+            ref = next((ref_curve[x] for x in (lead_now, lead_now + 1) if x in ref_curve), None)
+            pace_4w = rooms_otb - ref if ref is not None else None
+        comp_low = sum(
+            1
+            for m in comp_m
+            if m.availability_status == "available"
+            and m.exact_rooms_left is not None
+            and m.exact_rooms_left <= 3
+        )
+        comp_median = median(comp_prices) if len(comp_prices) >= 3 else None
+        own_price_now = own_m.min_price if own_m else None
+        own_index = (
+            (own_price_now / comp_median * 100).quantize(Decimal("0.1"))
+            if own_price_now and comp_median
+            else None
+        )
+        event = next(((name, up) for a, b, name, up in events if a <= d <= b), None)
         signals = NightSignals(
             stay_date=d,
             days_to_arrival=(d - today).days,
@@ -340,12 +497,20 @@ async def build_pace_report(
             own_occ=own_occ_for_rules,
             comp_observed=len(comp_m),
             comp_sold_out=sum(1 for m in comp_m if m.availability_status == "sold_out"),
-            comp_median_price=median(comp_prices),
+            comp_median_price=comp_median,
+            comp_priced=len(comp_prices),
             comp_occ=comp_occ,
             comp_pace=comp_pace.delta,
             holiday=holidays.get(d),
+            comp_low=comp_low,
+            own_pace_4w=pace_4w,
+            own_capacity=capacity,
+            own_occ_source=occ_source,
+            event_name=event[0] if event else None,
+            event_uplift_pct=event[1] if event else None,
+            own_index=own_index,
         )
-        sug = suggest(signals) if d >= today else None
+        sug = suggest(signals, strategy) if d >= today else None
         report.nights.append(
             NightReport(
                 stay_date=d,
@@ -364,6 +529,9 @@ async def build_pace_report(
                 comp_median_price=signals.comp_median_price,
                 comp_occ=comp_occ,
                 comp_occ_hotels=len(reliable),
+                comp_occ_low=lo_med.quantize(Q4) if lo_med is not None else None,
+                comp_occ_high=hi_med.quantize(Q4) if hi_med is not None else None,
+                comp_priced=len(comp_prices),
                 comp_pickup_7d=sum(pickups) if pickups else None,
                 comp_pickup_hotels=len(pickups),
                 comp_pace=comp_pace,
@@ -376,13 +544,22 @@ async def build_pace_report(
 
     if own_id:
         pairs = []
+        triples: list[tuple[int, Decimal, Decimal]] = []
         for night, real in pms.items():
             if not today - timedelta(days=CALIBRATION_DAYS) <= night < today:
                 continue
-            last = _latest([o for o in obs.get(own_id, {}).get(night, []) if o.reliable])
+            own_night = [o for o in obs.get(own_id, {}).get(night, []) if o.reliable]
+            last = _latest(own_night)
             if last is not None and last.lead <= LEAD_TOLERANCE + 1:
                 pairs.append((last.occ_mid, real))
+            # Mỗi nhóm lead time: quan sát gần ngày đến nhất trong nhóm, so với PMS cuối cùng.
+            for _name, lo, hi in LEAD_BUCKETS:
+                in_bucket = [o for o in own_night if lo <= o.lead <= hi]
+                if in_bucket:
+                    o = min(in_bucket, key=lambda x: x.lead)
+                    triples.append((o.lead, o.occ_mid, real))
         report.calibration = calibrate(pairs)
+        report.calibration_by_lead = calibrate_by_lead(triples)
     first = (
         await s.execute(
             select(func.min(OccupancyEstimate.scanned_at)).where(

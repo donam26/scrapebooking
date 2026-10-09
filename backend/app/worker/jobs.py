@@ -19,6 +19,8 @@ log = get_logger(__name__)
 
 # Gọi khi một scan run vừa chốt (giai đoạn 2: đẩy job analytics).
 RunFinishedHook = Callable[[int], Awaitable[None]]
+# Gọi trước mỗi job: đồng bộ sức khoẻ proxy từ lần kiểm tra của scheduler (roadmap 0.2).
+BeforeJobHook = Callable[[], Awaitable[None]]
 
 
 class HotelPageNotFound(RuntimeError):
@@ -63,6 +65,7 @@ class WorkerDeps:
     worker_id: str
     on_run_finished: RunFinishedHook | None = None
     tiers: TierPolicy | None = field(default_factory=TierPolicy)
+    before_job: BeforeJobHook | None = None
 
 
 @dataclass
@@ -102,6 +105,11 @@ async def run_probe_hotel(
 ) -> JobSummary:
     summary = JobSummary(scan_run_id, hotel_id)
     log_ctx = log.bind(run_id=scan_run_id, hotel_id=hotel_id, worker=deps.worker_id)
+    if deps.before_job is not None:
+        try:
+            await deps.before_job()
+        except Exception:  # noqa: BLE001 — đồng bộ sức khoẻ proxy lỗi không được chặn job
+            log_ctx.exception("before_job_hook_failed")
 
     async with deps.session_factory() as s:
         runs = ScanRunRepository(s)

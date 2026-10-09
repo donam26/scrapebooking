@@ -164,9 +164,61 @@ async def record_page(
                 "rank": rank,
                 "price": card.price if card.currency == currency else None,
                 "currency": card.currency if card.currency == currency else None,
+                "sponsored": card.sponsored,
+                "badges": _badges(card) or None,
             }
             for h, (rank, card) in rows.items()
         ]
     )
     await s.execute(prices.on_conflict_do_nothing())
+    await record_reviews(s, channel, [(h, c) for h, (_, c) in rows.items()], now)
     return hotel_ids
+
+
+def _badges(card: SearchCard) -> list[str]:
+    out = list(card.badges)
+    if card.preferred:
+        out.insert(0, card.preferred)
+    if card.sponsored:
+        out.insert(0, "ad")
+    return out
+
+
+async def record_reviews(
+    s: AsyncSession, channel: str, cards: list[tuple[int, SearchCard]], now: datetime
+) -> None:
+    """Điểm/số review và huy hiệu theo ngày (roadmap 7.1): một dòng mỗi (khách sạn, kênh, ngày);
+    lần thấy sau trong ngày ghi đè (số mới nhất)."""
+    from app.market.models import HotelReviewSnapshot
+
+    values = [
+        {
+            "hotel_id": h,
+            "channel": channel,
+            "observed_on": now.date(),
+            "review_score": c.review_score,
+            "review_count": c.review_count,
+            "badges": _badges(c) or None,
+            "preferred": c.preferred is not None,
+        }
+        for h, c in cards
+        if c.review_count is not None or c.preferred or c.badges
+    ]
+    if not values:
+        return
+    stmt = insert(HotelReviewSnapshot).values(values)
+    await s.execute(
+        stmt.on_conflict_do_update(
+            index_elements=[
+                HotelReviewSnapshot.hotel_id,
+                HotelReviewSnapshot.channel,
+                HotelReviewSnapshot.observed_on,
+            ],
+            set_={
+                "review_score": stmt.excluded.review_score,
+                "review_count": stmt.excluded.review_count,
+                "badges": stmt.excluded.badges,
+                "preferred": stmt.excluded.preferred,
+            },
+        )
+    )

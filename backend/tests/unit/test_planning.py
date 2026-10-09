@@ -83,13 +83,12 @@ def test_build_hotel_plans_merges_horizon_and_start_date() -> None:
     ]
 
 
-def test_rows_by_channel_one_group_per_channel_sorted() -> None:
+def test_rows_by_channel_groups_booking_rows() -> None:
     rows = [
         WatchRow(1, 10, 30, "Asia/Ho_Chi_Minh", "booking"),
-        WatchRow(1, 10, 30, "Asia/Ho_Chi_Minh", "agoda"),
         WatchRow(2, 11, 45, "Asia/Ho_Chi_Minh", "booking"),
     ]
     grouped = rows_by_channel(rows)
-    assert list(grouped) == ["agoda", "booking"]
+    assert list(grouped) == ["booking"]
     assert [r.hotel_id for r in grouped["booking"]] == [10, 11]
-    assert channel_trigger_key("2026-09-23T23:00", "agoda") == "2026-09-23T23:00:agoda"
+    assert channel_trigger_key("2026-09-23T23:00", "booking") == "2026-09-23T23:00:booking"

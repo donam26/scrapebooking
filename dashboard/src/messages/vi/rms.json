@@ -1,0 +1,107 @@
+{
+  "strategy": {
+    "title": "Chiến lược giá",
+    "description": "Gợi ý giá đi theo bốn bước: giá tham chiếu (trung vị giá niêm yết đối thủ × định vị mục tiêu, hoặc giá gốc khi chưa đủ mẫu) → cộng dồn các điều chỉnh có số (đêm căng, OTB và pace của bạn, thứ, dịp lễ, sát ngày) → chặn trong sàn/trần và mức đổi tối đa mỗi ngày → làm tròn.",
+    "defaults": "Đang dùng mặc định (định vị 100, đổi tối đa 15%/ngày). Lưu để áp dụng chiến lược riêng cho khách sạn này.",
+    "driftNote": "Định vị mục tiêu cũng dùng cho cảnh báo “Giá bạn lệch định vị mục tiêu” ở <link>Thông báo</link>.",
+    "noOwnTitle": "Chưa có khách sạn của bạn",
+    "noOwnBody": "Thêm khách sạn của bạn (vai trò “Khách sạn của bạn”) vào watchlist để đặt chiến lược giá.",
+    "addOwn": "Mở watchlist",
+    "save": "Lưu chiến lược",
+    "saved": "Đã lưu",
+    "sections": {
+      "limits": "Giá gốc, sàn và trần",
+      "position": "Định vị so với đối thủ",
+      "weekday": "Điều chỉnh theo thứ",
+      "special": "Dịp lễ và sát ngày đến"
+    },
+    "field": {
+      "base": "Giá gốc",
+      "baseHint": "Dùng khi chưa đủ 3 đối thủ có giá để so.",
+      "floor": "Giá sàn",
+      "floorHint": "Không gợi ý thấp hơn.",
+      "ceiling": "Giá trần",
+      "ceilingHint": "Không gợi ý cao hơn.",
+      "optional": "Tuỳ chọn, VND",
+      "targetIndex": "Định vị mục tiêu",
+      "targetIndexHint": "100 = ngang trung vị giá niêm yết của compset; 105 = cao hơn 5%; 95 = thấp hơn 5%.",
+      "targetPreview": "Giá tham chiếu = trung vị đối thủ × {factor}",
+      "targetEqual": "Giá tham chiếu = trung vị đối thủ",
+      "roundTo": "Làm tròn tới",
+      "roundNone": "Không làm tròn",
+      "maxChange": "Mức đổi tối đa mỗi ngày",
+      "maxChangeHint": "So với giá hiện tại của bạn, 1–50%.",
+      "weekdayHint": "% cộng/trừ cho từng đêm trong tuần, −30% đến +50%. Bỏ trống = 0.",
+      "holiday": "Cộng thêm dịp lễ",
+      "holidayHint": "% cho đêm lễ, Tết và lễ của thị trường nguồn, −30% đến +50%.",
+      "lastMinuteDays": "Sát ngày đến",
+      "lastMinuteDaysHint": "Số ngày trước khi đến (0–14). 0 = không dùng.",
+      "lastMinuteAdj": "Điều chỉnh sát ngày",
+      "lastMinuteAdjHint": "−30% đến 0%, chỉ khi thị trường không căng và bạn còn nhiều phòng."
+    },
+    "weekday": {
+      "0": "T2",
+      "1": "T3",
+      "2": "T4",
+      "3": "T5",
+      "4": "T6",
+      "5": "T7",
+      "6": "CN"
+    },
+    "weekdayAria": "Điều chỉnh {day}",
+    "invalid": {
+      "price": "Giá phải là số lớn hơn 0.",
+      "floorCeiling": "Giá sàn phải thấp hơn hoặc bằng giá trần.",
+      "baseRange": "Giá gốc phải nằm giữa giá sàn và giá trần.",
+      "targetIndex": "Định vị mục tiêu phải từ 50 đến 200.",
+      "maxChange": "Mức đổi tối đa mỗi ngày phải là số nguyên từ 1 đến 50.",
+      "weekday": "Điều chỉnh theo thứ phải là số nguyên từ −30 đến 50.",
+      "holiday": "Cộng thêm dịp lễ phải là số nguyên từ −30 đến 50.",
+      "lastMinuteDays": "Số ngày sát ngày đến phải là số nguyên từ 0 đến 14.",
+      "lastMinuteAdj": "Điều chỉnh sát ngày phải là số nguyên từ −30 đến 0."
+    }
+  },
+  "outcomes": {
+    "title": "Gợi ý đã áp dụng → kết quả",
+    "description": "{days} ngày gần nhất. Công suất và ADR là số PMS thật sau đêm lưu trú.",
+    "info": "Đúng hướng: tăng giá mà vẫn đạt công suất ≥85%, giảm giá mà đạt ≥70%. Cần xem lại: tăng giá mà công suất <60%, giảm giá mà <50%. Giữ giá không chấm. Kiểm tra lại: chạy lại luật gợi ý trên giá đối thủ {lead} ngày trước mỗi đêm đã qua, rồi so với công suất thật.",
+    "applyRate": "Tỷ lệ áp dụng",
+    "applyRateHint": "{applied}/{decided} gợi ý đã xử lý",
+    "good": "Đúng hướng",
+    "goodHint": "Trong {count} đêm đã có số PMS",
+    "review": "Cần xem lại",
+    "reviewHint": "Tăng mà ế, hoặc giảm mà vẫn ế",
+    "backtest": "Kiểm tra lại {days} ngày",
+    "backtestHint": "Đúng hướng {good}/{scored} đêm (tăng {raise}, giảm {lower})",
+    "backtestNone": "Chưa đủ đêm có số PMS",
+    "emptyTitle": "Chưa đủ dữ liệu để đo",
+    "emptyBody": "Cần số PMS thật sau đêm lưu trú (Cài đặt › Nhập PMS) và ghi nhận “Đã áp dụng” hoặc “Bỏ qua” cho gợi ý.",
+    "recent": "Đêm gần đây",
+    "showAll": "Xem cả {count} đêm",
+    "col": {
+      "night": "Đêm",
+      "suggestion": "Gợi ý",
+      "decision": "Quyết định",
+      "price": "Giá trước → đã đặt",
+      "occ": "Công suất (PMS)",
+      "adr": "ADR (PMS)",
+      "verdict": "Kết quả"
+    },
+    "decision": {
+      "applied": "Đã áp dụng",
+      "dismissed": "Đã bỏ qua"
+    },
+    "verdict": {
+      "good": "Đúng hướng",
+      "review": "Cần xem lại",
+      "neutral": "Trung tính",
+      "pending": "Chờ số thực tế"
+    },
+    "showLess": "Thu gọn"
+  },
+  "pace": {
+    "strategyLink": "Chiến lược giá",
+    "holds": "{count, plural, =0 {} other {# đêm khác đang ở mức hợp lý (giữ giá).}}",
+    "pendingHolds": "{count} đêm giữ giá"
+  }
+}

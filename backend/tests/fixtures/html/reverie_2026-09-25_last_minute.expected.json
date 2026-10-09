@@ -16,12 +16,13 @@
           "price": "8699198",
           "currency": "VND",
           "refundable": false,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": "9157050",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -33,7 +34,8 @@
           "price_original": "10988460",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -50,12 +52,13 @@
           "price": "8699198",
           "currency": "VND",
           "refundable": false,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": "9157050",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -67,7 +70,8 @@
           "price_original": "10988460",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -89,7 +93,8 @@
           "price_original": "18551106",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -111,7 +116,8 @@
           "price_original": "19391400",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -133,7 +139,8 @@
           "price_original": "22192380",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -155,7 +162,8 @@
           "price_original": "123027660",
           "taxes_included": true,
           "promo_label": "5% off",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"

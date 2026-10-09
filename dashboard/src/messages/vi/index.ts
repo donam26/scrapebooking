@@ -24,6 +24,10 @@ import insights from "./insights.json";
 import settings from "./settings.json";
 import admin from "./admin.json";
 import runs from "./runs.json";
+import radar from "./radar.json";
+import otb from "./otb.json";
+import rms from "./rms.json";
+import reputation from "./reputation.json";
 
 const messages = {
   common,
@@ -50,6 +54,10 @@ const messages = {
   settings,
   admin,
   runs,
+  radar,
+  otb,
+  rms,
+  reputation,
 };
 
 export default messages;

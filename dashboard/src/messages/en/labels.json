@@ -9,20 +9,24 @@
     "price_down": "Price down",
     "room_type_new": "New room type",
     "room_type_gone": "Room type gone",
-    "channel_closed": "Closed on channel",
-    "parity_gap": "Cheaper on this channel"
+    "lowest_rate_shift": "Cheapest plan changed",
+    "restricted": "Restricted",
+    "restriction_lifted": "Restriction lifted",
+    "min_stay_change": "Min stay changed",
+    "promo_start": "Promo started",
+    "promo_end": "Promo ended"
   },
   "listingStatus": {
     "active": "Tracking",
     "unverified": "Verifying",
-    "suggested": "Suggested",
     "broken": "Broken link",
     "paused": "Paused"
   },
   "availability": {
     "available": "Available",
     "sold_out": "Sold out",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "restricted": "Restricted"
   },
   "stockConfidence": {
     "exact": "Exact",
@@ -56,10 +60,11 @@
     "on_demand": "On demand"
   },
   "notificationKind": {
-    "alerts": "Competitor alerts",
+    "alerts": "Alerts",
     "daily_insight": "Morning brief",
     "weekly_report": "Weekly report",
-    "test": "Test email"
+    "test": "Test email",
+    "data_stale": "Stale data"
   },
   "notificationStatus": {
     "sent": "Sent",
@@ -100,5 +105,17 @@
     "some": "Some (11–20)",
     "many": "Many (21–30)",
     "plenty": "Plenty (>30)"
+  },
+  "cellState": {
+    "available": "Selling",
+    "sold_out": "Sold out",
+    "restricted": "Restricted",
+    "no_price": "No price",
+    "error": "Read failed"
+  },
+  "notifyChannel": {
+    "email": "Email",
+    "zalo": "Zalo",
+    "webhook": "Webhook"
   }
 }

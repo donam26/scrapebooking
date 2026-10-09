@@ -13,8 +13,7 @@ x-backend: &backend
   environment: *backend-env
   restart: unless-stopped
 
-# Worker thu dữ liệu: một service mỗi kênh (WORKER_CHANNEL), mỗi kênh một hàng đợi riêng (D9).
-# Tăng thông lượng một kênh: `docker compose up -d --scale worker-agoda=2`.
+# Worker thu dữ liệu Booking.com. Tăng thông lượng: `docker compose up -d --scale worker=2`.
 x-collector: &collector
   <<: *backend
   command: ["arq", "app.worker.settings.WorkerSettings"]
@@ -82,35 +81,11 @@ services:
       redis: { condition: service_healthy }
 
   worker:
-    # Booking.com (tên service giữ nguyên để không đổi cấu hình giám sát cũ).
+    # Booking.com — kênh duy nhất.
     <<: *collector
     environment:
       <<: *backend-env
       WORKER_CHANNEL: booking
-
-  worker-agoda:
-    <<: *collector
-    environment:
-      <<: *backend-env
-      WORKER_CHANNEL: agoda
-
-  worker-ivivu:
-    <<: *collector
-    environment:
-      <<: *backend-env
-      WORKER_CHANNEL: ivivu
-
-  worker-tripcom:
-    <<: *collector
-    environment:
-      <<: *backend-env
-      WORKER_CHANNEL: tripcom
-
-  worker-mytour:
-    <<: *collector
-    environment:
-      <<: *backend-env
-      WORKER_CHANNEL: mytour
 
   jobs:
     # Analytics sau mỗi scan run, insight hằng ngày/theo yêu cầu, poll batch, backup đêm.

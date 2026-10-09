@@ -3,9 +3,7 @@ from typing import Protocol
 
 from app.domain.models import (
     CalendarResult,
-    ListingCandidate,
     ListingIdentity,
-    ListingQuery,
     ListingRef,
     ProbeResult,
 )
@@ -29,15 +27,9 @@ class ListingVerifier(Protocol):
     async def verify(self, listing: ListingRef) -> ListingIdentity: ...
 
 
-class ListingFinder(Protocol):
-    """Tìm cùng khách sạn trên kênh này theo tên/thành phố/toạ độ (API gợi ý của kênh)."""
-
-    async def suggest(self, query: ListingQuery) -> list[ListingCandidate]: ...
-
-
 class ListingNotFound(Exception):
     """verify(): kênh trả 404 / không có khách sạn ở URL này (listing → broken)."""
 
 
 class ListingBlocked(Exception):
-    """verify()/suggest(): bị chống bot chặn, thử lại sau (listing giữ trạng thái chờ)."""
+    """verify(): bị chống bot chặn, thử lại sau (listing giữ trạng thái chờ)."""

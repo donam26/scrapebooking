@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { MarketCityOut } from "@/lib/api";
 import { num, useFmt } from "@/lib/format";
 import { Card, cx } from "@/components/ui";
+import { marketMood } from "./terminal-cards";
 import { RingGauge } from "@/components/gauge";
 import { IconPin } from "@/components/icons";
 
@@ -13,13 +14,6 @@ import { IconPin } from "@/components/icons";
  * khách sạn quét chi tiết, số khách sạn còn phòng đêm nay trên Booking, phòng còn/tồn kho, giá TB và
  * phân bố giá. Giá là mẫu trên các khách sạn đã thấy ở trang kết quả.
  */
-
-function mood(pct: number | null): { key: "noData" | "tight" | "balanced" | "soft"; cls: string; color: string } {
-  if (pct === null) return { key: "noData", cls: "bg-sunken text-muted", color: "var(--sb-faint)" };
-  if (pct >= 75) return { key: "tight", cls: "bg-hot-soft text-hot", color: "var(--sb-hot)" };
-  if (pct >= 50) return { key: "balanced", cls: "bg-brand-soft text-brand", color: "var(--sb-brand)" };
-  return { key: "soft", cls: "bg-yours-soft text-yours-deep", color: "var(--sb-yours)" };
-}
 
 /** Màu cột phân bố giá: rẻ xanh lá → đắt tím (như dải màu của mẫu). */
 const BAR_COLORS = ["#16a34a", "#4ade80", "#a3e635", "#facc15", "#f59e0b", "#ea7317", "#ef4444", "#8b5cf6"];
@@ -30,7 +24,7 @@ export function CityMarketCard({ city }: { city: MarketCityOut }) {
   const { list_scan: list, detail, area } = city;
   const occ = num(detail.occupancy_est);
   const pct = occ === null ? null : Math.round(occ * 100);
-  const m = mood(pct);
+  const m = marketMood(pct);
   const maxCount = Math.max(1, ...list.histogram.map((b) => b.count));
   const avg = num(list.avg);
   return (

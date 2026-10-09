@@ -1,6 +1,13 @@
 from datetime import date, timedelta
 
-from app.domain.models import PageOutcome, ParsedPage, ProbeMethod, ProbeResult, ProbeStatus
+from app.domain.models import (
+    PageOutcome,
+    ParsedPage,
+    ProbeMethod,
+    ProbeResult,
+    ProbeStatus,
+    offers_per_night,
+)
 
 _STATUS_BY_OUTCOME = {
     PageOutcome.ROOMS: ProbeStatus.OK,
@@ -21,6 +28,8 @@ def probe_result_from_page(
     session_id: str | None,
     duration_ms: int,
 ) -> ProbeResult:
+    """Booking hiển thị giá TỔNG cho số đêm đã tìm (VD "Price for 2 nights"): khi probe N>1 đêm
+    (đêm có số đêm tối thiểu), chia về giá/đêm để so được với các đêm 1 đêm và với kênh khác."""
     return ProbeResult(
         status=_STATUS_BY_OUTCOME[page.outcome],
         method=method,
@@ -28,7 +37,7 @@ def probe_result_from_page(
         checkout=checkin + timedelta(days=nights),
         nights=nights,
         adults=adults,
-        offers=page.offers,
+        offers=offers_per_night(page.offers, nights),
         raw_html=raw_html,
         http_status=http_status,
         session_id=session_id,

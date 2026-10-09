@@ -1,6 +1,6 @@
 {
-  "title": "Events",
-  "subtitle": "Every change between two consecutive scans on each channel: sold out, back in stock, rooms left, rates and cross-channel gaps",
+  "title": "Changes",
+  "subtitle": "Every change on Booking.com between two consecutive scans: sold out, back in stock, rooms left, rates, restrictions and promotions",
   "downloadCsv": "Download CSV",
   "since": {
     "h24": "24 hours",
@@ -19,23 +19,27 @@
     "stayFrom": "Stay date from",
     "stayTo": "Stay date to",
     "clear": "Clear filters",
-    "channel": "Channel",
-    "eventType": "Event type",
-    "type": "Type"
+    "eventType": "Change type",
+    "type": "Type",
+    "group": {
+      "rooms": "Rooms",
+      "price": "Price",
+      "restrictions": "Restrictions & promos"
+    }
   },
   "highlight": {
-    "text": "Highlighting event #{id} linked from the brief (if it is on this page).",
+    "text": "Highlighting change #{id} linked from the brief (if it is on this page).",
     "clear": "Remove highlight"
   },
   "list": {
-    "count": "{count, plural, one {# event} other {# events}}",
-    "countMore": "{count}+ events",
+    "count": "{count, plural, one {# change} other {# changes}}",
+    "countMore": "{count}+ changes",
     "filtered": "Matching the current filters",
     "newestFirst": "Newest first",
     "prev": "Previous",
     "next": "Next",
     "page": "Page {page}",
-    "emptyFiltered": "No events match these filters. Try a wider time window or fewer event types.",
-    "empty": "No events yet. Events appear when two consecutive scans differ."
+    "emptyFiltered": "No changes match these filters. Try a wider time window or fewer change types.",
+    "empty": "No changes yet. Changes appear when two consecutive scans differ."
   }
 }

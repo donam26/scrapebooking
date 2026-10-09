@@ -2,8 +2,10 @@ import re
 from datetime import date
 
 # 4: đối chiếu HTML thật 2026-09 (ô loại phòng <th>, "We have N left", giờ chót, Booking Basic)
-# 5: chuẩn giá đa kênh (D3): cờ thuế, giá gạch, nhãn khuyến mãi
-PARSER_VERSION = "5"
+# 5: chuẩn giá (D3): cờ thuế, giá gạch, nhãn khuyến mãi
+# 6: giá/đêm khi probe N>1 đêm (min-stay): trang hiển thị tổng N đêm; "no meals"/"breakfast
+#    not included" → breakfast=False; cờ giá thành viên (Genius) `loyalty`
+PARSER_VERSION = "6"
 
 # Trang đã sẵn sàng (đã qua challenge) khi có một trong các phần tử này.
 READY_SELECTOR = (
@@ -67,6 +69,8 @@ CONDITIONS_CELL = "td.hprt-table-cell-conditions"
 TAXES_NOTE = ".prd-taxes-and-fees-under-price"
 ORIGINAL_PRICE = ".bui-price-display__original, [data-strikethrough-value]"
 DEAL_BADGE = ".c-deals-container .bui-badge"
+# Nhãn giá Genius trên dòng giá (hiện cả khi chưa đăng nhập ở APAC).
+GENIUS_MARKER = "[data-testid*='genius'], .genius-discount-badge, .ge-label"
 ONLY_X_LEFT = (
     ".only_x_left, .hprt-table-cell-conditions .urgency_message, "
     "[data-testid='availability-scarcity']"

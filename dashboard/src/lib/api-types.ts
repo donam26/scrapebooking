@@ -156,11 +156,30 @@ export interface paths {
         put?: never;
         /**
          * Add Hotel
-         * @description Thêm khách sạn bằng URL của bất kỳ kênh hỗ trợ. Listing đã có trong hệ thống (tenant khác
-         *     theo dõi) thì dùng chung khách sạn đó; listing mới được tạo `unverified` và đẩy job kiểm tra
-         *     (tên, toạ độ), sau đó worker tự tìm cùng khách sạn trên các kênh khác (gợi ý chờ xác nhận).
+         * @description Thêm khách sạn bằng URL Booking.com. Listing đã có trong hệ thống (tenant khác theo dõi) thì
+         *     dùng chung khách sạn đó; listing mới được tạo `unverified` và đẩy job kiểm tra (tên, toạ độ).
          */
         post: operations["add_hotel_watchlist_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist/compset-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compset Review
+         * @description Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (7.3).
+         */
+        get: operations["compset_review_watchlist_compset_review_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -196,8 +215,8 @@ export interface paths {
         put?: never;
         /**
          * Add Listing
-         * @description Gắn thêm một kênh cho khách sạn bằng URL (VD trang Agoda của khách sạn đã có
-         *     trên Booking). Thay URL của kênh đã có chỉ khi tenant là người theo dõi duy nhất.
+         * @description Sửa URL Booking.com của khách sạn (listing hỏng hoặc dán nhầm). Thay URL đang quét chỉ khi
+         *     tenant là người theo dõi duy nhất.
          */
         post: operations["add_listing_watchlist__hotel_id__listings_post"];
         delete?: never;
@@ -221,26 +240,6 @@ export interface paths {
         head?: never;
         /** Act On Listing */
         patch: operations["act_on_listing_watchlist__hotel_id__listings__listing_id__patch"];
-        trace?: never;
-    };
-    "/watchlist/{hotel_id}/discover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Discover Listings
-         * @description Tìm khách sạn này trên các kênh chưa có listing (kết quả là gợi ý chờ xác nhận).
-         */
-        post: operations["discover_listings_watchlist__hotel_id__discover_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/watchlist/scan-now": {
@@ -346,6 +345,27 @@ export interface paths {
         };
         /** Day Detail */
         get: operations["day_detail_hotels__hotel_id__dates__stay_date__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Data Status
+         * @description Dữ liệu Booking.com mới nhất và tỷ lệ thành công 7 ngày (SLA) trên khách sạn của tenant.
+         *     "Dữ liệu mới nhất lúc…" = quan sát thành công cuối cùng, không phải lượt kết thúc cuối cùng.
+         */
+        get: operations["data_status_data_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -667,6 +687,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Subscriptions
+         * @description Quản trị tenant thấy mọi đăng ký; người xem chỉ thấy đăng ký của mình.
+         */
+        get: operations["list_subscriptions_notifications_subscriptions_get"];
+        put?: never;
+        /** Create Subscription */
+        post: operations["create_subscription_notifications_subscriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/subscriptions/{sub_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Subscription */
+        put: operations["update_subscription_notifications_subscriptions__sub_id__put"];
+        post?: never;
+        /** Delete Subscription */
+        delete: operations["delete_subscription_notifications_subscriptions__sub_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{notification_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Notification
+         * @description Đánh dấu "Đã xử lý" trên dashboard (người đang đăng nhập).
+         */
+        post: operations["resolve_notification_notifications__notification_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/engagement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Engagement
+         * @description Số tin gửi/lỗi/bỏ qua, lượt nhấn, "Đã xử lý" và chi phí theo tuần ISO, theo kênh (đo O4).
+         */
+        get: operations["engagement_notifications_engagement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/export/overview.csv": {
         parameters: {
             query?: never;
@@ -701,6 +800,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/export/rate-shop.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Rate Shop
+         * @description Excel "rate shop" đúng mẫu khách sạn ghi tay (7.4): khách sạn × đêm, compset, thay đổi.
+         */
+        get: operations["export_rate_shop_export_rate_shop_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/export/monthly-report.html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Monthly Report
+         * @description Báo cáo tháng cho chủ đầu tư (HTML in thành PDF): KPI thật, vị trí giá, quyết định giá.
+         */
+        get: operations["export_monthly_report_export_monthly_report_html_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/market/pace": {
         parameters: {
             query?: never;
@@ -708,7 +847,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Pace */
+        /**
+         * Get Pace
+         * @description Nhịp và chỉ báo lấp đầy theo đêm (Booking.com).
+         */
         get: operations["get_pace_market_pace_get"];
         put?: never;
         post?: never;
@@ -788,7 +930,7 @@ export interface paths {
         };
         /**
          * Get Occupancy
-         * @description Công suất ước tính mới nhất của từng khách sạn trong watchlist theo đêm (kênh tham chiếu).
+         * @description Chỉ báo lấp đầy (thử nghiệm) mới nhất của từng khách sạn trong watchlist theo đêm.
          */
         get: operations["get_occupancy_market_occupancy_get"];
         put?: never;
@@ -833,6 +975,68 @@ export interface paths {
         post?: never;
         /** Delete Event */
         delete: operations["delete_event_market_events__event_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/strategy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Strategy
+         * @description Chiến lược giá của khách sạn của bạn (6.1); chưa đặt thì trả mặc định (định vị 100).
+         */
+        get: operations["get_strategy_market_strategy_get"];
+        /** Put Strategy */
+        put: operations["put_strategy_market_strategy_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/suggestions/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggestion Outcomes
+         * @description Gợi ý đã áp dụng/bỏ qua → kết quả sau đêm lưu trú (công suất, ADR thật).
+         */
+        get: operations["suggestion_outcomes_market_suggestions_outcomes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/suggestions/backtest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggestion Backtest
+         * @description Backtest (6.4): với mỗi đêm đã qua có công suất thật, chạy lại luật gợi ý trên quan sát giá
+         *     và tình trạng phòng của compset khoảng `lead` ngày trước đêm đó, rồi chấm hướng gợi ý.
+         */
+        get: operations["suggestion_backtest_market_suggestions_backtest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -953,6 +1157,181 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/market/radar/promotions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Promotions
+         * @description Radar khuyến mãi (4.1): đối thủ nào chạy KM gì, sâu bao nhiêu, bao nhiêu đêm, từ bao giờ.
+         */
+        get: operations["promotions_market_radar_promotions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/radar/restrictions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Restrictions
+         * @description Radar hạn chế (4.2): số đêm tối thiểu, không nhận khách ngày đến.
+         */
+        get: operations["restrictions_market_radar_restrictions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/radar/cancellation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cancellation
+         * @description Chính sách huỷ (4.3): % đêm có gói linh hoạt, mức giảm của gói không hoàn huỷ.
+         */
+        get: operations["cancellation_market_radar_cancellation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/radar/area-scarcity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Area Scarcity View
+         * @description Chỉ số khan phòng khu vực (4.4): số chỗ ở còn phòng kênh báo theo đêm, so 7 ngày trước.
+         */
+        get: operations["area_scarcity_view_market_radar_area_scarcity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pms/otb/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Otb Template */
+        get: operations["otb_template_pms_otb_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pms/otb/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Otb
+         * @description Nhập OTB không ghi đè ngày khác: (khách sạn, ngày chụp, đêm) là khoá. File đặt phòng dựng
+         *     lại bản chụp cho cả quá khứ (pace/STLY có ngay).
+         */
+        post: operations["import_otb_pms_otb_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/otb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Otb View
+         * @description OTB, pickup, pace (4 tuần trước, STLY) và dự báo theo đêm của khách sạn của bạn.
+         */
+        get: operations["otb_view_market_otb_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/reputation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reputation */
+        get: operations["reputation_market_reputation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Visibility
+         * @description Vị trí trên trang kết quả của khu vực (thứ tự mặc định của kênh) cho bạn và đối thủ.
+         */
+        get: operations["visibility_market_visibility_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/summary": {
         parameters: {
             query?: never;
@@ -1045,6 +1424,53 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AreaNightOut */
+        AreaNightOut: {
+            /**
+             * Stay Date
+             * Format: date
+             */
+            stay_date: string;
+            /** Properties */
+            properties: number | null;
+            /** Scanned At */
+            scanned_at: string | null;
+            /** Lead Days */
+            lead_days: number | null;
+            /** Week Ago */
+            week_ago: number | null;
+            /** Change Pct */
+            change_pct: string | null;
+        };
+        /** AreaScarcityOut */
+        AreaScarcityOut: {
+            /** Area Id */
+            area_id: number;
+            /** Area Name */
+            area_name: string;
+            /** Nights */
+            nights: components["schemas"]["AreaNightOut"][];
+        };
+        /**
+         * BacktestOut
+         * @description Chạy lại luật gợi ý trên giá đối thủ ~7 ngày trước mỗi đêm đã qua, so với công suất thật.
+         */
+        BacktestOut: {
+            /** Nights */
+            nights: number;
+            /** Raise Nights */
+            raise_nights: number;
+            /** Lower Nights */
+            lower_nights: number;
+            /** Good */
+            good: number;
+            /** Review */
+            review: number;
+            /** Hit Rate */
+            hit_rate: string | null;
+            /** Details */
+            details: components["schemas"]["OutcomeNightOut"][];
+        };
         /** Body_import_file_pms_import_post */
         Body_import_file_pms_import_post: {
             /** File */
@@ -1056,6 +1482,23 @@ export interface components {
              * @default csv
              */
             adapter: string;
+        };
+        /** Body_import_otb_pms_otb_import_post */
+        Body_import_otb_pms_otb_import_post: {
+            /** File */
+            file: string;
+            /** Hotel Id */
+            hotel_id: number;
+            /**
+             * Kind
+             * @default otb_report
+             * @enum {string}
+             */
+            kind: "otb_report" | "bookings";
+            /** As Of Date */
+            as_of_date?: string | null;
+            /** Rooms Available */
+            rooms_available?: number | null;
         };
         /** Body_preview_pms_preview_post */
         Body_preview_pms_preview_post: {
@@ -1075,28 +1518,53 @@ export interface components {
             mean_abs_error_pts: string | null;
             /** Bias Pts */
             bias_pts: string | null;
+            /**
+             * Status
+             * @default uncalibrated
+             * @enum {string}
+             */
+            status: "calibrated" | "uncalibrated";
+            /**
+             * By Lead
+             * @default []
+             */
+            by_lead: components["schemas"]["LeadCalibrationOut"][];
         };
-        /**
-         * ChannelDayOut
-         * @description Một kênh cho (khách sạn, đêm): đặt các kênh cạnh nhau (D4: không cộng số phòng).
-         */
-        ChannelDayOut: {
+        /** CancellationOut */
+        CancellationOut: {
+            /** Hotel Id */
+            hotel_id: number;
+            /** Name */
+            name: string | null;
+            /** Role */
+            role: string;
+            /** Nights Priced */
+            nights_priced: number;
+            /** Refundable Share */
+            refundable_share: string | null;
+            /** Nonrefundable Nights */
+            nonrefundable_nights: number;
+            /** Nr Discount Pct */
+            nr_discount_pct: string | null;
+            /** Pairs */
+            pairs: number;
+        };
+        /** CancellationsOut */
+        CancellationsOut: {
             /** Channel */
             channel: string;
-            /** Availability Status */
-            availability_status: string | null;
-            /** Exact Rooms Left */
-            exact_rooms_left: number | null;
-            /** Min Price */
-            min_price: string | null;
-            /** Min Refundable Price */
-            min_refundable_price: string | null;
-            /** Currency */
-            currency: string | null;
-            /** Last Observed At */
-            last_observed_at: string | null;
-            /** Tax Inclusive */
-            tax_inclusive: boolean;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Hotels */
+            hotels: components["schemas"]["CancellationOut"][];
         };
         /** ChannelOut */
         ChannelOut: {
@@ -1262,6 +1730,96 @@ export interface components {
             own_rank: number | null;
             /** Priced Hotels */
             priced_hotels: number;
+            /**
+             * Competitors Total
+             * @default 0
+             */
+            competitors_total: number;
+            /**
+             * Competitors Priced
+             * @default 0
+             */
+            competitors_priced: number;
+            /**
+             * Competitors Restricted
+             * @default 0
+             */
+            competitors_restricted: number;
+            /**
+             * Competitors Low
+             * @default 0
+             */
+            competitors_low: number;
+            /**
+             * Competitors Stale
+             * @default 0
+             */
+            competitors_stale: number;
+            /**
+             * Sample
+             * @default insufficient
+             * @enum {string}
+             */
+            sample: "ok" | "small" | "insufficient";
+            /** Own Hotel Id */
+            own_hotel_id?: number | null;
+            /** Own Min Stay */
+            own_min_stay?: number | null;
+        };
+        /**
+         * CompsetReviewOut
+         * @description Rà soát compset theo quy tắc CoStar STR (7.3): ≥4 đối thủ, ≥3 không cùng chủ (chưa kiểm
+         *     được), không khách sạn nào quá 50% số phòng compset; nhắc rà soát ≥2 lần/năm.
+         */
+        CompsetReviewOut: {
+            /** Own Hotel Id */
+            own_hotel_id: number | null;
+            /** Primary */
+            primary: number;
+            /** Secondary */
+            secondary: number;
+            /** Rooms Known */
+            rooms_known: number;
+            /** Warnings */
+            warnings: string[];
+            /** Dominant Hotel Id */
+            dominant_hotel_id?: number | null;
+            /** Dominant Share */
+            dominant_share?: string | null;
+            /** Last Change At */
+            last_change_at?: string | null;
+        };
+        /**
+         * DataStatusOut
+         * @description Độ tin cậy dữ liệu Booking.com của tenant (roadmap 0.6, 0.7).
+         */
+        DataStatusOut: {
+            /**
+             * Now
+             * Format: date-time
+             */
+            now: string;
+            /** Stale After Hours */
+            stale_after_hours: number;
+            /** Last Data At */
+            last_data_at: string | null;
+            /** Success Rate 7D */
+            success_rate_7d?: string | null;
+            /**
+             * Probes 7D
+             * @default 0
+             */
+            probes_7d: number;
+            /**
+             * Failed 7D
+             * @default 0
+             */
+            failed_7d: number;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
         };
         /** DateCell */
         DateCell: {
@@ -1294,6 +1852,19 @@ export interface components {
             last_observed_at: string | null;
             /** Days To Arrival */
             days_to_arrival: number | null;
+            /** State */
+            state?: string | null;
+            /** Min Stay */
+            min_stay?: number | null;
+            /** Promos */
+            promos?: {
+                [key: string]: string | null;
+            } | null;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
         };
         /** DayDetailOut */
         DayDetailOut: {
@@ -1307,16 +1878,7 @@ export interface components {
             stay_date: string;
             /** Channel */
             channel: string;
-            /**
-             * Channels
-             * @default []
-             */
-            channels: components["schemas"]["ChannelDayOut"][];
-            /**
-             * Demand Signals
-             * @default []
-             */
-            demand_signals: components["schemas"]["DemandSignalOut"][];
+            rate?: components["schemas"]["RateDetailOut"] | null;
             /** Room Types */
             room_types: components["schemas"]["RoomTypeOut"][];
             /** Latest Status */
@@ -1346,7 +1908,7 @@ export interface components {
             /** Holiday */
             holiday?: string | null;
             /** Holiday Kind */
-            holiday_kind?: ("tet" | "holiday" | "travel") | null;
+            holiday_kind?: ("tet" | "holiday" | "travel" | "source_market" | "season") | null;
         };
         /** DecisionIn */
         DecisionIn: {
@@ -1355,26 +1917,8 @@ export interface components {
              * @enum {string}
              */
             decision: "applied" | "dismissed";
-        };
-        /** DemandSignalOut */
-        DemandSignalOut: {
-            /** Channel */
-            channel: string;
-            /** Kind */
-            kind: string;
-            /** Value */
-            value: string;
-            /** Window Hours */
-            window_hours: number | null;
-            /** Stay Date */
-            stay_date: string | null;
-            /** Raw Text */
-            raw_text: string | null;
-            /**
-             * Observed At
-             * Format: date-time
-             */
-            observed_at: string;
+            /** Applied Price */
+            applied_price?: number | string | null;
         };
         /** DestinationOut */
         DestinationOut: {
@@ -1394,6 +1938,33 @@ export interface components {
             lat: number | null;
             /** Lng */
             lng: number | null;
+        };
+        /**
+         * EngagementOut
+         * @description Đo O4: tin tới đúng chỗ và có hành động (lượt nhấn, "Đã xử lý") theo tuần, theo kênh.
+         */
+        EngagementOut: {
+            /** Weeks */
+            weeks: components["schemas"]["EngagementWeekOut"][];
+        };
+        /** EngagementWeekOut */
+        EngagementWeekOut: {
+            /** Week */
+            week: string;
+            /** Channel */
+            channel: string;
+            /** Sent */
+            sent: number;
+            /** Failed */
+            failed: number;
+            /** Skipped */
+            skipped: number;
+            /** Clicked */
+            clicked: number;
+            /** Resolved */
+            resolved: number;
+            /** Cost Vnd */
+            cost_vnd: string;
         };
         /** EventOut */
         EventOut: {
@@ -1433,6 +2004,12 @@ export interface components {
              * Format: date-time
              */
             observed_at: string;
+            /** Reason */
+            reason?: string | null;
+            /** Detail */
+            detail?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1468,7 +2045,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "tet" | "holiday" | "travel";
+            kind: "tet" | "holiday" | "travel" | "source_market" | "season";
             /** Group */
             group: string;
         };
@@ -1503,11 +2080,6 @@ export interface components {
             label: string | null;
             /** Channel */
             channel: string;
-            /**
-             * Demand Signals
-             * @default []
-             */
-            demand_signals: components["schemas"]["DemandSignalOut"][];
             /**
              * Horizon End
              * Format: date
@@ -1568,6 +2140,34 @@ export interface components {
              * @default []
              */
             listings: components["schemas"]["ListingOut"][];
+            /** Rooms Total */
+            rooms_total?: number | null;
+            /** Review Score */
+            review_score?: string | null;
+            /** Review Count */
+            review_count?: number | null;
+        };
+        /** HotelPromosOut */
+        HotelPromosOut: {
+            /** Hotel Id */
+            hotel_id: number;
+            /** Name */
+            name: string | null;
+            /** Role */
+            role: string;
+            /** Promos */
+            promos: components["schemas"]["PromoRunOut"][];
+        };
+        /** HotelRestrictionsOut */
+        HotelRestrictionsOut: {
+            /** Hotel Id */
+            hotel_id: number;
+            /** Name */
+            name: string | null;
+            /** Role */
+            role: string;
+            /** Nights */
+            nights: components["schemas"]["RestrictionNightOut"][];
         };
         /** HotelRow */
         HotelRow: {
@@ -1678,6 +2278,38 @@ export interface components {
             cost_usd: string;
             /** Error */
             error: string | null;
+        };
+        /** KpiOut */
+        KpiOut: {
+            /** Nights */
+            nights: number;
+            /** Rooms Sold */
+            rooms_sold: number;
+            /** Rooms Available */
+            rooms_available: number;
+            /** Revenue */
+            revenue: string;
+            /** Occupancy Pct */
+            occupancy_pct: string | null;
+            /** Adr */
+            adr: string | null;
+            /** Revpar */
+            revpar: string | null;
+        };
+        /** LeadCalibrationOut */
+        LeadCalibrationOut: {
+            /** Bucket */
+            bucket: string;
+            /** Nights */
+            nights: number;
+            /** Mean Abs Error Pts */
+            mean_abs_error_pts: string | null;
+            /** Bias Pts */
+            bias_pts: string | null;
+            /** Mape Pct */
+            mape_pct: string | null;
+            /** Usable */
+            usable: boolean;
         };
         /** ListingAction */
         ListingAction: {
@@ -1948,6 +2580,11 @@ export interface components {
             channel: string;
             /** Own Hotel Id */
             own_hotel_id: number | null;
+            /**
+             * Own Hotel Ids
+             * @default []
+             */
+            own_hotel_ids: number[];
             /** Data Since */
             data_since: string | null;
             calibration: components["schemas"]["CalibrationOut"];
@@ -1958,7 +2595,7 @@ export interface components {
          * NotificationKind
          * @enum {string}
          */
-        NotificationKind: "daily_insight" | "weekly_report" | "competitor_sold_out" | "competitor_low_stock" | "competitor_price_drop" | "own_parity_gap";
+        NotificationKind: "daily_insight" | "weekly_report" | "competitor_sold_out" | "competitor_low_stock" | "competitor_price_drop" | "market_tight" | "competitor_price_rise" | "competitor_promo" | "own_position_drift" | "own_closed" | "data_stale";
         /** NotificationLogOut */
         NotificationLogOut: {
             /** Id */
@@ -1984,6 +2621,13 @@ export interface components {
             created_at: string;
             /** Sent At */
             sent_at: string | null;
+            /**
+             * Channel
+             * @default email
+             */
+            channel: string;
+            /** Resolved At */
+            resolved_at?: string | null;
         };
         /** NotificationRuleOut */
         NotificationRuleOut: {
@@ -2013,6 +2657,20 @@ export interface components {
             recipients: components["schemas"]["RecipientOut"][];
             /** Rules */
             rules: components["schemas"]["NotificationRuleOut"][];
+            /**
+             * Zalo Configured
+             * @default false
+             */
+            zalo_configured: boolean;
+            /**
+             * Channels
+             * @default [
+             *       "email",
+             *       "zalo",
+             *       "webhook"
+             *     ]
+             */
+            channels: string[];
         };
         /**
          * OccOut
@@ -2036,6 +2694,139 @@ export interface components {
             /** Days To Arrival */
             days_to_arrival: number;
         };
+        /** OtbImportOut */
+        OtbImportOut: {
+            /** Kind */
+            kind: string;
+            /** Hotel Id */
+            hotel_id: number;
+            /** Rows Read */
+            rows_read: number;
+            /** Snapshots Written */
+            snapshots_written: number;
+            /** As Of Dates */
+            as_of_dates: number;
+            /** Stay Dates */
+            stay_dates: number;
+            /** Errors */
+            errors: {
+                [key: string]: unknown;
+            }[];
+            /** Status */
+            status: string;
+        };
+        /** OtbNightOut */
+        OtbNightOut: {
+            /**
+             * Stay Date
+             * Format: date
+             */
+            stay_date: string;
+            /** Lead */
+            lead: number;
+            /** Rooms Otb */
+            rooms_otb: number | null;
+            /** Revenue Otb */
+            revenue_otb: string | null;
+            /** Rooms Available */
+            rooms_available: number | null;
+            /** Occ Otb Pct */
+            occ_otb_pct: string | null;
+            /** Adr Otb */
+            adr_otb: string | null;
+            /** Pickup 1D */
+            pickup_1d: number | null;
+            /** Pickup 7D */
+            pickup_7d: number | null;
+            /** Pace 4W */
+            pace_4w: number | null;
+            /** Ref 4W */
+            ref_4w: number | null;
+            /** Stly */
+            stly: number | null;
+            /** Pace Stly */
+            pace_stly: number | null;
+            /** Forecast Rooms */
+            forecast_rooms: number | null;
+            /** Forecast Occ Pct */
+            forecast_occ_pct: string | null;
+            /** Forecast Basis */
+            forecast_basis: number;
+        };
+        /** OtbOut */
+        OtbOut: {
+            /** Hotel Id */
+            hotel_id: number | null;
+            /** As Of Date */
+            as_of_date: string | null;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Nights */
+            nights: components["schemas"]["OtbNightOut"][];
+            actual_30d: components["schemas"]["KpiOut"];
+            otb_window: components["schemas"]["KpiOut"];
+            /** Price Index Median */
+            price_index_median: string | null;
+            /** Price Index Nights */
+            price_index_nights: number;
+        };
+        /** OutcomeNightOut */
+        OutcomeNightOut: {
+            /**
+             * Stay Date
+             * Format: date
+             */
+            stay_date: string;
+            /** Kind */
+            kind: string;
+            /** Decision */
+            decision: string;
+            /** Change Pct */
+            change_pct: number;
+            /** Own Price */
+            own_price: string | null;
+            /** Target Price */
+            target_price: string | null;
+            /** Applied Price */
+            applied_price: string | null;
+            /** Actual Occ Pct */
+            actual_occ_pct: string | null;
+            /** Actual Adr */
+            actual_adr: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "good" | "review" | "neutral" | "pending";
+        };
+        /**
+         * OutcomesOut
+         * @description Nhật ký "gợi ý đã áp dụng → kết quả" (6.4) và tỷ lệ áp dụng.
+         */
+        OutcomesOut: {
+            /** Decided */
+            decided: number;
+            /** Applied */
+            applied: number;
+            /** Dismissed */
+            dismissed: number;
+            /** Apply Rate */
+            apply_rate: string | null;
+            /** Good */
+            good: number;
+            /** Review */
+            review: number;
+            /** Nights */
+            nights: components["schemas"]["OutcomeNightOut"][];
+        };
         /** OverviewOut */
         OverviewOut: {
             /**
@@ -2050,8 +2841,6 @@ export interface components {
             end: string;
             /** Channel */
             channel: string;
-            /** Channels */
-            channels: string[];
             /**
              * Horizon End
              * Format: date
@@ -2124,6 +2913,15 @@ export interface components {
             comp_occ: string | null;
             /** Comp Occ Hotels */
             comp_occ_hotels: number;
+            /** Comp Occ Low */
+            comp_occ_low?: string | null;
+            /** Comp Occ High */
+            comp_occ_high?: string | null;
+            /**
+             * Comp Priced
+             * @default 0
+             */
+            comp_priced: number;
             /** Comp Pickup 7D */
             comp_pickup_7d: number | null;
             /** Comp Pickup Hotels */
@@ -2189,11 +2987,12 @@ export interface components {
         };
         /**
          * PriceBasis
-         * @description Giá đem so: rẻ nhất mọi gói, hoặc rẻ nhất trong các gói có huỷ miễn phí. Đối thủ bán gói
-         *     không hoàn huỷ rẻ hơn 15–20% làm trung vị lệch; so cùng điều kiện hoàn huỷ thì công bằng hơn.
+         * @description Giá đem so (cùng điều kiện): rẻ nhất mọi gói; rẻ nhất trong các gói huỷ miễn phí (gần BAR
+         *     nhất); có bữa sáng; chỉ phòng. Đối thủ bán gói không hoàn huỷ rẻ hơn 10–20%, giá gồm bữa sáng
+         *     phổ biến ở Việt Nam: so lệch điều kiện làm trung vị sai.
          * @enum {string}
          */
-        PriceBasis: "any" | "refundable";
+        PriceBasis: "any" | "refundable" | "breakfast" | "room_only";
         /** PriceBucketOut */
         PriceBucketOut: {
             /** Lo */
@@ -2202,6 +3001,91 @@ export interface components {
             hi: string | null;
             /** Count */
             count: number;
+        };
+        /** PromoNightOut */
+        PromoNightOut: {
+            /**
+             * Stay Date
+             * Format: date
+             */
+            stay_date: string;
+            /** Running */
+            running: number;
+            /** Observed */
+            observed: number;
+        };
+        /** PromoRunOut */
+        PromoRunOut: {
+            /** Label */
+            label: string;
+            /** Origin */
+            origin: string | null;
+            /** Nights */
+            nights: string[];
+            /** Max Depth Pct */
+            max_depth_pct: string | null;
+            /** Started At */
+            started_at: string | null;
+        };
+        /** PromotionsOut */
+        PromotionsOut: {
+            /** Channel */
+            channel: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Hotels */
+            hotels: components["schemas"]["HotelPromosOut"][];
+            /** Nights */
+            nights: components["schemas"]["PromoNightOut"][];
+        };
+        /**
+         * RateDetailOut
+         * @description Giá và tình trạng Booking.com của (khách sạn, đêm) ở lần quét gần nhất.
+         */
+        RateDetailOut: {
+            /** Availability Status */
+            availability_status: string | null;
+            /** Exact Rooms Left */
+            exact_rooms_left: number | null;
+            /** Min Price */
+            min_price: string | null;
+            /** Min Refundable Price */
+            min_refundable_price: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Last Observed At */
+            last_observed_at: string | null;
+            /** Min Breakfast Price */
+            min_breakfast_price?: string | null;
+            /** Min Room Only Price */
+            min_room_only_price?: string | null;
+            /** Min Stay */
+            min_stay?: number | null;
+            /** Cheapest Rate */
+            cheapest_rate?: {
+                [key: string]: unknown;
+            } | null;
+            /** Prices By Key */
+            prices_by_key?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** ReasonOut */
+        ReasonOut: {
+            /** Key */
+            key: string;
+            /** Text */
+            text: string;
+            /** Pct */
+            pct: number | null;
         };
         /** RecipientCreate */
         RecipientCreate: {
@@ -2224,6 +3108,69 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** ReputationHotelOut */
+        ReputationHotelOut: {
+            /** Hotel Id */
+            hotel_id: number;
+            /** Name */
+            name: string | null;
+            /** Role */
+            role: string;
+            /** Review Score */
+            review_score: string | null;
+            /** Review Count */
+            review_count: number | null;
+            /** Reviews Per Month */
+            reviews_per_month: string | null;
+            /** Score Change */
+            score_change: string | null;
+            /** Next Threshold */
+            next_threshold: string | null;
+            /** Gap To Next */
+            gap_to_next: string | null;
+            /** Badges */
+            badges: string[];
+            /** Price Index */
+            price_index: string | null;
+            /** Score Index */
+            score_index: string | null;
+        };
+        /** ReputationOut */
+        ReputationOut: {
+            /** Days */
+            days: number;
+            /** Hotels */
+            hotels: components["schemas"]["ReputationHotelOut"][];
+        };
+        /** RestrictionNightOut */
+        RestrictionNightOut: {
+            /**
+             * Stay Date
+             * Format: date
+             */
+            stay_date: string;
+            /** Min Stay */
+            min_stay: number;
+            /** Closed To Arrival */
+            closed_to_arrival: boolean;
+        };
+        /** RestrictionsOut */
+        RestrictionsOut: {
+            /** Channel */
+            channel: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Hotels */
+            hotels: components["schemas"]["HotelRestrictionsOut"][];
         };
         /** RoomSnapshotOut */
         RoomSnapshotOut: {
@@ -2375,6 +3322,160 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** StrategyIn */
+        StrategyIn: {
+            /** Base Price */
+            base_price?: number | string | null;
+            /** Floor Price */
+            floor_price?: number | string | null;
+            /** Ceiling Price */
+            ceiling_price?: number | string | null;
+            /**
+             * Target Index
+             * @default 100
+             */
+            target_index: number | string;
+            /**
+             * Round To
+             * @default 10000
+             */
+            round_to: number;
+            /**
+             * Max Daily Change Pct
+             * @default 15
+             */
+            max_daily_change_pct: number;
+            /** Weekday Adj */
+            weekday_adj?: {
+                [key: string]: number;
+            };
+            /**
+             * Holiday Uplift Pct
+             * @default 10
+             */
+            holiday_uplift_pct: number;
+            /**
+             * Last Minute Days
+             * @default 3
+             */
+            last_minute_days: number;
+            /**
+             * Last Minute Adj Pct
+             * @default -5
+             */
+            last_minute_adj_pct: number;
+        };
+        /** StrategyOut */
+        StrategyOut: {
+            /** Base Price */
+            base_price?: string | null;
+            /** Floor Price */
+            floor_price?: string | null;
+            /** Ceiling Price */
+            ceiling_price?: string | null;
+            /**
+             * Target Index
+             * @default 100
+             */
+            target_index: string;
+            /**
+             * Round To
+             * @default 10000
+             */
+            round_to: number;
+            /**
+             * Max Daily Change Pct
+             * @default 15
+             */
+            max_daily_change_pct: number;
+            /** Weekday Adj */
+            weekday_adj?: {
+                [key: string]: number;
+            };
+            /**
+             * Holiday Uplift Pct
+             * @default 10
+             */
+            holiday_uplift_pct: number;
+            /**
+             * Last Minute Days
+             * @default 3
+             */
+            last_minute_days: number;
+            /**
+             * Last Minute Adj Pct
+             * @default -5
+             */
+            last_minute_adj_pct: number;
+            /** Hotel Id */
+            hotel_id: number;
+            /** Configured */
+            configured: boolean;
+        };
+        /**
+         * SubscriptionIn
+         * @description Đăng ký nhận tin của một người (3.4). kinds rỗng = mọi loại tin.
+         */
+        SubscriptionIn: {
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "email" | "zalo" | "webhook";
+            /** Target */
+            target: string;
+            /**
+             * Kinds
+             * @default []
+             */
+            kinds: ("alerts" | "daily_insight" | "weekly_report" | "data_stale")[];
+            /** Quiet Start */
+            quiet_start?: string | null;
+            /** Quiet End */
+            quiet_end?: string | null;
+            /** Max Per Day */
+            max_per_day?: number | null;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+        };
+        /** SubscriptionOut */
+        SubscriptionOut: {
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "email" | "zalo" | "webhook";
+            /** Target */
+            target: string;
+            /**
+             * Kinds
+             * @default []
+             */
+            kinds: ("alerts" | "daily_insight" | "weekly_report" | "data_stale")[];
+            /** Quiet Start */
+            quiet_start?: string | null;
+            /** Quiet End */
+            quiet_end?: string | null;
+            /** Max Per Day */
+            max_per_day?: number | null;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Id */
+            id: number;
+            /** User Id */
+            user_id: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** SuggestionOut */
         SuggestionOut: {
             /**
@@ -2388,11 +3489,27 @@ export interface components {
              * Confidence
              * @enum {string}
              */
-            confidence: "high" | "medium";
+            confidence: "high" | "medium" | "low";
             /** Reasons */
             reasons: string[];
             /** Decision */
             decision: ("applied" | "dismissed") | null;
+            /** Target Price */
+            target_price?: string | null;
+            /** Reference Price */
+            reference_price?: string | null;
+            /**
+             * Adjustments
+             * @default []
+             */
+            adjustments: components["schemas"]["ReasonOut"][];
+            /**
+             * Restrictions
+             * @default []
+             */
+            restrictions: string[];
+            /** Clamped */
+            clamped?: string | null;
         };
         /** TenantCreate */
         TenantCreate: {
@@ -2432,11 +3549,6 @@ export interface components {
              * @default vn
              */
             country_code: string;
-            /**
-             * Reference Channel
-             * @default booking
-             */
-            reference_channel: string;
         };
         /** TenantOut */
         TenantOut: {
@@ -2456,8 +3568,6 @@ export interface components {
             insight_hour: string;
             /** Country Code */
             country_code: string;
-            /** Reference Channel */
-            reference_channel: string;
             /** Active */
             active: boolean;
             /**
@@ -2465,6 +3575,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Source Markets
+             * @default []
+             */
+            source_markets: string[];
         };
         /** TenantUpdate */
         TenantUpdate: {
@@ -2482,10 +3597,10 @@ export interface components {
             insight_hour?: string | null;
             /** Country Code */
             country_code?: string | null;
-            /** Reference Channel */
-            reference_channel?: string | null;
             /** Active */
             active?: boolean | null;
+            /** Source Markets */
+            source_markets?: string[] | null;
         };
         /** UserCreate */
         UserCreate: {
@@ -2536,6 +3651,36 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VisibilityHotelOut */
+        VisibilityHotelOut: {
+            /** Hotel Id */
+            hotel_id: number;
+            /** Name */
+            name: string | null;
+            /** Role */
+            role: string;
+            /** Scans */
+            scans: number;
+            /** Avg Rank */
+            avg_rank: string | null;
+            /** Avg Organic Rank */
+            avg_organic_rank: string | null;
+            /** Best Rank */
+            best_rank: number | null;
+            /** Sponsored Share */
+            sponsored_share: string | null;
+            /** Badges */
+            badges: string[];
+        };
+        /** VisibilityOut */
+        VisibilityOut: {
+            /** Area Id */
+            area_id: number | null;
+            /** Days */
+            days: number;
+            /** Hotels */
+            hotels: components["schemas"]["VisibilityHotelOut"][];
+        };
         /** WatchItemCreate */
         WatchItemCreate: {
             /** Url */
@@ -2562,6 +3707,19 @@ export interface components {
              * Format: date-time
              */
             added_at: string;
+            /** Compset Of */
+            compset_of?: number | null;
+            /**
+             * Tier
+             * @default primary
+             * @enum {string}
+             */
+            tier: "primary" | "secondary";
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: string;
         };
         /** WatchItemUpdate */
         WatchItemUpdate: {
@@ -2571,6 +3729,14 @@ export interface components {
             label?: string | null;
             /** Active */
             active?: boolean | null;
+            /** Compset Of */
+            compset_of?: number | null;
+            /** Tier */
+            tier?: ("primary" | "secondary") | null;
+            /** Weight */
+            weight?: number | string | null;
+            /** Rooms Total */
+            rooms_total?: number | null;
         };
         /** WeatherDayOut */
         WeatherDayOut: {
@@ -3045,6 +4211,39 @@ export interface operations {
             };
         };
     };
+    compset_review_watchlist_compset_review_get: {
+        parameters: {
+            query?: {
+                own_hotel_id?: number | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompsetReviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     remove_item_watchlist__hotel_id__delete: {
         parameters: {
             query?: {
@@ -3192,42 +4391,6 @@ export interface operations {
             };
         };
     };
-    discover_listings_watchlist__hotel_id__discover_post: {
-        parameters: {
-            query?: {
-                /** @description Operator: tenant cần xem */
-                tenant_id?: number | null;
-            };
-            header?: never;
-            path: {
-                hotel_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string[];
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     scan_now_watchlist_scan_now_post: {
         parameters: {
             query?: {
@@ -3320,7 +4483,7 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
                 price_basis?: components["schemas"]["PriceBasis"];
-                channel?: string | null;
+                own_hotel_id?: number | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };
@@ -3356,7 +4519,6 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
                 event_limit?: number;
-                channel?: string | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };
@@ -3392,7 +4554,6 @@ export interface operations {
         parameters: {
             query?: {
                 history_days?: number;
-                channel?: string | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };
@@ -3425,6 +4586,38 @@ export interface operations {
             };
         };
     };
+    data_status_data_status_get: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_events_events_get: {
         parameters: {
             query?: {
@@ -3433,7 +4626,6 @@ export interface operations {
                 stay_from?: string | null;
                 stay_to?: string | null;
                 observed_since?: string | null;
-                channel?: string | null;
                 limit?: number;
                 offset?: number;
                 /** @description Operator: tenant cần xem */
@@ -4074,13 +5266,217 @@ export interface operations {
             };
         };
     };
+    list_subscriptions_notifications_subscriptions_get: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_subscription_notifications_subscriptions_post: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_subscription_notifications_subscriptions__sub_id__put: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path: {
+                sub_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_subscription_notifications_subscriptions__sub_id__delete: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path: {
+                sub_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_notification_notifications__notification_id__resolve_post: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path: {
+                notification_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationLogOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    engagement_notifications_engagement_get: {
+        parameters: {
+            query?: {
+                weeks?: number;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EngagementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     export_overview_export_overview_csv_get: {
         parameters: {
             query?: {
                 start?: string | null;
                 end?: string | null;
                 price_basis?: components["schemas"]["PriceBasis"];
-                channel?: string | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };
@@ -4118,7 +5514,6 @@ export interface operations {
                 stay_from?: string | null;
                 stay_to?: string | null;
                 observed_since?: string | null;
-                channel?: string | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };
@@ -4148,11 +5543,79 @@ export interface operations {
             };
         };
     };
+    export_rate_shop_export_rate_shop_xlsx_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                price_basis?: components["schemas"]["PriceBasis"];
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Excel rate shop */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_monthly_report_export_monthly_report_html_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+                own_hotel_id?: number | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_pace_market_pace_get: {
         parameters: {
             query?: {
                 start?: string | null;
                 end?: string | null;
+                own_hotel_id?: number | null;
                 /** @description Operator: tenant cần xem */
                 tenant_id?: number | null;
             };
@@ -4494,6 +5957,145 @@ export interface operations {
             };
         };
     };
+    get_strategy_market_strategy_get: {
+        parameters: {
+            query?: {
+                own_hotel_id?: number | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrategyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_strategy_market_strategy_put: {
+        parameters: {
+            query?: {
+                own_hotel_id?: number | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StrategyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrategyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggestion_outcomes_market_suggestions_outcomes_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                own_hotel_id?: number | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggestion_backtest_market_suggestions_backtest_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                lead?: number;
+                own_hotel_id?: number | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BacktestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_destinations_market_areas_search_get: {
         parameters: {
             query: {
@@ -4760,6 +6362,315 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CityHotelsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    promotions_market_radar_promotions_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restrictions_market_radar_restrictions_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancellation_market_radar_cancellation_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancellationsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    area_scarcity_view_market_radar_area_scarcity_get: {
+        parameters: {
+            query?: {
+                area_id?: number | null;
+                start?: string | null;
+                end?: string | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaScarcityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    otb_template_pms_otb_template_get: {
+        parameters: {
+            query?: {
+                kind?: "otb_report" | "bookings";
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_otb_pms_otb_import_post: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_otb_pms_otb_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtbImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    otb_view_market_otb_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                own_hotel_id?: number | null;
+                days?: number;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtbOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reputation_market_reputation_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReputationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    visibility_market_visibility_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                area_id?: number | null;
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisibilityOut"];
                 };
             };
             /** @description Validation Error */

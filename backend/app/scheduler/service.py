@@ -6,18 +6,28 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.channels.registry import BOOKING
 from app.clock import Clock
 from app.db.models import Listing, Tenant, TenantHotel
 from app.db.partitions import ensure_room_snapshot_partitions
 from app.logging import get_logger
 from app.marketscan.scheduling import MarketScheduler, MarketTickReport
 from app.ops.alerts import Alerter, AlertThrottle, block_rate_alert
+from app.ops.health_checks import (
+    active_listing_channels,
+    channel_last_success,
+    channel_probe_stats,
+    expired_runs_alert,
+    stale_channel_alerts,
+    success_rate_alerts,
+)
 from app.ops.metrics import QUEUE_DEPTH, RUNS_CREATED
-from app.ops.proxy_check import ProxyHealth, proxy_alert
+from app.ops.proxy_check import ProxyHealth, ProxyHealthStore, all_down, proxy_alert
 from app.repo.runs import ScanRunRepository
 from app.scheduler.channel_pause import ChannelPauses, should_pause
 from app.scheduler.planning import (
     TenantSchedule,
+    Trigger,
     WatchRow,
     build_hotel_plans,
     channel_trigger_key,
@@ -28,7 +38,7 @@ from app.scheduler.planning import (
 )
 from app.scheduler.queue import JobQueue
 
-# Listing được quét: đã xác minh. `unverified` chờ verify, `broken`/`paused`/`suggested` không quét.
+# Listing được quét: đã xác minh. `unverified` chờ verify, `broken`/`paused` không quét.
 SCANNABLE_LISTING = "active"
 
 ProxyChecker = Callable[[], Awaitable[list[ProxyHealth]]]
@@ -37,7 +47,8 @@ ProxyChecker = Callable[[], Awaitable[list[ProxyHealth]]]
 async def load_watch_rows(
     s: AsyncSession, tenant_ids: tuple[int, ...] | None = None
 ) -> list[WatchRow]:
-    """Một dòng mỗi (tenant, listing đang quét). tenant_ids None: mọi tenant đang hoạt động."""
+    """Một dòng mỗi (tenant, listing Booking.com đang quét). tenant_ids None: mọi tenant đang hoạt
+    động."""
     stmt = (
         select(
             TenantHotel.tenant_id,
@@ -52,6 +63,7 @@ async def load_watch_rows(
             TenantHotel.active.is_(True),
             Tenant.active.is_(True),
             Listing.status == SCANNABLE_LISTING,
+            Listing.channel == BOOKING,
         )
     )
     if tenant_ids is not None:
@@ -71,6 +83,9 @@ class TickReport:
     alerts: list[str] = field(default_factory=list)
     paused_channels: list[str] = field(default_factory=list)
     market: MarketTickReport | None = None
+    # Mốc quét bị hoãn vì mọi proxy đều hỏng (0.3): không tạo run rỗng.
+    deferred: list[str] = field(default_factory=list)
+    dropped: list[str] = field(default_factory=list)
 
 
 class SchedulerService:
@@ -91,6 +106,10 @@ class SchedulerService:
         proxy_check_every: timedelta = timedelta(minutes=15),
         market: MarketScheduler | None = None,
         market_deadline: timedelta | None = None,
+        proxy_health: ProxyHealthStore | None = None,
+        proxy_recheck: timedelta = timedelta(minutes=5),
+        defer_max: timedelta = timedelta(hours=4),
+        ops_check_every: timedelta | None = timedelta(hours=1),
     ) -> None:
         self._sf = session_factory
         self._queue = queue
@@ -107,6 +126,17 @@ class SchedulerService:
         self._pause_minutes = pause_minutes
         self._proxy_check_every = proxy_check_every
         self._proxy_checked_at: datetime | None = None
+        self._proxy_results: list[ProxyHealth] = []
+        self._proxy_health = proxy_health
+        self._proxy_recheck = proxy_recheck
+        # Mốc quét hoãn: key -> (trigger, lúc hoãn lần đầu). Hết proxy hỏng thì tạo run ngay
+        # (trigger_key giữ nguyên nên không trùng); hoãn quá `defer_max` thì bỏ và báo.
+        self._deferred: dict[str, tuple[Trigger, datetime]] = {}
+        self._defer_max = defer_max
+        self._catch_up_pending = False
+        self._ops_check_every = ops_check_every
+        self._ops_checked_at: datetime | None = None
+        self._ops_throttle = AlertThrottle(clock, min_gap=timedelta(hours=6))
         # Thị trường toàn thành phố (app/marketscan): lịch quét danh sách/chi tiết theo khu vực.
         self._market = market
         self._market_deadline = market_deadline
@@ -133,7 +163,17 @@ class SchedulerService:
         async with self._sf() as s:
             repo = ScanRunRepository(s)
             tenants = await self._load_tenants(s)
-            for trigger in compute_triggers(tenants, now, self._lookback):
+            triggers = compute_triggers(tenants, now, self._lookback)
+            proxies_down = False
+            if triggers or self._deferred:
+                proxies_down = await self._proxies_down(now, report)
+            if proxies_down:
+                await self._defer(triggers, now, report)
+                triggers = []
+            else:
+                triggers = [*triggers, *(t for t, _ in self._deferred.values())]
+                self._deferred.clear()
+            for trigger in triggers:
                 rows = await self._load_watch_rows(s, trigger.tenant_ids)
                 for channel, channel_rows in rows_by_channel(rows).items():
                     if await self._paused(channel):
@@ -156,6 +196,10 @@ class SchedulerService:
             await s.commit()
             if report.expired_runs:
                 log.warning("scan_runs_expired", run_ids=report.expired_runs)
+                msg = expired_runs_alert(report.expired_runs)
+                if msg and self._throttle.should_send("expired_runs"):
+                    await self._alerter.send(msg)
+                    report.alerts.append(msg)
                 enqueue_analytics = getattr(self._queue, "enqueue_analytics", None)
                 if enqueue_analytics is not None:
                     for run_id in report.expired_runs:
@@ -171,10 +215,16 @@ class SchedulerService:
                 except Exception:  # noqa: BLE001 — lỗi thị trường không được chặn lịch quét thường
                     log.exception("market_tick_failed")
 
-            if self._last_tick_at is None or now - self._last_tick_at > self._lookback:
-                for run_id in await self._catch_up(s, repo, tenants, now):
-                    report.catch_up_run = report.catch_up_run or run_id
-                    report.created_runs.append(run_id)
+            missed_window = self._last_tick_at is None or now - self._last_tick_at > self._lookback
+            if missed_window or self._catch_up_pending:
+                if self._proxy_checker is not None and await self._proxies_down(now, report):
+                    # Quét bù lúc mọi proxy hỏng chỉ tạo run rỗng: đợi proxy hồi rồi bù.
+                    self._catch_up_pending = True
+                else:
+                    self._catch_up_pending = False
+                    for run_id in await self._catch_up(s, repo, tenants, now):
+                        report.catch_up_run = report.catch_up_run or run_id
+                        report.created_runs.append(run_id)
 
             stats = await repo.probe_stats_since(now - timedelta(minutes=15))
             for channel, (total, blocked) in sorted(stats.items()):
@@ -202,6 +252,7 @@ class SchedulerService:
                     report.alerts.append(text)
 
             await self._check_proxies(now, report)
+            await self._ops_checks(s, now, report)
 
             today = now.date()
             if self._partitions_checked_on != today:
@@ -214,13 +265,15 @@ class SchedulerService:
         self._last_tick_at = now
         return report
 
-    async def _check_proxies(self, now: datetime, report: TickReport) -> None:
+    async def _check_proxies(
+        self, now: datetime, report: TickReport, max_age: timedelta | None = None
+    ) -> None:
+        """Kiểm tra proxy nếu lần trước cũ hơn `max_age` (mặc định chu kỳ định kỳ), ghi kết quả
+        cho worker (Redis) và báo operator khi có proxy hỏng."""
         if self._proxy_checker is None:
             return
-        if (
-            self._proxy_checked_at is not None
-            and now - self._proxy_checked_at < self._proxy_check_every
-        ):
+        age = max_age if max_age is not None else self._proxy_check_every
+        if self._proxy_checked_at is not None and now - self._proxy_checked_at < age:
             return
         self._proxy_checked_at = now
         try:
@@ -228,10 +281,68 @@ class SchedulerService:
         except Exception:  # noqa: BLE001
             log.exception("proxy_check_failed")
             return
+        self._proxy_results = results
+        if self._proxy_health is not None:
+            try:
+                await self._proxy_health.write(results, now)
+            except Exception:  # noqa: BLE001
+                log.exception("proxy_health_write_failed")
         msg = proxy_alert(results)
         if msg and self._throttle.should_send("proxy"):
             await self._alerter.send(msg)
             report.alerts.append(msg)
+
+    async def _proxies_down(self, now: datetime, report: TickReport) -> bool:
+        """Mọi proxy đều hỏng theo lần kiểm tra mới (≤ `proxy_recheck`) — kiểm tra trước mỗi mốc."""
+        if self._proxy_checker is None:
+            return False
+        await self._check_proxies(now, report, max_age=self._proxy_recheck)
+        return all_down(self._proxy_results)
+
+    async def _defer(self, triggers: list[Trigger], now: datetime, report: TickReport) -> None:
+        for trigger in triggers:
+            if trigger.key in self._deferred:
+                continue
+            self._deferred[trigger.key] = (trigger, now)
+            report.deferred.append(trigger.key)
+            text = (
+                f"⏸ Scan slot {trigger.key} deferred: all proxies failing; "
+                f"runs start as soon as a proxy works (max {self._defer_max})"
+            )
+            log.warning("scan_slot_deferred", trigger=trigger.key)
+            await self._alerter.send(text)
+            report.alerts.append(text)
+        for key, (_trigger, since) in list(self._deferred.items()):
+            if now - since > self._defer_max:
+                del self._deferred[key]
+                report.dropped.append(key)
+                text = f"❌ Scan slot {key} skipped: proxies still failing after {self._defer_max}"
+                log.error("scan_slot_dropped", trigger=key)
+                await self._alerter.send(text)
+                report.alerts.append(text)
+
+    async def _ops_checks(self, s: AsyncSession, now: datetime, report: TickReport) -> None:
+        """Mỗi giờ: kênh có tỷ lệ thành công 24h < 80%, kênh không có dữ liệu mới quá một chu kỳ."""
+        if self._ops_check_every is None:
+            return
+        if self._ops_checked_at is not None and now - self._ops_checked_at < self._ops_check_every:
+            return
+        self._ops_checked_at = now
+        try:
+            stats = await channel_probe_stats(s, now - timedelta(hours=24))
+            alerts = success_rate_alerts(stats.values())
+            active = await active_listing_channels(s)
+            last = await channel_last_success(s, since=now - timedelta(days=30))
+            alerts += stale_channel_alerts(active, last, now)
+        except Exception:  # noqa: BLE001
+            log.exception("ops_checks_failed")
+            await s.rollback()
+            return
+        for channel, msg in alerts:
+            key = f"ops:{channel}:{msg.split(']', 1)[1][:20]}"
+            if self._ops_throttle.should_send(key):
+                await self._alerter.send(msg)
+                report.alerts.append(msg)
 
     async def _start_run(
         self,

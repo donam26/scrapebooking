@@ -3,7 +3,7 @@
     "title": "Cài đặt",
     "subtitleWrite": "Khách sạn theo dõi, giờ quét, sự kiện địa phương, thông báo email, người dùng và dữ liệu công suất từ PMS",
     "subtitleRead": "Xem khách sạn theo dõi, giờ quét, thông báo, người dùng và dữ liệu PMS của tenant",
-    "readOnlyNote": "Tài khoản chỉ xem: bạn xem được mọi cài đặt nhưng không thay đổi được. Liên hệ quản trị viên khách sạn nếu cần sửa.",
+    "readOnlyNote": "Tài khoản chỉ xem: bạn xem được mọi cài đặt nhưng không thay đổi được, trừ đăng ký nhận tin của chính bạn ở tab Thông báo. Liên hệ quản trị viên khách sạn nếu cần sửa.",
     "tabs": {
       "watchlist": "Khách sạn",
       "market": "Thị trường",
@@ -11,49 +11,40 @@
       "events": "Sự kiện",
       "notifications": "Thông báo",
       "users": "Người dùng",
-      "pms": "Nhập PMS"
+      "pms": "Nhập PMS",
+      "strategy": "Chiến lược giá"
     }
   },
   "watchlist": {
     "url": {
-      "empty": "Dán đường dẫn trang khách sạn trên một kênh đặt phòng.",
+      "empty": "Dán đường dẫn trang khách sạn trên Booking.com.",
       "malformed": "Đường dẫn chưa đúng dạng. Hãy sao chép nguyên địa chỉ trên thanh trình duyệt, bắt đầu bằng https://",
-      "unsupported": "Chưa hỗ trợ trang này. Các kênh đang hỗ trợ: {channels}.",
-      "notCollectable": "Chưa hỗ trợ quét {channel}. Các kênh đang hỗ trợ: {channels}."
+      "notBooking": "Chỉ hỗ trợ đường dẫn trang khách sạn trên Booking.com (VD: https://www.booking.com/hotel/vn/…)."
     },
     "add": {
       "title": "Thêm khách sạn",
-      "description": "Dán đường dẫn trang khách sạn trên {channels}. Hệ thống kiểm tra đường dẫn rồi tự tìm cùng khách sạn trên các kênh còn lại để bạn xác nhận.",
-      "descriptionAny": "Dán đường dẫn trang khách sạn trên một kênh đặt phòng. Hệ thống kiểm tra đường dẫn rồi tự tìm cùng khách sạn trên các kênh còn lại để bạn xác nhận.",
+      "description": "Dán đường dẫn trang khách sạn trên Booking.com. Hệ thống kiểm tra đường dẫn rồi đưa khách sạn vào lịch quét.",
       "urlLabel": "Đường dẫn khách sạn",
-      "urlPlaceholder": "Dán đường dẫn trên {channels}",
-      "urlPlaceholderAny": "https://…",
+      "urlPlaceholder": "https://www.booking.com/hotel/vn/…",
       "role": "Vai trò",
       "labelField": "Nhãn hiển thị (tuỳ chọn)",
       "labelPlaceholder": "VD: Đối thủ A",
       "submit": "Thêm khách sạn",
-      "supported": "Đang hỗ trợ: {channels}. Mỗi kênh được đếm phòng và giá riêng, không cộng giữa các kênh.",
       "errorTitle": "Chưa thêm được khách sạn",
-      "addedOn": "Đã thêm “{name}” trên {channel}. Hệ thống đang kiểm tra đường dẫn, sau đó gợi ý cùng khách sạn trên các kênh khác ngay trong danh sách bên dưới.",
-      "added": "Đã thêm “{name}”. Hệ thống đang kiểm tra đường dẫn, sau đó gợi ý cùng khách sạn trên các kênh khác ngay trong danh sách bên dưới."
+      "added": "Đã thêm “{name}”. Hệ thống đang kiểm tra đường dẫn; khách sạn bắt đầu được quét ngay sau đó."
     },
     "listing": {
-      "confirmTitle": "Đúng là khách sạn này trên {channel}: bắt đầu quét",
-      "confirm": "Xác nhận",
-      "rejectTitle": "Không phải khách sạn này: bỏ gợi ý",
-      "reject": "Bỏ",
-      "retryTitle": "Kiểm tra lại đường dẫn trên {channel}",
+      "retryTitle": "Kiểm tra lại đường dẫn Booking.com",
       "retry": "Thử lại",
-      "resumeTitle": "Quét lại khách sạn này trên {channel}",
+      "resumeTitle": "Quét lại khách sạn này trên Booking.com",
       "resume": "Quét lại",
-      "pauseLabel": "Tạm dừng quét trên {channel}",
-      "pauseTitle": "Tạm dừng quét trên {channel} (các kênh khác vẫn quét)"
+      "pauseLabel": "Tạm dừng quét trên Booking.com",
+      "pauseTitle": "Tạm dừng quét trang Booking.com này (áp dụng cho mọi tenant đang theo dõi)"
     },
-    "addListing": {
-      "label": "Đường dẫn khách sạn này trên kênh khác",
-      "placeholder": "https://www.agoda.com/vi-vn/ten-khach-san/hotel/…",
-      "submit": "Thêm kênh",
-      "replaceNote": "Đã có kênh này thì đường dẫn mới thay cho đường dẫn cũ."
+    "replaceUrl": {
+      "label": "Đường dẫn Booking.com mới của khách sạn này",
+      "submit": "Đổi URL",
+      "note": "Đường dẫn mới thay cho đường dẫn cũ; hệ thống kiểm tra lại trước khi quét."
     },
     "row": {
       "stopped": "Ngừng quét",
@@ -63,37 +54,68 @@
       "labelPlaceholder": "Nhãn hiển thị",
       "roleAria": "Vai trò",
       "editAria": "Sửa {name}",
-      "stopTitle": "Ngừng quét khách sạn này trên mọi kênh (có thể bật lại bất cứ lúc nào)",
+      "stopTitle": "Ngừng quét khách sạn này (có thể bật lại bất cứ lúc nào)",
       "resumeTitle": "Bật quét lại khách sạn này",
       "stopAria": "Ngừng quét {name}",
       "resumeAria": "Quét lại {name}",
       "stop": "Ngừng quét",
       "resume": "Quét lại",
-      "channelsAria": "Kênh của {name}",
-      "addChannel": "Thêm kênh",
-      "discoverTitle": "Tìm khách sạn này trên {channels}; kết quả là gợi ý chờ bạn xác nhận",
-      "discover": "Tìm trên kênh khác",
-      "searching": "Đang tìm trên {channels}. Gợi ý sẽ hiện ở đây trong ít phút để bạn xác nhận.",
-      "allChannels": "Khách sạn này đã có trên mọi kênh đang hỗ trợ.",
-      "dismiss": "Ẩn thông báo"
+      "listingAria": "Trang Booking.com của {name}",
+      "replaceUrl": "Đổi URL",
+      "addUrl": "Thêm URL",
+      "replaceUrlTitle": "Thay đường dẫn Booking.com của khách sạn (đường dẫn lỗi hoặc dán nhầm)"
     },
     "list": {
       "emptyTitle": "Chưa theo dõi khách sạn nào",
-      "emptyWrite": "Thêm khách sạn của bạn trước (vai trò “Khách sạn của bạn”), sau đó thêm các đối thủ trong cùng phân khúc. Mỗi khách sạn được đếm phòng và giá ba lần mỗi ngày trên từng kênh.",
+      "emptyWrite": "Thêm khách sạn của bạn trước (vai trò “Khách sạn của bạn”), sau đó thêm các đối thủ trong cùng phân khúc. Phòng còn và giá của mỗi khách sạn được đọc trên Booking.com theo lịch quét.",
       "emptyRead": "Quản trị viên chưa thêm khách sạn nào để theo dõi.",
       "title": "Danh sách theo dõi",
       "summary": "{count, number} khách sạn, {active, number} đang được quét",
       "checking": "Đang kiểm tra đường dẫn mới…",
-      "scanNowTitle": "Quét toàn bộ khách sạn đang theo dõi trên mọi kênh ngay, không chờ mốc giờ",
+      "scanNowTitle": "Quét toàn bộ khách sạn đang theo dõi ngay, không chờ mốc giờ",
       "scanNow": "Quét ngay",
-      "noChannelsReady": "Chưa có kênh nào sẵn sàng để quét.",
-      "scanStarted": "Đã bắt đầu quét trên {channels}. Kết quả xuất hiện ở Phòng trống sau vài phút.",
+      "scanStarted": "Đã bắt đầu quét. Kết quả xuất hiện ở Phòng trống sau vài phút.",
       "scanErrorTitle": "Chưa quét được",
       "selfTitle": "Khách sạn của bạn",
       "selfEmpty": "Chưa có khách sạn của bạn. Thêm với vai trò “Khách sạn của bạn” để so giá với đối thủ và nhập dữ liệu PMS.",
       "compTitle": "Đối thủ",
       "compEmpty": "Chưa có đối thủ nào. Thêm các khách sạn cùng phân khúc mà bạn hay so giá.",
-      "legend": "Mỗi chip là một kênh: chấm xanh đang quét, chấm xanh dương đang kiểm tra hoặc là gợi ý chờ bạn xác nhận, chấm đỏ là đường dẫn lỗi. Bấm tên kênh để mở trang khách sạn trên kênh đó."
+      "legend": "Chấm xanh lá: đang quét · xanh dương: đang kiểm tra đường dẫn · đỏ: đường dẫn lỗi · xám: tạm dừng. Bấm “Booking.com” để mở trang khách sạn.",
+      "noneReady": "Chưa có khách sạn nào sẵn sàng để quét."
+    },
+    "compset": {
+      "tier": "Compset",
+      "tierTitle": "Chỉ compset chính vào trung vị, chỉ số giá niêm yết và vị trí giá; compset phụ (theo mùa, tham khảo) vẫn được theo dõi",
+      "primary": "Chính",
+      "primaryTitle": "Compset chính: tính vào trung vị, chỉ số giá và vị trí giá",
+      "secondary": "Phụ",
+      "secondaryTitle": "Compset phụ: vẫn theo dõi, không tính vào trung vị và chỉ số giá",
+      "compsetOf": "Thuộc compset",
+      "compsetOfTitle": "So với khách sạn nào của bạn; “Dùng chung” = compset của mọi khách sạn của bạn",
+      "shared": "Dùng chung",
+      "rooms": "Số phòng",
+      "roomsTitle": "Tổng số phòng công bố, dùng cho chỉ báo lấp đầy và quy tắc 50% của CoStar",
+      "roomsPlaceholder": "—",
+      "roomsAria": "Tổng số phòng của {name}",
+      "reviewTitle": "Điểm đánh giá trên Booking.com",
+      "reviews": "({count, number} đánh giá)",
+      "saving": "Đang lưu…"
+    },
+    "review": {
+      "aria": "Rà soát compset",
+      "title": "Rà soát compset (chuẩn CoStar STR)",
+      "titleFor": "Rà soát compset của {name}",
+      "counts": "{primary} chính · {secondary} phụ · {known}/{primary} có số phòng",
+      "ok": "Compset đạt chuẩn: đủ đối thủ, không khách sạn nào chi phối.",
+      "hotelFallback": "Khách sạn #{id}",
+      "warn": {
+        "too_few": "Compset chính mới có {count} đối thủ: cần ≥4 để trung vị và chỉ số giá có nghĩa.",
+        "dominant_hotel": "{name} chiếm {pct}% số phòng compset (>50%): một khách sạn chi phối chỉ số.",
+        "rooms_unknown": "Còn {count} đối thủ chưa có số phòng: nhập để kiểm quy tắc 50%.",
+        "review_due": "Lần sửa compset gần nhất: {date}; nên rà soát ít nhất 2 lần/năm.",
+        "review_due_never": "Compset chưa được rà soát; nên rà soát ít nhất 2 lần/năm."
+      },
+      "rules": "Quy tắc: ≥4 đối thủ trong compset chính, không khách sạn nào quá 50% tổng số phòng compset, rà soát ít nhất 2 lần/năm (đối thủ lệch hạng sao, điểm hay giá thì thay)."
     }
   },
   "market": {
@@ -174,11 +196,6 @@
       "add": "Thêm mốc",
       "duplicate": "Đã có mốc {time}."
     },
-    "reference": {
-      "title": "Kênh tham chiếu",
-      "description": "Phòng trống, Nhịp đặt phòng, bản tin AI và email báo cáo so bạn với đối thủ trên kênh này. Các kênh khác vẫn được quét và xem được bằng nút chọn kênh trên từng màn hình.",
-      "onlyOne": "thêm khách sạn trên kênh khác ở tab Khách sạn để có thêm lựa chọn"
-    },
     "scope": {
       "title": "Phạm vi quét và bản tin",
       "horizon": "Số đêm quét tới",
@@ -218,7 +235,37 @@
     "listTitle": "Sự kiện địa phương",
     "listDescription": "Lễ hội, hội nghị, giải đấu, mùa du lịch… ảnh hưởng tới cầu phòng quanh khách sạn của bạn.",
     "emptyTitle": "Chưa có sự kiện nào",
-    "emptyBody": "Thêm các sự kiện địa phương (VD: F1, lễ hội pháo hoa, hội chợ, mùa cao điểm) để đặt cạnh dữ liệu thị trường trên lịch."
+    "emptyBody": "Thêm các sự kiện địa phương (VD: F1, lễ hội pháo hoa, hội chợ, mùa cao điểm) để đặt cạnh dữ liệu thị trường trên lịch.",
+    "sourceMarkets": {
+      "title": "Thị trường nguồn khách",
+      "description": "Chọn các nước khách của bạn hay đến từ. Kỳ nghỉ của các nước này (Tết, Tuần lễ Vàng, Chuseok…) hiện trên lịch Terminal+, Bảng điều khiển và trong gợi ý giá, cạnh ngày lễ Việt Nam.",
+      "info": "Kỳ nghỉ dài ở thị trường nguồn thường đẩy cầu tới Việt Nam vài ngày trước và trong kỳ nghỉ. Chỉ các nước bạn chọn mới hiện.",
+      "none": "Chưa chọn thị trường nào: lịch chỉ có ngày lễ Việt Nam.",
+      "selected": "Đã chọn {count} thị trường",
+      "save": "Lưu",
+      "saved": "Đã lưu",
+      "readOnly": "Chỉ quản trị viên khách sạn đổi được thị trường nguồn.",
+      "market": {
+        "cn": "Trung Quốc",
+        "kr": "Hàn Quốc",
+        "jp": "Nhật Bản",
+        "tw": "Đài Loan",
+        "ru": "Nga",
+        "in": "Ấn Độ",
+        "us": "Mỹ",
+        "au": "Úc"
+      },
+      "examples": {
+        "cn": "Xuân Tiết, 1/5, Tuần lễ Vàng 1–7/10",
+        "kr": "Seollal, Chuseok, nghỉ cuối năm",
+        "jp": "Golden Week, Obon, năm mới",
+        "tw": "Tết Âm lịch, Song Thập 10/10",
+        "ru": "Nghỉ năm mới 31/12–10/1",
+        "in": "Diwali, nghỉ đông",
+        "us": "Lễ Tạ ơn, nghỉ đông",
+        "au": "Nghỉ học mùa xuân, nghỉ hè 12–1"
+      }
+    }
   },
   "notifications": {
     "rules": {
@@ -243,24 +290,48 @@
         "title": "Đối thủ giảm giá",
         "describe": "Khi giá thấp nhất của đối thủ giảm từ <pct></pct> cho một đêm trong <days></days> đêm tới."
       },
-      "own_parity_gap": {
-        "title": "Khách sạn của bạn rẻ hơn hẳn trên một kênh",
-        "describe": "Khi giá thấp nhất của bạn trên một kênh thấp hơn kênh rẻ nhất còn lại từ <pct></pct> cho một đêm trong <days></days> đêm tới, so cùng cơ sở giá. Thường là kênh bán lại giá sỉ hoặc tự giảm giá."
+      "data_stale": {
+        "title": "Dữ liệu cũ",
+        "describe": "Khi dữ liệu Booking.com cũ hơn một chu kỳ quét (lượt quét lỗi hoặc bị chặn), để bạn không ra quyết định trên số cũ."
+      },
+      "market_tight": {
+        "title": "Đêm căng",
+        "describe": "Khi từ <pct></pct> số đối thủ trở lên đã hết hoặc sắp hết phòng (còn ≤3 phòng) cho một đêm trong <days></days> đêm tới. Thường là lúc nên tăng giá."
+      },
+      "competitor_price_rise": {
+        "title": "Đối thủ tăng giá",
+        "describe": "Khi đối thủ tăng giá từ <pct></pct> cho cùng loại phòng và gói, một đêm trong <days></days> đêm tới."
+      },
+      "competitor_promo": {
+        "title": "Đối thủ bật khuyến mãi sâu",
+        "describe": "Khi đối thủ bật khuyến mãi giảm từ <pct></pct> so với giá gạch, cho đêm trong <days></days> đêm tới."
+      },
+      "own_position_drift": {
+        "title": "Giá bạn lệch định vị mục tiêu",
+        "describe": "Khi chỉ số giá niêm yết của bạn lệch quá <pct></pct> so với định vị mục tiêu, cho đêm trong <days></days> đêm tới.",
+        "needsStrategy": "Mặc định tắt. Cần đặt định vị mục tiêu ở <link>Chiến lược giá</link> trước khi bật."
+      },
+      "own_closed": {
+        "title": "Bạn hết phòng hoặc không nhận khách trên Booking.com",
+        "describe": "Khi khách sạn của bạn hết phòng hoặc không nhận khách đến ngày đó trên Booking.com, cho đêm trong <days></days> đêm tới."
       }
     },
     "param": {
       "aria": "{rule}: {param}",
-      "minGap": "mức chênh tối thiểu",
       "minDrop": "mức giảm tối thiểu",
       "minSoldOut": "số đối thủ hết phòng tối thiểu",
-      "withinDays": "số đêm tới"
+      "withinDays": "số đêm tới",
+      "minRise": "mức tăng tối thiểu",
+      "minDepth": "mức giảm KM tối thiểu",
+      "minShare": "tỷ lệ đối thủ tối thiểu",
+      "maxGap": "mức lệch tối đa"
     },
     "emailOff": "Máy chủ email chưa được cấu hình nên OTARadar chưa gửi được thư. Các thông báo vẫn được ghi ở “Đã gửi gần đây” bên dưới.",
     "emailOffOperator": "Đặt SMTP_HOST, SMTP_FROM (và SMTP_USERNAME, SMTP_PASSWORD) cho worker jobs rồi tạo lại container.",
     "emailOffTenant": "Liên hệ đơn vị vận hành OTARadar để bật.",
     "rulesTitle": "Gửi gì",
-    "rulesDescription": "Cảnh báo được gom thành một email sau mỗi lượt quét, chỉ khi có thay đổi khớp với điều kiện bên dưới.",
-    "invalid": "Nhập số trong khoảng cho phép (số đêm 1–90, mức giảm hoặc chênh 3–90%, số đối thủ 1–50).",
+    "rulesDescription": "Cảnh báo được gom thành một tin sau mỗi lượt quét, chỉ khi có thay đổi khớp điều kiện bên dưới. Áp dụng cho mọi kênh gửi.",
+    "invalid": "Nhập số nguyên từ {min} đến {max}.",
     "saved": "Đã lưu",
     "recipients": {
       "title": "Người nhận email",
@@ -283,12 +354,124 @@
       "title": "Đã gửi gần đây",
       "description": "{count} thông báo mới nhất",
       "emptyTitle": "Chưa có thông báo nào",
-      "emptyBody": "Sau lượt quét kế tiếp có thay đổi ở đối thủ, hoặc khi bản tin sáng xong, email sẽ hiện ở đây.",
+      "emptyBody": "Sau lượt quét kế tiếp có thay đổi ở đối thủ, hoặc khi bản tin sáng xong, tin gửi sẽ hiện ở đây.",
       "time": "Thời điểm",
       "kind": "Loại",
       "content": "Nội dung",
       "recipients": "Người nhận",
-      "status": "Trạng thái"
+      "status": "Trạng thái",
+      "channel": "Kênh",
+      "resolved": "Đã xử lý",
+      "resolvedTitle": "Đã xử lý lúc {time}",
+      "resolve": "Đã xử lý",
+      "resolveAria": "Đánh dấu đã xử lý: {subject}"
+    },
+    "groups": {
+      "briefs": "Bản tin và tình trạng dữ liệu",
+      "competitors": "Đối thủ và thị trường",
+      "own": "Khách sạn của bạn"
+    },
+    "channels": {
+      "title": "Kênh gửi",
+      "description": "Tin đi qua những kênh đã sẵn sàng. Mỗi người tự chọn kênh trong “Đăng ký nhận tin”.",
+      "on": "Sẵn sàng",
+      "off": "Chưa cấu hình",
+      "email": {
+        "name": "Email",
+        "on": "Gửi tới danh sách người nhận bên dưới và các đăng ký email.",
+        "off": "Máy chủ email (SMTP) chưa được cấu hình."
+      },
+      "zalo": {
+        "name": "Zalo ZNS",
+        "on": "Tin Zalo tới số điện thoại đã đăng ký, khoảng 200–300₫ mỗi tin gửi thành công.",
+        "off": "Chưa cấu hình: cần OA doanh nghiệp đã xác thực và template được Zalo duyệt."
+      },
+      "webhook": {
+        "name": "Webhook",
+        "on": "Gửi JSON tới URL https (Slack, Google Chat, Discord…) của từng đăng ký."
+      }
+    },
+    "subscriptions": {
+      "title": "Đăng ký nhận tin",
+      "descriptionAdmin": "Mỗi người chọn kênh, loại tin, giờ im lặng và số tin tối đa mỗi ngày. Bạn thấy đăng ký của mọi người trong khách sạn.",
+      "descriptionViewer": "Chọn nhận tin qua kênh nào, loại tin nào và giờ nào không làm phiền. Chỉ bạn thấy đăng ký của mình.",
+      "add": "Thêm đăng ký",
+      "emptyTitle": "Chưa có đăng ký nào",
+      "emptyBody": "Thêm Zalo hoặc email của bạn để nhận cảnh báo đúng loại, đúng giờ.",
+      "mine": "Của bạn",
+      "owner": "Người dùng #{id}",
+      "ownerUnknown": "Khách sạn",
+      "allKinds": "Mọi loại tin",
+      "quiet": "Im lặng {start}–{end}",
+      "maxPerDay": "Tối đa {count} tin/ngày",
+      "overLimit": "vượt thì gom vào tin sau",
+      "paused": "Đang tạm dừng",
+      "toggleAria": "Bật/tắt đăng ký {target}",
+      "editAria": "Sửa đăng ký {target}",
+      "removeAria": "Xoá đăng ký {target}",
+      "zaloNotReady": "Zalo chưa được cấu hình nên tin Zalo chưa gửi được; đăng ký vẫn được lưu.",
+      "form": {
+        "titleNew": "Đăng ký mới",
+        "titleEdit": "Sửa đăng ký",
+        "channel": "Kênh",
+        "target": {
+          "email": "Email",
+          "zalo": "Số điện thoại Zalo",
+          "webhook": "URL webhook"
+        },
+        "placeholder": {
+          "email": "ban@khachsan.vn",
+          "zalo": "0912 345 678",
+          "webhook": "https://hooks.slack.com/…"
+        },
+        "hint": {
+          "email": "",
+          "zalo": "Số đã dùng Zalo; nhận tin từ OA của OTARadar.",
+          "webhook": "Chỉ nhận https://. Dùng cho Slack, Google Chat, Discord…"
+        },
+        "kinds": "Loại tin",
+        "kindsHint": "Không chọn loại nào = nhận mọi loại.",
+        "quietStart": "Im lặng từ",
+        "quietEnd": "đến",
+        "quietHint": "Tin trong giờ im lặng được gom vào tin kế tiếp. Bỏ trống = không im lặng.",
+        "maxPerDay": "Tối đa tin/ngày",
+        "maxPerDayHint": "1–50, bỏ trống = không giới hạn.",
+        "active": "Đang nhận tin",
+        "save": "Lưu đăng ký",
+        "cancel": "Huỷ"
+      },
+      "kind": {
+        "alerts": "Cảnh báo",
+        "daily_insight": "Bản tin sáng",
+        "weekly_report": "Báo cáo tuần",
+        "data_stale": "Dữ liệu cũ"
+      },
+      "invalid": {
+        "email": "Email chưa đúng dạng, ví dụ ban@khachsan.vn.",
+        "phone": "Số điện thoại Việt Nam chưa đúng, ví dụ 0912 345 678 hoặc +84 912 345 678.",
+        "webhook": "URL webhook phải bắt đầu bằng https:// và là địa chỉ hợp lệ.",
+        "quiet": "Nhập đủ cả giờ bắt đầu và kết thúc im lặng (HH:MM), hoặc bỏ trống cả hai.",
+        "quietSame": "Giờ bắt đầu và kết thúc im lặng phải khác nhau.",
+        "maxPerDay": "Số tin tối đa mỗi ngày phải là số nguyên từ 1 đến 50."
+      }
+    },
+    "engagement": {
+      "title": "Hiệu quả tin gửi",
+      "description": "{weeks} tuần gần nhất, theo kênh: tin có tới nơi, có được mở và xử lý không.",
+      "info": "“Lượt nhấn” đếm người mở liên kết trong tin. “Đã xử lý” đếm người bấm nút “Đã xử lý” trong tin hoặc trên trang này. Chi phí là phí Zalo ZNS; email và webhook không tính phí.",
+      "week": "Tuần",
+      "weekOf": "từ {date}",
+      "channel": "Kênh",
+      "sent": "Tin đã gửi",
+      "failed": "Lỗi",
+      "skipped": "Bỏ qua",
+      "skippedTitle": "Không gửi vì giờ im lặng hoặc đã đủ số tin trong ngày",
+      "clicked": "Lượt nhấn",
+      "resolved": "Đã xử lý",
+      "cost": "Chi phí",
+      "rate": "{pct} số tin",
+      "emptyTitle": "Chưa có số liệu",
+      "emptyBody": "Sau khi tin đầu tiên được gửi qua email, Zalo hoặc webhook, số tin, lượt nhấn và đã xử lý hiện ở đây theo tuần."
     }
   },
   "users": {

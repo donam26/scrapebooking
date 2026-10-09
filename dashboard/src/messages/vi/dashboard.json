@@ -1,96 +1,107 @@
 {
   "title": "Bảng điều khiển",
   "strip": {
-    "range": "{count} đêm từ {start}",
-    "channel": "Kênh <b>{name}</b>",
-    "updated": "Cập nhật {when}"
+    "range": "{count} đêm từ {start}"
   },
   "empty": {
     "title": "Chưa theo dõi khách sạn nào",
     "body": "Thêm khách sạn của bạn và các đối thủ ở <link>Cài đặt › Khách sạn</link>. Lượt quét kế tiếp sẽ điền bảng điều khiển."
   },
   "snapshot": {
-    "title": "Toàn cảnh thị trường đêm nay",
-    "info": "Các đối thủ trong compset trên kênh đang xem. Phòng còn chỉ cộng các đối thủ mà kênh báo số chính xác; giá là giá thấp nhất mỗi khách sạn.",
+    "title": "Toàn cảnh compset đêm nay",
+    "titleNight": "Toàn cảnh compset đêm {night}",
+    "info": "Các đối thủ trong compset trên Booking.com. Phòng còn chỉ cộng các đối thủ mà Booking.com báo số chính xác; giá là giá niêm yết thấp nhất mỗi khách sạn còn bán.",
     "viewAvailability": "Xem phòng trống",
     "competitors": "đối thủ",
     "soldOut": "hết phòng",
     "low": "còn ≤3 phòng",
     "roomsLeft": "phòng còn (đối thủ)",
     "roomsLeftTitle": "Cộng từ {known}/{observed} đối thủ có số chính xác",
-    "avgRate": "giá TB compset"
+    "medianRate": "giá trung vị đối thủ",
+    "medianRateTitle": "{price}: trung vị giá niêm yết thấp nhất của {count} đối thủ còn bán",
+    "restricted": "bị hạn chế",
+    "restrictedTitle": "Đối thủ chỉ bán từ 2 đêm hoặc đóng ngày đến: vẫn bán, không tính là hết phòng"
   },
   "kpi": {
-    "compression": {
-      "title": "Mức nén compset",
-      "info": "Tỷ lệ đối thủ đã hết phòng hoặc còn ≤3 phòng đêm nay (0–100).",
-      "noData": "Chưa có"
+    "tight": {
+      "title": "Đối thủ hết/sắp hết",
+      "info": "Số đối thủ đã hết phòng hoặc còn ≤3 phòng trên số đối thủ quan sát được (x/N), trên Booking.com. Từ {min} đối thủ mới tính phần trăm và mức (cao từ 75, vừa từ 50); ít hơn thì chỉ hiện x/N.",
+      "caption": "{tight}/{observed} · {level}",
+      "noData": "Chưa có dữ liệu",
+      "restricted": "+{count} bị hạn chế (không tính là hết)"
     },
-    "adr": {
-      "title": "ADR compset",
-      "info": "Giá phòng trung bình của đối thủ đêm nay: trung bình giá thấp nhất mỗi khách sạn trên kênh đang xem (giá niêm yết, không phải doanh thu thật).",
-      "sub": "Giá TB mỗi đêm"
+    "advertised": {
+      "title": "Giá niêm yết TB đối thủ",
+      "info": "Trung vị giá niêm yết thấp nhất của các đối thủ còn bán trên Booking.com. Đây là giá chào bán, không phải ADR (doanh thu phòng chia số phòng đã bán).",
+      "sub": "Trung vị của {count} đối thủ có giá",
+      "none": "Chưa có đối thủ nào có giá"
     },
-    "revpar": {
-      "title": "RevPAR compset",
-      "info": "Ước tính = ADR compset × công suất ước tính của đối thủ.",
-      "sub": "Doanh thu mỗi phòng sẵn có"
-    },
-    "occ": {
-      "title": "Công suất compset",
-      "info": "Ước tính từ số phòng còn của {count} đối thủ có đủ số trên kênh tham chiếu.",
-      "roomsLeft": "còn {count, number} phòng",
-      "notEnough": "chưa đủ số phòng"
+    "fill": {
+      "title": "Chỉ báo lấp đầy trên Booking.com (thử nghiệm) ≈",
+      "info": "Tỷ lệ phòng không còn bán trong số phòng mà Booking.com mở bán của các đối thủ (trung vị {count} đối thủ có đủ số). Đóng bán hay hạn chế cũng làm số này tăng. Đây không phải công suất khách sạn: phòng bán qua nơi khác, khách đoàn, khách trực tiếp đều không thấy được.",
+      "calibrated": "sai số so PMS ±{mae} điểm ({count} đêm)",
+      "uncalibrated": "chưa hiệu chỉnh (chưa có PMS)",
+      "notEnough": "chưa đủ số phòng để ước tính"
     }
   },
   "trends": {
-    "title": "Xu hướng thị trường",
-    "info": "ADR là giá TB thấp nhất của đối thủ mỗi đêm; RevPAR và công suất là ước tính từ số phòng còn.",
-    "occSeries": "Công suất ≈ %"
+    "title": "Xu hướng compset",
+    "info": "Giá TB đối thủ là trung vị giá niêm yết thấp nhất của các đối thủ mỗi đêm trên Booking.com. Lấp đầy ≈ là chỉ báo thử nghiệm từ số phòng còn trên Booking.com, không phải công suất.",
+    "rateSeries": "Giá TB đối thủ",
+    "fillSeries": "Lấp đầy ≈ %"
   },
-  "forecast": {
-    "title": "Dự báo cầu",
-    "info": "Điểm cầu 0–100 của từng đêm: “≈” là công suất ước tính của các đối thủ (từ số phòng còn trên kênh tham chiếu); số gạch chấm là tỷ lệ đối thủ đã hết phòng khi chưa ước tính được công suất. Từ 60 là cao, 40–59 vừa, dưới 40 thấp.",
-    "cellTitle": "Điểm cầu {score} ({source, select, occ {công suất ước tính của đối thủ} other {tỷ lệ đối thủ hết phòng (chưa ước tính được công suất)}}): {level}",
-    "cellNoData": "Chưa có dữ liệu",
+  "tightness": {
+    "title": "Mức căng thị trường (hiện tại)",
+    "info": "Hai nguồn đọc riêng, không gộp thành một điểm. Cột màu là chỉ báo lấp đầy ≈ của các đối thủ (thang chung: cao từ {high}, vừa từ {moderate}). Hình thoi là số đối thủ hết hoặc còn ≤3 phòng trên số đối thủ quan sát được; tô cam khi từ một nửa trở lên, mờ khi dưới {min} đối thủ (mẫu nhỏ).",
     "today": "Hôm nay",
-    "noData": "Chưa có"
+    "noFill": "Chưa có",
+    "fillTitle": "Lấp đầy {pct} trên Booking.com ({level})",
+    "fillNone": "Chưa ước tính được lấp đầy",
+    "tightTitle": "{tight}/{observed} đối thủ hết/sắp hết phòng",
+    "tightNone": "Chưa có đối thủ nào quan sát được",
+    "legendFill": "Chỉ báo lấp đầy ≈ trên Booking.com (thử nghiệm)",
+    "legendTight": "Đối thủ hết/sắp hết x/N (mờ: dưới {min} đối thủ)",
+    "legendHoliday": "Ngày lễ",
+    "notForecast": "Tình trạng hiện tại theo lượt quét gần nhất, không phải dự báo.",
+    "fillHidden": "Ẩn",
+    "restrictedTitle": "{count} đối thủ bị hạn chế (không tính là hết)"
   },
   "alerts": {
     "title": "Cảnh báo",
-    "info": "Đối thủ hết hoặc còn ≤3 phòng đêm nay, đêm trong 7 ngày tới có từ nửa đối thủ hết phòng, gợi ý giá đang chờ và lượt quét lỗi.",
-    "empty": "Không có cảnh báo nào. Thị trường đêm nay chưa có gì bất thường.",
+    "info": "Lượt quét gần nhất không thu được dữ liệu, khách sạn của bạn hết hoặc sắp hết phòng, đối thủ chỉ còn ≤3 phòng. Gợi ý giá, đêm căng và đối thủ hết phòng đêm nay nằm ở “Việc cần làm hôm nay”.",
+    "empty": "Không có cảnh báo nào.",
     "more": "và {count} cảnh báo khác",
-    "runFailed": "Lượt quét {channel} gần nhất không thu được dữ liệu",
-    "ownSoldOut": "Khách sạn của bạn đã hết phòng đêm nay",
-    "ownLow": "Khách sạn của bạn chỉ còn {count} phòng đêm nay",
-    "compSoldOut": "{name} đã hết phòng đêm nay",
-    "compLow": "{name} chỉ còn {count} phòng",
-    "tightNight": "Đêm {night}: {soldOut}/{observed} đối thủ hết phòng",
-    "suggestions": "{count} gợi ý giá đang chờ bạn xem"
+    "runFailed": "Lượt quét gần nhất không thu được dữ liệu",
+    "ownSoldOut": "Khách sạn của bạn đã hết phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
+    "ownLow": "Khách sạn của bạn chỉ còn {count} phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
+    "compSoldOut": "{name} đã hết phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
+    "compLow": "{name} chỉ còn {count} phòng {when, select, tonight {đêm nay} other {đêm {night}}}"
   },
   "yourHotel": {
     "title": "Khách sạn của bạn",
     "empty": "Chưa có khách sạn của bạn trong danh sách theo dõi. <link>Thêm ở Cài đặt</link>",
-    "info": "Công suất lấy từ PMS khi bạn đã nhập; nếu chưa có thì là ước tính từ số phòng còn (≈). Giá là giá thấp nhất đêm nay trên kênh đang xem.",
-    "occCaption": "công suất đêm nay{source, select, pms { · PMS} est { · ước tính} other {}}",
+    "info": "Công suất lấy từ PMS khi bạn đã nhập; nếu chưa có thì là chỉ báo lấp đầy ước tính từ số phòng còn (≈). Giá là giá niêm yết thấp nhất trên Booking.com, so với trung vị đối thủ. Rẻ hơn chỉ được nhấn khi đêm đó căng.",
+    "occCaption": "{source, select, pms {công suất (PMS)} est {chỉ báo lấp đầy ≈} other {công suất}} {when, select, tonight {đêm nay} other {đêm {night}}}",
     "yourRate": "Giá của bạn",
-    "marketRate": "Giá TB thị trường",
+    "marketRate": "Trung vị đối thủ",
     "roomsLeft": "Phòng còn",
     "hidden": "Không lộ số",
     "position": "Vị trí giá"
   },
   "dataStatus": {
     "title": "Trạng thái dữ liệu",
-    "info": "Lượt quét gần nhất trên mọi kênh, mốc quét kế tiếp theo lịch, số kênh có dữ liệu trong 24 giờ qua và số khách sạn đang theo dõi.",
-    "lastScan": "Lượt quét gần nhất",
+    "info": "Dữ liệu mới nhất = lần đọc trang Booking.com thành công cuối cùng (không phải lượt quét kết thúc cuối cùng). Kèm mốc quét kế tiếp và tỷ lệ đọc trang thành công 7 ngày qua (gồm hết phòng; không gồm bị chặn, lỗi).",
+    "updated": "Dữ liệu mới nhất",
+    "now": "Hiện tại",
     "scanning": "Đang quét…",
     "none": "Chưa có",
     "nextScan": "Lượt kế tiếp",
     "notScheduled": "Chưa đặt lịch",
-    "liveChannels": "Kênh có dữ liệu",
-    "liveChannelsValue": "{live}/{total} kênh",
     "hotels": "Khách sạn theo dõi",
-    "overdue": "Lỡ lịch quét · dữ liệu từ {ago}"
+    "latestEmpty": "Lượt quét kết thúc {when} không thu được dữ liệu",
+    "overdue": "Lỡ lịch quét · dữ liệu từ {ago}",
+    "successRate": "Đọc thành công 7 ngày",
+    "successProbes": "{ok}/{total} lượt đọc trang Booking.com thành công trong 7 ngày",
+    "stale": "Booking.com không có dữ liệu mới quá {hours} giờ"
   }
 }

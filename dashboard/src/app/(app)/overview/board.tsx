@@ -3,11 +3,12 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { CompsetDayOut, DateCell, HotelRow, OverviewOut } from "@/lib/api";
+import { cellState, type CompsetDayOut, type DateCell, type HotelRow, type OverviewOut } from "@/lib/api";
 import { dateRange, isWeekend, num, parseDate, useFmt } from "@/lib/format";
-import { channelName, hotelTitle, withChannel } from "@/lib/channels";
+import { hotelTitle } from "@/lib/hotels";
 import { useElementWidth } from "@/lib/use-width";
-import { MarkSwatch, MarksLegend, useMarks } from "@/components/marks";
+import { MarkSwatch, MarksLegend, PromoDot, isWordMark, useMarks } from "@/components/marks";
+import { SampleTag, sampleFade, useCompsetLabels, useSampleText } from "@/components/compset-sample";
 import { IconArrowRight } from "@/components/icons";
 import { cx } from "@/components/ui";
 import { deltaVsMedian, useNightReason } from "@/lib/night-reason";
@@ -55,7 +56,7 @@ export function Board({ data, market = true, priceLabel: priceLabelProp }: { dat
     setActive({ idx, x: r.right, y: r.top });
   }, []);
 
-  const ctx: StripCtx = { dates, n, active: active?.idx ?? null, activate, fits, horizonEnd: data.horizon_end, holidays, channel: data.channel };
+  const ctx: StripCtx = { dates, n, active: active?.idx ?? null, activate, fits, horizonEnd: data.horizon_end, holidays };
 
   return (
     <div onMouseLeave={() => setActive(null)} className="relative">
@@ -102,9 +103,6 @@ export function Board({ data, market = true, priceLabel: priceLabelProp }: { dat
                 <LineKey color={INK} dashed /> {t("legend.medianInYours")}
               </li>
               <li className="text-faint">{t("legend.hint")}</li>
-              {data.channels.length > 1 && (
-                <li className="text-faint">{t("legend.channelNote", { channel: channelName(data.channel) })}</li>
-              )}
             </>
           ) : (
             <>
@@ -131,8 +129,6 @@ type StripCtx = {
   fits: boolean;
   /** Đêm xa nhất trong phạm vi quét; đêm sau đó chưa tới lượt được quét. */
   horizonEnd: string;
-  /** Kênh của mọi số trên chồng; liên kết sang chi tiết giữ nguyên kênh này. */
-  channel: string;
   /** Ngày lễ theo nước của tenant: đêm → tên lễ. */
   holidays: Map<string, string>;
 };
@@ -205,6 +201,8 @@ function MarketCard({
   const t = useTranslations("overview.board.market");
   const { dates, n } = ctx;
   const observed = Math.max(0, ...data.compset.map((c) => c.competitors_observed));
+  const total = Math.max(0, ...data.compset.map((c) => c.competitors_total ?? 0));
+  const anyRestricted = data.compset.some((c) => (c.competitors_restricted ?? 0) > 0);
   const anySold = dates.some((d) => (compset.get(d)?.competitors_sold_out ?? 0) > 0);
   const lines: Line[] = [
     { key: "median", color: INK, width: 2, values: dates.map((d) => num(compset.get(d)?.median_price)) },
@@ -218,7 +216,7 @@ function MarketCard({
         <div className="sticky left-5 flex items-baseline gap-2">
           <h2 className="text-md font-bold text-ink">{t("title")}</h2>
           <span className="text-sm text-muted">
-            {observed > 0 ? t("observed", { count: observed, channel: channelName(ctx.channel) }) : t("noneObserved", { channel: channelName(ctx.channel) })}
+            {observed > 0 ? t("observedOf", { count: observed, total: Math.max(total, observed) }) : t("noneObserved")}
           </span>
         </div>
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
@@ -240,6 +238,7 @@ function MarketCard({
         <div className="mb-1 flex items-baseline gap-2 text-xs">
           <span className="font-semibold text-muted">{t("soldOutPerNight")}</span>
           {!anySold && <span className="text-faint">{t("noneSoldOut", { count: n })}</span>}
+          {anyRestricted && <span className="text-faint">{t("restrictedNote")}</span>}
         </div>
         <div className={cx("grid items-end", anySold ? "h-9" : "h-1.5")} style={gridStyle(n)}>
           {dates.map((d, i) => {
@@ -254,6 +253,9 @@ function MarketCard({
                 onMouseEnter={(e) => ctx.activate(i, e.currentTarget)}
               >
                 {sold > 0 && <span className="mb-0.5 text-2xs font-bold text-ink tabular">{`${sold}/${c?.competitors_observed ?? 0}`}</span>}
+                {(c?.competitors_restricted ?? 0) > 0 && (
+                  <span aria-hidden title={t("restrictedTitle", { count: c?.competitors_restricted ?? 0 })} className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#f59e0b]" />
+                )}
                 <span
                   className={cx("w-full max-w-[22px] rounded-t-[3px]", sold > 0 ? "bg-plum" : "bg-line")}
                   style={{ height: sold > 0 ? `${Math.max(6, share * 22)}px` : "2px" }}
@@ -320,6 +322,7 @@ function VsMedianRow({ ctx, compset }: { ctx: StripCtx; compset: Map<string, Com
               className={cx(
                 "rounded-[4px] text-center text-2xs leading-5 tabular transition-colors duration-100",
                 ctx.active === i && "bg-brand-softer",
+                sampleFade(compset.get(dates[i])),
                 v === null ? "text-faint" : outlier ? "font-extrabold text-warning-deep" : "font-semibold text-body",
               )}
             >
@@ -386,14 +389,14 @@ function HotelCard({
           {first?.min_price && <span className="tabular text-body">· {fmtMoney(first.min_price, first.currency)}</span>}
         </span>
       ) : (
-        <span className="text-muted">{noDataText(row, ctx.channel, t)}</span>
+        <span className="text-muted">{noDataText(row, t)}</span>
       )}
     </>
   );
   const detailsLink = (
     <>
       <Link
-        href={withChannel(`/hotels/${row.hotel.id}`, ctx.channel)}
+        href={`/hotels/${row.hotel.id}`}
         className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-semibold text-brand hover:bg-brand-softer"
         aria-label={t("hotel.detailsAria", { name })}
       >
@@ -415,7 +418,7 @@ function HotelCard({
           {isSelf && <span aria-hidden className="mt-[7px] h-2.5 w-2.5 shrink-0 rounded-full bg-yours shadow-[0_0_0_3px_rgba(0,176,144,0.18)]" />}
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
-              <Link href={withChannel(`/hotels/${row.hotel.id}`, ctx.channel)} className="truncate text-md font-bold text-ink hover:text-brand hover:underline" title={row.hotel.name ?? undefined}>
+              <Link href={`/hotels/${row.hotel.id}`} className="truncate text-md font-bold text-ink hover:text-brand hover:underline" title={row.hotel.name ?? undefined}>
                 {name}
               </Link>
               {isSelf && <span className="shrink-0 rounded-full bg-yours-soft px-2 py-px text-xs font-semibold text-yours-deep">{t("hotel.yours")}</span>}
@@ -461,7 +464,7 @@ function HotelCard({
             return (
               <Link
                 key={d}
-                href={withChannel(`/hotels/${row.hotel.id}/dates/${d}`, ctx.channel)}
+                href={`/hotels/${row.hotel.id}/dates/${d}`}
                 aria-label={
                   cell?.min_price
                     ? t("hotel.cellAriaPrice", { name, night: fmtNight(d), status: mark.label, price: fmtMoney(cell.min_price, cell.currency) })
@@ -469,14 +472,16 @@ function HotelCard({
                 }
                 onMouseEnter={(e) => ctx.activate(i, e.currentTarget)}
                 onFocus={(e) => ctx.activate(i, e.currentTarget)}
+                title={mark.label}
                 className={cx(
-                  "sb-cell grid h-8 place-items-center rounded-[6px] font-bold tabular leading-none focus-visible:outline-offset-1",
+                  "sb-cell relative grid h-8 place-items-center rounded-[6px] font-bold tabular leading-none focus-visible:outline-offset-1",
                   mark.cls,
-                  mark.kind === "sold_out" ? "text-[9px] tracking-[0.02em]" : "text-sm",
+                  isWordMark(mark.kind) ? (mark.text.length > 3 ? "text-[8px] tracking-[0.01em]" : "text-[9px] tracking-[0.02em]") : "text-sm",
                   on && "outline-2 outline-offset-1 outline-brand",
                 )}
               >
                 {mark.text}
+                <PromoDot promo={mark.promo} />
               </Link>
             );
           })}
@@ -499,21 +504,24 @@ function HotelCard({
   );
 }
 
-/** Vì sao thẻ chưa có số trên kênh đang xem. */
-function noDataText(row: HotelRow, channel: string, t: BoardTranslator): string {
-  const l = row.hotel.listings.find((x) => x.channel === channel && x.status !== "suggested");
-  const ch = channelName(channel);
-  if (!l) return t("noData.notTracked", { channel: ch });
-  if (l.status === "broken") return t("noData.broken", { channel: ch });
-  if (l.status === "paused") return t("noData.paused", { channel: ch });
-  if (l.status === "unverified") return t("noData.unverified", { channel: ch });
+/** Vì sao thẻ chưa có số trên Booking.com. */
+function noDataText(row: HotelRow, t: BoardTranslator): string {
+  const l = row.hotel.listings[0];
+  if (!l) return t("noData.notTracked");
+  if (l.status === "broken") return t("noData.broken");
+  if (l.status === "paused") return t("noData.paused");
+  if (l.status === "unverified") return t("noData.unverified");
   return t("noData.waiting");
 }
 
 function shortStatus(cell: DateCell | undefined, t: BoardTranslator): string {
-  if (!cell || cell.availability_status === null) return t("status.noData");
-  if (cell.availability_status === "sold_out") return t("status.soldOut");
-  if (cell.availability_status === "unknown") return t("status.unknown");
+  const state = cellState(cell);
+  if (!cell || state === null) return t("status.noData");
+  if (state === "sold_out") return t("status.soldOut");
+  // Hạn chế không phải hết phòng: "Từ 2 đêm" / "Hạn chế".
+  if (state === "restricted") return (cell.min_stay ?? 1) > 1 ? t("status.minStay", { count: cell.min_stay ?? 2 }) : t("status.restricted");
+  if (state === "no_price") return t("status.noPrice");
+  if (state === "error") return t("status.unknown");
   return cell.exact_rooms_left === null ? t("status.available") : t("status.roomsLeft", { count: cell.exact_rooms_left });
 }
 
@@ -642,8 +650,9 @@ function Readout({
 }) {
   const t = useTranslations("overview.board");
   const { fmtCompact, fmtDateShort, fmtInt, fmtMoney, fmtPct, fmtWeekday } = useFmt();
-  const { fmtRank } = useNightReason();
   const { cellMark } = useMarks();
+  const labels = useCompsetLabels();
+  const sample = useSampleText();
   const ref = useRef<HTMLDivElement>(null);
   const [h, setH] = useState(0);
   useLayoutEffect(() => {
@@ -658,7 +667,7 @@ function Readout({
   const left = active.x + 14 + W > vw - 8 ? active.x - W - 44 : active.x + 14;
   const top = Math.max(8, Math.min(active.y - 20, vh - (h || 320) - 8));
   const idx = num(c?.price_index);
-  const rank = c ? fmtRank(c.own_rank, c.priced_hotels) : null;
+  const rank = c && c.priced_hotels >= 2 ? labels.rank(c.own_rank, c.priced_hotels) : null;
   const holiday = holidays.get(d);
 
   return (
@@ -699,18 +708,32 @@ function Readout({
           <dd className="text-right font-semibold text-ink tabular">
             {c.competitors_sold_out}/{c.competitors_observed}
           </dd>
+          {c.competitors_restricted > 0 && (
+            <>
+              <dt className="text-muted">{t("readout.restricted")}</dt>
+              <dd className="text-right font-semibold text-warning-deep tabular">{c.competitors_restricted}</dd>
+            </>
+          )}
           <dt className="text-muted">{t("readout.median")}</dt>
-          <dd className="text-right font-semibold text-ink tabular">{fmtMoney(c.median_price, c.currency ?? currency)}</dd>
+          <dd className={cx("text-right font-semibold text-ink tabular", sampleFade(c))}>
+            {c.sample === "insufficient" ? <span className="font-normal text-faint">{sample.status(c)}</span> : fmtMoney(c.median_price, c.currency ?? currency)}
+          </dd>
+          <dt className="text-muted">{t("readout.sample")}</dt>
+          <dd className="text-right">
+            <SampleTag c={c} short />
+          </dd>
           {idx !== null && (
             <>
-              <dt className="text-muted">{t("readout.vsMedian")}</dt>
-              <dd className="text-right font-semibold text-ink tabular">{fmtPct(idx - 100, { signed: true, digits: 0 })}</dd>
+              <dt className="text-muted">{labels.index}</dt>
+              <dd className={cx("text-right font-semibold text-ink tabular", sampleFade(c))}>
+                {Math.round(idx)} <span className="font-normal text-muted">({fmtPct(idx - 100, { signed: true, digits: 0 })})</span>
+              </dd>
             </>
           )}
           {rank && (
             <>
-              <dt className="text-muted">{t("readout.rank")}</dt>
-              <dd className="text-right font-semibold text-ink">{rank}</dd>
+              <dt className="text-muted">{labels.rankLabel}</dt>
+              <dd className={cx("text-right font-semibold text-ink", sampleFade(c))}>{rank}</dd>
             </>
           )}
           {c.own_occupancy_pct !== null && (

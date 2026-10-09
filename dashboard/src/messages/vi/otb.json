@@ -1,0 +1,86 @@
+{
+  "import": {
+    "title": "OTB theo ngày",
+    "description": "OTB (on the books) là số phòng đã đặt cho từng đêm sắp tới, lấy từ PMS. Có OTB thì có pickup, pace so 4 tuần trước, cùng kỳ năm trước (STLY) và dự báo của chính bạn, và gợi ý giá dùng thêm số này.",
+    "kindLabel": "Loại tệp",
+    "kind": {
+      "otb_report": {
+        "label": "Báo cáo phòng đã đặt theo ngày",
+        "body": "Mỗi dòng một đêm: phòng đã đặt, doanh thu, phòng sẵn có (tuỳ chọn: ngày chụp, huỷ, phòng đoàn). Nhập mỗi ngày một lần; các ngày không ghi đè nhau nên có pickup."
+      },
+      "bookings": {
+        "label": "File đặt phòng chi tiết",
+        "body": "Mỗi dòng một booking: ngày đặt, ngày đến, ngày đi, ngày huỷ, trạng thái, số phòng, doanh thu. Hệ thống dựng lại OTB cho cả quá khứ, nên có pickup, pace và STLY ngay."
+      }
+    },
+    "hotel": "Khách sạn",
+    "file": "Tệp CSV hoặc Excel",
+    "asOf": "Ngày chụp",
+    "asOfHint": "Bỏ trống = hôm nay. Dùng khi nhập lại báo cáo của ngày cũ.",
+    "rooms": "Phòng sẵn có",
+    "roomsHint": "Tuỳ chọn: dùng khi tệp không có cột phòng sẵn có.",
+    "template": "Tải tệp mẫu",
+    "submit": "Nhập OTB",
+    "noSelf": "Thêm khách sạn của bạn (vai trò “Khách sạn của bạn”) ở <link>Khách sạn</link> trước khi nhập OTB.",
+    "importError": "Chưa nhập được OTB",
+    "invalidRooms": "Phòng sẵn có phải là số nguyên lớn hơn 0.",
+    "result": {
+      "summary": "Đọc <b>{rows}</b> dòng · ghi <b>{snapshots}</b> bản chụp · {asOf} ngày chụp · {stays} đêm",
+      "failedRows": "{count} dòng lỗi",
+      "done": "OTB đã có ở <pace>Nhịp đặt phòng</pace> và <today>Hôm nay</today>."
+    }
+  },
+  "panel": {
+    "title": "OTB của bạn",
+    "info": "OTB = phòng đã đặt cho từng đêm, từ PMS. Pickup = phòng đặt thêm (đã trừ huỷ) so với 1 hoặc 7 ngày trước. So 4 tuần trước = OTB hiện tại so với đêm cùng thứ 4 tuần trước, ở cùng số ngày trước khi đến. Cùng kỳ năm trước (STLY) = đêm cùng thứ 364 ngày trước, cùng số ngày trước khi đến. Dự báo = OTB + pickup trung bình lịch sử từ lúc này tới ngày đến (các đêm cùng thứ).",
+    "asOf": "Bản chụp mới nhất: {date}",
+    "kpi": {
+      "occ": "Công suất · PMS 30 ngày qua",
+      "occHint": "{sold}/{available} phòng đêm",
+      "adr": "ADR · PMS 30 ngày qua",
+      "adrHint": "Doanh thu phòng / phòng đã bán",
+      "revpar": "RevPAR · PMS 30 ngày qua",
+      "revparHint": "Doanh thu phòng / phòng sẵn có",
+      "noPms": "Chưa có số PMS 30 ngày qua",
+      "otb": "OTB kỳ này",
+      "otbHint": "{rooms} phòng đêm · {revenue}",
+      "otbNone": "Chưa có OTB cho kỳ này",
+      "index": "Chỉ số giá niêm yết (trung vị)",
+      "indexHint": "{count} đêm đủ mẫu · 100 = ngang trung vị đối thủ",
+      "indexNone": "Chưa đủ đối thủ có giá để so"
+    },
+    "col": {
+      "night": "Đêm",
+      "otb": "OTB",
+      "adr": "ADR OTB",
+      "pickup1": "Pickup 1 ngày",
+      "pickup7": "Pickup 7 ngày",
+      "pace4w": "So 4 tuần trước (cùng thứ)",
+      "stly": "Cùng kỳ năm trước",
+      "forecast": "Dự báo"
+    },
+    "rooms": "{count} phòng",
+    "ref4w": "4 tuần trước: {count} phòng",
+    "stlyRooms": "Năm trước: {count} phòng",
+    "forecastBasis": "Dựa trên {count} đêm cùng thứ trong quá khứ",
+    "showAll": "Xem cả {count} đêm",
+    "showLess": "Thu gọn",
+    "noSelfTitle": "Chưa có khách sạn của bạn",
+    "noSelfBody": "Thêm khách sạn của bạn vào watchlist để xem OTB và KPI.",
+    "noSelfAction": "Mở watchlist",
+    "emptyTitle": "Chưa có OTB theo ngày",
+    "emptyBody": "OTB là số phòng đã đặt cho từng đêm, lấy từ PMS. Nhập báo cáo phòng đã đặt mỗi ngày, hoặc một file đặt phòng chi tiết để có ngay pickup, pace và cùng kỳ năm trước.",
+    "emptyViewer": "Nhờ quản trị viên khách sạn nhập OTB ở Cài đặt › Nhập PMS.",
+    "importAction": "Nhập OTB"
+  },
+  "compact": {
+    "title": "OTB & KPI của bạn",
+    "details": "Xem chi tiết",
+    "next": "7 đêm tới",
+    "pickup7": "+7 ngày",
+    "vsStly": "so năm trước",
+    "forecast": "dự báo",
+    "empty": "Chưa có OTB theo ngày: nhập từ PMS để thấy pickup và cùng kỳ năm trước.",
+    "importLink": "Nhập OTB"
+  }
+}

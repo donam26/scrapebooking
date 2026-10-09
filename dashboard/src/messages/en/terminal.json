@@ -2,21 +2,18 @@
   "strip": {
     "season": "Season: {name}",
     "nextHoliday": "Next holiday: {name} · {days, plural, =0 {today} one {in # day} other {in # days}}",
-    "hotelsTracked": "{count, plural, one {# hotel} other {# hotels}} tracked",
-    "updated": "Updated {ago}",
-    "noScan": "No scans yet",
-    "channel": "Channel {name}"
+    "hotelsTracked": "{count, plural, one {# hotel} other {# hotels}} tracked"
   },
   "mood": {
     "noData": "Not enough data",
-    "tight": "Tight market",
-    "balanced": "Balanced market",
-    "soft": "Soft market"
+    "tight": "Tight",
+    "balanced": "Balanced",
+    "soft": "Soft"
   },
-  "occGauge": "Occupancy ≈",
+  "occGauge": "Fill ≈",
   "city": {
     "title": "{name} market",
-    "info": "Occupancy is estimated from {coverage, plural, one {# hotel} other {# hotels}} scanned in detail with enough data. Hotels with rooms is the figure Booking.com shows for this night. Average rate and rate distribution use {priced, plural, one {# hotel} other {# hotels}} with rates seen on the results page (a sample).",
+    "info": "Fill indicator ≈ estimated from {coverage, plural, one {# hotel} other {# hotels}} scanned in detail with enough data (not occupancy). Hotels with rooms is the figure Booking.com shows for this night. Average rate and rate distribution use {priced, plural, one {# hotel} other {# hotels}} with rates seen on the results page (a sample). Levels: tight from 75, balanced from 50.",
     "roomsLeft": "Rooms left",
     "roomsLeftTitle": "Total rooms left at hotels scanned in detail with exact counts",
     "inventory": "Total ≈",
@@ -34,15 +31,15 @@
     "explore": "Explore"
   },
   "indicator": {
-    "title": "Market indicator",
-    "cityTitle": "{city} market",
-    "info": "Estimated competitor occupancy tonight (from rooms left on the reference channel), rooms left at hotels with exact counts and the spread of tonight's lowest rates.",
+    "title": "Comp set indicator",
+    "cityTitle": "Comp set in {city}",
+    "info": "Competitors' fill indicator ≈ tonight (from rooms left on Booking.com, not occupancy; tight from 75, balanced from 50), rooms left at hotels with exact counts and the spread of tonight's lowest advertised rates.",
     "roomsLeft": "Rooms left",
     "withRooms": "Available",
-    "avgRate": "Avg rate",
+    "medianRate": "Median rate",
     "distribution": "Tonight's rate distribution",
     "yours": "yours",
-    "scannedAt": "Scanned {when}"
+    "fillHidden": "Hidden: large error"
   },
   "weather": {
     "title": "Weather",
@@ -53,22 +50,15 @@
     "restOfToday": "{description} (rest of today)",
     "today": "Today"
   },
-  "signals": {
-    "title": "Booking signals today",
-    "info": "Booking counts the channel itself shows on hotel pages (for example “booked 37 times today”), counting only signals seen in the past 24 hours. This is the channel's marketing message, not actual bookings.",
-    "empty": "The channel has not shown bookings for your tracked hotels in the past 24 hours",
-    "summary": "bookings today across {hotels, plural, one {# hotel} other {# hotels}}",
-    "summary24h": "bookings today across {hotels, plural, one {# hotel} other {# hotels}} · {day24} in 24 hours",
-    "source": "(As shown by {channel})"
-  },
   "revenue": {
     "title": "14-day revenue",
-    "info": "With PMS: revenue on the books per night (rooms sold × ADR when revenue is missing). Without PMS: estimate = your lowest rate × estimated occupancy × rooms seen on the channel, only for nights with a reliable estimate.",
-    "empty": "Not enough data to calculate revenue for the next 14 days.",
+    "info": "Revenue on the books per night from the PMS data you import (rooms sold × ADR when revenue is missing).",
+    "noPmsTitle": "Your revenue",
+    "noPmsInfo": "Revenue only comes from your PMS. It is never estimated from advertised rates and rooms left.",
+    "noPms": "No PMS data yet. Import rooms sold and revenue per night to see revenue on the books for the next 14 days.",
     "importPms": "Import PMS data in Settings",
-    "caption": "{source, select, pms {revenue on the books (PMS)} other {projected revenue (estimate)}} · {known}/14 nights with data",
-    "barNoData": "not enough data",
-    "importForActual": "Import PMS data for actual figures"
+    "caption": "revenue on the books (PMS) · {known}/14 nights with data",
+    "barNoData": "no PMS data"
   },
   "calendar": {
     "title": "Events in the next 12 months",
@@ -76,7 +66,9 @@
     "kind": {
       "tet": "Tet",
       "holiday": "Public holiday",
-      "travel": "Travel peak"
+      "travel": "Travel peak",
+      "source_market": "Source-market holiday",
+      "season": "Holiday season"
     },
     "addEvent": "+ Add event",
     "month": "{month, select, 1 {Jan} 2 {Feb} 3 {Mar} 4 {Apr} 5 {May} 6 {Jun} 7 {Jul} 8 {Aug} 9 {Sep} 10 {Oct} 11 {Nov} 12 {Dec} other {{month}}}",

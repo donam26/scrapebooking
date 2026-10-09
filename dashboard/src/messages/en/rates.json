@@ -1,13 +1,11 @@
 {
   "page": {
     "title": "Rates & pricing",
-    "nights": "Next {count, plural, one {# night} other {# nights}}",
-    "channel": "Channel <b>{channel}</b>",
-    "scannedAt": "Scanned {when}",
+    "nights": "{count, plural, one {# night} other {# nights}} from {start}",
     "emptyTitle": "No hotels tracked yet",
     "emptyBody": "Add hotels in <link>Settings › Hotels</link>.",
     "analysis": "Rate analysis",
-    "analysisInfo": "Lowest rate per night on the selected channel, including taxes, fees and any promotions the channel applies automatically.",
+    "analysisInfo": "Lowest rate per night on Booking.com, including taxes, fees and any promotions Booking.com applies automatically.",
     "view": "View",
     "views": {
       "trends": "Trends",
@@ -16,8 +14,8 @@
     }
   },
   "kpi": {
-    "marketAvg": "Market average",
-    "marketAvgSub": "Avg competitor rate tonight",
+    "compMedian": "Competitor median",
+    "compMedianSub": "Lowest advertised rate {when, select, tonight {tonight} other {on {night}}} · {count, plural, one {# competitor} other {# competitors}} with a rate",
     "lowest": "Lowest",
     "highest": "Highest",
     "yourRate": "Your rate",
@@ -26,43 +24,46 @@
   },
   "intel": {
     "title": "Competitive intelligence",
-    "info": "Compared on {channel}. Rank 1 is the cheapest of the hotels with a rate tonight.",
-    "cheaperNights": "Nights you're cheaper than the market ({count, plural, one {# night} other {# nights}})",
-    "undercut": "Competitors cheaper than you tonight",
-    "spread": "Competitor rate spread tonight",
-    "rank": "Your rate rank tonight"
+    "info": "Compared on Booking.com. Price position 1 is the cheapest among hotels with a rate that night; cheaper is not automatically better. Needs ≥4 competitors priced like-for-like.",
+    "cheaperNights": "Nights you're below the competitor median ({count, plural, one {# comparable night} other {# comparable nights}})",
+    "undercut": "Competitors cheaper than you {when, select, tonight {tonight} other {on {night}}}",
+    "spread": "Competitor rate spread {when, select, tonight {tonight} other {on {night}}}",
+    "rank": "Your price position {when, select, tonight {tonight} other {on {night}}} (1 = cheapest)"
   },
   "trends": {
-    "title": "Rate trends — next {count, plural, one {# night} other {# nights}}",
-    "info": "Lowest rate per night for each hotel on the selected channel. Market = average of competitor rates.",
-    "market": "Market",
+    "title": "Rate trends — {count, plural, one {# night} other {# nights}}",
+    "info": "Lowest advertised rate per night for each hotel on Booking.com. Dashed line = competitor median rate.",
+    "market": "Competitor median",
     "empty": "No rates for these nights yet",
     "all": "All",
     "none": "None"
   },
   "positioning": {
-    "indexTitle": "Your rate index",
+    "indexTitle": "Listed-rate index",
     "indexInfo": "Your rate divided by the competitor median rate × 100. Below 100 is cheaper than the median, above 100 is more expensive.",
     "base": "Competitor median = 100",
-    "index": "Your rate index",
+    "index": "Your listed-rate index",
     "emptyPrices": "Not enough rates to compare",
     "emptyOwn": "Your hotel isn't on the watchlist yet",
-    "rankTitle": "Rate rank by night",
+    "rankTitle": "Price position by night",
     "night": "Night",
     "yourRate": "Your rate",
     "compMedian": "Competitor median",
     "compLowest": "Competitor lowest",
-    "diff": "Difference",
-    "rank": "Rank",
-    "soldOut": "Sold out"
+    "diff": "Competitor median vs you",
+    "rank": "Price position",
+    "soldOut": "Sold out",
+    "signLegend": "(+) competitors more expensive than you / (−) cheaper. “Competitor median vs you” compares the competitor median with your rate on the same night; the rate index is the other way round (your rate ÷ median × 100).",
+    "sample": "Comps priced"
   },
   "heatmap": {
     "title": "Rate heatmap",
-    "info": "Lowest rate per hotel per night (abbreviated: 3.6 = 3,600,000). Green is cheaper than the average competitor rate that night, orange is more expensive.",
+    "info": "Lowest advertised rate per hotel per night, always with a unit: k = thousand VND, M = million VND (1.3M = ₫1,300,000). The darker the cell, the higher the rate compared with the competitor median that night.",
     "hotel": "Hotel",
     "soldOut": "Sold out",
     "soldOutShort": "Full",
     "noPrice": "No rate",
-    "note": "Unit: millions of VND. Dark green ≥15% cheaper, light green 5–15% cheaper, yellow in line with the market, orange more expensive."
+    "note": "k = thousand dong, tr = million dong. Lightest: 15%+ below the comp median; light: 5–15% below; middle: within ±5%; dark: 5–15% above; darkest: 15%+ above. Yellow ring “≥2n”: sold only for 2+ nights (restricted, not sold out). Grey cell: data older than 48 hours. Pink dot: promotion running. A dot under the date marks a public holiday.",
+    "minStayShort": "≥{count}n"
   }
 }

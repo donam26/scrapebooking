@@ -16,24 +16,26 @@
           "price": "8879220",
           "currency": "VND",
           "refundable": false,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation",
           "price": "9865800",
           "currency": "VND",
           "refundable": true,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -45,7 +47,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -57,7 +60,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -74,24 +78,26 @@
           "price": "8879220",
           "currency": "VND",
           "refundable": false,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation",
           "price": "9865800",
           "currency": "VND",
           "refundable": true,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -103,7 +109,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -115,7 +122,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -132,24 +140,26 @@
           "price": "9675288",
           "currency": "VND",
           "refundable": false,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation",
           "price": "10750320",
           "currency": "VND",
           "refundable": true,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -161,7 +171,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -173,7 +184,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -190,24 +202,26 @@
           "price": "9675288",
           "currency": "VND",
           "refundable": false,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation",
           "price": "10750320",
           "currency": "VND",
           "refundable": true,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -219,7 +233,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -231,7 +246,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -248,24 +264,26 @@
           "price": "10471356",
           "currency": "VND",
           "refundable": false,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation",
           "price": "11634840",
           "currency": "VND",
           "refundable": true,
-          "breakfast": null,
+          "breakfast": false,
           "max_persons": 2,
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Non-refundable + breakfast",
@@ -277,7 +295,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -289,7 +308,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -311,7 +331,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -323,7 +344,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -345,7 +367,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -357,7 +380,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -379,7 +403,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -391,7 +416,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -413,7 +439,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -425,7 +452,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -447,7 +475,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         },
         {
           "name": "Free cancellation + breakfast",
@@ -459,7 +488,8 @@
           "price_original": null,
           "taxes_included": true,
           "promo_label": null,
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from app.clock import Clock
-from app.collector.proxy import ProxyEndpoint, ProxyProvider
+from app.collector.proxy import ProxyEndpoint, ProxyProvider, report_proxy
 
 
 @dataclass(frozen=True)
@@ -80,7 +80,14 @@ class SessionManager:
 
     async def _create(self, country: str, warmup_url: str) -> ScrapeSession:
         proxy = self._proxies.new_endpoint(country)
-        result = await self._bootstrapper.bootstrap(proxy, warmup_url)
+        try:
+            result = await self._bootstrapper.bootstrap(proxy, warmup_url)
+        except Exception:
+            # Không mở được phiên qua proxy này (407, CONNECT lỗi, timeout): báo để template hỏng
+            # liên tiếp bị ngắt và lần sau dùng nhà cung cấp khác (roadmap 0.2).
+            report_proxy(self._proxies, proxy, ok=False)
+            raise
+        report_proxy(self._proxies, proxy, ok=True)
         session = ScrapeSession(
             id=uuid.uuid4().hex[:16],
             proxy=proxy,

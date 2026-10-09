@@ -1,13 +1,15 @@
 {
   "title": "Today",
-  "scannedAt": "Scanned {when}",
   "hotelFallback": "Hotel #{id}",
   "status": {
     "noData": "No data yet",
     "soldOut": "Sold out",
     "unknown": "Could not read",
     "available": "Available",
-    "roomsLeft": "{count, plural, one {# room} other {# rooms}} left"
+    "roomsLeft": "{count, plural, one {# room} other {# rooms}} left",
+    "restricted": "Restricted (not sold out)",
+    "minStay": "Sold only for {count}+ nights",
+    "noPrice": "No price"
   },
   "empty": {
     "title": "No hotels tracked yet",
@@ -28,16 +30,18 @@
     "title": "Next {days} nights",
     "compSoldOut": "{soldOut}/{observed} competitors sold out",
     "noComp": "No competitor data yet",
-    "vsMedian": "vs median {pct}"
+    "vsMedian": "vs median {pct}",
+    "compRestricted": "{count} restricted"
   },
   "changes": {
     "title": "Changes in the past 24 hours",
-    "allEvents": "All events",
+    "allEvents": "All changes",
     "empty": "No changes in the past 24 hours."
   },
   "brief": {
     "title": "Latest AI brief",
     "read": "Read brief",
     "noSummary": "This brief has no summary."
-  }
+  },
+  "resolvedNotice": "Noted: marked as handled. Thank you!"
 }

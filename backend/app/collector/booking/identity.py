@@ -17,7 +17,6 @@ _LD_JSON_RE = re.compile(
 )
 _LATLNG_RE = re.compile(r'data-atlas-latlng="(-?\d+\.\d+),(-?\d+\.\d+)"')
 _HOTEL_CLASS_RE = re.compile(r"hotel_class:\s*(\d)")
-_HOTEL_LINK_RE = re.compile(r"/hotel/([a-z]{2})/([a-z0-9\-]+?)(?:\.[a-z]{2}(?:-[a-z]{2})?)?\.html")
 
 
 def _hotel_ld(html: str) -> dict[str, Any]:
@@ -56,18 +55,3 @@ def parse_identity(html: str, slug: str) -> ListingIdentity:
         lng=float(latlng.group(2)) if latlng else None,
         star_rating=Decimal(stars.group(1)) if stars and stars.group(1) != "0" else None,
     )
-
-
-def first_hotel_slug(html: str) -> str | None:
-    """Slug "vn/ten" của khách sạn đầu tiên trên trang kết quả tìm kiếm (dest_type=hotel)."""
-    m = _HOTEL_LINK_RE.search(html)
-    return f"{m.group(1)}/{m.group(2)}" if m else None
-
-
-def autocomplete_hotels(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Dòng khách sạn trong kết quả autocomplete.json của Booking."""
-    return [
-        r
-        for r in payload.get("results") or []
-        if isinstance(r, dict) and r.get("dest_type") == "hotel" and r.get("dest_id")
-    ]

@@ -5,7 +5,6 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApi, useInterval, useMutation } from "@/lib/hooks";
 import { useFmt } from "@/lib/format";
-import { channelName } from "@/lib/channels";
 import { RUN_STATUS_TONE, SESSION_STATUS_TONE, useLabel } from "@/lib/labels";
 import { Badge, Button, ButtonLink, Card, EmptyState, ErrorBox, Note, PageHeader, ROW_CLASS, SkeletonBlock, Skeleton, StatStrip, Table, Td, Th, cx } from "@/components/ui";
 import { RunSummary } from "@/components/run-summary";
@@ -184,7 +183,6 @@ export default function AdminHealthPage() {
             <thead>
               <tr>
                 <Th>{t("runs.run")}</Th>
-                <Th>{t("runs.channel")}</Th>
                 <Th>{t("runs.trigger")}</Th>
                 <Th>{t("runs.status")}</Th>
                 <Th>{t("runs.started")}</Th>
@@ -200,7 +198,6 @@ export default function AdminHealthPage() {
               {runs.data.map((r) => (
                 <tr key={r.id} className={ROW_CLASS}>
                   <Td className="whitespace-nowrap font-semibold text-ink tabular">#{r.id}</Td>
-                  <Td className="whitespace-nowrap">{channelName(r.channel)}</Td>
                   <Td className="max-w-[220px]">
                     <span className="block truncate font-mono text-xs text-muted" title={r.trigger_key}>
                       {r.trigger_key}

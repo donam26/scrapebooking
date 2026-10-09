@@ -1,13 +1,11 @@
 {
   "page": {
     "title": "Giá & định giá",
-    "nights": "{count} đêm tới",
-    "channel": "Kênh <b>{channel}</b>",
-    "scannedAt": "Quét lúc {when}",
+    "nights": "{count} đêm từ {start}",
     "emptyTitle": "Chưa theo dõi khách sạn nào",
     "emptyBody": "Thêm khách sạn ở <link>Cài đặt › Khách sạn</link>.",
     "analysis": "Phân tích giá",
-    "analysisInfo": "Giá thấp nhất mỗi đêm trên kênh đang xem, đã gồm thuế phí và khuyến mãi kênh tự áp.",
+    "analysisInfo": "Giá thấp nhất mỗi đêm trên Booking.com, đã gồm thuế phí và khuyến mãi Booking.com tự áp.",
     "view": "Cách xem",
     "views": {
       "trends": "Xu hướng",
@@ -16,8 +14,8 @@
     }
   },
   "kpi": {
-    "marketAvg": "Trung bình thị trường",
-    "marketAvgSub": "Giá TB đối thủ đêm nay",
+    "compMedian": "Trung vị đối thủ",
+    "compMedianSub": "Giá niêm yết thấp nhất {when, select, tonight {đêm nay} other {đêm {night}}} · {count} đối thủ có giá",
     "lowest": "Thấp nhất",
     "highest": "Cao nhất",
     "yourRate": "Giá của bạn",
@@ -26,43 +24,46 @@
   },
   "intel": {
     "title": "Tình báo cạnh tranh",
-    "info": "So trên {channel}. Hạng 1 là rẻ nhất trong các khách sạn có giá đêm nay.",
-    "cheaperNights": "Đêm bạn rẻ hơn thị trường ({count} đêm)",
-    "undercut": "Đối thủ rẻ hơn bạn đêm nay",
-    "spread": "Biên độ giá đối thủ đêm nay",
-    "rank": "Hạng giá của bạn đêm nay"
+    "info": "So trên Booking.com. Vị trí giá 1 là rẻ nhất trong các khách sạn có giá đêm đó; rẻ hơn không mặc nhiên là tốt. Cần ≥4 đối thủ có giá cùng điều kiện.",
+    "cheaperNights": "Đêm bạn rẻ hơn trung vị đối thủ ({count} đêm so được)",
+    "undercut": "Đối thủ rẻ hơn bạn {when, select, tonight {đêm nay} other {đêm {night}}}",
+    "spread": "Biên độ giá đối thủ {when, select, tonight {đêm nay} other {đêm {night}}}",
+    "rank": "Vị trí giá của bạn {when, select, tonight {đêm nay} other {đêm {night}}} (1 = rẻ nhất)"
   },
   "trends": {
-    "title": "Xu hướng giá — {count} đêm tới",
-    "info": "Giá thấp nhất mỗi đêm của từng khách sạn trên kênh đang xem. Thị trường = trung bình giá các đối thủ.",
-    "market": "Thị trường",
+    "title": "Xu hướng giá — {count} đêm",
+    "info": "Giá niêm yết thấp nhất mỗi đêm của từng khách sạn trên Booking.com. Nét đứt = trung vị giá các đối thủ.",
+    "market": "Trung vị đối thủ",
     "empty": "Chưa có giá cho các đêm này",
     "all": "Tất cả",
     "none": "Không"
   },
   "positioning": {
-    "indexTitle": "Chỉ số giá của bạn",
+    "indexTitle": "Chỉ số giá niêm yết",
     "indexInfo": "Giá của bạn chia trung vị giá đối thủ × 100. Dưới 100 là rẻ hơn trung vị, trên 100 là đắt hơn.",
     "base": "Trung vị đối thủ = 100",
-    "index": "Chỉ số giá của bạn",
+    "index": "Chỉ số giá niêm yết của bạn",
     "emptyPrices": "Chưa đủ giá để so",
     "emptyOwn": "Chưa có khách sạn của bạn trong danh sách theo dõi",
-    "rankTitle": "Hạng giá theo đêm",
+    "rankTitle": "Vị trí giá theo đêm",
     "night": "Đêm",
     "yourRate": "Giá của bạn",
     "compMedian": "Trung vị đối thủ",
     "compLowest": "Thấp nhất đối thủ",
-    "diff": "Chênh lệch",
-    "rank": "Hạng",
-    "soldOut": "Hết phòng"
+    "diff": "Trung vị đối thủ so với bạn",
+    "rank": "Vị trí giá",
+    "soldOut": "Hết phòng",
+    "signLegend": "(+) đối thủ đắt hơn bạn / (−) rẻ hơn. Cột “Trung vị đối thủ so với bạn” so trung vị giá đối thủ với giá của bạn cùng đêm; chỉ số giá thì ngược lại (giá bạn chia trung vị × 100).",
+    "sample": "Đối thủ có giá"
   },
   "heatmap": {
     "title": "Heatmap giá",
-    "info": "Giá thấp nhất từng khách sạn mỗi đêm (rút gọn: 3,6 Tr = 3.600.000). Xanh là rẻ hơn giá TB đối thủ đêm đó, cam là đắt hơn.",
+    "info": "Giá niêm yết thấp nhất của từng khách sạn mỗi đêm, luôn kèm đơn vị: k = nghìn đồng, tr = triệu đồng (1,3tr = 1.300.000 ₫). Ô càng đậm, giá càng cao so với trung vị đối thủ đêm đó.",
     "hotel": "Khách sạn",
     "soldOut": "Hết phòng",
     "soldOutShort": "Hết",
     "noPrice": "Không có giá",
-    "note": "Đơn vị: triệu đồng. Xanh đậm rẻ hơn ≥15%, xanh nhạt rẻ hơn 5–15%, vàng ngang thị trường, cam đắt hơn."
+    "note": "k = nghìn đồng, tr = triệu đồng. Nhạt nhất: rẻ hơn trung vị đối thủ từ 15%; nhạt: rẻ hơn 5–15%; giữa: trong ±5%; đậm: đắt hơn 5–15%; đậm nhất: đắt hơn từ 15%. Viền vàng “≥2đ”: chỉ bán từ 2 đêm (hạn chế, không phải hết phòng). Ô xám: dữ liệu cũ hơn 48 giờ. Chấm hồng: đang khuyến mãi. Chấm dưới ngày là ngày lễ.",
+    "minStayShort": "≥{count}đ"
   }
 }

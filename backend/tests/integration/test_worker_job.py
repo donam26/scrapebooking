@@ -28,7 +28,7 @@ START = date(2026, 9, 24)
 
 
 async def _seed(db: AsyncSession, horizon: int = 3, channel: str = "booking") -> tuple[int, int]:
-    hotel = await add_hotel(db, "vn/h1", channels=("booking", "agoda"))
+    hotel = await add_hotel(db, "vn/h1")
     run = await ScanRunRepository(db).create_run(
         f"k:{channel}", NOW, [HotelJobPlan(hotel.id, START, horizon)], channel
     )
@@ -268,31 +268,9 @@ async def test_hotel_page_not_found_stops_job_early(db: AsyncSession) -> None:
     db.expire_all()
     job = (await db.execute(select(ScanJob))).scalar_one()
     assert job.status == "failed" and "404" in (job.error or "")
-    # Listing hỏng thì ngừng quét tới khi người dùng sửa; listing kênh khác không bị ảnh hưởng.
+    # Listing hỏng thì ngừng quét tới khi người dùng sửa.
     statuses = dict((await db.execute(select(Listing.channel, Listing.status))).tuples().all())
-    assert statuses == {"booking": "broken", "agoda": "active"}
-
-
-async def test_job_uses_listing_of_the_run_channel(db: AsyncSession) -> None:
-    class Recording(FakeCollector):
-        def __init__(self) -> None:
-            super().__init__()
-            self.listings: list[ListingRef] = []
-
-        async def probe(self, hotel, checkin, nights, adults):  # type: ignore[no-untyped-def]
-            self.listings.append(hotel)
-            return await super().probe(hotel, checkin, nights, adults)
-
-    run_id, hotel_id = await _seed(db, horizon=1, channel="agoda")
-    collector = Recording()
-    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
-    await run_probe_hotel(
-        _deps(db, collector, MemoryRawStore()), run_id, hotel_id, final_attempt=True
-    )
-    assert [(lst.channel, lst.listing_key) for lst in collector.listings] == [("agoda", "vn/h1")]
-    probe = (await db.execute(select(Probe))).scalar_one()
-    snap = (await db.execute(select(RoomSnapshot))).scalar_one()
-    assert (probe.channel, snap.channel) == ("agoda", "agoda")
+    assert statuses == {"booking": "broken"}
 
 
 async def _old_probe(

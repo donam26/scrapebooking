@@ -1,14 +1,14 @@
 from datetime import UTC, date, datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, Select, exists, func, or_, select
+from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.analytics.compset import PriceBasis, compset_by_day, metric_price
-from app.analytics.cross_channel import TAX_INCLUSIVE_CHANNELS
+from app.analytics.compset import STALE_AFTER, PriceBasis, compset_by_day, metric_price
 from app.api.deps import (
     LocaleDep,
     PrincipalDep,
@@ -17,25 +17,19 @@ from app.api.deps import (
     ensure_hotel_in_tenant,
     tenant_hotel_ids,
 )
-from app.api.hotel_views import (
-    hotel_out,
-    hotel_outs,
-    sort_channels,
-    tenant_channel,
-    tenant_channels,
-)
+from app.api.hotel_views import hotel_out, hotel_outs, tenant_channel
 from app.api.schemas import (
-    ChannelDayOut,
     CompsetDayOut,
+    DataStatusOut,
     DateCell,
     DayDetailOut,
-    DemandSignalOut,
     EventOut,
     HolidayOut,
     HotelDateSnapshotOut,
     HotelDetailOut,
     HotelRow,
     OverviewOut,
+    RateDetailOut,
     RoomSnapshotOut,
     RoomTypeOut,
     ScanRunOut,
@@ -45,7 +39,6 @@ from app.db.models import (
     Hotel,
     HotelDateMetric,
     HotelDateSnapshot,
-    ListingDemandSignal,
     Probe,
     RoomSnapshot,
     RoomType,
@@ -58,6 +51,12 @@ from app.domain.models import ProbeStatus
 from app.holidays.data import holidays_between
 from app.i18n import DEFAULT_LOCALE
 from app.marketscan.models import MarketArea
+from app.ops.health_checks import (
+    DATA_STATUSES,
+    channel_last_success,
+    channel_probe_stats,
+    stale_after_hours,
+)
 from app.repo.runs import MARKET_RUN_PREFIX
 
 router = APIRouter(tags=["data"])
@@ -97,7 +96,25 @@ def _range(
     return s, e
 
 
-def _cell(d: date, m: HotelDateMetric | None, basis: PriceBasis = PriceBasis.ANY) -> DateCell:
+def cell_state(m: HotelDateMetric | None) -> str | None:
+    """Năm trạng thái (roadmap 2.7): còn bán / hết phòng / bị hạn chế / không có giá / lỗi."""
+    if m is None:
+        return None
+    if m.availability_status == "available":
+        return "restricted" if (m.min_stay or 1) > 1 else "available"
+    if m.availability_status in ("sold_out", "restricted"):
+        return m.availability_status
+    if m.probe_status == str(ProbeStatus.NO_ROOMS_1N):
+        return "no_price"
+    return "error"
+
+
+def _cell(
+    d: date,
+    m: HotelDateMetric | None,
+    basis: PriceBasis = PriceBasis.ANY,
+    now: datetime | None = None,
+) -> DateCell:
     if m is None:
         return DateCell(
             stay_date=d,
@@ -128,6 +145,10 @@ def _cell(d: date, m: HotelDateMetric | None, basis: PriceBasis = PriceBasis.ANY
         restocked_at=m.restocked_at,
         last_observed_at=m.last_observed_at,
         days_to_arrival=m.days_to_arrival,
+        state=cell_state(m),
+        min_stay=m.min_stay or 1,
+        promos=m.promos or None,
+        stale=(now or datetime.now(tz=UTC)) - m.last_observed_at > STALE_AFTER,
     )
 
 
@@ -150,6 +171,8 @@ async def _events_out(session: AsyncSession, stmt: Select[Any]) -> list[EventOut
             previous_scan_run_id=e.previous_scan_run_id,
             scan_run_id=e.scan_run_id,
             observed_at=e.observed_at,
+            reason=e.reason,
+            detail=e.detail,
         )
         for e, h, rt_name in rows
     ]
@@ -176,7 +199,11 @@ def _visible_trigger_key(key: str, tenant_id: int, own_areas: set[int]) -> str:
 
 
 async def _tenant_runs(
-    session: AsyncSession, tenant_id: int, limit: int, finished_only: bool
+    session: AsyncSession,
+    tenant_id: int,
+    limit: int,
+    finished_only: bool,
+    with_data: bool = False,
 ) -> list[ScanRunOut]:
     """Run là chung toàn hệ thống: tenant chỉ thấy run có khách sạn của mình, với số job/probe
     và trạng thái tính riêng trên các khách sạn đó (không lộ số liệu của tenant khác)."""
@@ -188,6 +215,15 @@ async def _tenant_runs(
         exists().where(Probe.scan_run_id == ScanRun.id, Probe.hotel_id.in_(hotel_ids)),
     )
     stmt = select(ScanRun).where(touches_tenant)
+    if with_data:
+        # "Cập nhật lúc…" chỉ tính lượt thật sự thu được dữ liệu (C2): lượt 0 dữ liệu không tính.
+        stmt = stmt.where(
+            exists().where(
+                Probe.scan_run_id == ScanRun.id,
+                Probe.hotel_id.in_(hotel_ids),
+                Probe.status.in_(DATA_STATUSES),
+            )
+        )
     if finished_only:
         # "Lượt quét gần nhất" của tenant là mốc quét compset, không phải run thị trường cả khu vực.
         stmt = stmt.where(~ScanRun.trigger_key.startswith(MARKET_RUN_PREFIX))
@@ -259,11 +295,11 @@ async def overview(
     start: date | None = None,
     end: date | None = None,
     price_basis: PriceBasis = PriceBasis.ANY,
-    channel: str | None = None,
+    own_hotel_id: int | None = None,
     locale: LocaleDep = DEFAULT_LOCALE,
 ) -> OverviewOut:
     s, e = _range(start, end, await _local_today(session, tenant_id))
-    ch = await tenant_channel(session, tenant_id, channel)
+    ch = tenant_channel()
     links = (
         await session.execute(
             select(TenantHotel, Hotel)
@@ -288,25 +324,27 @@ async def overview(
         metrics = {(m.hotel_id, m.stay_date): m for m in rows}
     days = [s + timedelta(days=i) for i in range((e - s).days + 1)]
     outs = await hotel_outs(session, [h for _, h in links])
+    now = datetime.now(tz=UTC)
     hotels = [
         HotelRow(
             hotel=outs[h.id],
             role=link.role,
             label=link.label,
-            cells=[_cell(d, metrics.get((h.id, d)), price_basis) for d in days],
+            cells=[_cell(d, metrics.get((h.id, d)), price_basis, now) for d in days],
         )
         for link, h in links
     ]
     compset = [
         CompsetDayOut(**c.__dict__)
-        for c in await compset_by_day(session, tenant_id, s, e, price_basis, ch)
+        for c in await compset_by_day(
+            session, tenant_id, s, e, price_basis, ch, own_hotel_id=own_hotel_id, now=now
+        )
     ]
-    last_runs = await _tenant_runs(session, tenant_id, limit=1, finished_only=True)
+    last_runs = await _tenant_runs(session, tenant_id, limit=1, finished_only=True, with_data=True)
     return OverviewOut(
         start=s,
         end=e,
         channel=ch,
-        channels=sort_channels([*await tenant_channels(session, tenant_id), ch]),
         horizon_end=(await _horizon(session, tenant_id))[1],
         hotels=hotels,
         compset=compset,
@@ -323,7 +361,9 @@ async def _holidays(
         return []
     return [
         HolidayOut(date=h.date, name=h.name, kind=h.kind, group=h.group)
-        for h in holidays_between(tenant.country_code, start, end, locale)
+        for h in holidays_between(
+            tenant.country_code, start, end, locale, source_markets=tenant.source_markets or ()
+        )
     ]
 
 
@@ -335,11 +375,10 @@ async def hotel_detail(
     start: date | None = None,
     end: date | None = None,
     event_limit: int = Query(200, ge=1, le=1000),
-    channel: str | None = None,
 ) -> HotelDetailOut:
     await ensure_hotel_in_tenant(session, tenant_id, hotel_id)
     s, e = _range(start, end, await _local_today(session, tenant_id))
-    ch = await tenant_channel(session, tenant_id, channel)
+    ch = tenant_channel()
     row = (
         await session.execute(
             select(TenantHotel, Hotel)
@@ -374,7 +413,6 @@ async def hotel_detail(
         role=link.role,
         label=link.label,
         channel=ch,
-        demand_signals=await _demand_signals(session, hotel_id, None),
         horizon_end=(await _horizon(session, tenant_id))[1],
         metrics=[_cell(d, metrics.get(d)) for d in days],
         events=events,
@@ -389,13 +427,12 @@ async def day_detail(
     session: SessionDep,
     locale: LocaleDep,
     history_days: int = Query(14, ge=1, le=60),
-    channel: str | None = None,
 ) -> DayDetailOut:
     await ensure_hotel_in_tenant(session, tenant_id, hotel_id)
     hotel = await session.get(Hotel, hotel_id)
     if hotel is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "hotel not found")
-    ch = await tenant_channel(session, tenant_id, channel)
+    ch = tenant_channel()
     since = datetime.now(tz=UTC) - timedelta(days=history_days)
     history = list(
         (
@@ -518,14 +555,15 @@ async def day_detail(
     horizon_days, horizon_end = await _horizon(session, tenant_id)
     day_compset = await compset_by_day(session, tenant_id, stay_date, stay_date, PriceBasis.ANY, ch)
     day_holidays = await _holidays(session, tenant_id, stay_date, stay_date, locale)
-    channel_rows = (
+    metric = (
         await session.execute(
             select(HotelDateMetric).where(
-                HotelDateMetric.hotel_id == hotel_id, HotelDateMetric.stay_date == stay_date
+                HotelDateMetric.hotel_id == hotel_id,
+                HotelDateMetric.channel == ch,
+                HotelDateMetric.stay_date == stay_date,
             )
         )
-    ).scalars()
-    by_channel = {m.channel: m for m in channel_rows}
+    ).scalar_one_or_none()
     label = (
         await session.execute(
             select(TenantHotel.label).where(
@@ -538,20 +576,21 @@ async def day_detail(
         label=label,
         stay_date=stay_date,
         channel=ch,
-        channels=[
-            ChannelDayOut(
-                channel=c,
-                availability_status=by_channel[c].availability_status,
-                exact_rooms_left=by_channel[c].exact_rooms_left,
-                min_price=by_channel[c].min_price,
-                min_refundable_price=by_channel[c].min_refundable_price,
-                currency=by_channel[c].currency,
-                last_observed_at=by_channel[c].last_observed_at,
-                tax_inclusive=c in TAX_INCLUSIVE_CHANNELS,
-            )
-            for c in sort_channels(by_channel)
-        ],
-        demand_signals=await _demand_signals(session, hotel_id, stay_date),
+        rate=RateDetailOut(
+            availability_status=metric.availability_status,
+            exact_rooms_left=metric.exact_rooms_left,
+            min_price=metric.min_price,
+            min_refundable_price=metric.min_refundable_price,
+            currency=metric.currency,
+            last_observed_at=metric.last_observed_at,
+            min_breakfast_price=metric.min_breakfast_price,
+            min_room_only_price=metric.min_room_only_price,
+            min_stay=metric.min_stay or 1,
+            cheapest_rate=metric.cheapest_rate,
+            prices_by_key=metric.prices_by_key,
+        )
+        if metric is not None
+        else None,
         room_types=[RoomTypeOut.model_validate(r) for r in room_types],
         latest_status=latest_status,
         latest_scanned_at=latest_at,
@@ -569,6 +608,29 @@ async def day_detail(
     )
 
 
+@router.get("/data-status", response_model=DataStatusOut)
+async def data_status(tenant_id: TenantDep, session: SessionDep) -> DataStatusOut:
+    """Dữ liệu Booking.com mới nhất và tỷ lệ thành công 7 ngày (SLA) trên khách sạn của tenant.
+    "Dữ liệu mới nhất lúc…" = quan sát thành công cuối cùng, không phải lượt kết thúc cuối cùng."""
+    now = datetime.now(tz=UTC)
+    tenant = await session.get(Tenant, tenant_id)
+    hours = stale_after_hours(list(tenant.scan_times) if tenant else [])
+    ids = await tenant_hotel_ids(session, tenant_id, include_inactive=False)
+    ch = tenant_channel()
+    st = (await channel_probe_stats(session, now - timedelta(days=7), ids)).get(ch)
+    at = (await channel_last_success(session, ids, since=now - timedelta(days=60))).get(ch)
+    rate = st.success_rate if st else None
+    return DataStatusOut(
+        now=now,
+        stale_after_hours=hours,
+        last_data_at=at,
+        success_rate_7d=Decimal(str(round(rate, 4))) if rate is not None else None,
+        probes_7d=st.total if st else 0,
+        failed_7d=st.failed if st else 0,
+        stale=at is None or now - at > timedelta(hours=hours),
+    )
+
+
 @router.get("/events", response_model=list[EventOut])
 async def list_events(
     tenant_id: TenantDep,
@@ -578,7 +640,6 @@ async def list_events(
     stay_from: date | None = None,
     stay_to: date | None = None,
     observed_since: datetime | None = None,
-    channel: str | None = None,
     limit: int = Query(200, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[EventOut]:
@@ -598,8 +659,6 @@ async def list_events(
         stmt = stmt.where(AvailabilityEvent.stay_date <= stay_to)
     if observed_since:
         stmt = stmt.where(AvailabilityEvent.observed_at >= observed_since)
-    if channel:
-        stmt = stmt.where(AvailabilityEvent.channel.in_(channel.split(",")))
     stmt = (
         stmt.order_by(AvailabilityEvent.observed_at.desc(), AvailabilityEvent.id.desc())
         .offset(offset)
@@ -640,15 +699,14 @@ async def list_run_jobs(
     hotel_ids = await tenant_hotel_ids(session, tenant_id, include_inactive=True)
     if not hotel_ids:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "run not found")
-    labels = dict(
-        (
-            await session.execute(
-                select(TenantHotel.hotel_id, func.coalesce(TenantHotel.label, Hotel.name))
-                .join(Hotel, Hotel.id == TenantHotel.hotel_id)
-                .where(TenantHotel.tenant_id == tenant_id)
-            )
-        ).all()
-    )
+    labels: dict[int, str | None] = {
+        hid: name
+        for hid, name in await session.execute(
+            select(TenantHotel.hotel_id, func.coalesce(TenantHotel.label, Hotel.name))
+            .join(Hotel, Hotel.id == TenantHotel.hotel_id)
+            .where(TenantHotel.tenant_id == tenant_id)
+        )
+    }
     jobs = list(
         (
             await session.execute(
@@ -687,28 +745,3 @@ async def list_run_jobs(
             )
         )
     return out
-
-
-async def _demand_signals(
-    session: AsyncSession, hotel_id: int, stay_date: date | None, days: int = 7
-) -> list[DemandSignalOut]:
-    """Tín hiệu cầu mới nhất mỗi (kênh, loại) trong `days` ngày: cả khách sạn, và của đêm nếu có."""
-    since = datetime.now(tz=UTC) - timedelta(days=days)
-    cond: ColumnElement[bool] = ListingDemandSignal.stay_date.is_(None)
-    if stay_date is not None:
-        cond = or_(cond, ListingDemandSignal.stay_date == stay_date)
-    rows = (
-        await session.execute(
-            select(ListingDemandSignal)
-            .where(
-                ListingDemandSignal.hotel_id == hotel_id,
-                ListingDemandSignal.observed_at >= since,
-                cond,
-            )
-            .order_by(ListingDemandSignal.observed_at.desc())
-        )
-    ).scalars()
-    latest: dict[tuple[str, str, date | None], ListingDemandSignal] = {}
-    for r in rows:
-        latest.setdefault((r.channel, r.kind, r.stay_date), r)
-    return [DemandSignalOut.model_validate(r) for r in latest.values()]

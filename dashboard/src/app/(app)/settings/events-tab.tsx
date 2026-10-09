@@ -2,13 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { api, type LocalEventIn, type LocalEventOut } from "@/lib/api";
+import { SOURCE_MARKETS, api, type LocalEventIn, type LocalEventOut, type SourceMarket } from "@/lib/api";
 import { useApi, useMutation, useTenantToday } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { addDays, useFmt } from "@/lib/format";
 import { LOCAL_EVENT_CATEGORIES, fmtUplift, localEventCategory, useLocalEventLabel, type LocalEventCategory } from "@/lib/local-events";
 import { Button, Card, EmptyState, ErrorBox, Field, Input, Select, Skeleton, Textarea, cx } from "@/components/ui";
-import { IconCalendar, IconPencil, IconPlus, IconTrash } from "@/components/icons";
+import { IconCalendar, IconCheck, IconPencil, IconPlus, IconTrash } from "@/components/icons";
 
 /**
  * Cài đặt › Sự kiện: sự kiện địa phương ảnh hưởng tới cầu (lễ hội, hội nghị, giải đấu, mùa du lịch)
@@ -156,14 +156,91 @@ function EventRow({ ev, canWrite, onChanged }: { ev: LocalEventOut; canWrite: bo
   );
 }
 
+/**
+ * Thị trường nguồn khách (roadmap 7.5): kỳ nghỉ của các nước này hiện trên lịch cạnh ngày lễ Việt
+ * Nam. Lưu qua PATCH /settings {source_markets}.
+ */
+function SourceMarkets({ canWrite }: { canWrite: boolean }) {
+  const t = useTranslations("settings.events.sourceMarkets");
+  const settings = useApi("settings", () => api.settings.get());
+  const stored = settings.data?.source_markets ?? null;
+  const [draft, setDraft] = useState<string[] | null>(null);
+  const [saved, setSaved] = useState(false);
+  const selected = draft ?? stored ?? [];
+  const dirty = draft !== null && stored !== null && [...draft].sort().join() !== [...stored].sort().join();
+  const save = useMutation(async () => {
+    await api.settings.update({ source_markets: SOURCE_MARKETS.filter((m) => selected.includes(m)) });
+    setDraft(null);
+    setSaved(true);
+    settings.reload();
+  });
+  const toggle = (m: SourceMarket) => {
+    setSaved(false);
+    setDraft(selected.includes(m) ? selected.filter((x) => x !== m) : [...selected, m]);
+  };
+  return (
+    <Card
+      title={t("title")}
+      description={t("description")}
+      info={t("info")}
+      actions={
+        canWrite &&
+        (dirty ? (
+          <Button size="sm" variant="primary" busy={save.busy} onClick={() => void save.run()}>
+            {t("save")}
+          </Button>
+        ) : (
+          saved && (
+            <span role="status" className="inline-flex h-8 items-center gap-1 text-sm text-yours-deep">
+              <IconCheck size={15} /> {t("saved")}
+            </span>
+          )
+        ))
+      }
+    >
+      <ErrorBox error={settings.error ?? save.error} className="mb-3" />
+      {!settings.data && !settings.error ? (
+        <Skeleton rows={2} />
+      ) : (
+        <>
+          <div role="group" aria-label={t("title")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {SOURCE_MARKETS.map((m) => {
+              const on = selected.includes(m);
+              return (
+                <label
+                  key={m}
+                  className={cx(
+                    "flex min-w-0 items-start gap-2.5 rounded-lg border px-3 py-2.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand",
+                    canWrite ? "cursor-pointer" : "cursor-default",
+                    on ? "border-brand bg-brand-softer" : "border-line bg-surface hover:border-line-strong",
+                  )}
+                >
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-brand" checked={on} disabled={!canWrite} onChange={() => toggle(m)} />
+                  <span className="min-w-0">
+                    <span className={cx("block text-sm font-semibold", on ? "text-ink" : "text-body")}>{t(`market.${m}`)}</span>
+                    <span className="block text-xs text-muted">{t(`examples.${m}`)}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-sm text-muted">{selected.length ? t("selected", { count: selected.length }) : t("none")}</p>
+          {!canWrite && <p className="mt-1 text-xs text-muted">{t("readOnly")}</p>}
+        </>
+      )}
+    </Card>
+  );
+}
+
 export function EventsTab() {
   const today = useTenantToday();
   const { canWrite } = useSession();
   const t = useTranslations("settings.events");
-  const events = useApi(today && `settings:events:${today}`, () => api.market.events.list({ start: addDays(today!, -30), end: addDays(today!, 400) }));
+  const events = useApi(today && `settings:events:${today}`, () => api.market.events.list({ start: addDays(today!, -30), end: addDays(today!, 365) }));
   if (!today) return <Skeleton />;
   return (
     <div className="space-y-5">
+      <SourceMarkets canWrite={canWrite} />
       {canWrite && (
         <Card title={t("addTitle")} icon={<IconCalendar size={16} />} info={t("addInfo")}>
           <EventForm initial={emptyDraft(today)} onSaved={events.reload} />

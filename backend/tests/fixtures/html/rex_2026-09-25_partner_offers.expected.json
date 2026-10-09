@@ -21,7 +21,8 @@
           "price_original": "9303668",
           "taxes_included": true,
           "promo_label": "Getaway Deal",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -43,7 +44,8 @@
           "price_original": "10504141",
           "taxes_included": true,
           "promo_label": "Getaway Deal",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -65,7 +67,8 @@
           "price_original": "10504141",
           "taxes_included": true,
           "promo_label": "Getaway Deal",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -87,7 +90,8 @@
           "price_original": "11104378",
           "taxes_included": true,
           "promo_label": "Getaway Deal",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -109,7 +113,8 @@
           "price_original": "11704615",
           "taxes_included": true,
           "promo_label": "Getaway Deal",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -131,7 +136,8 @@
           "price_original": "11704615",
           "taxes_included": true,
           "promo_label": "Getaway Deal",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"
@@ -153,7 +159,8 @@
           "price_original": "14855987",
           "taxes_included": true,
           "promo_label": "Getaway Deal",
-          "source_supplier": null
+          "source_supplier": null,
+          "loyalty": null
         }
       ],
       "stock_scope": "room_type"

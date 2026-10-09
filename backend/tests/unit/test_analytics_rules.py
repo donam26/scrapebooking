@@ -32,7 +32,8 @@ def obs(run: int, at: datetime, status: DateStatus, *rooms: RoomObs) -> HotelDat
 def test_probe_status_mapping() -> None:
     assert date_status_for_probe("ok") == DateStatus.AVAILABLE
     assert date_status_for_probe("sold_out") == DateStatus.SOLD_OUT
-    assert date_status_for_probe("skipped_calendar") == DateStatus.SOLD_OUT
+    # Lịch không cho nhận phòng: bị hạn chế, không phải hết phòng thật (roadmap 2.7).
+    assert date_status_for_probe("skipped_calendar") == DateStatus.RESTRICTED
     for s in ("no_rooms_1n", "blocked", "error"):
         assert date_status_for_probe(s) == DateStatus.UNKNOWN
 
@@ -117,11 +118,24 @@ def test_price_events_hotel_and_room_level_with_threshold() -> None:
     ]
 
 
-def test_room_type_new_and_gone() -> None:
-    prev = obs(1, T0 - timedelta(hours=8), DateStatus.AVAILABLE, room(1, 2, C.EXACT))
-    cur = obs(2, T0, DateStatus.AVAILABLE, room(2, 4, C.EXACT))
-    types = sorted(e.event_type for e in diff_events(prev, cur, TH))
-    assert types == sorted([EventType.ROOM_TYPE_NEW, EventType.ROOM_TYPE_GONE])
+def test_room_type_new_and_gone_needs_two_absences() -> None:
+    # Vắng một lượt: chưa báo mất (có thể chỉ "nhấp nháy"); vắng lượt thứ hai liên tiếp mới báo.
+    p2 = obs(1, T0 - timedelta(hours=16), DateStatus.AVAILABLE, room(1, 2, C.EXACT))
+    p1 = obs(2, T0 - timedelta(hours=8), DateStatus.AVAILABLE, room(2, 4, C.EXACT))
+    types = [e.event_type for e in diff_events(p2, p1, TH)]
+    assert types == [EventType.ROOM_TYPE_NEW]
+    cur = obs(3, T0, DateStatus.AVAILABLE, room(2, 4, C.EXACT))
+    events = diff_events(p1, cur, TH, prev2=p2)
+    assert [(e.event_type, e.room_type_id) for e in events] == [(EventType.ROOM_TYPE_GONE, 1)]
+
+
+def test_flickering_room_type_is_not_new() -> None:
+    p2 = obs(
+        1, T0 - timedelta(hours=16), DateStatus.AVAILABLE, room(1, 2, C.EXACT), room(2, 3, C.EXACT)
+    )
+    p1 = obs(2, T0 - timedelta(hours=8), DateStatus.AVAILABLE, room(1, 2, C.EXACT))
+    cur = obs(3, T0, DateStatus.AVAILABLE, room(1, 2, C.EXACT), room(2, 3, C.EXACT))
+    assert diff_events(p1, cur, TH, prev2=p2) == []
 
 
 def test_last_usable_before_picks_latest_usable_not_just_previous_run() -> None:

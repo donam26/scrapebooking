@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.service import AnalyticsService
 from app.config import Settings
-from app.db.models import Insight, ListingDemandSignal, OwnHotelDaily, Tenant, TenantHotel
+from app.db.models import Insight, OwnHotelDaily, Tenant, TenantHotel
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
 from app.insight.client import FakeInsightClient
 from app.insight.input_builder import build_input
@@ -48,8 +48,8 @@ async def _seed(db: AsyncSession) -> tuple[Tenant, int, int]:
         active=True,
     )
     db.add(tenant)
-    own = await add_hotel(db, "vn/own", name="Own", channels=("booking", "agoda"))
-    comp = await add_hotel(db, "vn/comp", name="Comp", channels=("booking", "agoda"))
+    own = await add_hotel(db, "vn/own", name="Own")
+    comp = await add_hotel(db, "vn/comp", name="Comp")
     db.add_all(
         [
             TenantHotel(tenant_id=tenant.id, hotel_id=own.id, role="self", active=True),
@@ -140,58 +140,18 @@ async def test_build_input_shape_and_refs(db: AsyncSession) -> None:
     assert p["data_quality"]["hotel_dates_observed"] == 2 and p["data_quality"]["has_pms_data"]
     assert built.hotel_ids == {own, comp} and built.scan_run_id is not None
     assert "html" not in str(p).lower()
-    assert p["reference_channel"] == "booking" and p["demand_signals"] == []
+    assert "reference_channel" not in p and p["demand_signals"] == []
     assert {e["channel"] for e in p["events_24h"]} == {"booking"}
 
 
-async def test_build_input_uses_reference_channel_and_demand_signals(db: AsyncSession) -> None:
-    tenant, own, comp = await _seed(db)
-    # Agoda: đối thủ hết phòng, giá khác. Bản tin chỉ lấy ô chỉ số của kênh tham chiếu.
-    agoda = scan_run("r3:agoda", T0, channel="agoda", finished_at=T0 + timedelta(minutes=20))
-    agoda.total_probes = 1
-    db.add(agoda)
-    await db.flush()
-    sold_out = ProbeResult(
-        ProbeStatus.SOLD_OUT, ProbeMethod.HTTP, STAY, STAY + timedelta(days=1), 1, 2, (),
-        "<html/>", 200, "s", 10,
-    )  # fmt: skip
-    await SnapshotRepository(db, 10).write_probe(
-        agoda.id, comp, "agoda", STAY, sold_out, None, "1", "vn", T0
-    )
-    signal = ListingDemandSignal(
-        hotel_id=comp,
-        channel="agoda",
-        scan_run_id=agoda.id,
-        kind="bookings_24h",
-        value=Decimal("13"),
-        window_hours=24,
-        raw_text="Đặt 13 lần trong 24 giờ qua",
-        observed_at=T0,
-    )
-    db.add(signal)
+async def test_build_input_clamps_period_to_30_nights(db: AsyncSession) -> None:
+    tenant, _own, _comp = await _seed(db)
     tenant.horizon_days = 90
     await db.commit()
-    await AnalyticsService(db).run(agoda.id)
-    await db.commit()
-
-    built = await build_input(db, tenant, now=T0 + timedelta(hours=1))
-    p = built.payload
+    p = (await build_input(db, tenant, now=T0 + timedelta(hours=1))).payload
     # Horizon quét 90 đêm nhưng bản tin gói trong 30 đêm.
     assert p["period"] == {"start": "2026-10-04", "end": "2026-11-02", "days": 30}
     assert all(len(h["days"]) == 30 for h in p["hotels"])
-    comp_day = next(d for d in p["hotels"][1]["days"] if d["date"] == "2026-10-05")
-    assert comp_day["status"] == "available" and comp_day["min_price"] == 120.0
-    assert p["compset"][1]["competitors_sold_out"] == 0
-    assert [
-        (s["hotel_id"], s["channel"], s["kind"], s["value"], s["text"]) for s in p["demand_signals"]
-    ] == [(comp, "agoda", "bookings_24h", 13.0, "Đặt 13 lần trong 24 giờ qua")]
-    assert p["demand_signals"][0]["ref"] in built.valid_refs
-
-    tenant.reference_channel = "agoda"
-    await db.commit()
-    p = (await build_input(db, tenant, now=T0 + timedelta(hours=1))).payload
-    comp_day = next(d for d in p["hotels"][1]["days"] if d["date"] == "2026-10-05")
-    assert p["reference_channel"] == "agoda" and comp_day["status"] == "sold_out"
 
 
 async def test_generate_sync_validates_and_stores(db: AsyncSession) -> None:

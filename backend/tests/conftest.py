@@ -18,7 +18,7 @@ TEST_DB_URL = os.environ.get(
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 ALL_TABLES = (
-    "notifications, notification_rules, notification_recipients, listing_demand_signals, listings, "
+    "notifications, notification_rules, notification_recipients, listings, "
     "availability_events, hotel_date_metrics, hotel_date_snapshots, insights, "
     "own_hotel_daily, pms_imports, pms_column_mappings, users, "
     "room_snapshots, hotel_calendars, probes, scan_jobs, scan_runs, room_types, "

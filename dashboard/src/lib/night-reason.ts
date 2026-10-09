@@ -21,7 +21,7 @@ export function deltaVsMedian(priceIndex: string | number | null | undefined): n
 }
 
 export function createNightReason(t: NightReasonTranslator, fmt: Fmt) {
-  /** "rẻ nhất trong 6", "đắt nhất trong 6", "rẻ thứ 2/6"; null khi không xếp hạng được. */
+  /** "vị trí giá 1/6 (rẻ nhất)", "vị trí giá 2/6 (1 = rẻ nhất)"; null khi không xếp hạng được (chưa đủ mẫu: backend trả null). */
   function fmtRank(rank: number | null | undefined, total: number): string | null {
     if (!rank || total < 2) return null;
     if (rank === 1) return t("rankCheapest", { total });
@@ -42,10 +42,14 @@ export function createNightReason(t: NightReasonTranslator, fmt: Fmt) {
     if (c && c.competitors_observed > 0 && c.competitors_sold_out > 0) {
       parts.push(t("soldOut", { soldOut: c.competitors_sold_out, observed: c.competitors_observed }));
     }
+    // Hạn chế (min-stay, đóng ngày đến) không phải hết phòng: nêu riêng.
+    if (c && (c.competitors_restricted ?? 0) > 0) parts.push(t("restricted", { count: c.competitors_restricted }));
+    // Chỉ số/vị trí giá null khi chưa đủ mẫu (<3 đối thủ có giá); mẫu nhỏ (3) thì ghi kèm.
     const vs = fmtVsMedian(c?.price_index);
     if (c && vs) {
       const rank = fmtRank(c.own_rank, c.priced_hotels);
-      parts.push(rank ? t("yourPriceRank", { vs, rank }) : t("yourPrice", { vs }));
+      const text = rank ? t("yourPriceRank", { vs, rank }) : t("yourPrice", { vs });
+      parts.push(c.sample === "small" ? `${text} (${t("smallSample")})` : text);
     }
     if (holiday) parts.push(t("holiday", { holiday }));
     if (!parts.length) return null;

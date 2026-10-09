@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useSession } from "@/lib/session";
 import { Note, PageHeader, SkeletonBlock, Tabs } from "@/components/ui";
-import { IconBell, IconBuilding, IconCalendar, IconClock, IconLock, IconPin, IconUpload, IconUsers } from "@/components/icons";
+import { IconBell, IconBuilding, IconCalendar, IconClock, IconLock, IconPin, IconTrend, IconUpload, IconUsers } from "@/components/icons";
 import { WatchlistTab } from "./watchlist-tab";
 import { ScheduleTab } from "./schedule-tab";
 import { EventsTab } from "./events-tab";
@@ -13,8 +13,9 @@ import { MarketTab } from "./market-tab";
 import { UsersTab } from "./users-tab";
 import { PmsTab } from "./pms-tab";
 import { NotificationsTab } from "./notifications-tab";
+import { StrategyTab } from "./strategy-tab";
 
-type TabKey = "watchlist" | "market" | "schedule" | "events" | "notifications" | "users" | "pms";
+type TabKey = "watchlist" | "market" | "schedule" | "events" | "notifications" | "users" | "pms" | "strategy";
 
 const TABS: Array<{ key: TabKey; icon: React.ReactNode }> = [
   { key: "watchlist", icon: <IconBuilding size={16} /> },
@@ -24,10 +25,11 @@ const TABS: Array<{ key: TabKey; icon: React.ReactNode }> = [
   { key: "notifications", icon: <IconBell size={16} /> },
   { key: "users", icon: <IconUsers size={16} /> },
   { key: "pms", icon: <IconUpload size={16} /> },
+  { key: "strategy", icon: <IconTrend size={16} /> },
 ];
 
 function isTab(v: string | null): v is TabKey {
-  return v === "watchlist" || v === "market" || v === "schedule" || v === "events" || v === "notifications" || v === "users" || v === "pms";
+  return TABS.some((it) => it.key === v);
 }
 
 function SettingsView() {
@@ -67,6 +69,7 @@ function SettingsView() {
         {tab === "notifications" && <NotificationsTab />}
         {tab === "users" && <UsersTab />}
         {tab === "pms" && <PmsTab />}
+        {tab === "strategy" && <StrategyTab />}
       </div>
     </div>
   );

@@ -94,6 +94,49 @@ def _promo_label(row: Node) -> str | None:
     return label[:64] if label else None
 
 
+_MEAL_INCLUDED = (
+    "breakfast included",
+    "breakfast & dinner included",
+    "all-inclusive",
+    "all inclusive",
+    "half board",
+    "full board",
+    "bữa sáng",  # giao diện tiếng Việt: "Bao gồm bữa sáng"
+)
+_MEAL_NONE = ("no meals", "breakfast not included", "room only", "không bao gồm bữa")
+# "breakfast VND 678,000", "breakfast costs VND 1,050,000 per person": bữa sáng phải trả thêm.
+# `conditions` đã viết thường: mã tiền tệ (vnd) hoặc ký hiệu, rồi tới chữ số.
+_BREAKFAST_EXTRA_RE = re.compile(r"breakfast\s+(?:costs\s+)?(?:[a-z]{3}|[^\w\s]{1,2})\s?\d")
+
+
+def _breakfast(conditions: str, block_id: str) -> bool | None:
+    """True: gồm bữa sáng; False: chỉ phòng (hoặc bữa sáng trả thêm); None: không rõ.
+
+    Chữ trên trang trước; không có chữ thì đọc phần "meal" của data-block-id
+    (`<room>_<rate>_<occupancy>_<meal>_…`: 0 chỉ phòng, 1 gồm bữa sáng, 2 bữa sáng trả thêm)."""
+    if any(m in conditions for m in _MEAL_NONE):
+        return False
+    if _BREAKFAST_EXTRA_RE.search(conditions):
+        return False
+    if any(m in conditions for m in _MEAL_INCLUDED):
+        return True
+    parts = block_id.split("_")
+    if len(parts) >= 4 and parts[0].isdigit() and parts[3] in ("0", "1", "2"):
+        return parts[3] == "1"
+    return None
+
+
+def _loyalty(row: Node) -> bool | None:
+    """Giá Genius/thành viên hiện cho khách chưa đăng nhập (Booking APAC)."""
+    text = " ".join(
+        _text(n) for n in (row.css_first(S.PRICE_CELL), row.css_first(S.CONDITIONS_CELL))
+    ).lower()
+    badges = " ".join(_text(b) for b in row.css(S.DEAL_BADGE)).lower()
+    if "genius" in text or "genius" in badges or row.css_first(S.GENIUS_MARKER) is not None:
+        return True
+    return None
+
+
 def _rate_plan(row: Node, expected_currency: str, default_persons: int | None) -> RatePlan | None:
     price_node = row.css_first(S.PRICE_TEXT)
     parsed = parse_price(_text(price_node), expected_currency) if price_node is not None else None
@@ -110,7 +153,7 @@ def _rate_plan(row: Node, expected_currency: str, default_persons: int | None) -
         refundable = False
     else:
         refundable = None
-    breakfast: bool | None = True if "breakfast included" in conditions else None
+    breakfast = _breakfast(conditions, row.attributes.get("data-block-id") or "")
     name = (
         "Non-refundable"
         if refundable is False
@@ -128,6 +171,7 @@ def _rate_plan(row: Node, expected_currency: str, default_persons: int | None) -
         price_original=_original_price(row, currency, price),
         taxes_included=_taxes_included(row),
         promo_label=_promo_label(row),
+        loyalty=_loyalty(row),
     )
 
 

@@ -5,7 +5,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, type TenantOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { activeChannels, channelName, sortChannels } from "@/lib/channels";
 import { LOCALES, LOCALE_NAME } from "@/i18n/config";
 import { Button, Card, ErrorBox, Field, Input, Segmented, Select, Skeleton, cx } from "@/components/ui";
 import { IconCheck, IconClose, IconPlus } from "@/components/icons";
@@ -24,7 +23,7 @@ const TZ_LABEL: Record<string, string> = {
 };
 const MAX_TIMES = 8;
 
-type Draft = { scanTimes: string[]; horizon: number; insightHour: string; language: string; timezone: string; referenceChannel: string };
+type Draft = { scanTimes: string[]; horizon: number; insightHour: string; language: string; timezone: string };
 
 function fromTenant(t: TenantOut): Draft {
   return {
@@ -33,7 +32,6 @@ function fromTenant(t: TenantOut): Draft {
     insightHour: t.insight_hour,
     language: t.insight_language,
     timezone: t.timezone,
-    referenceChannel: t.reference_channel,
   };
 }
 
@@ -43,8 +41,7 @@ function same(a: Draft, b: Draft): boolean {
     a.horizon === b.horizon &&
     a.insightHour === b.insightHour &&
     a.language === b.language &&
-    a.timezone === b.timezone &&
-    a.referenceChannel === b.referenceChannel
+    a.timezone === b.timezone
   );
 }
 
@@ -97,13 +94,10 @@ export function ScheduleForm({
   tenant,
   readOnly,
   onSave,
-  channelOptions,
 }: {
   tenant: TenantOut;
   readOnly: boolean;
   onSave: (body: Parameters<typeof api.settings.update>[0]) => Promise<TenantOut>;
-  /** Kênh chọn được làm kênh tham chiếu (đang quét được và tenant có khách sạn đang quét). */
-  channelOptions: string[];
 }) {
   const [baseline, setBaseline] = useState<Draft>(() => fromTenant(tenant));
   const [d, setD] = useState<Draft>(() => fromTenant(tenant));
@@ -123,7 +117,6 @@ export function ScheduleForm({
       insight_hour: d.insightHour,
       insight_language: d.language,
       timezone: d.timezone,
-      reference_channel: d.referenceChannel,
     });
     // Hiện đúng giá trị server đã chuẩn hoá (giờ quét sắp xếp, bỏ trùng).
     const next = fromTenant(t);
@@ -151,7 +144,6 @@ export function ScheduleForm({
   }
 
   const tzOptions = TIMEZONES.includes(d.timezone) ? TIMEZONES : [d.timezone, ...TIMEZONES];
-  const refOptions = sortChannels([...channelOptions, baseline.referenceChannel]);
 
   return (
     <form onSubmit={submit}>
@@ -208,33 +200,6 @@ export function ScheduleForm({
           {!readOnly && duplicate && d.scanTimes.length < MAX_TIMES && <p className="mt-2 text-sm text-muted">{tr("times.duplicate", { time: newTime })}</p>}
           <div className="mt-5">
             <DayRail scanTimes={d.scanTimes} insightHour={d.insightHour} />
-          </div>
-        </section>
-
-        <section className="border-t border-line px-5 py-5">
-          <h3 className="text-base font-bold text-ink">{tr("reference.title")}</h3>
-          <p className="mt-0.5 max-w-[70ch] text-sm text-muted">
-            {tr("reference.description")}
-          </p>
-          <div className="mt-3">
-            {refOptions.length > 1 ? (
-              <Segmented
-                label={tr("reference.title")}
-                value={d.referenceChannel}
-                onChange={(v) => {
-                  if (readOnly) return;
-                  setD({ ...d, referenceChannel: v });
-                  setSaved(false);
-                }}
-                items={refOptions.map((c) => ({ value: c, label: channelName(c) }))}
-                className={cx(readOnly && "pointer-events-none opacity-70")}
-              />
-            ) : (
-              <p className="text-base text-body">
-                <span className="font-semibold text-ink">{channelName(d.referenceChannel)}</span>
-                <span className="text-muted"> · {tr("reference.onlyOne")}</span>
-              </p>
-            )}
           </div>
         </section>
 
@@ -344,11 +309,6 @@ export function ScheduleTab() {
   const { canWrite } = useSession();
   const t = useTranslations("settings.schedule");
   const settings = useApi("settings", () => api.settings.get());
-  const channels = useApi("channels", () => api.channels());
-  const watchlist = useApi("watchlist", () => api.watchlist.list());
-  // Kênh tham chiếu hợp lệ: kênh quét được mà tenant đang có khách sạn quét trên đó.
-  const tenantChannels = new Set((watchlist.data ?? []).flatMap((w) => (w.active ? activeChannels(w.hotel) : [])));
-  const channelOptions = (channels.data ?? []).filter((c) => c.collectable && tenantChannels.has(c.code)).map((c) => c.code);
   return (
     <Card padded={false} title={t("cardTitle")} description={t("cardDescription")}>
       <ErrorBox error={settings.error} className="m-5" />
@@ -359,7 +319,6 @@ export function ScheduleTab() {
           key={`${settings.data.id}-${settings.data.created_at}`}
           tenant={settings.data}
           readOnly={!canWrite}
-          channelOptions={channelOptions}
           onSave={async (body) => {
             const t = await api.settings.update(body);
             settings.reload();

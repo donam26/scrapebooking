@@ -97,30 +97,31 @@ thể khoá/hạ vai trò operator đang hoạt động cuối cùng.
 
 | Bước | Màn hình | API / job | Ghi chú |
 |---|---|---|---|
-| 1 | Sau mỗi lượt quét | cron `estimate_occupancy_catch_up` (jobs, 10 phút) | Ghi `occupancy_estimates` cho mỗi (khách sạn, kênh, đêm): khoảng phòng còn, công suất [thấp, cao], độ phủ. Lượt cũ được tính bù dần (20 lượt/lần). |
-| 2 | `/pace` "Nhịp đặt phòng" | `GET /market/pace?start&end` (≤ 60 đêm) | Theo kênh tham chiếu của tenant. Công suất chỉ hiện khi độ phủ ≥ 50%; nhịp so cùng kỳ cần ≥ 2 đêm cùng thứ 1–8 tuần trước; đối chiếu PMS cho khách sạn của bạn. |
+| 1 | Sau mỗi lượt quét | cron `estimate_occupancy_catch_up` (jobs, 10 phút) | Ghi `occupancy_estimates` cho mỗi (khách sạn, đêm): khoảng phòng còn, công suất [thấp, cao], độ phủ. Lượt cũ được tính bù dần (20 lượt/lần). |
+| 2 | `/pace` "Nhịp đặt phòng" | `GET /market/pace?start&end` (≤ 60 đêm) | Dữ liệu Booking.com. Công suất chỉ hiện khi độ phủ ≥ 50%; nhịp so cùng kỳ cần ≥ 2 đêm cùng thứ 1–8 tuần trước; đối chiếu PMS cho khách sạn của bạn. |
 | 3 | Thẻ gợi ý giá | `PUT/DELETE /market/suggestions/{đêm}/{raise\|hold\|lower}` | Luật cố định, lý do bằng số liệu; không tự đổi giá. "Đã áp dụng"/"Bỏ qua" tính lại gợi ý tại chỗ (409 nếu không còn), viewer 403, "Hoàn tác" xoá ghi nhận. |
 | 4 | `/today` "Hôm nay" (PWA mở vào đây) | `/overview`, `/market/pace`, `/events`, `/insights` | Đêm nay của bạn + câu thị trường, gợi ý 7 đêm, 7 đêm tới, thay đổi 24 giờ, bản tin mới nhất. Cài lên màn hình điện thoại qua `manifest.webmanifest`. |
 
-## G. Đa kênh (01/10, plan `plans/261001-1441-multi-channel-ota-standards/`)
+## G. Listing Booking.com (từ 09/10/2026 chỉ còn Booking.com)
+
+Đa kênh (Agoda, iVIVU, Trip.com, Mytour; plan `plans/261001-1441-multi-channel-ota-standards/`) đã
+bỏ ngày 09/10/2026 cùng các tính năng chéo kênh (so kênh, đóng bán trên một kênh, parity, tín hiệu cầu
+của kênh, gợi ý cùng khách sạn trên kênh khác). Migration 0015 xoá dữ liệu các kênh đó.
 
 | Bước | Màn hình | API / job | Ghi chú |
 |---|---|---|---|
-| 1 | Cài đặt › Khách sạn: dán URL trang khách sạn trên Booking.com, Agoda, iVIVU, Trip.com hoặc Mytour | `POST /watchlist {url, role, label}` | Giao diện nhận diện kênh theo `GET /channels` (`hosts`). Traveloka/Expedia → "Chưa hỗ trợ quét …"; URL không phải trang khách sạn → thông báo theo kênh. Listing đã có (tenant khác theo dõi) dùng chung khách sạn. |
-| 2 | Chip kênh "đang kiểm tra" | job `verify_listing` (hàng đợi của kênh) | Kênh trả tên, id, địa chỉ, toạ độ → `active` (bắt đầu được quét) hoặc `broken` (404, hoặc **trùng**: URL khác cùng id kênh với khách sạn đã có). Giao diện tự tải lại 5 giây/lần khi còn listing đang kiểm tra. |
-| 3 | Chip "gợi ý · khớp 92%" | job `discover_listing` mỗi kênh còn thiếu (tự đẩy sau verify, hoặc nút "Tìm trên kênh khác" → `POST /watchlist/{id}/discover`) | API gợi ý của kênh theo tên (thử biến thể bỏ "Khu nghỉ dưỡng"/"Khách sạn", bỏ dấu) + toạ độ; điểm ≥0,7 thành `suggested`. **Không tự gắn**: người dùng Xác nhận/Bỏ (`PATCH …/listings/{id} {action}`); listing đã thuộc khách sạn khác thì không gợi ý. |
-| 4 | "+ Thêm kênh" | `POST /watchlist/{id}/listings {url}` | Thay/sửa URL một kênh của khách sạn; 409 nếu URL đó đã gắn khách sạn khác. Tạm dừng/quét lại một kênh: `pause`/`resume`. |
-| 5 | Quét | scheduler: một run mỗi (mốc giờ × kênh) | Kênh bị chặn >20%/15 phút tự dừng 30 phút, kênh khác chạy tiếp; job của kênh đang dừng chốt `failed`, quét bù lo sau. |
-| 6 | Tổng quan/Khách sạn/Chi tiết đêm/Sự kiện | `?channel=` (mặc định kênh tham chiếu của tenant, đặt ở Lịch quét) | Chi tiết đêm có dải "So kênh" (trạng thái, phòng chính xác, giá thấp nhất mỗi kênh; không cộng) và tín hiệu cầu "Theo Agoda: …". Sự kiện có cột/lọc kênh, thêm "Đóng bán trên kênh" và "Rẻ hơn trên kênh này". |
-| 7 | Email cảnh báo | `dispatch_notifications` | Đợi mọi run cùng mốc chốt rồi gộp: "Caravelle hết phòng … · trên Booking, Agoda"; hết trên một kênh mà kênh khác vẫn bán → "đóng bán trên Agoda, vẫn bán trên Booking". Luật mới `own_parity_gap`: khách sạn của bạn rẻ hơn ≥5% trên một kênh (cùng cơ sở đã gồm thuế). |
+| 1 | Cài đặt › Khách sạn: dán URL trang khách sạn trên Booking.com | `POST /watchlist {url, role, label}` | URL kênh khác → "Chỉ hỗ trợ trang khách sạn trên Booking.com."; URL không phải trang khách sạn → thông báo kèm ví dụ. Listing đã có (tenant khác theo dõi) dùng chung khách sạn. |
+| 2 | Chip "đang kiểm tra" | job `verify_listing` | Booking trả tên, id, địa chỉ, toạ độ → `active` hoặc `broken` (404, hoặc **trùng**: URL khác cùng id với khách sạn đã có). Giao diện tự tải lại 5 giây/lần khi còn listing đang kiểm tra. |
+| 3 | Sửa URL / tạm dừng | `POST /watchlist/{id}/listings {url}`, `PATCH …/listings/{id} {pause\|resume\|retry}` | Thay URL khi listing hỏng; 409 nếu URL đã gắn khách sạn khác. |
+| 4 | Quét | scheduler: một run mỗi mốc giờ | Bị chặn >20%/15 phút tự dừng 30 phút; mọi proxy hỏng thì hoãn mốc. |
 
-Ràng buộc: listing dùng chung giữa tenant (tạm dừng một kênh ảnh hưởng mọi tenant theo dõi khách sạn đó); kênh không có worker chạy thì listing đứng ở "đang kiểm tra".
+Ràng buộc: listing dùng chung giữa tenant (tạm dừng ảnh hưởng mọi tenant theo dõi khách sạn đó).
 
 ## J. Giao diện OTARadar và bù khoảng thiếu (02/10, plan `plans/261002-1332-market-wide-and-gap-fixes/`)
 
 | Bước | Màn hình | API | Ghi chú |
 |---|---|---|---|
-| 1 | Đối thủ (thẻ) / Chi tiết khách sạn → "Quét ngay" | `POST /watchlist/{hotel_id}/scan-now` | Một run nhỏ mỗi kênh cho một khách sạn; trùng trong 10 phút trả run đang chạy. **[sửa]** Quét cả watchlist không còn coi run một khách sạn là trùng. |
+| 1 | Đối thủ (thẻ) / Chi tiết khách sạn → "Quét ngay" | `POST /watchlist/{hotel_id}/scan-now` | Một run nhỏ cho một khách sạn; trùng trong 10 phút trả run đang chạy. **[sửa]** Quét cả watchlist không còn coi run một khách sạn là trùng. |
 | 2 | Lịch sử quét → bấm một lượt | `GET /runs/{run_id}/jobs` | Từng khách sạn của tenant: trạng thái job, số trang đọc/có dữ liệu/bị chặn/lỗi; chi tiết lỗi chỉ operator thấy. Mã lượt quét thủ công/thị trường của tenant khác bị che. |
 | 3 | Phòng trống › Phân tích công suất | `GET /market/occupancy?start&end` | Mỗi khách sạn một đường công suất ước tính (chỉ đêm đủ tin cậy), "KS ≈≥90% đêm đầu". |
 | 4 | Terminal+ › Doanh thu 14 ngày | `GET /market/pace`, `GET /pms/daily` | PMS nếu có; không thì ≈ giá × công suất ước tính × tồn kho. |
@@ -139,9 +140,25 @@ Ràng buộc: listing dùng chung giữa tenant (tạm dừng một kênh ảnh 
 
 Kết quả chạy thật 02/10 (quận Trung tâm TP.HCM, 1 đêm): Booking báo 370 KS còn phòng; một lượt khám phá 25 request ghép được 234 (63%). Trước đó phân trang bằng `offset` chỉ được 25.
 
+## L. Chuẩn nghề revenue (09/10, plan `plans/261009-1106-rm-standards-roadmap/`)
+
+| Bước | Màn hình | API / job | Ghi chú |
+|---|---|---|---|
+| 1 | Mọi màn: "Dữ liệu mới nhất lúc…", dải cảnh báo dữ liệu cũ, thẻ Trạng thái dữ liệu | `GET /data-status` | Quan sát Booking.com thành công cuối (không phải lượt kết thúc cuối), % thành công 7 ngày, cũ quá một chu kỳ quét. Lượt 0 dữ liệu không còn là "Cập nhật lúc". |
+| 2 | Bảng điều khiển, Phòng trống, Giá, Đối thủ | `GET /overview?price_basis&own_hotel_id` | Trung vị/chỉ số giá niêm yết/vị trí giá chỉ khi ≥4 đối thủ có giá cùng điều kiện (3 = mẫu nhỏ, <3 = chưa đủ mẫu); quan sát cũ >48 giờ không vào trung vị; 5 trạng thái ô (còn bán, hết phòng, hạn chế, không có giá, lỗi); KM trên ô; cơ sở giá: mọi gói / huỷ miễn phí / có bữa sáng / chỉ phòng. |
+| 3 | Chỉ báo lấp đầy, nhịp | `GET /market/pace?own_hotel_id`, `/market/occupancy` | Chỉ báo lấp đầy (thử nghiệm) ≈ khoảng [thấp, cao], sai số so PMS theo nhóm lead time. "So các tuần trước (cùng thứ)", không gọi là cùng kỳ. |
+| 4 | Thay đổi (nhật ký) | `GET /events` | Đổi giá chỉ khi cùng loại phòng + cùng gói; phòng/gói rẻ nhất hết hoặc mở lại là `lowest_rate_shift`; loại phòng mất khi vắng ≥2 lượt; hạn chế, số đêm tối thiểu, KM bật/tắt. |
+| 5 | Chi tiết đêm | `GET /hotels/{id}/dates/{d}` | Giá Booking.com (`rate`): giá trước KM + nhãn KM, bữa sáng/chỉ phòng, số đêm tối thiểu, điều kiện gói rẻ nhất. |
+| 6 | Radar | `GET /market/radar/{promotions,restrictions,cancellation,area-scarcity}` | KM từng đối thủ (nhãn, độ sâu, số đêm, từ khi nào, Booking tự áp hay KS bật), hạn chế, chính sách huỷ, khan phòng khu vực so 7 ngày trước. |
+| 7 | Cài đặt › Thông báo | `/notifications/subscriptions`, `/notifications/engagement` | Đăng ký theo người: email/Zalo/webhook × loại tin × giờ im lặng × trần/ngày; loại cảnh báo mới; lượt nhấn và "Đã xử lý". |
+| 8 | Cài đặt › PMS › OTB; Terminal+ › OTB | `POST /pms/otb/import`, `GET /market/otb` | Báo cáo OTB theo ngày hoặc file đặt phòng chi tiết; pickup 1/7 ngày, pace 4 tuần, STLY, dự báo, KPI thật. |
+| 9 | Chiến lược giá, gợi ý | `GET/PUT /market/strategy`, `GET /market/pace`, `PUT /market/suggestions/{d}/{kind}`, `/market/suggestions/{outcomes,backtest}` | Giá mục tiêu VND có giải thích, sàn/trần, định vị, gợi ý hạn chế; ghi giá đã áp dụng; đo kết quả. |
+| 10 | Đối thủ › Uy tín, Hiển thị; Danh sách theo dõi | `GET /market/reputation`, `/market/visibility`, `/watchlist/compset-review`, `PATCH /watchlist/{id}` | Điểm/review theo thời gian, mốc 7,0/7,5/8,0/9,0, giá–chất lượng; thứ hạng tự nhiên vs quảng cáo, Preferred/deal; compset chính/phụ, tổng phòng, cảnh báo quy tắc CoStar. |
+| 11 | Tải về | `GET /export/rate-shop.xlsx`, `/export/monthly-report.html` | Excel rate shop (khách sạn × đêm, compset, thay đổi); báo cáo tháng in PDF cho chủ đầu tư. |
+
 ## Điều còn để ngỏ
 
 - Đổi mật khẩu chưa vô hiệu hoá phiên đang đăng nhập ở thiết bị khác (token còn hạn tối đa 12 giờ).
 - `/events?highlight=<id>` chỉ đánh dấu khi sự kiện nằm trong trang hiện tại (chưa có endpoint lấy một sự kiện).
 - Quét thủ công không chặn trùng với đợt theo lịch đang chạy.
-- Chưa có thông báo (email/chat) cho tenant khi có bản tin mới; cảnh báo vận hành chỉ ghi log (`ops_alert`).
+- Zalo ZNS và SMTP cần tài khoản thật (OA doanh nghiệp xác thực, template duyệt; nhà cung cấp SMTP + SPF/DKIM); khi chưa cấu hình, tin ghi `skipped` và cảnh báo vận hành chỉ ghi log — `sb check-ops` báo rõ.

@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { EventOut, InsightDetailOut, WatchItemOut } from "@/lib/api";
 import { useFmt, type Fmt } from "@/lib/format";
-import { hotelTitle } from "@/lib/channels";
+import { hotelTitle } from "@/lib/hotels";
 import { LEVEL_TONE, useLabel, type LabelFn } from "@/lib/labels";
 import { Badge, EmptyState, Note, cx } from "@/components/ui";
 import { IconAlert, IconBoard, IconBuilding, IconCalendar, IconChevronRight, IconInfo, IconPulse, IconSparkle } from "@/components/icons";
@@ -121,7 +121,7 @@ function evidenceLabel(
   if (metric) return { icon: <IconBuilding size={13} />, text: t("metric", { hotel: nameOf(Number(metric[1])), night: fmtNight(metric[2]) }) };
   const compset = /^compset:(\d{4}-\d{2}-\d{2})$/.exec(e.ref);
   if (compset) return { icon: <IconBoard size={13} />, text: t("compset", { night: fmtNight(compset[1]) }) };
-  // Tín hiệu cầu do kênh công bố ("đặt 13 lần trong 24 giờ"): thông điệp của kênh, không có trang riêng.
+  // Tín hiệu cầu Booking.com hiển thị ("đặt 13 lần trong 24 giờ"): thông điệp marketing, không có trang riêng.
   if (/^demand:\d+$/.test(e.ref)) return { icon: <IconInfo size={13} />, text: t("demand") };
   return { icon: <IconInfo size={13} />, text: e.ref };
 }

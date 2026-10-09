@@ -2,30 +2,37 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { api, type PaceNightOut } from "@/lib/api";
+import { api, type CalibrationOut, type PaceNightOut } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { isWeekend, num, useFmt } from "@/lib/format";
-import { fmtOcc, pendingSuggestions, SUGGESTION_TONE, useMarketText } from "@/lib/market";
+import { actionableSuggestions, pendingSuggestions, SUGGESTION_TONE, suggestionTarget, useMarketText } from "@/lib/market";
+import { fillIndicator, fillReading } from "@/lib/market-metrics";
+import { CalibrationNote, FillValue } from "@/components/fill";
+import { OwnHotelSwitcher, useOwnHotelParam, useOwnHotels } from "@/components/own-hotel";
 import { DateRangePicker, useDateRange } from "@/components/date-range";
 import { SuggestionCard } from "@/components/market-suggestion";
-import { Badge, Card, EmptyState, ErrorBox, Note, PageHeader, PanelTitle, ROW_CLASS, SkeletonBlock, StatStrip, Table, Td, Th, cx } from "@/components/ui";
-import { IconInfo, IconTrend } from "@/components/icons";
+import { OtbPanel } from "@/components/otb-panel";
+import { SuggestionOutcomes } from "@/components/suggestion-outcomes";
+import { Badge, ButtonLink, Card, EmptyState, ErrorBox, Note, PageHeader, PanelTitle, ROW_CLASS, SkeletonBlock, StatStrip, Table, Td, Th, cx } from "@/components/ui";
+import { IconInfo, IconSliders, IconTrend } from "@/components/icons";
 
 /** Nhịp thị trường từ chừng này điểm trở lên được nhấn (cùng ngưỡng với hàng giá so trung vị). */
 const PACE_NOTABLE = 0.1;
 
-function Summary({ nights, calibration }: { nights: PaceNightOut[]; calibration: { nights: number; mean_abs_error_pts: string | null } }) {
+function Summary({ nights, calibration }: { nights: PaceNightOut[]; calibration: CalibrationOut }) {
   const t = useTranslations("pace.summary");
-  const { fmtNight, fmtNum } = useFmt();
+  const tr = useTranslations("rms.pace");
+  const { fmtNight } = useFmt();
   const { suggestionLabel } = useMarketText();
-  const pending = pendingSuggestions(nights);
+  const pending = actionableSuggestions(nights);
+  const holds = pendingSuggestions(nights).length - pending.length;
   const next7 = nights.filter((n) => n.days_to_arrival >= 0 && n.days_to_arrival < 7);
-  const compOcc = next7.map((n) => num(n.comp_occ)).filter((v): v is number => v !== null);
+  // Đêm có nhóm lead time sai số quá ngưỡng so PMS thì không tính (ẩn).
+  const compOcc = next7.map((n) => fillIndicator(n, calibration)).filter((v): v is number => v !== null);
   const avg = compOcc.length ? compOcc.reduce((a, b) => a + b, 0) / compOcc.length : null;
   const fast = nights.filter((n) => (num(n.comp_pace.delta) ?? 0) >= PACE_NOTABLE);
   const paced = nights.filter((n) => n.comp_pace.delta !== null).length;
-  const mae = num(calibration.mean_abs_error_pts);
   const first = pending[0];
   return (
     <StatStrip
@@ -34,7 +41,12 @@ function Summary({ nights, calibration }: { nights: PaceNightOut[]; calibration:
         {
           label: t("pendingLabel"),
           value: t("pendingValue", { count: pending.length }),
-          hint: first ? t("pendingHint", { night: fmtNight(first.stay_date), suggestion: suggestionLabel(first.suggestion!.kind).toLowerCase() }) : t("pendingNone"),
+          hint: (
+            <>
+              {first ? t("pendingHint", { night: fmtNight(first.stay_date), suggestion: suggestionLabel(first.suggestion!.kind).toLowerCase() }) : t("pendingNone")}
+              {holds > 0 && ` · ${tr("pendingHolds", { count: holds })}`}
+            </>
+          ),
         },
         {
           label: t("compSoldLabel"),
@@ -49,21 +61,22 @@ function Summary({ nights, calibration }: { nights: PaceNightOut[]; calibration:
         },
         {
           label: t("pmsLabel"),
-          value: mae === null ? "—" : t("pmsValue", { pts: fmtNum(mae, 1) }),
-          hint: mae === null ? t("pmsNone") : t("pmsHint", { count: calibration.nights }),
+          value: calibration.status === "calibrated" ? t("pmsCalibrated") : "—",
+          hint: calibration.status === "calibrated" ? <CalibrationNote calibration={calibration} /> : t("pmsNone"),
         },
       ]}
     />
   );
 }
 
-function NightRow({ n, ownHotelId }: { n: PaceNightOut; ownHotelId: number | null }) {
+function NightRow({ n, ownHotelId, calibration }: { n: PaceNightOut; ownHotelId: number | null; calibration: CalibrationOut }) {
   const t = useTranslations("pace.row");
-  const { fmtDateShort, fmtNight } = useFmt();
+  const { fmtDateShort, fmtNight, fmtPriceShort } = useFmt();
   const { fmtPace, ownOccText, suggestionLabel } = useMarketText();
   const own = ownOccText(n);
   const pace = num(n.comp_pace.delta);
   const weekend = isWeekend(n.stay_date);
+  const fill = fillReading(n, calibration);
   return (
     <tr className={ROW_CLASS}>
       <Td className="whitespace-nowrap pl-5">
@@ -92,10 +105,10 @@ function NightRow({ n, ownHotelId }: { n: PaceNightOut; ownHotelId: number | nul
         {own.source === "est" && <span className="ml-1 text-xs text-muted">{t("est")}</span>}
       </Td>
       <Td className="whitespace-nowrap tabular">
-        {n.comp_occ ? (
+        {fill.hidden || fill.value !== null ? (
           <>
-            <span className="font-semibold text-ink">{fmtOcc(n.comp_occ)}</span>
-            <span className="ml-1 text-xs text-muted">{t("hotels", { count: n.comp_occ_hotels })}</span>
+            <FillValue reading={fill} className="font-semibold text-ink" />
+            {!fill.hidden && <span className="ml-1 text-xs text-muted">{t("hotels", { count: n.comp_occ_hotels })}</span>}
           </>
         ) : (
           <span className="text-faint" title={t("compOccMissing")}>
@@ -131,11 +144,16 @@ function NightRow({ n, ownHotelId }: { n: PaceNightOut; ownHotelId: number | nul
           </span>
         )}
       </Td>
-      <Td className="pr-5">
-        {n.suggestion ? (
-          <Badge tone={n.suggestion.decision ? "gray" : SUGGESTION_TONE[n.suggestion.kind]}>
-            {n.suggestion.decision === "applied" ? t("applied") : n.suggestion.decision === "dismissed" ? t("dismissed") : suggestionLabel(n.suggestion.kind)}
-          </Badge>
+      <Td className="whitespace-nowrap pr-5">
+        {n.suggestion?.decision ? (
+          <Badge tone="gray">{n.suggestion.decision === "applied" ? t("applied") : t("dismissed")}</Badge>
+        ) : n.suggestion?.kind === "hold" ? (
+          <span className="text-sm text-muted">{suggestionLabel("hold")}</span>
+        ) : n.suggestion ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Badge tone={SUGGESTION_TONE[n.suggestion.kind]}>{suggestionLabel(n.suggestion.kind)}</Badge>
+            {suggestionTarget(n) !== null && <span className="text-sm font-semibold text-ink tabular">{fmtPriceShort(suggestionTarget(n), n.currency)}</span>}
+          </span>
         ) : null}
       </Td>
     </tr>
@@ -147,12 +165,24 @@ export function PaceView({ embedded = false }: { embedded?: boolean }) {
   const { start, end, days } = useDateRange();
   const { canWrite } = useSession();
   const t = useTranslations("pace.view");
+  const tr = useTranslations("rms.pace");
   const { fmtDate } = useFmt();
-  const { data, error, loading, reload } = useApi(`market:pace:${start}:${end}`, () => api.market.pace({ start, end }));
-  const pending = data ? pendingSuggestions(data.nights) : [];
+  // Cùng khách sạn của bạn (`?hotel=`) với các ô khác trên màn (roadmap 5.5).
+  const [hotelParam, setHotel] = useOwnHotelParam();
+  const ownHotels = useOwnHotels();
+  const { data, error, loading, reload } = useApi(`market:pace:${start}:${end}:${hotelParam ?? ""}`, () => api.market.pace({ start, end, own_hotel_id: hotelParam }));
+  const switchers = (
+    <>
+      <OwnHotelSwitcher hotels={ownHotels} value={hotelParam ?? data?.own_hotel_id ?? null} onChange={setHotel} />
+      <DateRangePicker />
+    </>
+  );
+  const pending = data ? actionableSuggestions(data.nights) : [];
+  const holds = data ? pendingSuggestions(data.nights).length - pending.length : 0;
+  const ownHotelId = hotelParam ?? data?.own_hotel_id ?? null;
   const decided = data ? data.nights.filter((n) => n.suggestion?.decision) : [];
   const hasEstimates = data?.nights.some((n) => n.own_occ || n.comp_occ) ?? false;
-  const subtitle = t("subtitle", { days, start: fmtDate(start), channel: data?.channel === "booking" || !data ? "Booking.com" : data.channel });
+  const subtitle = t("subtitle", { days, start: fmtDate(start) });
 
   return (
     <>
@@ -162,14 +192,10 @@ export function PaceView({ embedded = false }: { embedded?: boolean }) {
             <PanelTitle>{t("embeddedTitle")}</PanelTitle>
             <p className="mt-1 text-sm text-muted">{subtitle}</p>
           </div>
-          <DateRangePicker />
+          <div className="flex flex-wrap items-center gap-2">{switchers}</div>
         </div>
       ) : (
-        <PageHeader
-          title={t("title")}
-          subtitle={subtitle}
-          actions={<DateRangePicker />}
-        />
+        <PageHeader title={t("title")} subtitle={subtitle} actions={switchers} />
       )}
       <ErrorBox error={error} className="mb-4" />
       {!data && !error && (
@@ -186,7 +212,17 @@ export function PaceView({ embedded = false }: { embedded?: boolean }) {
           </Note>
           <Summary nights={data.nights} calibration={data.calibration} />
 
-          <Card title={t("suggestionsTitle")} description={t("suggestionsDescription")}>
+          <OtbPanel start={start} end={end} ownHotelId={ownHotelId} />
+
+          <Card
+            title={t("suggestionsTitle")}
+            description={t("suggestionsDescription")}
+            actions={
+              <ButtonLink href="/settings?tab=strategy" size="sm" variant="quiet" icon={<IconSliders size={15} />}>
+                {tr("strategyLink")}
+              </ButtonLink>
+            }
+          >
             {pending.length === 0 ? (
               <EmptyState icon={<IconTrend />} title={t("suggestionsEmptyTitle")} compact>
                 {t("suggestionsEmptyBody")}
@@ -198,6 +234,7 @@ export function PaceView({ embedded = false }: { embedded?: boolean }) {
                 ))}
               </div>
             )}
+            {holds > 0 && pending.length > 0 && <p className="mt-3 text-sm text-muted">{tr("holds", { count: holds })}</p>}
             {decided.length > 0 && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-semibold text-body">{t("decided", { count: decided.length })}</summary>
@@ -210,7 +247,17 @@ export function PaceView({ embedded = false }: { embedded?: boolean }) {
             )}
           </Card>
 
-          <Card title={t("nightsTitle")} description={t("nightsDescription")} padded={false}>
+          <SuggestionOutcomes ownHotelId={ownHotelId} />
+
+          <Card
+            title={t("nightsTitle")}
+            description={
+              <>
+                {t("nightsDescription")} <CalibrationNote calibration={data.calibration} />
+              </>
+            }
+            padded={false}
+          >
             {!hasEstimates && (
               <div className="px-5 pt-4">
                 <Note tone="neutral">{t("noEstimates")}</Note>
@@ -230,7 +277,7 @@ export function PaceView({ embedded = false }: { embedded?: boolean }) {
               </thead>
               <tbody>
                 {data.nights.map((n) => (
-                  <NightRow key={n.stay_date} n={n} ownHotelId={data.own_hotel_id} />
+                  <NightRow key={n.stay_date} n={n} ownHotelId={data.own_hotel_id} calibration={data.calibration} />
                 ))}
               </tbody>
             </Table>

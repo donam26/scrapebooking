@@ -47,8 +47,7 @@ export type SuggestionOut = Schemas["SuggestionOut"];
 export type HotelOut = Schemas["HotelOut"];
 export type ListingOut = Schemas["ListingOut"];
 export type ChannelOut = Schemas["ChannelOut"];
-export type ChannelDayOut = Schemas["ChannelDayOut"];
-export type DemandSignalOut = Schemas["DemandSignalOut"];
+export type RateDetailOut = Schemas["RateDetailOut"];
 export type HolidayOut = Schemas["HolidayOut"];
 export type WeatherOut = Schemas["WeatherOut"];
 export type RunJobOut = Schemas["RunJobOut"];
@@ -63,8 +62,139 @@ export type MarketAreaUpdate = Schemas["MarketAreaUpdate"];
 export type MarketCityOut = Schemas["MarketCityOut"];
 export type CityHotelOut = Schemas["CityHotelOut"];
 export type CityHotelsOut = Schemas["CityHotelsOut"];
-/** Thao tác trên một listing (kênh) của khách sạn. */
-export type ListingAction = "confirm" | "reject" | "pause" | "resume" | "retry";
+export type DataStatusOut = Schemas["DataStatusOut"];
+export type CompsetReviewOut = Schemas["CompsetReviewOut"];
+export type CalibrationOut = Schemas["CalibrationOut"];
+export type LeadCalibrationOut = Schemas["LeadCalibrationOut"];
+// ---- Phase 3: thông báo qua email/Zalo/webhook, đăng ký theo người, đo lượt nhấn/"Đã xử lý" ----
+export type NotificationKind = Schemas["NotificationKind"];
+export type SubscriptionIn = Schemas["SubscriptionIn"];
+export type SubscriptionOut = Schemas["SubscriptionOut"];
+/** Kênh gửi tin: email | zalo (ZNS) | webhook. */
+export type NotifyChannel = SubscriptionIn["channel"];
+/** Nhóm tin của một đăng ký: alerts | daily_insight | weekly_report | data_stale (rỗng = mọi loại). */
+export type SubscriptionKind = SubscriptionIn["kinds"][number];
+export type EngagementOut = Schemas["EngagementOut"];
+export type EngagementWeekOut = Schemas["EngagementWeekOut"];
+// ---- Phase 4: radar cạnh tranh ----
+export type PromotionsOut = Schemas["PromotionsOut"];
+export type HotelPromosOut = Schemas["HotelPromosOut"];
+export type PromoRunOut = Schemas["PromoRunOut"];
+export type PromoNightOut = Schemas["PromoNightOut"];
+export type RestrictionsOut = Schemas["RestrictionsOut"];
+export type HotelRestrictionsOut = Schemas["HotelRestrictionsOut"];
+export type RestrictionNightOut = Schemas["RestrictionNightOut"];
+export type CancellationsOut = Schemas["CancellationsOut"];
+export type CancellationOut = Schemas["CancellationOut"];
+export type AreaScarcityOut = Schemas["AreaScarcityOut"];
+export type AreaNightOut = Schemas["AreaNightOut"];
+// ---- Phase 5: OTB và KPI thật ----
+export type OtbImportOut = Schemas["OtbImportOut"];
+/** "otb_report" = báo cáo phòng đã đặt theo ngày; "bookings" = file đặt phòng chi tiết. */
+export type OtbImportKind = Schemas["Body_import_otb_pms_otb_import_post"]["kind"];
+export type OtbOut = Schemas["OtbOut"];
+export type OtbNightOut = Schemas["OtbNightOut"];
+export type KpiOut = Schemas["KpiOut"];
+// ---- Phase 6: RMS-lite ----
+export type StrategyIn = Schemas["StrategyIn"];
+export type StrategyOut = Schemas["StrategyOut"];
+export type ReasonOut = Schemas["ReasonOut"];
+export type DecisionIn = Schemas["DecisionIn"];
+export type OutcomesOut = Schemas["OutcomesOut"];
+export type OutcomeNightOut = Schemas["OutcomeNightOut"];
+export type BacktestOut = Schemas["BacktestOut"];
+// ---- Phase 7: uy tín, hiển thị ----
+export type ReputationOut = Schemas["ReputationOut"];
+export type ReputationHotelOut = Schemas["ReputationHotelOut"];
+export type VisibilityOut = Schemas["VisibilityOut"];
+export type VisibilityHotelOut = Schemas["VisibilityHotelOut"];
+
+/** Thị trường nguồn của khách (lễ của các nước này hiện trên lịch), khớp `holidays/data.py` SOURCE_MARKETS. */
+export const SOURCE_MARKETS = ["cn", "kr", "jp", "tw", "ru", "in", "us", "au"] as const;
+export type SourceMarket = (typeof SOURCE_MARKETS)[number];
+
+/** Giá đem so (cùng điều kiện): mọi gói | hoàn huỷ | có bữa sáng | chỉ phòng. */
+export type PriceBasis = Schemas["PriceBasis"];
+/** Kiểu ngày lễ: Tết, lễ, cầu du lịch, lễ thị trường nguồn (Chuseok, Tuần lễ Vàng…), mùa (nghỉ hè). */
+export type HolidayKind = HolidayOut["kind"];
+
+/**
+ * Năm trạng thái một ô khách sạn × đêm (`DateCell.state`, roadmap 2.7). `restricted` = bán được ở
+ * điều kiện khác (số đêm tối thiểu, đóng ngày đến), KHÔNG phải hết phòng.
+ */
+export type CellState = "available" | "sold_out" | "restricted" | "no_price" | "error";
+const CELL_STATES: readonly string[] = ["available", "sold_out", "restricted", "no_price", "error"];
+
+/** Trạng thái của ô: `state` mới; dữ liệu cũ chưa có `state` thì suy từ `availability_status`. */
+export function cellState(c: Pick<DateCell, "state" | "availability_status"> | null | undefined): CellState | null {
+  if (!c) return null;
+  if (c.state && CELL_STATES.includes(c.state)) return c.state as CellState;
+  switch (c.availability_status) {
+    case "available":
+      return "available";
+    case "sold_out":
+      return "sold_out";
+    case "restricted":
+      return "restricted";
+    case "unknown":
+      return "error";
+    default:
+      return null;
+  }
+}
+
+/** Gói rẻ nhất trên Booking.com của một đêm (`RateDetailOut.cheapest_rate`). */
+export type CheapestRate = {
+  price: string | null;
+  /** Khoá gói "t|f" = hoàn huỷ | bữa sáng (t/f/?). */
+  key: string | null;
+  refundable: boolean | null;
+  breakfast: boolean | null;
+  /** Giá trước KM (giá gạch). */
+  price_original: string | null;
+  promo_label: string | null;
+  /** Nguồn bán lại (dòng "Partner offer" của Booking.com). */
+  source_supplier: string | null;
+  taxes_included: boolean | null;
+  room_type_id: number | null;
+};
+
+function str(v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  return typeof v === "string" ? v : typeof v === "number" ? String(v) : null;
+}
+
+function bool(v: unknown): boolean | null {
+  return typeof v === "boolean" ? v : null;
+}
+
+export function cheapestRate(c: Pick<RateDetailOut, "cheapest_rate">): CheapestRate | null {
+  const r = c.cheapest_rate;
+  if (!r) return null;
+  return {
+    price: str(r.price),
+    key: str(r.key),
+    refundable: bool(r.refundable),
+    breakfast: bool(r.breakfast),
+    price_original: str(r.price_original),
+    promo_label: str(r.promo_label),
+    source_supplier: str(r.source_supplier),
+    taxes_included: bool(r.taxes_included),
+    room_type_id: typeof r.room_type_id === "number" ? r.room_type_id : null,
+  };
+}
+
+/** Nhãn KM của promo_start (`detail.labels`: nhãn → độ sâu %) / promo_end (`detail.labels`: mảng nhãn). */
+export function promoLabels(e: Pick<EventOut, "detail" | "from_value" | "to_value" | "event_type">): Array<{ label: string; depth: string | null }> {
+  const raw = e.detail?.labels;
+  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string").map((label) => ({ label, depth: null }));
+  if (raw && typeof raw === "object") return Object.entries(raw as Record<string, unknown>).map(([label, depth]) => ({ label, depth: str(depth) }));
+  const text = e.event_type === "promo_end" ? e.from_value : e.to_value;
+  return (text ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((label) => ({ label, depth: null }));
+}
+
+/** Thao tác trên trang Booking.com (listing) của khách sạn: tạm dừng, quét lại, kiểm tra lại. */
+export type ListingAction = "pause" | "resume" | "retry";
 
 /**
  * Lỗi HTTP từ backend. `message` giữ thông điệp gốc (tiếng Anh, cho log); câu hiển thị theo ngôn
@@ -211,26 +341,30 @@ export const api = {
     update: (hotelId: number, body: WatchItemUpdate) =>
       request<WatchItemOut>("PATCH", `/watchlist/${hotelId}`, { body }),
     remove: (hotelId: number) => request<void>("DELETE", `/watchlist/${hotelId}`),
-    /** Quét ngay toàn bộ watchlist của tenant: mỗi kênh một lượt (202; trong 10 phút trả về đợt đang chạy). */
+    /** Quét ngay toàn bộ watchlist của tenant (202; trong 10 phút trả về đợt đang chạy). */
     scanNow: () => request<ScanRunOut[]>("POST", "/watchlist/scan-now"),
-    /** Quét ngay một khách sạn trong watchlist (mỗi kênh đang quét một lượt nhỏ). */
+    /** Quét ngay một khách sạn trong watchlist (một lượt nhỏ). */
     scanHotel: (hotelId: number) => request<ScanRunOut[]>("POST", `/watchlist/${hotelId}/scan-now`),
-    /** Gắn (hoặc thay) URL một kênh cho khách sạn đã theo dõi. */
+    /** Thay URL Booking.com của khách sạn đã theo dõi (đường dẫn hỏng hoặc dán nhầm). */
     addListing: (hotelId: number, url: string) =>
       request<ListingOut>("POST", `/watchlist/${hotelId}/listings`, { body: { url } }),
-    /** Xác nhận/bỏ gợi ý, tạm dừng, chạy lại, kiểm tra lại một listing; "reject" trả null. */
+    /** Tạm dừng, quét lại hoặc kiểm tra lại trang Booking.com của khách sạn. */
     listingAction: (hotelId: number, listingId: number, action: ListingAction) =>
       request<ListingOut | null>("PATCH", `/watchlist/${hotelId}/listings/${listingId}`, { body: { action } }),
-    /** Tìm khách sạn trên các kênh chưa có listing; kết quả về sau dưới dạng gợi ý. */
-    discover: (hotelId: number) => request<{ channels?: string[] }>("POST", `/watchlist/${hotelId}/discover`),
+    /** Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (≥4 đối thủ, ≤50% số phòng, rà soát 2 lần/năm). */
+    compsetReview: (ownHotelId?: number | null) =>
+      request<CompsetReviewOut>("GET", "/watchlist/compset-review", { query: { own_hotel_id: ownHotelId } }),
   },
   channels: () => request<ChannelOut[]>("GET", "/channels"),
-  overview: (query: { start?: string; end?: string; price_basis?: "any" | "refundable"; channel?: string | null }) => request<OverviewOut>("GET", "/overview", { query }),
-  hotel: (hotelId: number, query: { start?: string; end?: string; event_limit?: number; channel?: string | null }) =>
+  overview: (query: { start?: string; end?: string; price_basis?: PriceBasis; own_hotel_id?: number | null }) =>
+    request<OverviewOut>("GET", "/overview", { query }),
+  /** Dữ liệu Booking.com mới nhất (quan sát thành công cuối cùng) và tỷ lệ thành công 7 ngày (SLA). */
+  dataStatus: () => request<DataStatusOut>("GET", "/data-status"),
+  hotel: (hotelId: number, query: { start?: string; end?: string; event_limit?: number }) =>
     request<HotelDetailOut>("GET", `/hotels/${hotelId}`, { query }),
-  day: (hotelId: number, stayDate: string, historyDays = 14, channel?: string | null) =>
+  day: (hotelId: number, stayDate: string, historyDays = 14) =>
     request<DayDetailOut>("GET", `/hotels/${hotelId}/dates/${stayDate}`, {
-      query: { history_days: historyDays, channel },
+      query: { history_days: historyDays },
     }),
   events: (query: {
     hotel_id?: number | null;
@@ -238,8 +372,6 @@ export const api = {
     stay_from?: string | null;
     stay_to?: string | null;
     observed_since?: string | null;
-    /** Một hoặc nhiều mã kênh, ngăn bằng dấu phẩy. */
-    channel?: string | null;
     limit?: number;
     offset?: number;
   }) => request<EventOut[]>("GET", "/events", { query }),
@@ -271,18 +403,74 @@ export const api = {
     imports: (limit = 20) => request<PmsImportOut[]>("GET", "/pms/imports", { query: { limit } }),
     daily: (hotelId?: number | null, limit = 120) =>
       request<OwnDailyOut[]>("GET", "/pms/daily", { query: { hotel_id: hotelId, limit } }),
+    /** OTB theo ngày (Phase 5): nhập báo cáo phòng đã đặt hoặc file đặt phòng chi tiết. Chỉ người được ghi. */
+    otb: {
+      /** CSV mẫu cho từng loại tệp. */
+      template: (kind: OtbImportKind = "otb_report") =>
+        request<string>("GET", "/pms/otb/template", { query: { kind }, text: true }),
+      import: (args: { file: File; hotelId: number; kind: OtbImportKind; asOfDate?: string | null; roomsAvailable?: number | null }) => {
+        const form = new FormData();
+        form.append("file", args.file);
+        form.append("hotel_id", String(args.hotelId));
+        form.append("kind", args.kind);
+        if (args.asOfDate) form.append("as_of_date", args.asOfDate);
+        if (args.roomsAvailable !== null && args.roomsAvailable !== undefined) form.append("rooms_available", String(args.roomsAvailable));
+        return request<OtbImportOut>("POST", "/pms/otb/import", { form });
+      },
+    },
   },
   market: {
-    pace: (query: { start?: string; end?: string }) => request<MarketPaceOut>("GET", "/market/pace", { query }),
-    decide: (stayDate: string, kind: string, decision: "applied" | "dismissed") =>
-      request<SuggestionOut>("PUT", `/market/suggestions/${stayDate}/${kind}`, { body: { decision } }),
+    /** Nhịp và chỉ báo lấp đầy trên Booking.com cho một khách sạn của bạn. */
+    pace: (query: { start?: string; end?: string; own_hotel_id?: number | null }) =>
+      request<MarketPaceOut>("GET", "/market/pace", { query }),
+    /**
+     * Ghi nhận đã áp dụng/bỏ qua gợi ý. `appliedPrice`: giá thật sự đã đặt (khi khác giá mục tiêu),
+     * để đo kết quả sau đêm lưu trú; bỏ trống thì backend lấy giá mục tiêu.
+     */
+    decide: (stayDate: string, kind: SuggestionOut["kind"], decision: DecisionIn["decision"], appliedPrice?: number | null) =>
+      request<SuggestionOut>("PUT", `/market/suggestions/${stayDate}/${kind}`, {
+        body: { decision, ...(appliedPrice ? { applied_price: appliedPrice } : {}) } satisfies DecisionIn,
+      }),
     undo: (stayDate: string, kind: string) => request<void>("DELETE", `/market/suggestions/${stayDate}/${kind}`),
+    /** Chiến lược giá của khách sạn của bạn (Phase 6); 404 khi tenant chưa có khách sạn vai trò "self". */
+    strategy: {
+      get: (ownHotelId?: number | null) => request<StrategyOut>("GET", "/market/strategy", { query: { own_hotel_id: ownHotelId } }),
+      put: (body: StrategyIn, ownHotelId?: number | null) =>
+        request<StrategyOut>("PUT", "/market/strategy", { body, query: { own_hotel_id: ownHotelId } }),
+    },
+    /** Nhật ký "gợi ý đã áp dụng → kết quả" và tỷ lệ áp dụng (mặc định 60 ngày). */
+    outcomes: (query: { days?: number; own_hotel_id?: number | null } = {}) =>
+      request<OutcomesOut>("GET", "/market/suggestions/outcomes", { query }),
+    /** Chạy lại luật gợi ý trên giá đối thủ `lead` ngày trước mỗi đêm đã qua, so với công suất thật. */
+    backtest: (query: { days?: number; lead?: number; own_hotel_id?: number | null } = {}) =>
+      request<BacktestOut>("GET", "/market/suggestions/backtest", { query }),
+    /** OTB, pickup, pace (4 tuần trước, STLY), dự báo theo đêm và KPI PMS (Occ/ADR/RevPAR). */
+    otb: (query: { start?: string; end?: string; own_hotel_id?: number | null; days?: number }) =>
+      request<OtbOut>("GET", "/market/otb", { query }),
+    /** Radar cạnh tranh (Phase 4) từ dữ liệu Booking.com đã quét: tối đa 120 đêm. */
+    radar: {
+      promotions: (query: { start?: string; end?: string }) =>
+        request<PromotionsOut>("GET", "/market/radar/promotions", { query }),
+      restrictions: (query: { start?: string; end?: string }) =>
+        request<RestrictionsOut>("GET", "/market/radar/restrictions", { query }),
+      cancellation: (query: { start?: string; end?: string }) =>
+        request<CancellationsOut>("GET", "/market/radar/cancellation", { query }),
+      /** Số chỗ ở còn phòng của khu vực theo đêm; 404 khi tenant chưa có khu vực thị trường. */
+      areaScarcity: (query: { area_id?: number | null; start?: string; end?: string }) =>
+        request<AreaScarcityOut>("GET", "/market/radar/area-scarcity", { query }),
+    },
+    /** Điểm, số review, tốc độ review/tháng, mốc điểm kế tiếp, chỉ số giá–điểm (Booking.com). */
+    reputation: (query: { days?: number } = {}) => request<ReputationOut>("GET", "/market/reputation", { query }),
+    /** Thứ hạng trên trang kết quả của khu vực (tách thẻ quảng cáo) và huy hiệu; rỗng khi chưa có khu vực/lượt quét. */
+    visibility: (query: { days?: number; area_id?: number | null } = {}) =>
+      request<VisibilityOut>("GET", "/market/visibility", { query }),
     /** Ngày lễ theo nước của tenant (mặc định từ đầu tháng này, 12 tháng). */
     holidays: (query: { start?: string; end?: string } = {}) => request<HolidayOut[]>("GET", "/market/holidays", { query }),
     /** Dự báo thời tiết 5 ngày tại khách sạn của bạn (OpenWeather). */
     weather: () => request<WeatherOut>("GET", "/market/weather"),
     /** Công suất ước tính mới nhất của từng khách sạn theo đêm (≤ 60 đêm). */
-    occupancy: (query: { start?: string; end?: string }) => request<MarketOccupancyOut>("GET", "/market/occupancy", { query }),
+    occupancy: (query: { start?: string; end?: string }) =>
+      request<MarketOccupancyOut>("GET", "/market/occupancy", { query }),
     /** Khu vực thị trường (toàn thành phố/quận) quét danh sách mọi khách sạn trên Booking. */
     areas: {
       search: (q: string) => request<DestinationOut[]>("GET", "/market/areas/search", { query: { q } }),
@@ -312,6 +500,24 @@ export const api = {
     /** Gửi email thử tới mọi người nhận (tối đa 1 lần/phút). */
     test: () => request<NotificationLogOut>("POST", "/notifications/test"),
     log: (limit = 30) => request<NotificationLogOut[]>("GET", "/notifications/log", { query: { limit } }),
+    /** Ghi nhận "Đã xử lý" một tin trên dashboard. */
+    resolve: (id: number) => request<NotificationLogOut>("POST", `/notifications/${id}/resolve`),
+    /** Tin gửi/lỗi/bỏ qua, lượt nhấn, "Đã xử lý" và chi phí theo tuần ISO, theo kênh. */
+    engagement: (weeks = 8) => request<EngagementOut>("GET", "/notifications/engagement", { query: { weeks } }),
+    /** Đăng ký nhận tin theo người: người xem chỉ thấy/sửa của mình; quản trị thấy mọi đăng ký. */
+    subscriptions: {
+      list: () => request<SubscriptionOut[]>("GET", "/notifications/subscriptions"),
+      create: (body: SubscriptionIn) => request<SubscriptionOut>("POST", "/notifications/subscriptions", { body }),
+      update: (id: number, body: SubscriptionIn) => request<SubscriptionOut>("PUT", `/notifications/subscriptions/${id}`, { body }),
+      remove: (id: number) => request<void>("DELETE", `/notifications/subscriptions/${id}`),
+    },
+  },
+  /** Liên kết tải tệp (thẻ <a>): đi qua proxy `/api`, kèm `tenant_id` cho operator. */
+  exports: {
+    /** Excel rate shop: khách sạn × đêm (giá, trạng thái, KM, hạn chế, n/N). */
+    rateShopUrl: (query: { start?: string; end?: string; price_basis?: PriceBasis }) => apiUrl("/export/rate-shop.xlsx", query),
+    /** Báo cáo tháng dạng HTML (mở tab mới, in ra PDF). `month`: "YYYY-MM". */
+    monthlyReportUrl: (query: { month?: string; own_hotel_id?: number | null }) => apiUrl("/export/monthly-report.html", query),
   },
   health: {
     summary: () => request<HealthSummaryOut>("GET", "/health/summary"),

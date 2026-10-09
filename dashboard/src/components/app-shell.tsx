@@ -8,8 +8,8 @@ import { api, type TenantOut } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { useLabel } from "@/lib/labels";
-import { channelName } from "@/lib/channels";
-import { scanCollectedNothing, scanOverdue, useFmt } from "@/lib/format";
+import { useFmt } from "@/lib/format";
+import { useDataFreshness } from "@/lib/freshness";
 import { EmptyState, ErrorBox, Select, SkeletonBlock, cx } from "./ui";
 import { LocaleSwitcher } from "./locale-switcher";
 import { HEAT_LEVELS } from "./marks";
@@ -23,10 +23,11 @@ import { BrandMark, IconBell, IconBuilding, IconHelp, IconLogout, IconUser } fro
 
 /** `key`: khoá trong shell.nav (messages/<ngôn ngữ>/shell.json). */
 type NavItem = { href: string; key: NavKey; match?: (p: string) => boolean };
-type NavKey = "dashboard" | "competitors" | "availability" | "rates" | "terminal" | "insights" | "runs" | "settings" | "tenants" | "users" | "health";
+type NavKey = "today" | "dashboard" | "competitors" | "availability" | "rates" | "terminal" | "insights" | "runs" | "settings" | "tenants" | "users" | "health";
 
 const TENANT_NAV: NavItem[] = [
-  { href: "/dashboard", key: "dashboard", match: (p) => p === "/dashboard" || p === "/today" },
+  { href: "/today", key: "today" },
+  { href: "/dashboard", key: "dashboard" },
   { href: "/competitors", key: "competitors", match: (p) => p.startsWith("/competitors") || p.startsWith("/hotels") },
   { href: "/availability", key: "availability", match: (p) => p.startsWith("/availability") || p.startsWith("/overview") },
   { href: "/rates", key: "rates" },
@@ -91,29 +92,22 @@ function HotelPill({ name }: { name: string | undefined }) {
   );
 }
 
-/** Độ mới dữ liệu: lượt quét gần nhất và mốc kế tiếp theo lịch tenant. */
+/** Độ mới dữ liệu (định nghĩa chung ở lib/freshness.ts) và mốc quét kế tiếp theo lịch tenant. */
 function Freshness({ settings }: { settings: TenantOut | undefined }) {
   const t = useTranslations("shell.freshness");
   const { fmtAgo, fmtWhen, nextScanLabel } = useFmt();
-  const runs = useApi("shell:runs", () => api.runs(1));
-  const last = runs.data?.[0];
+  const f = useDataFreshness(settings?.scan_times);
   const next = settings ? nextScanLabel(settings.scan_times, settings.timezone) : null;
-  if (!last && !next) return <div className="text-sm text-muted">{t("noScan")}</div>;
-  const running = last?.status === "running";
-  const lastAt = last ? (last.finished_at ?? last.started_at) : null;
-  const failed = last !== undefined && scanCollectedNothing(last);
-  const overdue = !running && !failed && settings !== undefined && scanOverdue(lastAt, settings.scan_times);
+  if (!f.updatedAt && !f.latest && !f.running && !next) return <div className="text-sm text-muted">{t("noScan")}</div>;
   return (
     <div className="text-sm leading-relaxed">
       <div className="flex items-center gap-2 text-ink">
-        <span
-          aria-hidden
-          className={cx("h-2 w-2 shrink-0 rounded-full", running ? "animate-pulse bg-hot" : failed ? "bg-danger" : overdue ? "bg-hot" : "bg-yours")}
-        />
-        {running ? t("scanning") : lastAt ? t("scannedAt", { when: fmtWhen(lastAt) }) : t("noScan")}
+        <span aria-hidden className={cx("h-2 w-2 shrink-0 rounded-full", f.tone === "bad" ? "bg-danger" : f.tone === "warn" ? "bg-hot" : "bg-yours")} />
+        {f.updatedAt ? t("updatedAt", { when: fmtWhen(f.updatedAt) }) : t("noScan")}
       </div>
-      {failed && <div className="pl-4 font-semibold text-danger">{t("failed")}</div>}
-      {overdue && <div className="pl-4 font-semibold text-warning-deep">{t("overdue", { ago: fmtAgo(lastAt) })}</div>}
+      {f.running && <div className="pl-4 text-muted">{t("scanning")}</div>}
+      {f.latestEmpty && <div className={cx("pl-4 font-semibold", f.tone === "bad" ? "text-danger" : "text-warning-deep")}>{t("failed")}</div>}
+      {f.overdue && <div className="pl-4 font-semibold text-warning-deep">{t("overdue", { ago: fmtAgo(f.updatedAt) })}</div>}
       {next && <div className="pl-4 text-muted">{t("next", { when: next })}</div>}
     </div>
   );
@@ -125,7 +119,7 @@ function HelpMenu({ settings }: { settings: TenantOut | undefined }) {
   const label = useLabel();
   return (
     <PopoverMenu label={t("title")} button={<IconHelp size={21} />} buttonClassName={TOPBAR_BUTTON} width={340}>
-      {(close) => (
+      {() => (
         <div className="divide-y divide-line">
           <div className="px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.06em] text-muted">{t("data")}</div>
@@ -142,11 +136,6 @@ function HelpMenu({ settings }: { settings: TenantOut | undefined }) {
               ))}
             </ul>
             <p className="mt-2 text-xs text-muted">{t("heatNote")}</p>
-          </div>
-          <div className="px-4 py-3 text-sm">
-            <Link href="/today" onClick={close} className="font-semibold text-brand hover:underline">
-              {t("openToday")}
-            </Link>
           </div>
         </div>
       )}
@@ -196,9 +185,7 @@ function BellMenu() {
                     <div className="text-sm text-body">
                       {t("eventLine", { event: label("eventType", e.event_type), night: fmtDateShort(e.stay_date) })}
                     </div>
-                    <div className="text-xs text-muted">
-                      {channelName(e.channel)} · {fmtAgo(e.observed_at)}
-                    </div>
+                    <div className="text-xs text-muted">{fmtAgo(e.observed_at)}</div>
                   </Link>
                 </li>
               ))}

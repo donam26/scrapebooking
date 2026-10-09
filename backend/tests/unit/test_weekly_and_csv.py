@@ -87,7 +87,7 @@ def test_events_rows_use_tenant_local_time() -> None:
         id=1,
         hotel_id=2,
         hotel_name="Caravelle Saigon",
-        channel="agoda",
+        channel="booking",
         room_type_id=None,
         room_type_name=None,
         stay_date=date(2026, 10, 10),
@@ -104,7 +104,7 @@ def test_events_rows_use_tenant_local_time() -> None:
     assert rows == [
         [
             "2026-10-02 06:10",
-            "Agoda",
+            "Booking.com",
             "Caravelle",
             "Toàn khách sạn",
             "2026-10-10",

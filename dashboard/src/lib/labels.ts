@@ -1,5 +1,5 @@
 /**
- * Mã trạng thái của backend: danh sách mã, màu (tone) và tên kênh. Chữ hiển thị của từng mã nằm ở
+ * Mã trạng thái của backend: danh sách mã và màu (tone). Chữ hiển thị của từng mã nằm ở
  * `src/messages/<ngôn ngữ>/labels.json`, đọc qua `useLabel()`:
  *   const label = useLabel();  label("eventType", ev.event_type)  // mã lạ -> trả nguyên mã
  */
@@ -18,10 +18,21 @@ export const EVENT_TYPES = [
   "price_down",
   "room_type_new",
   "room_type_gone",
-  "channel_closed",
-  "parity_gap",
+  "lowest_rate_shift",
+  "restricted",
+  "restriction_lifted",
+  "min_stay_change",
+  "promo_start",
+  "promo_end",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
+
+/** Nhóm loại thay đổi cho bộ lọc (khoá nhóm: events.filters.group.<key>). */
+export const EVENT_TYPE_GROUPS: ReadonlyArray<{ key: "rooms" | "price" | "restrictions"; types: readonly EventType[] }> = [
+  { key: "rooms", types: ["sold_out", "restock", "rooms_decrease", "rooms_increase", "low_stock_enter", "room_type_new", "room_type_gone"] },
+  { key: "price", types: ["price_up", "price_down", "lowest_rate_shift"] },
+  { key: "restrictions", types: ["restricted", "restriction_lifted", "min_stay_change", "promo_start", "promo_end"] },
+];
 
 export type Tone = "green" | "red" | "amber" | "gray" | "blue" | "purple" | "plum";
 
@@ -35,33 +46,30 @@ export const EVENT_TYPE_TONE: Record<string, Tone> = {
   price_down: "gray",
   room_type_new: "gray",
   room_type_gone: "gray",
-  channel_closed: "amber",
-  parity_gap: "gray",
-};
-
-/** Tên hiển thị của kênh bán phòng (khớp `app/channels/registry.py`). */
-export const CHANNEL_LABEL: Record<string, string> = {
-  booking: "Booking.com",
-  agoda: "Agoda",
-  ivivu: "iVIVU",
-  tripcom: "Trip.com",
-  traveloka: "Traveloka",
-  mytour: "Mytour",
-  expedia: "Expedia",
-};
-
-export const LISTING_STATUS_TONE: Record<string, Tone> = {
-  active: "green",
-  unverified: "blue",
-  suggested: "purple",
-  broken: "red",
-  paused: "gray",
+  // Giá thấp nhất đổi do phòng/gói rẻ nhất hết/mở lại: không phải đổi giá.
+  lowest_rate_shift: "gray",
+  // Hạn chế (min-stay, đóng ngày đến) không phải hết phòng: hổ phách, không đỏ.
+  restricted: "amber",
+  restriction_lifted: "blue",
+  min_stay_change: "amber",
+  promo_start: "amber",
+  promo_end: "gray",
 };
 
 export const AVAILABILITY_TONE: Record<string, Tone> = {
   available: "blue",
   sold_out: "plum",
+  restricted: "amber",
   unknown: "gray",
+};
+
+/** Năm trạng thái ô (`DateCell.state`): hạn chế hổ phách (không đỏ), không giá/lỗi xám. */
+export const CELL_STATE_TONE: Record<string, Tone> = {
+  available: "blue",
+  sold_out: "plum",
+  restricted: "amber",
+  no_price: "gray",
+  error: "gray",
 };
 
 export const STOCK_CONFIDENCE_TONE: Record<string, Tone> = {

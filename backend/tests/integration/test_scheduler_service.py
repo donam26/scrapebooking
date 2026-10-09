@@ -8,7 +8,7 @@ from app.db.models import Probe, ScanJob, ScanRun, Tenant, TenantHotel
 from app.ops.alerts import NullAlerter
 from app.scheduler.channel_pause import MemoryChannelPauses
 from app.scheduler.service import SchedulerService
-from tests.integration.seed import add_hotel, add_listing, scan_run
+from tests.integration.seed import add_hotel, scan_run
 
 
 class FakeQueue:
@@ -232,42 +232,14 @@ async def test_catch_up_covers_hotels_of_run_that_died_past_deadline(db: AsyncSe
     assert [h for h, _, _ in await _jobs(db, report.catch_up_run)] == [h1, h2]
 
 
-# ---- đa kênh: một run mỗi (mốc × kênh), tự ngắt kênh bị chặn ----
+# ---- Booking.com: listing tạm dừng, tự ngắt khi bị chặn ----
 
 SLOT = datetime(2026, 9, 23, 23, 2, tzinfo=UTC)  # 06:02 VN
-
-
-async def test_one_run_per_channel_for_the_same_slot(db: AsyncSession) -> None:
-    _, h1, h2 = await _seed(db)
-    await add_listing(db, h1, "agoda", "agoda-h1")
-    await add_listing(db, h2, "agoda", "agoda-h2", status="unverified")  # chưa xác minh: chưa quét
-    await add_listing(db, h2, "ivivu", "ivivu-h2", status="broken")
-    await db.commit()
-    queue = FakeQueue()
-    report = await _service(db, queue, FixedClock(SLOT)).tick()
-    runs = (
-        (await db.execute(select(ScanRun).where(ScanRun.id.in_(report.created_runs))))
-        .scalars()
-        .all()
-    )
-    assert {(r.channel, r.trigger_key) for r in runs} == {
-        ("agoda", "2026-09-23T23:00:agoda"),
-        ("booking", "2026-09-23T23:00:booking"),
-    }
-    by_channel = {r.channel: r.id for r in runs}
-    assert sorted(zip(queue.enqueued, queue.channels, strict=True)) == sorted(
-        [
-            ((by_channel["agoda"], h1), "agoda"),
-            ((by_channel["booking"], h1), "booking"),
-            ((by_channel["booking"], h2), "booking"),
-        ]
-    )
 
 
 async def test_paused_listing_and_paused_tenant_hotel_are_not_scanned(db: AsyncSession) -> None:
     _, h1, h2 = await _seed(db)
     await db.execute(update(TenantHotel).where(TenantHotel.hotel_id == h2).values(active=False))
-    await add_listing(db, h1, "agoda", "agoda-h1", status="paused")
     await db.commit()
     queue = FakeQueue()
     report = await _service(db, queue, FixedClock(SLOT)).tick()
@@ -275,20 +247,14 @@ async def test_paused_listing_and_paused_tenant_hotel_are_not_scanned(db: AsyncS
     assert queue.enqueued == [(report.created_runs[0], h1)] and queue.channels == ["booking"]
 
 
-async def test_paused_channel_gets_no_run_other_channels_continue(db: AsyncSession) -> None:
-    _, h1, _ = await _seed(db)
-    await add_listing(db, h1, "agoda", "agoda-h1")
-    await db.commit()
+async def test_paused_channel_gets_no_run(db: AsyncSession) -> None:
+    await _seed(db)
     clock = FixedClock(SLOT)
     pauses = MemoryChannelPauses(clock.now)
-    await pauses.pause("agoda", 30, "test")
+    await pauses.pause("booking", 30, "test")
     queue = FakeQueue()
     report = await _service(db, queue, clock, pauses).tick()
-    channels = (
-        await db.execute(select(ScanRun.channel).where(ScanRun.id.in_(report.created_runs)))
-    ).scalars()
-    assert list(channels) == ["booking"]
-    assert set(queue.channels) == {"booking"}
+    assert report.created_runs == [] and queue.enqueued == []
 
 
 async def _probes(
@@ -313,28 +279,25 @@ async def _probes(
     await db.commit()
 
 
-async def test_high_block_rate_pauses_only_that_channel_and_alerts(db: AsyncSession) -> None:
+async def test_high_block_rate_pauses_booking_and_alerts(db: AsyncSession) -> None:
     _, h1, _ = await _seed(db)
     at = SLOT + timedelta(hours=3)  # ngoài mốc quét: tick chỉ kiểm tra tỉ lệ chặn
-    agoda_run = scan_run("r-agoda", at - timedelta(minutes=20), channel="agoda", status="running")
-    booking_run = scan_run("r-booking", at - timedelta(minutes=20), status="running")
-    db.add_all([agoda_run, booking_run])
+    run = scan_run("r-booking", at - timedelta(minutes=20), status="running")
+    db.add(run)
     await db.flush()
-    await _probes(db, agoda_run.id, h1, "agoda", ok=10, blocked=15, at=at - timedelta(minutes=5))
-    await _probes(db, booking_run.id, h1, "booking", ok=24, blocked=1, at=at - timedelta(minutes=5))
+    await _probes(db, run.id, h1, "booking", ok=10, blocked=15, at=at - timedelta(minutes=5))
     clock = FixedClock(at)
     pauses = MemoryChannelPauses(clock.now)
     alerter = RecordingAlerter()
     svc = _service(db, FakeQueue(), clock, pauses, alerter)
     report = await svc.tick()
-    assert report.paused_channels == ["agoda"]
-    assert await pauses.is_paused("agoda") and not await pauses.is_paused("booking")
-    assert any(a.startswith("[agoda]") and "60%" in a for a in alerter.sent)
-    assert any("Channel agoda paused 30 min" in a for a in alerter.sent)
-    assert not any(a.startswith("[booking]") or "Channel booking" in a for a in alerter.sent)
+    assert report.paused_channels == ["booking"]
+    assert await pauses.is_paused("booking")
+    assert any(a.startswith("[booking]") and "60%" in a for a in alerter.sent)
+    assert any("Channel booking paused 30 min" in a for a in alerter.sent)
 
     # Đang tạm dừng: tick sau không dừng lại lần nữa; hết hạn thì kênh chạy lại.
     clock.advance(minutes=1)
     assert (await svc.tick()).paused_channels == []
     clock.advance(minutes=30)
-    assert not await pauses.is_paused("agoda")
+    assert not await pauses.is_paused("booking")

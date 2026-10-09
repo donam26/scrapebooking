@@ -11,7 +11,6 @@ from app.db.models import Insight, Notification, NotificationRecipient, Tenant, 
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus
 from app.notify.alert_rules import AlertItem
 from app.notify.kinds import NotificationKind
-from app.notify.render import Email
 from app.notify.service import NotificationService, TenantInfo
 from app.repo.snapshots import SnapshotRepository
 from tests.fakes import FakeEmailSender
@@ -74,7 +73,9 @@ async def test_settings_recipients_rules_and_permissions(
     body = r.json()
     assert body["email_configured"] is True and body["recipients"] == []
     assert {x["kind"] for x in body["rules"]} >= {"daily_insight", "competitor_sold_out"}
-    assert all(x["active"] for x in body["rules"])
+    # Mọi loại bật mặc định, trừ "lệch định vị" (cần đặt mục tiêu trong chiến lược giá trước).
+    assert all(x["active"] for x in body["rules"] if x["kind"] != "own_position_drift")
+    assert not next(x for x in body["rules"] if x["kind"] == "own_position_drift")["active"]
 
     r = await client.post("/notifications/recipients", json={"email": "Owner@Rex.vn"})
     assert r.status_code == 201, r.text
@@ -354,105 +355,3 @@ async def test_hotel_name_with_newline_still_sends(db: AsyncSession, settings: S
     await NotificationService(db, sender, settings).dispatch_due(NOW)
     ((_, email),) = sender.sent
     assert "\n" not in email.subject and "\r" not in email.subject and len(email.subject) <= 200
-
-
-# ---- đa kênh: một email mỗi mốc quét gộp mọi kênh ----
-
-
-async def _run_on(
-    db: AsyncSession, key: str, channel: str, hotel_id: int, probe: ProbeResult, at: datetime
-) -> int:
-    run = scan_run(f"{key}:{channel}", at, channel=channel, finished_at=at + timedelta(minutes=10))
-    run.total_probes = 1
-    db.add(run)
-    await db.flush()
-    await SnapshotRepository(db, 10).write_probe(
-        run.id, hotel_id, channel, STAY, probe, None, "1", "vn", at
-    )
-    await db.commit()
-    await AnalyticsService(db).run(run.id)
-    await db.commit()
-    return run.id
-
-
-async def _alert_emails(db: AsyncSession, settings: Settings) -> list[tuple[str, Email]]:
-    sender = FakeEmailSender()
-    await NotificationService(db, sender, settings).dispatch_due(NOW)
-    await db.commit()
-    return sender.sent
-
-
-async def test_sold_out_on_two_channels_of_one_slot_is_one_alert(
-    db: AsyncSession, settings: Settings
-) -> None:
-    ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
-    await db.commit()
-    booking_run = await _competitor_sells_out(db, ids, "booking")
-    agoda_run = await _competitor_sells_out(db, ids, "agoda")
-
-    sent = await _alert_emails(db, settings)
-    assert len(sent) == 1
-    email = sent[0][1]
-    assert email.subject == "Comp Hotel hết phòng đêm T2 05/10"
-    assert "trên Booking.com, Agoda" in email.text
-    # Khoá theo run nhỏ nhất của mốc: chạy lại không gửi trùng.
-    row = (await db.execute(select(Notification).where(Notification.status == "sent"))).scalar_one()
-    assert row.scan_run_id == min(booking_run, agoda_run) and row.item_count == 1
-    assert await _alert_emails(db, settings) == []
-
-
-async def test_alert_waits_for_every_channel_run_of_the_slot(
-    db: AsyncSession, settings: Settings
-) -> None:
-    ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
-    await db.commit()
-    await _competitor_sells_out(db, ids, "booking")
-    running = scan_run("n1:agoda", NOW - timedelta(hours=2), channel="agoda", status="running")
-    db.add(running)
-    await db.commit()
-    assert await _alert_emails(db, settings) == []
-    running.status, running.finished_at = "completed", NOW - timedelta(hours=1)
-    await db.commit()
-    sent = await _alert_emails(db, settings)
-    assert len(sent) == 1 and "trên Booking.com" in sent[0][1].text
-
-
-async def test_sold_out_while_other_channel_sells_says_closed(
-    db: AsyncSession, settings: Settings
-) -> None:
-    ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
-    await db.commit()
-    open_offer = _probe(ProbeStatus.OK, (_offer("1", 3, 3, "100"),))
-    await _run_on(db, "n1", "agoda", ids["comp"], open_offer, NOW - timedelta(hours=2))
-    await _competitor_sells_out(db, ids, "booking")
-
-    sent = await _alert_emails(db, settings)
-    assert len(sent) == 1
-    email = sent[0][1]
-    assert email.subject == "Comp Hotel đóng bán trên Booking.com đêm T2 05/10"
-    assert "vẫn bán trên Agoda" in email.text
-
-
-async def test_own_hotel_cheaper_on_one_channel_alerts_parity_gap(
-    db: AsyncSession, settings: Settings
-) -> None:
-    ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
-    await db.commit()
-    at = NOW - timedelta(hours=2)
-
-    def priced(p: str) -> ProbeResult:
-        return _probe(ProbeStatus.OK, (_offer("1", None, 10, p),))
-
-    await _run_on(db, "p", "booking", ids["own"], priced("1000"), at)
-    await _run_on(db, "p", "agoda", ids["own"], priced("900"), at)
-
-    sent = await _alert_emails(db, settings)
-    assert len(sent) == 1
-    email = sent[0][1]
-    # Nhãn của tenant ("Mine") thay cho tên khách sạn.
-    assert email.subject == "Mine đang rẻ hơn 10% trên Agoda đêm T2 05/10"
-    assert "Booking.com: 1.000 ₫" in email.text

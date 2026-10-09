@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import type { HolidayOut, LocalEventOut } from "@/lib/api";
+import type { HolidayKind, HolidayOut, LocalEventOut } from "@/lib/api";
+import { HOLIDAY_KIND_STYLE as KIND_STYLE } from "@/components/holiday-mark";
 import { addDays, parseDate, useFmt } from "@/lib/format";
 import { fmtUplift, localEventCategory, useLocalEventLabel } from "@/lib/local-events";
 import { Card, cx } from "@/components/ui";
@@ -10,16 +11,10 @@ import { IconCalendar } from "@/components/icons";
 
 /**
  * SỰ KIỆN SẮP TỚI: 12 tháng, mỗi tháng một cột, mỗi kỳ lễ một thẻ màu (Tết đỏ, ngày lễ cam,
- * cầu du lịch tím) theo `kind` của backend. Ngày lễ liền nhau cùng `group` gộp thành một kỳ ("Tết Nguyên đán 16/02–20/02").
+ * cầu du lịch tím, lễ thị trường nguồn xanh ngọc, mùa nghỉ xanh lá) theo `kind` của backend. Ngày lễ liền nhau cùng `group` gộp thành một kỳ ("Tết Nguyên đán 16/02–20/02").
  */
 
-type Kind = "tet" | "holiday" | "travel";
-
-const KIND_STYLE: Record<Kind, { bg: string; chip: string }> = {
-  tet: { bg: "linear-gradient(135deg,#b91c1c,#f97316)", chip: "bg-danger-soft text-danger-deep" },
-  holiday: { bg: "linear-gradient(135deg,#ea580c,#fbbf24)", chip: "bg-hot-soft text-hot" },
-  travel: { bg: "linear-gradient(135deg,#6d28d9,#ec4899)", chip: "bg-[#f3e8ff] text-[#6d28d9]" },
-};
+type Kind = HolidayKind;
 
 /** Tên hiển thị của cả kỳ: bỏ phần ngoặc của từng ngày, "Tết Nguyên đán (Mùng 1)" → "Tết Nguyên đán". */
 function baseName(name: string): string {
@@ -58,6 +53,8 @@ export function EventsCalendar({ holidays, localEvents, today }: { holidays: Hol
     uplift: e.expected_uplift_pct,
     note: e.note,
   }));
+  // Chú giải chỉ liệt kê Tết/lễ/cầu du lịch luôn có, cộng các loại khác khi lịch có.
+  const shownKinds = new Set<Kind>(["tet", "holiday", "travel", ...holidays.map((h) => h.kind)]);
   const periods = [...groupPeriods(holidays), ...local].sort((a, b) => a.start.localeCompare(b.start));
   const localCats = [...new Set(localEvents.map((e) => e.category))].map(localEventCategory);
   const key = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
@@ -73,7 +70,7 @@ export function EventsCalendar({ holidays, localEvents, today }: { holidays: Hol
       info={t("info")}
       actions={
         <ul className="flex flex-wrap gap-1.5">
-          {(Object.keys(KIND_STYLE) as Kind[]).map((k) => (
+          {(Object.keys(KIND_STYLE) as Kind[]).filter((k) => shownKinds.has(k)).map((k) => (
             <li key={k} className={cx("rounded-md px-2 py-0.5 text-xs font-semibold", KIND_STYLE[k].chip)}>
               {t(`kind.${k}`)}
             </li>

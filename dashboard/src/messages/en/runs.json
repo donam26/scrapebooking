@@ -1,8 +1,6 @@
 {
   "title": "Scan history",
-  "meta": "{count, plural, one {# recent run} other {# recent runs}} across all channels",
-  "channelFilter": "Filter by channel",
-  "allChannels": "All",
+  "meta": "{count, plural, one {# recent Booking.com run} other {# recent Booking.com runs}}",
   "trigger": {
     "manual": "Scan now",
     "catchup": "Catch-up",
@@ -15,7 +13,7 @@
     "successRateInfo": "Page reads that returned data (available or sold out) out of all page reads in the last 24 hours.",
     "successRateSub": "{count, plural, one {# read with data} other {# reads with data}}",
     "blocked": "Blocked",
-    "blockedInfo": "The channel blocked the bot (captcha, 403…). The system slows down automatically and pauses a channel when it is blocked often.",
+    "blockedInfo": "Booking.com blocked the bot (captcha, 403…). The system slows down automatically and pauses scanning when it is blocked often.",
     "blockedSub": "page reads in 24 hours",
     "empty": "Scans with no data",
     "emptySub": "in 24 hours"
@@ -24,7 +22,6 @@
     "title": "Scans",
     "info": "Click a scan to see each hotel: status, pages read, blocked, errors.",
     "run": "Scan",
-    "channel": "Channel",
     "trigger": "Trigger",
     "started": "Started",
     "duration": "Duration",

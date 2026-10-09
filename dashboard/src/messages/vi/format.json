@@ -11,5 +11,7 @@
   "durationHours": "{hours}g {minutes}p",
   "tonight": "Đêm nay",
   "tomorrowNight": "Đêm mai",
-  "daysAway": "Còn {count} ngày"
+  "daysAway": "Còn {count} ngày",
+  "priceThousand": "{value}k",
+  "priceMillion": "{value}tr"
 }

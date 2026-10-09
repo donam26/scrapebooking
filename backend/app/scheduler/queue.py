@@ -14,7 +14,7 @@ JOBS_QUEUE = "arq:queue:jobs"  # run_analytics, generate_insight, cron (jobs)
 
 
 def collector_queue(channel: str) -> str:
-    """Hàng đợi probe_hotel/verify_listing/discover_listings của một kênh (một worker mỗi kênh)."""
+    """Hàng đợi probe_hotel/verify_listing của worker Booking.com."""
     return f"arq:queue:collector:{channel}"
 
 
@@ -66,14 +66,6 @@ class ArqJobQueue:
     async def enqueue_verify(self, listing_id: int, channel: str) -> None:
         await self._redis.enqueue_job(
             "verify_listing", listing_id, _queue_name=collector_queue(channel)
-        )
-
-    async def enqueue_discover(self, hotel_id: int, channel: str) -> None:
-        await self._redis.enqueue_job(
-            "discover_listing",
-            hotel_id,
-            _job_id=f"discover:{hotel_id}:{channel}",
-            _queue_name=collector_queue(channel),
         )
 
     async def enqueue_market_list(

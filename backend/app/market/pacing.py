@@ -1,4 +1,4 @@
-"""Nhịp đặt phòng so cùng kỳ và đối chiếu với PMS (hàm thuần).
+"""Nhịp (so các tuần trước, cùng thứ — không phải STLY) và đối chiếu với PMS (hàm thuần).
 
 Nhịp của một đêm ở số ngày trước khi đến d = công suất hiện tại − trung vị công suất của các đêm
 tham chiếu ở cùng d: cùng thứ trong tuần, 1–8 tuần trước, cùng là ngày lễ hoặc cùng không. Cần ít
@@ -21,7 +21,7 @@ LEAD_TOLERANCE = 1  # chấp nhận quan sát lệch 1 ngày so với d (lịch 
 class Pace:
     reference: Decimal | None  # trung vị công suất các đêm tham chiếu ở cùng d
     references: int  # số đêm tham chiếu dùng được
-    delta: Decimal | None  # hiện tại − tham chiếu (âm = chậm hơn cùng kỳ)
+    delta: Decimal | None  # hiện tại − tham chiếu (âm = chậm hơn các tuần trước)
 
 
 def occ_at_lead(curve: dict[int, Decimal], lead: int) -> Decimal | None:
@@ -92,3 +92,54 @@ def calibrate(pairs: Iterable[tuple[Decimal, Decimal]]) -> Calibration:
     mae = (sum(abs(d) for d in diffs) / n).quantize(Decimal("0.1"))
     bias = (sum(diffs) / n).quantize(Decimal("0.1"))
     return Calibration(len(diffs), mae, bias)
+
+
+# Nhóm số ngày trước khi đến để báo sai số chỉ báo lấp đầy so với PMS (roadmap 1.3, 5.6).
+LEAD_BUCKETS: tuple[tuple[str, int, int], ...] = (("0-7", 0, 7), ("8-30", 8, 30), ("31-90", 31, 90))
+# Sai số tuyệt đối trung bình (điểm %) quá ngưỡng này thì giao diện ẩn chỉ báo ở nhóm đó.
+MAX_USABLE_MAE_PTS = Decimal(20)
+
+
+@dataclass(frozen=True)
+class LeadCalibration:
+    bucket: str
+    nights: int
+    mean_abs_error_pts: Decimal | None
+    bias_pts: Decimal | None
+    # MAPE (%) so với công suất PMS > 0; None khi không có đêm nào có công suất PMS > 0.
+    mape_pct: Decimal | None
+    usable: bool
+
+
+def calibrate_by_lead(
+    triples: Iterable[tuple[int, Decimal, Decimal]],
+) -> list[LeadCalibration]:
+    """(số ngày trước khi đến lúc ước tính, ước tính 0..1, PMS cuối cùng 0..1) → sai số theo nhóm
+    lead time. Chỉ báo từ tồn phòng OTA không có chuẩn tuyệt đối (Suzuki 2023): phải tự hiệu
+    chỉnh bằng chính khách sạn của bạn."""
+    rows = list(triples)
+    out = []
+    for name, lo, hi in LEAD_BUCKETS:
+        sel = [(est, real) for lead, est, real in rows if lo <= lead <= hi]
+        cal = calibrate(sel)
+        nonzero = [(est, real) for est, real in sel if real > 0]
+        mape = (
+            (
+                Decimal(sum((abs(est - real) / real for est, real in nonzero), Decimal(0)))
+                / len(nonzero)
+                * 100
+            ).quantize(Decimal("0.1"))
+            if nonzero
+            else None
+        )
+        out.append(
+            LeadCalibration(
+                name,
+                cal.nights,
+                cal.mean_abs_error_pts,
+                cal.bias_pts,
+                mape,
+                cal.mean_abs_error_pts is not None and cal.mean_abs_error_pts <= MAX_USABLE_MAE_PTS,
+            )
+        )
+    return out

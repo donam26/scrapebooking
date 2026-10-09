@@ -2,16 +2,16 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
-import { api, type ChannelOut, type ListingAction, type ListingOut, type ScanRunOut, type WatchItemOut } from "@/lib/api";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { api, type ChannelOut, type ListingAction, type ListingOut, type ScanRunOut, type WatchItemOut, type WatchItemUpdate } from "@/lib/api";
 import { useApi, useInterval, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { channelName, detectChannel, hotelTitle } from "@/lib/channels";
-import { useFmt } from "@/lib/format";
+import { BOOKING, hotelTitle, isBookingUrl } from "@/lib/hotels";
+import { num, useFmt } from "@/lib/format";
 import { useLabel } from "@/lib/labels";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, Note, Segmented, Select, Skeleton, cx } from "@/components/ui";
-import { ChipAction, ListingChip } from "@/components/channels";
-import { IconBuilding, IconCheck, IconClock, IconClose, IconLink, IconPause, IconPencil, IconPlay, IconPlus, IconRefresh, IconSearch } from "@/components/icons";
+import { ChipAction, ListingChip } from "@/components/listing-chip";
+import { IconAlert, IconBuilding, IconCheck, IconClock, IconLink, IconPause, IconPencil, IconPlay, IconPlus, IconRefresh, IconStar } from "@/components/icons";
 
 type Role = "self" | "competitor";
 
@@ -19,19 +19,10 @@ const ROLES: Role[] = ["competitor", "self"];
 
 type WatchlistT = ReturnType<typeof useTranslations<"settings.watchlist">>;
 
-/** Nhịp tải lại khi đang có kênh chờ kiểm tra hoặc đang tìm trên kênh khác. */
+/** Nhịp tải lại khi đang có đường dẫn chờ kiểm tra. */
 const POLL_MS = 5_000;
-/** Sau "Tìm trên kênh khác": tiếp tục tải lại chừng này để gợi ý hiện ra. */
-const DISCOVER_WINDOW_MS = 90_000;
 
-function supportedNames(channels: ChannelOut[]): string {
-  return channels
-    .filter((c) => c.collectable)
-    .map((c) => c.name)
-    .join(", ");
-}
-
-/** Kiểm tra sơ bộ phía trình duyệt: đường dẫn hợp lệ và thuộc một kênh đang quét được. */
+/** Kiểm tra sơ bộ phía trình duyệt: đường dẫn hợp lệ và là trang Booking.com. */
 function urlProblem(raw: string, channels: ChannelOut[], t: WatchlistT): string | null {
   const v = raw.trim();
   if (!v) return t("url.empty");
@@ -40,15 +31,12 @@ function urlProblem(raw: string, channels: ChannelOut[], t: WatchlistT): string 
   } catch {
     return t("url.malformed");
   }
-  if (channels.length === 0) return null; // chưa tải được danh sách kênh: để server kiểm tra
-  const ch = detectChannel(v, channels);
-  const supported = supportedNames(channels);
-  if (!ch) return t("url.unsupported", { channels: supported });
-  if (!ch.collectable) return t("url.notCollectable", { channel: ch.name, channels: supported });
+  if (channels.length === 0) return null; // chưa tải được danh sách tên miền: để server kiểm tra
+  if (!isBookingUrl(v, channels)) return t("url.notBooking");
   return null;
 }
 
-/** Ô nhập URL có nhãn kênh nhận ra được ở mép phải. */
+/** Ô nhập URL, có nhãn "Booking.com" ở mép phải khi nhận ra đường dẫn Booking.com. */
 function UrlInput({
   id,
   value,
@@ -66,7 +54,7 @@ function UrlInput({
   placeholder: string;
   autoFocus?: boolean;
 }) {
-  const detected = value.trim() ? detectChannel(value, channels) : null;
+  const detected = value.trim() !== "" && isBookingUrl(value, channels);
   return (
     <div className="relative">
       <IconLink size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -79,20 +67,17 @@ function UrlInput({
         placeholder={placeholder}
         value={value}
         aria-invalid={problem ? true : undefined}
-        aria-describedby={problem ? `${id}-problem` : `${id}-channel`}
+        aria-describedby={problem ? `${id}-problem` : detected ? `${id}-source` : undefined}
         onChange={(e) => onChange(e.target.value)}
         className={cx("pl-9", detected && "pr-28", problem && "border-danger focus:border-danger focus:ring-danger/15")}
       />
       {detected && (
         <span
-          id={`${id}-channel`}
-          className={cx(
-            "pointer-events-none absolute right-1.5 top-1/2 inline-flex h-6 max-w-[104px] -translate-y-1/2 items-center gap-1 truncate rounded-md px-2 text-xs font-semibold",
-            detected.collectable ? "bg-brand-soft text-brand-hover" : "bg-sunken text-muted",
-          )}
+          id={`${id}-source`}
+          className="pointer-events-none absolute right-1.5 top-1/2 inline-flex h-6 max-w-[104px] -translate-y-1/2 items-center gap-1 truncate rounded-md bg-brand-soft px-2 text-xs font-semibold text-brand-hover"
         >
-          {detected.collectable && <IconCheck size={12} className="shrink-0" />}
-          {detected.name}
+          <IconCheck size={12} className="shrink-0" />
+          {BOOKING}
         </span>
       )}
     </div>
@@ -104,13 +89,12 @@ function AddForm({ onAdded, hasSelf, channels }: { onAdded: () => void; hasSelf:
   const [role, setRole] = useState<Role>(hasSelf ? "competitor" : "self");
   const [label, setLabel] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
-  const [added, setAdded] = useState<{ name: string; channel: string } | null>(null);
+  const [added, setAdded] = useState<string | null>(null);
   const t = useTranslations("settings.watchlist");
   const labelOf = useLabel();
   const add = useMutation(async () => {
     const item = await api.watchlist.add({ url: url.trim(), role, label: label.trim() || null });
-    const channel = detectChannel(url, channels)?.code ?? item.hotel.listings[0]?.channel ?? "";
-    setAdded({ name: hotelTitle(item.hotel, item.label), channel });
+    setAdded(hotelTitle(item.hotel, item.label));
     setUrl("");
     setLabel("");
     onAdded();
@@ -122,12 +106,8 @@ function AddForm({ onAdded, hasSelf, channels }: { onAdded: () => void; hasSelf:
     setAdded(null);
     if (!p) void add.run();
   }
-  const supported = supportedNames(channels);
   return (
-    <Card
-      title={t("add.title")}
-      description={supported ? t("add.description", { channels: supported }) : t("add.descriptionAny")}
-    >
+    <Card title={t("add.title")} description={t("add.description")}>
       <form onSubmit={submit} noValidate className="space-y-3">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_200px_auto] lg:items-end">
           <Field label={t("add.urlLabel")} htmlFor="wl-url">
@@ -136,7 +116,7 @@ function AddForm({ onAdded, hasSelf, channels }: { onAdded: () => void; hasSelf:
               value={url}
               channels={channels}
               problem={problem}
-              placeholder={supported ? t("add.urlPlaceholder", { channels: supported }) : t("add.urlPlaceholderAny")}
+              placeholder={t("add.urlPlaceholder")}
               onChange={(v) => {
                 setUrl(v);
                 if (problem) setProblem(null);
@@ -154,20 +134,16 @@ function AddForm({ onAdded, hasSelf, channels }: { onAdded: () => void; hasSelf:
             {t("add.submit")}
           </Button>
         </div>
-        {problem ? (
+        {problem && (
           <p id="wl-url-problem" role="alert" className="text-sm text-danger">
             {problem}
           </p>
-        ) : (
-          supported && <p className="text-xs text-muted">{t("add.supported", { channels: supported })}</p>
         )}
         <ErrorBox error={add.error} title={t("add.errorTitle")} />
         {added && !add.error && (
           <p role="status" className="flex items-start gap-1.5 text-sm text-yours-deep">
             <IconCheck size={16} className="mt-0.5 shrink-0" />
-            <span>
-              {added.channel ? t("add.addedOn", { name: added.name, channel: channelName(added.channel) }) : t("add.added", { name: added.name })}
-            </span>
+            <span>{t("add.added", { name: added })}</span>
           </p>
         )}
       </form>
@@ -175,60 +151,50 @@ function AddForm({ onAdded, hasSelf, channels }: { onAdded: () => void; hasSelf:
   );
 }
 
-/** Chip một kênh kèm thao tác phù hợp trạng thái. */
+/** Chip trang Booking.com của khách sạn kèm thao tác phù hợp trạng thái. */
 function ListingControl({ hotelId, listing, canWrite, isOperator, onChanged }: { hotelId: number; listing: ListingOut; canWrite: boolean; isOperator: boolean; onChanged: () => void }) {
   const act = useMutation(async (action: ListingAction) => {
     await api.watchlist.listingAction(hotelId, listing.id, action);
     onChanged();
   });
   const t = useTranslations("settings.watchlist.listing");
-  const name = channelName(listing.channel);
   const s = listing.status;
   return (
     <>
       <ListingChip listing={listing}>
-        {canWrite && s === "suggested" && (
-          <>
-            <ChipAction onClick={() => void act.run("confirm")} busy={act.busy} title={t("confirmTitle", { channel: name })}>
-              <IconCheck size={13} /> {t("confirm")}
-            </ChipAction>
-            <ChipAction tone="muted" onClick={() => void act.run("reject")} busy={act.busy} title={t("rejectTitle")}>
-              {t("reject")}
-            </ChipAction>
-          </>
-        )}
         {canWrite && s === "broken" && (
-          <ChipAction onClick={() => void act.run("retry")} busy={act.busy} title={isOperator && listing.last_error ? listing.last_error : t("retryTitle", { channel: name })}>
+          <ChipAction onClick={() => void act.run("retry")} busy={act.busy} title={isOperator && listing.last_error ? listing.last_error : t("retryTitle")}>
             <IconRefresh size={13} /> {t("retry")}
           </ChipAction>
         )}
         {canWrite && s === "paused" && (
-          <ChipAction onClick={() => void act.run("resume")} busy={act.busy} title={t("resumeTitle", { channel: name })}>
+          <ChipAction onClick={() => void act.run("resume")} busy={act.busy} title={t("resumeTitle")}>
             <IconPlay size={13} /> {t("resume")}
           </ChipAction>
         )}
         {canWrite && s === "active" && (
-          <ChipAction tone="muted" onClick={() => void act.run("pause")} busy={act.busy} label={t("pauseLabel", { channel: name })} title={t("pauseTitle", { channel: name })}>
+          <ChipAction tone="muted" onClick={() => void act.run("pause")} busy={act.busy} label={t("pauseLabel")} title={t("pauseTitle")}>
             <IconPause size={13} />
           </ChipAction>
         )}
       </ListingChip>
       {act.error && (
         <li role="alert" className="basis-full text-sm text-danger">
-          {name}: {act.error}
+          {act.error}
         </li>
       )}
     </>
   );
 }
 
-function AddListingForm({ hotelId, channels, onDone, onCancel }: { hotelId: number; channels: ChannelOut[]; onDone: () => void; onCancel: () => void }) {
+/** Thay URL Booking.com của khách sạn (đường dẫn lỗi hoặc dán nhầm). */
+function ReplaceUrlForm({ hotelId, channels, onDone, onCancel }: { hotelId: number; channels: ChannelOut[]; onDone: () => void; onCancel: () => void }) {
   const [url, setUrl] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
-  const id = `wl-add-${hotelId}`;
+  const id = `wl-url-${hotelId}`;
   const t = useTranslations("settings.watchlist");
   const tc = useTranslations("common.actions");
-  const add = useMutation(async () => {
+  const replace = useMutation(async () => {
     await api.watchlist.addListing(hotelId, url.trim());
     onDone();
   });
@@ -236,12 +202,12 @@ function AddListingForm({ hotelId, channels, onDone, onCancel }: { hotelId: numb
     e.preventDefault();
     const p = urlProblem(url, channels, t);
     setProblem(p);
-    if (!p) void add.run();
+    if (!p) void replace.run();
   }
   return (
     <form onSubmit={submit} noValidate className="mt-2.5 space-y-2 rounded-lg bg-subtle p-3">
       <label htmlFor={id} className="block text-sm font-semibold text-body">
-        {t("addListing.label")}
+        {t("replaceUrl.label")}
       </label>
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1 basis-64">
@@ -251,15 +217,15 @@ function AddListingForm({ hotelId, channels, onDone, onCancel }: { hotelId: numb
             value={url}
             channels={channels}
             problem={problem}
-            placeholder={t("addListing.placeholder")}
+            placeholder={t("add.urlPlaceholder")}
             onChange={(v) => {
               setUrl(v);
               if (problem) setProblem(null);
             }}
           />
         </div>
-        <Button type="submit" variant="primary" busy={add.busy} icon={<IconPlus size={16} />}>
-          {t("addListing.submit")}
+        <Button type="submit" variant="primary" busy={replace.busy} icon={<IconCheck size={16} />}>
+          {t("replaceUrl.submit")}
         </Button>
         <Button variant="ghost" onClick={onCancel}>
           {tc("cancel")}
@@ -270,22 +236,205 @@ function AddListingForm({ hotelId, channels, onDone, onCancel }: { hotelId: numb
           {problem}
         </p>
       )}
-      {add.error && (
+      {replace.error && (
         <p role="alert" className="text-sm text-danger">
-          {add.error}
+          {replace.error}
         </p>
       )}
-      {!problem && !add.error && <p className="text-xs text-muted">{t("addListing.replaceNote")}</p>}
+      {!problem && !replace.error && <p className="text-xs text-muted">{t("replaceUrl.note")}</p>}
     </form>
   );
 }
 
-function Row({ item, canWrite, isOperator, channels, onChanged, onDiscover }: { item: WatchItemOut; canWrite: boolean; isOperator: boolean; channels: ChannelOut[]; onChanged: () => void; onDiscover: () => void }) {
+type OwnHotelOption = { id: number; name: string };
+
+/**
+ * Cài đặt compset của một khách sạn (roadmap 7.3, 5.5, 5.6): compset chính/phụ (chỉ compset chính
+ * vào trung vị, chỉ số giá, vị trí giá), thuộc compset của khách sạn nào (khi có từ hai khách sạn của
+ * bạn), tổng số phòng công bố.
+ */
+function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: WatchItemOut; ownHotels: OwnHotelOption[]; canWrite: boolean; onChanged: () => void }) {
+  const t = useTranslations("settings.watchlist.compset");
+  const { fmtInt, fmtNum } = useFmt();
+  const current = item.hotel.rooms_total ?? null;
+  const [rooms, setRooms] = useState(current === null ? "" : String(current));
+  const patch = useMutation(async (body: WatchItemUpdate) => {
+    await api.watchlist.update(item.hotel.id, body);
+    onChanged();
+  });
+  const isComp = item.role !== "self";
+  const editable = canWrite && item.active;
+  const score = num(item.hotel.review_score);
+
+  function commitRooms() {
+    const raw = rooms.trim();
+    const next = raw === "" ? null : Number(raw);
+    if (next !== null && (!Number.isInteger(next) || next < 1 || next > 5000)) {
+      setRooms(current === null ? "" : String(current));
+      return;
+    }
+    if (next === current) return;
+    void patch.run({ rooms_total: next });
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+      {isComp && (
+        <span className="inline-flex items-center gap-2" title={t("tierTitle")}>
+          <span className="whitespace-nowrap text-muted">{t("tier")}</span>
+          {editable ? (
+            <Segmented
+              size="sm"
+              label={t("tier")}
+              value={item.tier}
+              onChange={(v) => v !== item.tier && void patch.run({ tier: v })}
+              items={[
+                { value: "primary", label: t("primary"), title: t("primaryTitle") },
+                { value: "secondary", label: t("secondary"), title: t("secondaryTitle") },
+              ]}
+            />
+          ) : (
+            <Badge tone={item.tier === "primary" ? "blue" : "gray"}>{item.tier === "primary" ? t("primary") : t("secondary")}</Badge>
+          )}
+        </span>
+      )}
+      {isComp && ownHotels.length >= 2 && (
+        <label className="inline-flex items-center gap-2" title={t("compsetOfTitle")}>
+          <span className="whitespace-nowrap text-muted">{t("compsetOf")}</span>
+          <Select
+            value={item.compset_of ?? ""}
+            disabled={!editable || patch.busy}
+            onChange={(e) => void patch.run({ compset_of: e.target.value ? Number(e.target.value) : null })}
+            className="w-52"
+          >
+            <option value="">{t("shared")}</option>
+            {ownHotels.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name}
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
+      <label className="inline-flex items-center gap-2" title={t("roomsTitle")}>
+        <span className="whitespace-nowrap text-muted">{t("rooms")}</span>
+        {editable ? (
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={5000}
+            placeholder={t("roomsPlaceholder")}
+            value={rooms}
+            onChange={(e) => setRooms(e.target.value)}
+            onBlur={commitRooms}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitRooms();
+              }
+            }}
+            aria-label={t("roomsAria", { name: hotelTitle(item.hotel, item.label) })}
+            className="w-24 tabular"
+          />
+        ) : (
+          <span className="font-semibold text-ink tabular">{current === null ? "—" : fmtInt(current)}</span>
+        )}
+      </label>
+      {score !== null && (
+        <span className="inline-flex items-center gap-1 text-muted" title={t("reviewTitle")}>
+          <IconStar size={13} className="text-[#e0a100]" />
+          <span className="font-semibold text-ink tabular">{fmtNum(score, 1)}</span>
+          {item.hotel.review_count ? <span className="tabular">{t("reviews", { count: item.hotel.review_count })}</span> : null}
+        </span>
+      )}
+      {patch.busy && <span className="text-xs text-muted">{t("saving")}</span>}
+      {patch.error && (
+        <span role="alert" className="basis-full text-sm text-danger">
+          {patch.error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Rà soát compset theo quy tắc CoStar STR: ≥4 đối thủ compset chính, không khách sạn nào quá 50% số
+ * phòng compset, rà soát ít nhất 2 lần/năm. Một thẻ cho mỗi khách sạn của bạn (khi có từ hai).
+ */
+function CompsetReview({ ownHotel, items, version }: { ownHotel: OwnHotelOption | null; items: WatchItemOut[]; version: number }) {
+  const t = useTranslations("settings.watchlist.review");
+  const { fmtDate, fmtNum } = useFmt();
+  const q = useApi(`compset-review:${ownHotel?.id ?? ""}:${version}`, () => api.watchlist.compsetReview(ownHotel?.id ?? null));
+  const r = q.data;
+  const nameOf = (id: number | null | undefined) => {
+    const w = items.find((x) => x.hotel.id === id);
+    return w ? hotelTitle(w.hotel, w.label) : t("hotelFallback", { id: id ?? 0 });
+  };
+  function warning(code: string): string {
+    if (!r) return code;
+    switch (code) {
+      case "too_few":
+        return t("warn.too_few", { count: r.primary });
+      case "dominant_hotel": {
+        const share = num(r.dominant_share);
+        return t("warn.dominant_hotel", { name: nameOf(r.dominant_hotel_id), pct: share === null ? "—" : fmtNum(share * 100, 0) });
+      }
+      case "rooms_unknown":
+        return t("warn.rooms_unknown", { count: Math.max(0, r.primary - r.rooms_known) });
+      case "review_due":
+        return r.last_change_at ? t("warn.review_due", { date: fmtDate(r.last_change_at) }) : t("warn.review_due_never");
+      default:
+        return code;
+    }
+  }
+  return (
+    <section className="mx-5 mb-2 mt-3 rounded-lg border border-line bg-subtle px-4 py-3" aria-label={t("aria")}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h4 className="text-sm font-bold text-ink">{ownHotel ? t("titleFor", { name: ownHotel.name }) : t("title")}</h4>
+        {r && <span className="text-xs text-muted tabular">{t("counts", { primary: r.primary, secondary: r.secondary, known: r.rooms_known })}</span>}
+      </div>
+      {q.error && <ErrorBox error={q.error} className="mt-2" />}
+      {!r && !q.error && <Skeleton rows={1} className="mt-2" />}
+      {r &&
+        (r.warnings.length === 0 ? (
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-yours-deep">
+            <IconCheck size={14} className="shrink-0" /> {t("ok")}
+          </p>
+        ) : (
+          <ul className="mt-1.5 space-y-1">
+            {r.warnings.map((w) => (
+              <li key={w} className="flex items-start gap-1.5 text-sm text-warning-deep">
+                <IconAlert size={14} className="mt-0.5 shrink-0" />
+                <span>{warning(w)}</span>
+              </li>
+            ))}
+          </ul>
+        ))}
+      <p className="mt-1.5 text-xs text-muted">{t("rules")}</p>
+    </section>
+  );
+}
+
+function Row({
+  item,
+  canWrite,
+  isOperator,
+  channels,
+  ownHotels,
+  onChanged,
+}: {
+  item: WatchItemOut;
+  canWrite: boolean;
+  isOperator: boolean;
+  channels: ChannelOut[];
+  ownHotels: OwnHotelOption[];
+  onChanged: () => void;
+}) {
   const [editing, setEditing] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [replacing, setReplacing] = useState(false);
   const [label, setLabel] = useState(item.label ?? "");
   const [role, setRole] = useState<string>(item.role);
-  const [searched, setSearched] = useState<string[] | null>(null);
   const t = useTranslations("settings.watchlist.row");
   const tc = useTranslations("common.actions");
   const labelOf = useLabel();
@@ -300,16 +449,10 @@ function Row({ item, canWrite, isOperator, channels, onChanged, onDiscover }: { 
     else await api.watchlist.update(item.hotel.id, { active: true });
     onChanged();
   });
-  const discover = useMutation(async () => {
-    const out = await api.watchlist.discover(item.hotel.id);
-    setSearched(out.channels ?? []);
-    onDiscover();
-  });
   const name = hotelTitle(item.hotel, item.label);
   const fullName = item.hotel.name && item.hotel.name !== name ? item.hotel.name : null;
   const listings = item.hotel.listings;
   const pending = item.active && !listings.some((l) => l.verified_at) && !item.hotel.name;
-  const missing = channels.filter((c) => c.collectable && !listings.some((l) => l.channel === c.code));
 
   return (
     <li className={cx("px-5 py-3.5", !item.active && "bg-subtle/60")}>
@@ -337,6 +480,7 @@ function Row({ item, canWrite, isOperator, channels, onChanged, onDiscover }: { 
               </span>
             )}
           </div>
+          {item.active && <CompsetControls item={item} ownHotels={ownHotels} canWrite={canWrite} onChanged={onChanged} />}
           {editing && (
             <div className="mt-2 flex flex-wrap gap-2">
               <Input aria-label={t("labelAria")} value={label} maxLength={120} placeholder={t("labelPlaceholder")} onChange={(e) => setLabel(e.target.value)} className="w-56 max-w-full" />
@@ -389,59 +533,30 @@ function Row({ item, canWrite, isOperator, channels, onChanged, onDiscover }: { 
         )}
       </div>
 
-      <ul aria-label={t("channelsAria", { name })} className="mt-2.5 flex flex-wrap items-center gap-1.5">
+      <ul aria-label={t("listingAria", { name })} className="mt-2.5 flex flex-wrap items-center gap-1.5">
         {listings.map((l) => (
           <ListingControl key={l.id} hotelId={item.hotel.id} listing={l} canWrite={canWrite && item.active} isOperator={isOperator} onChanged={onChanged} />
         ))}
-        {canWrite && item.active && !adding && (
+        {canWrite && item.active && !replacing && (
           <li>
-            <Button size="sm" variant="quiet" icon={<IconPlus size={15} />} onClick={() => setAdding(true)} className="h-8">
-              {t("addChannel")}
-            </Button>
-          </li>
-        )}
-        {canWrite && item.active && missing.length > 0 && (
-          <li>
-            <Button
-              size="sm"
-              variant="quiet"
-              busy={discover.busy}
-              icon={<IconSearch size={15} />}
-              onClick={() => void discover.run()}
-              className="h-8"
-              title={t("discoverTitle", { channels: missing.map((c) => c.name).join(", ") })}
-            >
-              {t("discover")}
+            <Button size="sm" variant="quiet" icon={listings.length ? <IconLink size={15} /> : <IconPlus size={15} />} onClick={() => setReplacing(true)} className="h-8" title={t("replaceUrlTitle")}>
+              {listings.length ? t("replaceUrl") : t("addUrl")}
             </Button>
           </li>
         )}
       </ul>
-      {searched && !discover.error && (
-        <p role="status" className="mt-2 flex items-center gap-1.5 text-sm text-muted">
-          {searched.length > 0 ? (
-            <>
-              <IconSearch size={14} className="shrink-0" /> {t("searching", { channels: searched.map(channelName).join(", ") })}
-            </>
-          ) : (
-            t("allChannels")
-          )}
-          <button type="button" aria-label={t("dismiss")} onClick={() => setSearched(null)} className="ml-1 grid h-6 w-6 place-items-center rounded-md text-faint hover:bg-sunken hover:text-ink">
-            <IconClose size={13} />
-          </button>
-        </p>
-      )}
-      {adding && (
-        <AddListingForm
+      {replacing && (
+        <ReplaceUrlForm
           hotelId={item.hotel.id}
           channels={channels}
-          onCancel={() => setAdding(false)}
+          onCancel={() => setReplacing(false)}
           onDone={() => {
-            setAdding(false);
+            setReplacing(false);
             onChanged();
           }}
         />
       )}
-      {(save.error || toggle.error || discover.error) && <ErrorBox error={save.error ?? toggle.error ?? discover.error} className="mt-2" />}
+      {(save.error || toggle.error) && <ErrorBox error={save.error ?? toggle.error} className="mt-2" />}
     </li>
   );
 }
@@ -451,17 +566,20 @@ function Group({
   items,
   empty,
   self,
+  children,
   ...rowProps
 }: {
   title: string;
   items: WatchItemOut[];
   empty: string;
   self?: boolean;
+  /** Nội dung chèn dưới tiêu đề nhóm (VD thẻ rà soát compset). */
+  children?: ReactNode;
   canWrite: boolean;
   isOperator: boolean;
   channels: ChannelOut[];
+  ownHotels: OwnHotelOption[];
   onChanged: () => void;
-  onDiscover: () => void;
 }) {
   return (
     <section>
@@ -470,6 +588,7 @@ function Group({
         {title}
         <span className="rounded-full bg-sunken px-1.5 text-xs font-semibold text-muted tabular">{items.length}</span>
       </h3>
+      {children}
       {items.length === 0 ? (
         <p className="mx-5 mb-4 mt-1 rounded-lg bg-subtle px-4 py-3 text-sm text-muted">{empty}</p>
       ) : (
@@ -495,24 +614,18 @@ export function WatchlistTab() {
   const [runs, setRuns] = useState<ScanRunOut[] | null>(null);
   const scan = useMutation(async () => setRuns(await api.watchlist.scanNow()));
   const t = useTranslations("settings.watchlist.list");
+  // Đổi compset (chính/phụ, số phòng…) thì tải lại thẻ rà soát.
+  const [reviewVersion, setReviewVersion] = useState(0);
+  const ownHotels: OwnHotelOption[] = selfItems.filter((it) => it.active).map((it) => ({ id: it.hotel.id, name: hotelTitle(it.hotel, it.label) }));
 
-  // Kênh vừa thêm cần worker kiểm tra; gợi ý từ kênh khác đến sau "Tìm trên kênh khác".
+  // Đường dẫn vừa thêm/thay cần worker kiểm tra: tải lại tới khi xong.
   const checking = items.some((it) => it.active && it.hotel.listings.some((l) => l.status === "unverified"));
-  const [discoverUntil, setDiscoverUntil] = useState(0);
-  useInterval(
-    () => {
-      if (discoverUntil > 0 && Date.now() > discoverUntil) setDiscoverUntil(0);
-      list.reload();
-    },
-    checking || discoverUntil > 0 ? POLL_MS : 0,
-  );
-  const rowProps = {
-    canWrite,
-    isOperator,
-    channels,
-    onChanged: list.reload,
-    onDiscover: () => setDiscoverUntil(Date.now() + DISCOVER_WINDOW_MS),
-  };
+  useInterval(() => list.reload(), checking ? POLL_MS : 0);
+  function handleChanged() {
+    list.reload();
+    setReviewVersion((v) => v + 1);
+  }
+  const rowProps = { canWrite, isOperator, channels, ownHotels, onChanged: handleChanged };
 
   return (
     <div className="space-y-5">
@@ -561,7 +674,7 @@ export function WatchlistTab() {
               <div className="px-5 pt-4">
                 {runs && (
                   <Note tone="info" icon={<IconCheck size={16} />}>
-                    {runs.length === 0 ? t("noChannelsReady") : t("scanStarted", { channels: runs.map((r) => channelName(r.channel)).join(", ") })}
+                    {runs.length === 0 ? t("noneReady") : t("scanStarted")}
                   </Note>
                 )}
                 <ErrorBox error={scan.error} title={t("scanErrorTitle")} />
@@ -575,7 +688,14 @@ export function WatchlistTab() {
               {...rowProps}
             />
             <div className="border-t border-line">
-              <Group title={t("compTitle")} items={compItems} empty={t("compEmpty")} {...rowProps} />
+              <Group title={t("compTitle")} items={compItems} empty={t("compEmpty")} {...rowProps}>
+                {compItems.length > 0 &&
+                  (ownHotels.length >= 2 ? (
+                    ownHotels.map((h) => <CompsetReview key={h.id} ownHotel={h} items={items} version={reviewVersion} />)
+                  ) : (
+                    <CompsetReview ownHotel={null} items={items} version={reviewVersion} />
+                  ))}
+              </Group>
             </div>
             <div className="border-t border-line px-5 py-3 text-xs text-muted">
               {t("legend")}

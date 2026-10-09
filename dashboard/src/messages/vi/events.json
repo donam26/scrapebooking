@@ -1,6 +1,6 @@
 {
-  "title": "Sự kiện",
-  "subtitle": "Mọi biến động giữa hai lượt quét liên tiếp trên từng kênh: hết phòng, có phòng lại, số phòng, giá và chênh lệch giữa các kênh",
+  "title": "Thay đổi",
+  "subtitle": "Mọi biến động trên Booking.com giữa hai lượt quét liên tiếp: hết phòng, có phòng lại, số phòng, giá, hạn chế và khuyến mãi",
   "downloadCsv": "Tải CSV",
   "since": {
     "h24": "24 giờ",
@@ -19,23 +19,27 @@
     "stayFrom": "Đêm lưu trú từ",
     "stayTo": "Đêm lưu trú đến",
     "clear": "Xoá bộ lọc",
-    "channel": "Kênh",
-    "eventType": "Loại sự kiện",
-    "type": "Loại"
+    "eventType": "Loại thay đổi",
+    "type": "Loại",
+    "group": {
+      "rooms": "Phòng",
+      "price": "Giá",
+      "restrictions": "Hạn chế & KM"
+    }
   },
   "highlight": {
-    "text": "Đang làm nổi bật sự kiện #{id} được dẫn từ bản tin (nếu nằm trong trang này).",
+    "text": "Đang làm nổi bật thay đổi #{id} được dẫn từ bản tin (nếu nằm trong trang này).",
     "clear": "Bỏ đánh dấu"
   },
   "list": {
-    "count": "{count} sự kiện",
-    "countMore": "{count}+ sự kiện",
+    "count": "{count} thay đổi",
+    "countMore": "{count}+ thay đổi",
     "filtered": "Theo bộ lọc đang chọn",
     "newestFirst": "Mới nhất trước",
     "prev": "Trước",
     "next": "Sau",
     "page": "Trang {page}",
-    "emptyFiltered": "Không có sự kiện nào khớp bộ lọc. Thử nới khoảng thời gian hoặc bỏ bớt loại sự kiện.",
-    "empty": "Chưa có sự kiện nào. Sự kiện xuất hiện khi hai lượt quét liên tiếp khác nhau."
+    "emptyFiltered": "Không có thay đổi nào khớp bộ lọc. Thử nới khoảng thời gian hoặc bỏ bớt loại thay đổi.",
+    "empty": "Chưa có thay đổi nào. Thay đổi xuất hiện khi hai lượt quét liên tiếp khác nhau."
   }
 }

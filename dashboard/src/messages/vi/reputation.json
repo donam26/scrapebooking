@@ -1,0 +1,69 @@
+{
+  "hotelFallback": "Khách sạn #{id}",
+  "yourHotel": "Khách sạn của bạn",
+  "badge": {
+    "ad": "Quảng cáo",
+    "preferred": "Preferred",
+    "preferred_plus": "Preferred Plus",
+    "genius": "Genius",
+    "free_cancellation": "Huỷ miễn phí"
+  },
+  "reputation": {
+    "title": "Uy tín",
+    "description": "Điểm và số đánh giá trên Booking.com, {days} ngày gần nhất.",
+    "info": "Đọc từ trang kết quả tìm kiếm đã quét, không tốn thêm lượt quét. Số review mới mỗi tháng phản ánh lượng khách lưu trú. Mốc điểm của Booking: 7,0 đủ điều kiện Preferred, 7,5 đủ điều kiện Genius, 8,0 Traveller Review Award, 9,0 nhãn “Superb”.",
+    "col": {
+      "hotel": "Khách sạn",
+      "score": "Điểm",
+      "change": "Thay đổi",
+      "perMonth": "Review mới/tháng",
+      "count": "Số review",
+      "next": "Mốc kế tiếp",
+      "badges": "Huy hiệu"
+    },
+    "gap": "còn {gap} điểm tới mốc {threshold}",
+    "top": "đã trên 9,0",
+    "threshold": {
+      "t70": "Mốc 7,0: đủ điều kiện Preferred của Booking",
+      "t75": "Mốc 7,5: đủ điều kiện Genius",
+      "t80": "Mốc 8,0: Traveller Review Award",
+      "t90": "Mốc 9,0: nhãn “Superb”"
+    },
+    "changeTitle": "So với đầu kỳ {days} ngày",
+    "emptyTitle": "Chưa có điểm đánh giá",
+    "emptyBody": "Điểm và số review được đọc từ trang kết quả tìm kiếm. Chúng sẽ hiện sau vài lượt quét."
+  },
+  "valueMap": {
+    "title": "Giá so với điểm",
+    "description": "Chỉ số giá niêm yết và chỉ số điểm so với trung vị compset (100 = ngang trung vị).",
+    "caveat": "Đây là tương quan, không phải nhân quả: giá cao hơn mức điểm không có nghĩa là giá đang làm mất khách, chỉ là điểm cần xem thêm.",
+    "axisPrice": "Chỉ số giá niêm yết",
+    "axisScore": "Chỉ số điểm",
+    "point": "{name}: giá {price}, điểm {score}",
+    "verdict": {
+      "above": "Giá cao hơn mức điểm",
+      "below": "Giá thấp hơn mức điểm",
+      "match": "Giá tương xứng điểm"
+    },
+    "values": "giá {price} · điểm {score}",
+    "empty": "Cần cả giá niêm yết 30 đêm tới và điểm đánh giá để so."
+  },
+  "visibility": {
+    "title": "Vị trí hiển thị",
+    "description": "Thứ hạng trên trang kết quả của khu vực ở thứ tự mặc định của Booking, {days} ngày gần nhất.",
+    "info": "1 = đầu trang 1. “Không tính QC” bỏ các thẻ quảng cáo đứng trước. Huy hiệu là nhãn hiện trên thẻ khách sạn (Preferred, quảng cáo, deal…).",
+    "col": {
+      "hotel": "Khách sạn",
+      "organic": "Vị trí TB (không tính QC)",
+      "best": "Tốt nhất",
+      "ads": "% lần là quảng cáo",
+      "badges": "Huy hiệu",
+      "scans": "Lượt thấy"
+    },
+    "shown": "hiển thị {rank}",
+    "notSeen": "Không thấy trong trang kết quả",
+    "emptyTitle": "Chưa có dữ liệu vị trí",
+    "emptyBody": "Cần khu vực thị trường (Cài đặt › Thị trường) và ít nhất một lượt quét trang kết quả của khu vực.",
+    "emptyAction": "Thiết lập khu vực"
+  }
+}

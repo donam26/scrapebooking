@@ -3,7 +3,7 @@
     "title": "Settings",
     "subtitleWrite": "Tracked hotels, scan times, local events, email notifications, users and occupancy data from your PMS",
     "subtitleRead": "View the tenant's tracked hotels, scan times, notifications, users and PMS data",
-    "readOnlyNote": "View-only account: you can see every setting but can't change anything. Contact your hotel admin if something needs editing.",
+    "readOnlyNote": "View-only account: you can see every setting but can't change anything, except your own message subscriptions on the Notifications tab. Contact your hotel admin if something needs editing.",
     "tabs": {
       "watchlist": "Hotels",
       "market": "Market",
@@ -11,49 +11,40 @@
       "events": "Events",
       "notifications": "Notifications",
       "users": "Users",
-      "pms": "PMS import"
+      "pms": "PMS import",
+      "strategy": "Price strategy"
     }
   },
   "watchlist": {
     "url": {
-      "empty": "Paste the link to the hotel's page on a booking channel.",
+      "empty": "Paste the link to the hotel's page on Booking.com.",
       "malformed": "That link doesn't look right. Copy the full address from your browser's address bar, starting with https://",
-      "unsupported": "This page isn't supported yet. Supported channels: {channels}.",
-      "notCollectable": "Scanning {channel} isn't supported yet. Supported channels: {channels}."
+      "notBooking": "Only Booking.com hotel pages are supported (e.g. https://www.booking.com/hotel/vn/…)."
     },
     "add": {
       "title": "Add hotel",
-      "description": "Paste the link to the hotel's page on {channels}. We check the link, then look for the same hotel on the other channels for you to confirm.",
-      "descriptionAny": "Paste the link to the hotel's page on a booking channel. We check the link, then look for the same hotel on the other channels for you to confirm.",
+      "description": "Paste the link to the hotel's page on Booking.com. We check the link, then add the hotel to the scan schedule.",
       "urlLabel": "Hotel link",
-      "urlPlaceholder": "Paste a link from {channels}",
-      "urlPlaceholderAny": "https://…",
+      "urlPlaceholder": "https://www.booking.com/hotel/vn/…",
       "role": "Role",
       "labelField": "Display label (optional)",
       "labelPlaceholder": "e.g. Competitor A",
       "submit": "Add hotel",
-      "supported": "Supported: {channels}. Rooms and rates are counted separately on each channel, never added up across channels.",
       "errorTitle": "Couldn't add the hotel",
-      "addedOn": "Added “{name}” on {channel}. We're checking the link, then we'll suggest the same hotel on other channels right in the list below.",
-      "added": "Added “{name}”. We're checking the link, then we'll suggest the same hotel on other channels right in the list below."
+      "added": "Added “{name}”. We're checking the link; scanning starts right after."
     },
     "listing": {
-      "confirmTitle": "Yes, this is the hotel on {channel}: start scanning",
-      "confirm": "Confirm",
-      "rejectTitle": "Not this hotel: dismiss the suggestion",
-      "reject": "Dismiss",
-      "retryTitle": "Recheck the link on {channel}",
+      "retryTitle": "Recheck the Booking.com link",
       "retry": "Retry",
-      "resumeTitle": "Resume scanning this hotel on {channel}",
+      "resumeTitle": "Resume scanning this hotel on Booking.com",
       "resume": "Resume",
-      "pauseLabel": "Pause scanning on {channel}",
-      "pauseTitle": "Pause scanning on {channel} (other channels keep scanning)"
+      "pauseLabel": "Pause scanning on Booking.com",
+      "pauseTitle": "Pause scanning this Booking.com page (applies to every tenant tracking it)"
     },
-    "addListing": {
-      "label": "Link to this hotel on another channel",
-      "placeholder": "https://www.agoda.com/en-gb/hotel-name/hotel/…",
-      "submit": "Add channel",
-      "replaceNote": "If this channel is already set up, the new link replaces the old one."
+    "replaceUrl": {
+      "label": "New Booking.com link for this hotel",
+      "submit": "Change URL",
+      "note": "The new link replaces the old one; we check it again before scanning."
     },
     "row": {
       "stopped": "Not scanning",
@@ -63,37 +54,68 @@
       "labelPlaceholder": "Display label",
       "roleAria": "Role",
       "editAria": "Edit {name}",
-      "stopTitle": "Stop scanning this hotel on all channels (you can turn it back on at any time)",
+      "stopTitle": "Stop scanning this hotel (you can turn it back on at any time)",
       "resumeTitle": "Resume scanning this hotel",
       "stopAria": "Stop scanning {name}",
       "resumeAria": "Resume scanning {name}",
       "stop": "Stop scanning",
       "resume": "Resume",
-      "channelsAria": "Channels for {name}",
-      "addChannel": "Add channel",
-      "discoverTitle": "Look for this hotel on {channels}; results are suggestions for you to confirm",
-      "discover": "Find on other channels",
-      "searching": "Searching {channels}. Suggestions will appear here within a few minutes for you to confirm.",
-      "allChannels": "This hotel is already on every supported channel.",
-      "dismiss": "Dismiss message"
+      "listingAria": "Booking.com page of {name}",
+      "replaceUrl": "Change URL",
+      "addUrl": "Add URL",
+      "replaceUrlTitle": "Replace the hotel's Booking.com link (broken or pasted by mistake)"
     },
     "list": {
       "emptyTitle": "No hotels tracked yet",
-      "emptyWrite": "Add your own hotel first (role “Your hotel”), then add competitors in the same segment. Each hotel's rooms and rates are counted three times a day on every channel.",
+      "emptyWrite": "Add your own hotel first (role “Your hotel”), then add competitors in the same segment. Each hotel's rooms and rates are read on Booking.com on the scan schedule.",
       "emptyRead": "Your admin hasn't added any hotels to track yet.",
       "title": "Watchlist",
       "summary": "{count, plural, one {# hotel} other {# hotels}}, {active, number} being scanned",
       "checking": "Checking new links…",
-      "scanNowTitle": "Scan every tracked hotel on all channels now, without waiting for the next scheduled time",
+      "scanNowTitle": "Scan every tracked hotel now, without waiting for the next scheduled time",
       "scanNow": "Scan now",
-      "noChannelsReady": "No channel is ready to scan yet.",
-      "scanStarted": "Scanning started on {channels}. Results appear on Availability in a few minutes.",
+      "scanStarted": "Scanning started. Results appear on Availability in a few minutes.",
       "scanErrorTitle": "Couldn't start the scan",
       "selfTitle": "Your hotel",
       "selfEmpty": "No hotel of your own yet. Add one with the role “Your hotel” to compare rates with competitors and import PMS data.",
       "compTitle": "Competitors",
       "compEmpty": "No competitors yet. Add the hotels in your segment that you usually compare rates with.",
-      "legend": "Each chip is one channel: a green dot means scanning, a blue dot means checking or a suggestion waiting for you to confirm, a red dot means a broken link. Click a channel name to open the hotel's page on that channel."
+      "legend": "Green dot: scanning · blue: checking the link · red: broken link · grey: paused. Click “Booking.com” to open the hotel's page.",
+      "noneReady": "No hotel is ready to scan yet."
+    },
+    "compset": {
+      "tier": "Comp set",
+      "tierTitle": "Only the primary comp set enters the median, listed-rate index and price position; the secondary set (seasonal, aspirational) is still tracked",
+      "primary": "Primary",
+      "primaryTitle": "Primary comp set: counted in median, price index and price position",
+      "secondary": "Secondary",
+      "secondaryTitle": "Secondary comp set: still tracked, not counted in median or price index",
+      "compsetOf": "Comp set of",
+      "compsetOfTitle": "Which of your hotels this competitor is compared with; “Shared” = comp set of all your hotels",
+      "shared": "Shared",
+      "rooms": "Rooms",
+      "roomsTitle": "Published total room count, used for the fill indicator and the CoStar 50% rule",
+      "roomsPlaceholder": "—",
+      "roomsAria": "Total rooms of {name}",
+      "reviewTitle": "Review score on Booking.com",
+      "reviews": "({count, plural, one {# review} other {# reviews}})",
+      "saving": "Saving…"
+    },
+    "review": {
+      "aria": "Comp set review",
+      "title": "Comp set review (CoStar STR standard)",
+      "titleFor": "Comp set review for {name}",
+      "counts": "{primary} primary · {secondary} secondary · {known}/{primary} with room counts",
+      "ok": "Comp set meets the standard: enough competitors, no single hotel dominates.",
+      "hotelFallback": "Hotel #{id}",
+      "warn": {
+        "too_few": "The primary comp set has only {count, plural, one {# competitor} other {# competitors}}: at least 4 are needed for a meaningful median and price index.",
+        "dominant_hotel": "{name} holds {pct}% of comp set rooms (>50%): one hotel dominates the index.",
+        "rooms_unknown": "{count, plural, one {# competitor has} other {# competitors have}} no room count: enter it to check the 50% rule.",
+        "review_due": "Comp set last changed {date}; review it at least twice a year.",
+        "review_due_never": "The comp set has not been reviewed yet; review it at least twice a year."
+      },
+      "rules": "Rules: at least 4 competitors in the primary set, no hotel above 50% of total comp set rooms, review at least twice a year (replace competitors that drift in stars, score or price)."
     }
   },
   "market": {
@@ -174,11 +196,6 @@
       "add": "Add time",
       "duplicate": "{time} is already scheduled."
     },
-    "reference": {
-      "title": "Reference channel",
-      "description": "Availability, booking pace, the AI brief and report emails compare you with competitors on this channel. Other channels are still scanned and can be viewed with the channel switcher on each screen.",
-      "onlyOne": "add hotels on another channel in the Hotels tab to get more options"
-    },
     "scope": {
       "title": "Scan range and brief",
       "horizon": "Nights ahead to scan",
@@ -218,7 +235,37 @@
     "listTitle": "Local events",
     "listDescription": "Festivals, conferences, tournaments, travel seasons… that affect room demand around your hotel.",
     "emptyTitle": "No events yet",
-    "emptyBody": "Add local events (e.g. F1, fireworks festival, trade fair, peak season) to see them next to market data on the calendar."
+    "emptyBody": "Add local events (e.g. F1, fireworks festival, trade fair, peak season) to see them next to market data on the calendar.",
+    "sourceMarkets": {
+      "title": "Guest source markets",
+      "description": "Pick the countries your guests usually come from. Their holidays (Lunar New Year, Golden Week, Chuseok…) appear on the Terminal+ and Dashboard calendars and in price suggestions, next to Vietnamese holidays.",
+      "info": "Long holidays in a source market usually lift demand for Vietnam a few days before and during the break. Only the countries you pick are shown.",
+      "none": "No market selected: calendars show Vietnamese holidays only.",
+      "selected": "{count} markets selected",
+      "save": "Save",
+      "saved": "Saved",
+      "readOnly": "Only the hotel admin can change source markets.",
+      "market": {
+        "cn": "China",
+        "kr": "South Korea",
+        "jp": "Japan",
+        "tw": "Taiwan",
+        "ru": "Russia",
+        "in": "India",
+        "us": "United States",
+        "au": "Australia"
+      },
+      "examples": {
+        "cn": "Spring Festival, 1 May, Golden Week 1–7 Oct",
+        "kr": "Seollal, Chuseok, year-end break",
+        "jp": "Golden Week, Obon, New Year",
+        "tw": "Lunar New Year, Double Ten",
+        "ru": "New Year break 31 Dec–10 Jan",
+        "in": "Diwali, winter break",
+        "us": "Thanksgiving, winter break",
+        "au": "Spring school break, summer break Dec–Jan"
+      }
+    }
   },
   "notifications": {
     "rules": {
@@ -243,24 +290,48 @@
         "title": "Competitor rate drop",
         "describe": "When a competitor's lowest rate drops by at least <pct></pct> for a night within the next <days></days> nights."
       },
-      "own_parity_gap": {
-        "title": "Your hotel is much cheaper on one channel",
-        "describe": "When your lowest rate on one channel is at least <pct></pct> below the cheapest other channel for a night within the next <days></days> nights, on the same rate basis. Usually a wholesale reseller or a channel discounting on its own."
+      "data_stale": {
+        "title": "Stale data",
+        "describe": "When Booking.com data is older than one scan cycle (scans failed or were blocked), so you don't make decisions on stale numbers."
+      },
+      "market_tight": {
+        "title": "Tight night",
+        "describe": "When at least <pct></pct> of competitors are sold out or almost sold out (≤3 rooms left) for a night within the next <days></days> nights. Usually a moment to raise rates."
+      },
+      "competitor_price_rise": {
+        "title": "Competitor raised rates",
+        "describe": "When a competitor raises its rate by <pct></pct> or more for the same room type and rate plan, for a night within the next <days></days> nights."
+      },
+      "competitor_promo": {
+        "title": "Competitor launched a deep promotion",
+        "describe": "When a competitor launches a promotion of <pct></pct> or more off the strikethrough price, for nights within the next <days></days> nights."
+      },
+      "own_position_drift": {
+        "title": "Your rate drifted from your target position",
+        "describe": "When your listed-price index is more than <pct></pct> away from your target position, for nights within the next <days></days> nights.",
+        "needsStrategy": "Off by default. Set a target position in <link>Price strategy</link> before turning it on."
+      },
+      "own_closed": {
+        "title": "You are sold out or closed to arrival on Booking.com",
+        "describe": "When your hotel is sold out or not accepting arrivals that day on Booking.com, for a night within the next <days></days> nights."
       }
     },
     "param": {
       "aria": "{rule}: {param}",
-      "minGap": "minimum gap",
       "minDrop": "minimum drop",
       "minSoldOut": "minimum competitors sold out",
-      "withinDays": "nights ahead"
+      "withinDays": "nights ahead",
+      "minRise": "minimum increase",
+      "minDepth": "minimum promotion depth",
+      "minShare": "minimum share of competitors",
+      "maxGap": "maximum gap"
     },
     "emailOff": "The email server isn't configured, so OTARadar can't send emails yet. Notifications are still logged under “Recently sent” below.",
     "emailOffOperator": "Set SMTP_HOST, SMTP_FROM (and SMTP_USERNAME, SMTP_PASSWORD) for the jobs worker, then recreate the container.",
     "emailOffTenant": "Contact the OTARadar operations team to turn it on.",
     "rulesTitle": "What to send",
-    "rulesDescription": "Alerts are bundled into one email after each scan, only when a change matches the conditions below.",
-    "invalid": "Enter a number within the allowed range (nights 1–90, drop or gap 3–90%, competitors 1–50).",
+    "rulesDescription": "Alerts are bundled into one message after each scan, only when changes match the conditions below. Applies to every channel.",
+    "invalid": "Enter a whole number from {min} to {max}.",
     "saved": "Saved",
     "recipients": {
       "title": "Email recipients",
@@ -283,12 +354,124 @@
       "title": "Recently sent",
       "description": "Latest {count, plural, one {# notification} other {# notifications}}",
       "emptyTitle": "No notifications yet",
-      "emptyBody": "After the next scan with competitor changes, or once the morning brief is ready, emails will show up here.",
+      "emptyBody": "After the next scan with competitor changes, or when the morning brief is ready, sent messages appear here.",
       "time": "Time",
       "kind": "Type",
       "content": "Content",
       "recipients": "Recipients",
-      "status": "Status"
+      "status": "Status",
+      "channel": "Channel",
+      "resolved": "Handled",
+      "resolvedTitle": "Handled at {time}",
+      "resolve": "Handled",
+      "resolveAria": "Mark as handled: {subject}"
+    },
+    "groups": {
+      "briefs": "Briefs and data status",
+      "competitors": "Competitors and market",
+      "own": "Your hotel"
+    },
+    "channels": {
+      "title": "Delivery channels",
+      "description": "Messages go out through the channels that are ready. Each person picks channels under “Subscriptions”.",
+      "on": "Ready",
+      "off": "Not configured",
+      "email": {
+        "name": "Email",
+        "on": "Sent to the recipient list below and to email subscriptions.",
+        "off": "The email server (SMTP) is not configured."
+      },
+      "zalo": {
+        "name": "Zalo ZNS",
+        "on": "Zalo messages to subscribed phone numbers, about 200–300₫ per delivered message.",
+        "off": "Not configured: needs a verified business Official Account and Zalo-approved templates."
+      },
+      "webhook": {
+        "name": "Webhook",
+        "on": "Posts JSON to each subscription's https URL (Slack, Google Chat, Discord…)."
+      }
+    },
+    "subscriptions": {
+      "title": "Subscriptions",
+      "descriptionAdmin": "Each person picks channels, message types, quiet hours and a daily cap. You see everyone's subscriptions in this hotel.",
+      "descriptionViewer": "Choose the channel, message types and quiet hours that suit you. Only you see your subscriptions.",
+      "add": "Add subscription",
+      "emptyTitle": "No subscriptions yet",
+      "emptyBody": "Add your Zalo or email to get the right alerts at the right time.",
+      "mine": "Yours",
+      "owner": "User #{id}",
+      "ownerUnknown": "Hotel",
+      "allKinds": "All message types",
+      "quiet": "Quiet {start}–{end}",
+      "maxPerDay": "Up to {count} messages/day",
+      "overLimit": "extra ones are bundled into the next",
+      "paused": "Paused",
+      "toggleAria": "Turn subscription {target} on/off",
+      "editAria": "Edit subscription {target}",
+      "removeAria": "Delete subscription {target}",
+      "zaloNotReady": "Zalo is not configured, so Zalo messages can't be sent yet; the subscription is still saved.",
+      "form": {
+        "titleNew": "New subscription",
+        "titleEdit": "Edit subscription",
+        "channel": "Channel",
+        "target": {
+          "email": "Email",
+          "zalo": "Zalo phone number",
+          "webhook": "Webhook URL"
+        },
+        "placeholder": {
+          "email": "you@hotel.com",
+          "zalo": "0912 345 678",
+          "webhook": "https://hooks.slack.com/…"
+        },
+        "hint": {
+          "email": "",
+          "zalo": "A number that uses Zalo; messages come from the OTARadar OA.",
+          "webhook": "https:// only. For Slack, Google Chat, Discord…"
+        },
+        "kinds": "Message types",
+        "kindsHint": "Pick none to receive every type.",
+        "quietStart": "Quiet from",
+        "quietEnd": "to",
+        "quietHint": "Messages during quiet hours are bundled into the next one. Leave empty for no quiet hours.",
+        "maxPerDay": "Max messages/day",
+        "maxPerDayHint": "1–50, empty = no limit.",
+        "active": "Receiving",
+        "save": "Save subscription",
+        "cancel": "Cancel"
+      },
+      "kind": {
+        "alerts": "Alerts",
+        "daily_insight": "Morning brief",
+        "weekly_report": "Weekly report",
+        "data_stale": "Stale data"
+      },
+      "invalid": {
+        "email": "That email doesn't look right, e.g. you@hotel.com.",
+        "phone": "That Vietnamese phone number doesn't look right, e.g. 0912 345 678 or +84 912 345 678.",
+        "webhook": "The webhook URL must start with https:// and be a valid address.",
+        "quiet": "Enter both quiet-hour start and end (HH:MM), or leave both empty.",
+        "quietSame": "Quiet-hour start and end must differ.",
+        "maxPerDay": "Max messages per day must be a whole number from 1 to 50."
+      }
+    },
+    "engagement": {
+      "title": "Message engagement",
+      "description": "Last {weeks} weeks by channel: did messages arrive, get opened and get handled?",
+      "info": "“Clicks” counts people who opened a link in the message. “Handled” counts people who pressed “Handled” in the message or on this page. Cost is the Zalo ZNS fee; email and webhook are free.",
+      "week": "Week",
+      "weekOf": "from {date}",
+      "channel": "Channel",
+      "sent": "Sent",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "skippedTitle": "Not sent because of quiet hours or the daily cap",
+      "clicked": "Clicks",
+      "resolved": "Handled",
+      "cost": "Cost",
+      "rate": "{pct} of sent",
+      "emptyTitle": "No data yet",
+      "emptyBody": "Once the first message goes out by email, Zalo or webhook, weekly sends, clicks and handled counts appear here."
     }
   },
   "users": {

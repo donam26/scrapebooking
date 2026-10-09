@@ -211,7 +211,6 @@ export default function AdminTenantsPage() {
                 insight_hour: d.insight_hour,
                 insight_language: d.insight_language,
                 country_code: d.country_code,
-                reference_channel: "booking",
               });
               setShowCreate(false);
               await afterChange();

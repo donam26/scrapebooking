@@ -208,6 +208,57 @@ def check_proxy() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("canary")
+def canary() -> None:
+    """Canary trôi parser (0.8): độ phủ trường parse 24h qua so với 7 ngày trước, theo kênh."""
+    from app.ops.canary import Coverage, coverage_since, run_canary
+
+    async def _do(s: AsyncSession) -> tuple[list[str], dict[str, Coverage]]:
+        now = datetime.now(tz=UTC)
+        cov = await coverage_since(s, now - timedelta(hours=24), now)
+        return await run_canary(s, now), cov
+
+    alerts, cov = _run(_do)
+    for ch, c in sorted(cov.items()):
+        shares = ", ".join(f"{k}={v:.0%}" for k, v in c.shares.items())
+        typer.echo(f"{ch}: ok_probes={c.ok_probes}, {shares}")
+    for a in alerts:
+        typer.echo(a)
+    if alerts:
+        raise typer.Exit(code=1)
+
+
+@app.command("check-ops")
+def check_ops() -> None:
+    """Kiểm tra cấu hình kênh cảnh báo vận hành và giao tin (0.4, 0.5): SMTP, OPS_ALERT_EMAILS,
+    webhook, Zalo ZNS, số template proxy. Thoát mã 1 nếu cảnh báo vận hành chỉ ghi log."""
+    from app.notify.email_sender import SmtpEmailSender
+    from app.ops.alerts import LogAlerter, make_alerter
+
+    st = get_settings()
+    alerter = make_alerter(st)
+    rows = [
+        ("proxy templates", str(len(st.proxy_templates)), len(st.proxy_templates) >= 2),
+        (
+            "smtp",
+            "configured" if SmtpEmailSender(st).configured else "missing",
+            SmtpEmailSender(st).configured,
+        ),
+        ("ops alert emails", str(len(st.ops_alert_email_list)), bool(st.ops_alert_email_list)),
+        (
+            "ops alert webhooks",
+            str(len(st.ops_alert_webhook_url_list)),
+            bool(st.ops_alert_webhook_url_list),
+        ),
+        ("zalo zns", "configured" if st.zalo_zns_configured else "missing", st.zalo_zns_configured),
+        ("ops alerter", type(alerter).__name__, not isinstance(alerter, LogAlerter)),
+    ]
+    for name, value, ok in rows:
+        typer.echo(f"{'OK ' if ok else 'WARN'} {name}: {value}")
+    if isinstance(alerter, LogAlerter):
+        raise typer.Exit(code=1)
+
+
 @app.command("ensure-partitions")
 def ensure_partitions(months: int = typer.Option(3, "--months")) -> None:
     async def _do(s: AsyncSession) -> list[str]:
@@ -351,9 +402,17 @@ def run_status(limit: int = typer.Option(5, "--limit")) -> None:
 def analyze(
     scan_run_id: int | None = typer.Option(None, "--run-id"),
     all_pending: bool = typer.Option(False, "--all-pending"),
+    reanalyze_days: int | None = typer.Option(
+        None,
+        "--reanalyze-days",
+        help="Tính lại mọi run đã chốt trong N ngày (theo thứ tự thời gian) sau khi đổi quy tắc",
+    ),
 ) -> None:
     """Chạy analytics cho một scan run đã chốt (mặc định: run chốt gần nhất)."""
+    from sqlalchemy import select
+
     from app.analytics.service import AnalyticsService
+    from app.db.models import ScanRun
 
     async def _do(s: AsyncSession) -> list[str]:
         settings = get_settings()
@@ -362,7 +421,21 @@ def analyze(
             low_stock_threshold=settings.low_stock_threshold,
             price_change_threshold_pct=settings.price_change_threshold_pct,
         )
-        if all_pending:
+        if reanalyze_days is not None:
+            since = datetime.now(tz=UTC) - timedelta(days=reanalyze_days)
+            run_ids = [
+                r
+                for (r,) in await s.execute(
+                    select(ScanRun.id)
+                    .where(
+                        ScanRun.status.in_(["completed", "partial"]),
+                        ScanRun.total_probes > 0,
+                        ScanRun.finished_at >= since,
+                    )
+                    .order_by(ScanRun.finished_at)
+                )
+            ]
+        elif all_pending:
             run_ids = await svc.pending_run_ids()
         elif scan_run_id is not None:
             run_ids = [scan_run_id]

@@ -168,7 +168,7 @@ export default async function LandingPage() {
             <li>{t.rich("hero.trust.scans", { b })}</li>
             <li>{t.rich("hero.trust.nights", { b })}</li>
             <li>{t.rich("hero.trust.events", { b })}</li>
-            <li>{t.rich("hero.trust.channels", { b })}</li>
+            <li>{t.rich("hero.trust.source", { b })}</li>
           </ul>
         </section>
 

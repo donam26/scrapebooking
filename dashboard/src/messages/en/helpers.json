@@ -1,15 +1,17 @@
 {
   "nightReason": {
-    "rankCheapest": "cheapest of {total}",
-    "rankPriciest": "most expensive of {total}",
-    "rank": "{rank, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} cheapest of {total}",
+    "rankCheapest": "price position 1/{total} (cheapest)",
+    "rankPriciest": "price position {total}/{total} (priciest)",
+    "rank": "price position {rank}/{total} (1 = cheapest)",
     "vsMedianLevel": "in line with the median",
     "vsMedianBelow": "{pct}% below the median",
     "vsMedianAbove": "{pct}% above the median",
     "soldOut": "{soldOut}/{observed} competitors sold out",
     "yourPrice": "your rate {vs}",
     "yourPriceRank": "your rate {vs}, {rank}",
-    "holiday": "falls on {holiday}"
+    "holiday": "falls on {holiday}",
+    "smallSample": "small sample",
+    "restricted": "{count} competitors restricted (not sold out)"
   },
   "marketMetrics": {
     "demand": {
@@ -18,13 +20,16 @@
       "high": "High"
     },
     "position": {
-      "level": "In line with market",
-      "below": "Below market",
-      "above": "Above market"
-    }
+      "level": "In line with median",
+      "below": "Below median",
+      "belowTight": "Cheaper while the market is tight — room to raise",
+      "above": "Above median"
+    },
+    "smallSample": "small sample",
+    "smallSampleTitle": "Fewer than {min} competitors observed: counts only, no percentage or level"
   },
   "market": {
-    "paceFlat": "flat vs last year",
+    "paceFlat": "flat vs prior weeks",
     "paceUp": "+{pts} pts",
     "paceDown": "−{pts} pts",
     "suggestion": {
@@ -36,19 +41,6 @@
     "soldOut": "Sold out",
     "notEnoughData": "Not enough data"
   },
-  "channels": {
-    "windowDays": "the past {count} days",
-    "windowHours": "the past {count, plural, one {hour} other {# hours}}",
-    "bookingsWindow": "booked {count, plural, one {once} other {# times}} in {window}",
-    "bookingsToday": "booked {count, plural, one {once} other {# times}} today",
-    "lastBookedHours": "last booked {count, plural, one {# hour} other {# hours}} ago",
-    "lastBookedMinutes": "last booked {count, plural, one {# minute} other {# minutes}} ago",
-    "roomsSold": "{count, plural, one {# room} other {# rooms}} sold in {window}",
-    "bookingsMonthWindow": "{count, plural, one {# booking} other {# bookings}} in {window}",
-    "bookingsMonth": "{count, plural, one {# booking} other {# bookings}} this month",
-    "highDemandNight": "high demand for the night of {night}",
-    "highDemand": "in high demand"
-  },
   "localEvents": {
     "category": {
       "festival": "Festival",
@@ -57,5 +49,14 @@
       "season": "Season",
       "other": "Other"
     }
+  },
+  "rates": {
+    "refundable": "refundable",
+    "nonRefundable": "non-refundable",
+    "breakfast": "breakfast included",
+    "roomOnly": "no breakfast",
+    "unknownConditions": "rate conditions unknown",
+    "anyRate": "lowest rate of any plan",
+    "sameRate": "same plan: {conditions}"
   }
 }

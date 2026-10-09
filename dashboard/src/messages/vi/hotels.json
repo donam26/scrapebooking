@@ -3,17 +3,17 @@
     "fallbackTitle": "Khách sạn",
     "crumb": "Đối thủ",
     "stars": "{stars} sao",
-    "dataOn": "Số liệu trên <b>{channel}</b>",
     "cols": {
       "rooms": "Phòng còn",
       "price": "Giá thấp nhất",
       "change7d": "Giá đổi 7 ngày",
-      "pickup24h": "Pickup 24h",
-      "velocity3d": "Tốc độ 3 ngày",
+      "pickup24h": "≈ Phòng còn giảm (24h)",
+      "velocity3d": "≈ Phòng còn giảm/ngày (3 ngày)",
       "soldOutAt": "Hết phòng lúc",
       "restockedAt": "Có lại lúc",
       "exactShare": "Tỷ lệ số chính xác",
-      "observedAt": "Quan sát lúc"
+      "observedAt": "Quan sát lúc",
+      "promo": "Khuyến mãi"
     },
     "rooms": {
       "soldOut": "Hết phòng",
@@ -21,17 +21,22 @@
       "none": "Chưa có",
       "hiddenShort": "Ẩn số",
       "hidden": "Còn phòng, ẩn số",
-      "count": "{count} phòng"
+      "count": "{count} phòng",
+      "minStay": "Chỉ bán từ {count} đêm",
+      "restricted": "Bị hạn chế",
+      "noPrice": "Không có giá",
+      "stale": "dữ liệu cũ hơn 48 giờ"
     },
     "stats": {
       "soldOut": "Đêm hết phòng",
       "nights": "{count} đêm",
       "soldOutHint": "Trong {count} đêm đang xem",
       "tight": "Đêm còn ≤ 3 phòng",
-      "tightHint": "Theo số {channel} báo chính xác",
+      "tightHint": "Theo số Booking.com báo chính xác",
       "priceRange": "Giá thấp nhất mỗi đêm",
       "lastObserved": "Quan sát gần nhất",
-      "lastObservedHint": "{count} sự kiện gần nhất bên dưới"
+      "lastObservedHint": "{count} thay đổi gần nhất bên dưới",
+      "restricted": "{count} đêm bị hạn chế (không tính là hết)"
     },
     "nights": {
       "title": "Theo từng đêm",
@@ -39,7 +44,7 @@
       "night": "Đêm"
     },
     "events": {
-      "title": "Sự kiện gần đây",
+      "title": "Thay đổi gần đây",
       "description": "{count} thay đổi gần nhất của khách sạn này",
       "empty": "Chưa có biến động nào được ghi nhận cho khách sạn này."
     }
@@ -50,11 +55,8 @@
     "nightCrumb": "Đêm {night}",
     "invalidDate": "Ngày không hợp lệ",
     "title": "{weekday}, {date}",
-    "onChannel": "trên {channel}",
     "lastScan": "Quét gần nhất {when}",
-    "market": "Thị trường đêm này:",
-    "marketOn": "Thị trường đêm này trên {channel}:",
-    "detailOn": "Chi tiết trên {channel}",
+    "market": "Compset đêm này:",
     "roomTypeFallback": "Loại phòng #{id}",
     "rates": {
       "refundable": "Hoàn huỷ",
@@ -65,7 +67,11 @@
       "exact": "Còn {count} phòng",
       "hidden": "Còn phòng, ẩn số",
       "soldOut": "Hết phòng",
-      "unknown": "Không đọc được"
+      "unknown": "Không đọc được",
+      "minStay": "Chỉ bán từ {count} đêm",
+      "restricted": "Bị hạn chế",
+      "noPrice": "Không có giá",
+      "stale": "dữ liệu cũ hơn 48 giờ"
     },
     "noData": {
       "beyondTitle": "Đêm này nằm ngoài phạm vi quét",
@@ -81,33 +87,38 @@
       "notRecorded": "Các lượt quét gần nhất (tới {when}) không ghi nhận được đêm này."
     },
     "sameNight": {
-      "title": "Cùng đêm trên {channel}",
+      "title": "Cùng đêm trên Booking.com",
       "summary": "{soldOut}/{observed} đối thủ hết phòng · trung vị {median}",
       "noCompetitors": "Chưa có đối thủ nào có dữ liệu cho đêm này",
-      "yours": "· của bạn"
+      "yours": "· của bạn",
+      "soldOut": "{soldOut}/{observed} đối thủ hết phòng",
+      "restricted": "{count} bị hạn chế (không tính là hết)",
+      "median": "Trung vị {median}"
     },
-    "compare": {
-      "aria": "So kênh đêm này",
-      "title": "So kênh",
-      "hint": "Mỗi kênh đếm phòng riêng, không cộng với nhau; giá chỉ so giữa các kênh đã gồm thuế phí",
-      "viewing": "· đang xem",
+    "nightRate": {
+      "title": "Giá Booking.com đêm này",
       "noPrice": "Không có giá",
-      "cheapestHint": "Rẻ nhất trong các kênh có giá đã gồm thuế phí",
-      "cheapest": "Rẻ nhất",
-      "taxExclusive": "Chưa gồm thuế phí, không đem so",
       "refundableFrom": "Hoàn huỷ từ {price}",
       "scannedAt": "Quét {when}",
-      "notScanned": "Chưa quét đêm này"
+      "notScanned": "Chưa quét đêm này",
+      "priceBeforePromo": "Giá trước khuyến mãi",
+      "conditionsTitle": "Điều kiện của gói rẻ nhất",
+      "supplier": "Nguồn bán: {supplier}",
+      "breakfastFrom": "Có bữa sáng từ {price}",
+      "roomOnlyFrom": "Chỉ phòng từ {price}",
+      "minStay": "Tối thiểu {count} đêm",
+      "taxExclusive": "Chưa gồm thuế phí"
     },
     "latest": {
       "title": "Từng loại phòng ở lượt quét gần nhất",
-      "description": "{count} loại phòng đang mở bán cho 2 người lớn trên {channel}",
+      "description": "{count} loại phòng đang mở bán cho 2 người lớn trên Booking.com",
       "soldOut": "Lượt quét {when} ghi nhận hết phòng: không còn loại phòng nào mở bán. Xem lịch sử bên dưới.",
       "unknown": "Lượt quét {when} không đọc được trang (bị chặn hoặc lỗi). Xem lịch sử bên dưới.",
       "empty": "Lượt quét {when} không ghi được loại phòng nào.",
       "maxGuests": "Tối đa {count} khách",
       "refundableFrom": "Hoàn huỷ từ {price}",
-      "rateScoped": "“Theo giá”: kênh chỉ báo số phòng còn ở mức giá rẻ nhất, nên với cả loại phòng là ít nhất N"
+      "rateScoped": "“Theo giá”: chỉ biết số phòng còn ở mức giá rẻ nhất, nên với cả loại phòng là ít nhất N",
+      "restricted": "Lượt quét {when}: Booking.com không nhận đặt 1 đêm từ ngày này (min-stay hoặc đóng ngày đến), không phải hết phòng. Xem lịch sử bên dưới."
     },
     "cols": {
       "roomType": "Loại phòng",
@@ -127,7 +138,7 @@
       "range": "Khoảng lịch sử",
       "days": "{count} ngày",
       "roomsChart": "Số phòng còn theo lượt quét",
-      "onlyFloor": "Mọi loại phòng đều báo <b>còn ít nhất {count} phòng</b> ở mọi lượt quét. {channel} không lộ số chính xác nên không có đường để vẽ.",
+      "onlyFloor": "Mọi loại phòng đều báo <b>còn ít nhất {count} phòng</b> ở mọi lượt quét. Booking.com không lộ số chính xác nên không có đường để vẽ.",
       "roomsEmpty": "Chưa có số phòng đếm được trong khoảng này",
       "priceChart": "Giá thấp nhất theo lượt quét",
       "priceChartCurrency": "Giá thấp nhất theo lượt quét ({currency})",
@@ -142,7 +153,7 @@
       "title": "Lịch sử từng loại phòng <muted>({count} bản ghi)</muted>"
     },
     "events": {
-      "title": "Sự kiện của đêm này",
+      "title": "Thay đổi của đêm này",
       "description": "{count} thay đổi",
       "empty": "Chưa có biến động nào cho đêm này trong khoảng đã chọn."
     }

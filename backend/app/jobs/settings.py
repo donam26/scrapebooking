@@ -141,7 +141,19 @@ async def dispatch_notifications(ctx: dict[str, Any]) -> dict[str, int]:
         "insights": report.insights,
         "weekly": report.weekly,
         "retried": report.retried,
+        "stale": report.stale,
     }
+
+
+async def parser_canary(ctx: dict[str, Any]) -> int:
+    """Cron hằng ngày (0.8): báo operator khi độ phủ trường parse của một kênh tụt."""
+    from app.ops.canary import run_canary
+
+    async with ctx["session_factory"]() as s:
+        alerts = await run_canary(s, datetime.now(tz=UTC))
+    for msg in alerts:
+        await ctx["alerter"].send(msg)
+    return len(alerts)
 
 
 async def nightly_backup(ctx: dict[str, Any]) -> str:
@@ -176,6 +188,7 @@ class JobsWorkerSettings:
         cron(estimate_occupancy_catch_up, minute={4, 14, 24, 34, 44, 54}),
         cron(dispatch_notifications, minute={1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56}),
         cron(nightly_backup, hour={19}, minute={30}),  # 02:30 giờ Việt Nam
+        cron(parser_canary, hour={1}, minute={15}),  # 08:15 giờ Việt Nam, sau lượt 06:00
         cron(prune_partitions, day={1}, hour={20}, minute={0}),
     ]
     on_startup = startup

@@ -1,9 +1,9 @@
 {
   "meta": {
-    "title": "OTARadar · Theo dõi phòng còn và giá đối thủ trên Booking.com, Agoda, iVIVU, Trip.com",
-    "description": "OTARadar đọc trang Booking.com, Agoda, iVIVU, Trip.com của khách sạn bạn và đối thủ ba lần mỗi ngày, ghi lại số phòng còn và giá cho từng đêm trong 30 ngày tới, rồi gửi bản tin buổi sáng có bằng chứng.",
+    "title": "OTARadar · Theo dõi phòng còn và giá đối thủ trên Booking.com",
+    "description": "OTARadar đọc trang Booking.com của khách sạn bạn và đối thủ ba lần mỗi ngày, ghi lại số phòng còn và giá cho từng đêm trong 30 ngày tới, rồi gửi bản tin buổi sáng có bằng chứng.",
     "ogTitle": "OTARadar · Biết đối thủ còn mấy phòng trước khi bạn đặt giá",
-    "ogDescription": "Phòng còn và giá của đối thủ trên Booking.com, Agoda, iVIVU, Trip.com, ba lần mỗi ngày, 30 đêm phía trước."
+    "ogDescription": "Phòng còn và giá của đối thủ trên Booking.com, ba lần mỗi ngày, 30 đêm phía trước."
   },
   "skip": "Bỏ qua tới nội dung",
   "homeLink": "OTARadar, trang chủ",
@@ -23,19 +23,19 @@
     "eyebrow": "Theo dõi đối thủ khách sạn",
     "title": "Biết đối thủ còn mấy phòng trước khi bạn đặt giá",
     "ticks": {
-      "rates": "Phòng còn và giá của đối thủ trên Booking.com, Agoda, iVIVU, Trip.com, 3 lần mỗi ngày",
+      "rates": "Phòng còn và giá của đối thủ trên Booking.com, 3 lần mỗi ngày",
       "events": "Báo hết phòng, có phòng lại, đổi giá cho từng đêm trong 30 ngày tới",
       "brief": "Bản tin AI lúc 07:30, mỗi nhận định đều kèm bằng chứng"
     },
     "price": "<strong>Liên hệ báo giá</strong><span>, chúng tôi thiết lập cùng bạn</span>",
     "sample": "Xem bảng mẫu",
-    "assure": "Không cần tài khoản kênh đặt phòng của bạn, không cần cài phần mềm",
+    "assure": "Không cần tài khoản Booking.com của bạn, không cần cài phần mềm",
     "trustLabel": "Thông số dịch vụ",
     "trust": {
       "scans": "<b>3 lượt quét</b> mỗi ngày",
       "nights": "<b>30 đêm</b> phía trước, theo từng loại phòng",
       "events": "<b>9 loại sự kiện</b> giữa hai lượt quét",
-      "channels": "Dữ liệu công khai từ <b>Booking.com, Agoda, iVIVU, Trip.com</b>"
+      "source": "Dữ liệu công khai từ <b>Booking.com</b>"
     }
   },
   "visual": {
@@ -66,7 +66,7 @@
       "badge": "Chỉ còn 2 phòng",
       "note": "<b>Còn {count} phòng.</b> Sắp kín, đây là đêm bạn có thể giữ hoặc tăng giá"
     },
-    "confidenceTitle": "Các kênh không công bố số phòng. Chúng tôi nói rõ mình biết chắc tới đâu.",
+    "confidenceTitle": "Booking.com không công bố số phòng. Chúng tôi nói rõ mình biết chắc tới đâu.",
     "confidence": {
       "exact": {
         "name": "Chính xác",
@@ -161,7 +161,7 @@
     "lead": "Những nguyên tắc chúng tôi giữ khi đọc dữ liệu công khai cho bạn.",
     "public": {
       "title": "Chỉ đọc trang công khai",
-      "text": "Không đăng nhập vào kênh đặt phòng nào, không dùng tài khoản extranet của bạn, không lấy dữ liệu cá nhân của khách lưu trú."
+      "text": "Không đăng nhập vào Booking.com, không dùng tài khoản extranet của bạn, không lấy dữ liệu cá nhân của khách lưu trú."
     },
     "pace": {
       "title": "Nhịp độ chừng mực",
@@ -173,11 +173,11 @@
     },
     "archive": {
       "title": "Giữ bản gốc",
-      "text": "Trang gốc được lưu lại một thời gian (mặc định 30 ngày). Khi một kênh đổi giao diện, dữ liệu được đọc lại thay vì mất."
+      "text": "Trang gốc được lưu lại một thời gian (mặc định 30 ngày). Khi Booking.com đổi giao diện, dữ liệu được đọc lại thay vì mất."
     },
     "limits": {
       "title": "Nói rõ giới hạn",
-      "text": "Hiện theo dõi Booking.com, Agoda, iVIVU, Trip.com, số phòng mỗi kênh đếm riêng. Mỗi lượt xem giả định 2 người lớn, nên loại phòng dành cho 1 người không xuất hiện."
+      "text": "Hiện chỉ theo dõi Booking.com. Mỗi lượt xem giả định 2 người lớn, nên loại phòng dành cho 1 người không xuất hiện."
     }
   },
   "faq": {
@@ -188,15 +188,15 @@
     },
     "accuracy": {
       "q": "Số phòng còn lại chính xác đến đâu?",
-      "a": "Các kênh đặt phòng thường chỉ hiện con số chính xác khi còn ít phòng. Vì vậy mỗi con số trên OTARadar đi kèm mức tin cậy: chính xác, ít nhất, ẩn hoặc hết. Tốc độ bán chỉ được tính từ các cặp số chính xác."
+      "a": "Booking.com thường chỉ hiện con số chính xác khi còn ít phòng. Vì vậy mỗi con số trên OTARadar đi kèm mức tin cậy: chính xác, ít nhất, ẩn hoặc hết. Tốc độ bán chỉ được tính từ các cặp số chính xác."
     },
     "hotels": {
       "q": "Tôi theo dõi được những khách sạn nào?",
-      "a": "Bất kỳ khách sạn nào có trang trên Booking.com, Agoda, iVIVU hoặc Trip.com: dán đường link là thêm vào danh sách. Khách sạn của bạn nằm cùng danh sách để luôn được đặt cạnh đối thủ."
+      "a": "Bất kỳ khách sạn nào có trang trên Booking.com: dán đường link là thêm vào danh sách. Khách sạn của bạn nằm cùng danh sách để luôn được đặt cạnh đối thủ."
     },
     "channels": {
-      "q": "Theo dõi những kênh nào?",
-      "a": "Booking.com, Agoda, iVIVU, Trip.com. Mỗi kênh có số phòng riêng nên được đếm riêng, không cộng lại. Expedia và Traveloka chưa có."
+      "q": "Dữ liệu lấy từ đâu?",
+      "a": "Từ trang công khai trên Booking.com: phòng còn, giá, khuyến mãi và hạn chế bán của từng đêm. Hiện OTARadar chỉ theo dõi Booking.com."
     },
     "timing": {
       "q": "Bao lâu thì có dữ liệu?",
@@ -233,10 +233,10 @@
     "emailSubject": "Tư vấn OTARadar"
   },
   "footer": {
-    "tagline": "Theo dõi phòng còn và giá đối thủ trên Booking.com, Agoda, iVIVU, Trip.com cho khách sạn Việt Nam.",
+    "tagline": "Theo dõi phòng còn và giá đối thủ trên Booking.com cho khách sạn Việt Nam.",
     "linksLabel": "Liên kết chân trang",
     "contact": "Liên hệ",
-    "disclaimer": "OTARadar là dịch vụ độc lập, không liên kết với Booking.com, Agoda, iVIVU, Trip.com. Các tên này là nhãn hiệu của chủ sở hữu tương ứng.",
+    "disclaimer": "OTARadar là dịch vụ độc lập, không liên kết với Booking.com. Booking.com là nhãn hiệu của chủ sở hữu tương ứng.",
     "credits": "Ảnh: <list></list> trên Unsplash."
   },
   "photos": {

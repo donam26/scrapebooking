@@ -1,26 +1,19 @@
-"""Collector kênh Booking.com: probe/calendar qua HybridCollector, verify trang khách sạn, gợi ý
-listing qua autocomplete.json + trang kết quả tìm kiếm."""
+"""Collector Booking.com: probe/calendar qua HybridCollector, verify trang khách sạn, trang kết quả
+tìm kiếm cho thị trường toàn thành phố."""
 
-import json
 from datetime import date
-from typing import Any
-from urllib.parse import urlencode
 
 from app.collector.base import ListingBlocked, ListingNotFound
 from app.collector.booking.browser import BrowserCollector
 from app.collector.booking.hybrid import HybridCollector
-from app.collector.booking.identity import autocomplete_hotels, first_hotel_slug, parse_identity
+from app.collector.booking.identity import parse_identity
 from app.collector.booking.playwright_bootstrap import PlaywrightBootstrapper
-from app.collector.booking.urls import canonical_url
 from app.collector.factory import CollectorDeps
 from app.collector.fetch import CurlFetcher, FetchOutcome
-from app.collector.matching import match_score, search_names
 from app.collector.session import SessionManager
 from app.domain.models import (
     CalendarResult,
-    ListingCandidate,
     ListingIdentity,
-    ListingQuery,
     ListingRef,
     ProbeResult,
 )
@@ -28,7 +21,6 @@ from app.logging import get_logger
 
 log = get_logger(__name__)
 
-AUTOCOMPLETE_URL = "https://accommodations.booking.com/autocomplete.json"
 # Trang kết quả tìm kiếm thật (kể cả khi 0 kết quả) có một trong các dấu hiệu này.
 SEARCH_PAGE_MARKERS = ("nbResultsTotal", 'data-testid="property-card"', "properties found")
 
@@ -102,73 +94,6 @@ class BookingCollector:
         if not identity.name and not identity.external_id:
             raise ListingNotFound(listing.url)
         return identity
-
-    async def suggest(self, query: ListingQuery) -> list[ListingCandidate]:
-        from curl_cffi.requests import AsyncSession
-
-        proxy = self._deps.proxy_provider.new_endpoint(self._deps.country)
-        hotels: list[dict[str, Any]] = []
-        async with AsyncSession(
-            impersonate="chrome", proxies={"http": proxy.url, "https": proxy.url}, timeout=30
-        ) as client:
-            # Thử lần lượt các biến thể tên: "Khu nghỉ dưỡng Melia…" không ra kết quả trên Booking.
-            for variant in search_names(query.name):
-                await self._deps.budget.acquire()
-                r = await client.post(
-                    AUTOCOMPLETE_URL,
-                    json={"query": variant, "language": "en-gb", "size": 5},
-                    headers={
-                        "Origin": "https://www.booking.com",
-                        "Referer": "https://www.booking.com/",
-                    },
-                )
-                if r.status_code != 200:
-                    raise ListingBlocked(f"autocomplete http {r.status_code}")
-                try:
-                    hotels = autocomplete_hotels(json.loads(r.text))
-                except json.JSONDecodeError as exc:
-                    raise ListingBlocked(f"autocomplete invalid json: {exc.msg}") from exc
-                if hotels:
-                    break
-        out: list[ListingCandidate] = []
-        for h in hotels[:3]:
-            lat, lng = h.get("latitude"), h.get("longitude")
-            latlng = (float(lat), float(lng)) if lat is not None and lng is not None else None
-            name = str(h.get("label1") or h.get("label") or "")
-            score = match_score(
-                query.name,
-                name,
-                (query.lat, query.lng) if query.lat is not None and query.lng is not None else None,
-                latlng,
-            )
-            # dest_id → slug: trang kết quả tìm kiếm với dest_type=hotel chỉ có khách sạn đó.
-            search_url = "https://www.booking.com/searchresults.en-gb.html?" + urlencode(
-                {"dest_id": h["dest_id"], "dest_type": "hotel", "lang": "en-gb"}
-            )
-            try:
-                slug = first_hotel_slug(
-                    await self._get_page(search_url, "https://www.booking.com/")
-                )
-            except (ListingBlocked, ListingNotFound):
-                log.warning("booking_suggest_resolve_failed", dest_id=h["dest_id"])
-                continue
-            if slug is None:
-                continue
-            out.append(
-                ListingCandidate(
-                    channel="booking",
-                    listing_key=slug,
-                    url=canonical_url(slug),
-                    name=name,
-                    external_id=str(h["dest_id"]),
-                    address=h.get("label2"),
-                    lat=latlng[0] if latlng else None,
-                    lng=latlng[1] if latlng else None,
-                    country_code=h.get("cc1"),
-                    score=score,
-                )
-            )
-        return sorted(out, key=lambda c: -c.score)
 
     async def close(self) -> None:
         await self._fetcher.close_all()

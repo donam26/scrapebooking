@@ -25,10 +25,10 @@ class Settings(BaseSettings):
     run_deadline_minutes: int = 90
     default_adults: int = 2
 
-    # Đa kênh (D2, D9, D12)
+    # Booking.com (kênh duy nhất)
     scan_currency: str = "VND"  # toàn hệ thống: listing dùng chung giữa tenant, không quy đổi
-    worker_channel: str = "booking"  # kênh của tiến trình worker này (một hàng đợi mỗi kênh)
-    # Ngân sách request/phút toàn hệ thống theo kênh, VD "booking=40,agoda=30"; thiếu = default.
+    worker_channel: str = "booking"  # hàng đợi của worker (chỉ còn "booking")
+    # Ngân sách request/phút toàn hệ thống, VD "booking=40"; thiếu = default.
     channel_budgets: str = ""
     channel_budget_default_per_minute: int = 40
     # Tự ngắt kênh: tỉ lệ chặn trong 15 phút vượt ngưỡng (đủ mẫu) thì dừng kênh `pause` phút.
@@ -98,6 +98,18 @@ class Settings(BaseSettings):
     app_base_url: str = "http://localhost:3000"
     # Email nhận cảnh báo vận hành (proxy hỏng, kênh bị chặn, lỡ lịch quét), cách nhau dấu phẩy.
     ops_alert_emails: str = ""
+    # Webhook chat của đội vận hành (Slack/Discord/Google Chat…), cách nhau dấu phẩy.
+    ops_alert_webhook_urls: str = ""
+
+    # Zalo ZNS (roadmap 3.3): OA doanh nghiệp xác thực + Zalo Cloud nạp trước + template đã duyệt.
+    # Token sống ~25h: đặt app id/secret/refresh token để tự làm mới, hoặc chỉ access token.
+    zalo_zns_access_token: str = ""
+    zalo_app_id: str = ""
+    zalo_app_secret: str = ""
+    zalo_refresh_token: str = ""
+    # Mã template theo loại tin, VD "alerts=123,daily_insight=456,data_stale=789,test=123".
+    zalo_zns_templates: str = ""
+    zalo_zns_cost_vnd: int = 300  # đơn giá ước tính mỗi tin gửi thành công (ghi vào nhật ký)
 
     # Backup (giai đoạn 5)
     backup_bucket: str = "pg-backups"
@@ -117,6 +129,17 @@ class Settings(BaseSettings):
     @property
     def ops_alert_email_list(self) -> list[str]:
         return [e.strip() for e in self.ops_alert_emails.split(",") if e.strip()]
+
+    @property
+    def zalo_zns_configured(self) -> bool:
+        has_token = bool(self.zalo_zns_access_token) or bool(
+            self.zalo_app_id and self.zalo_app_secret and self.zalo_refresh_token
+        )
+        return has_token and bool(self.zalo_zns_templates.strip())
+
+    @property
+    def ops_alert_webhook_url_list(self) -> list[str]:
+        return [u.strip() for u in self.ops_alert_webhook_urls.split(",") if u.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:

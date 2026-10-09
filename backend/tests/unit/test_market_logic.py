@@ -3,7 +3,13 @@ from decimal import Decimal as D
 
 from app.market.occupancy import RoomState, estimate, inventory_from
 from app.market.pacing import calibrate, compset_curve, occ_at_lead, pace
-from app.market.price_suggest import NightSignals, reason_text, suggest
+from app.market.price_suggest import (
+    NightSignals,
+    Strategy,
+    backtest_verdict,
+    reason_text,
+    suggest,
+)
 
 
 def test_inventory_uses_max_exact_or_capped_floor() -> None:
@@ -65,15 +71,15 @@ def test_compset_curve_requires_two_hotels_and_calibration() -> None:
 
 def night(**kw: object) -> NightSignals:
     base: dict[str, object] = dict(
-        stay_date=date(2026, 10, 10),
+        stay_date=date(2026, 10, 13),  # thứ Ba
         days_to_arrival=9,
         own_status="available",
-        own_price=D("80"),
+        own_price=D("800000"),
         own_rooms_left=None,
         own_occ=None,
         comp_observed=4,
         comp_sold_out=0,
-        comp_median_price=D("100"),
+        comp_median_price=D("1000000"),
         comp_occ=None,
         comp_pace=None,
     )
@@ -81,27 +87,72 @@ def night(**kw: object) -> NightSignals:
     return NightSignals(**base)  # type: ignore[arg-type]
 
 
-def test_suggest_raise_when_cheaper_and_market_tight() -> None:
-    s = suggest(night(comp_sold_out=2, own_rooms_left=2, holiday="Lễ"))
-    assert s is not None and s.kind == "raise" and s.change_pct == 15 and s.confidence == "medium"
-    two = suggest(night(comp_sold_out=2, comp_occ=D("0.9")))
-    assert two is not None and two.confidence == "high"  # hai tín hiệu căng độc lập
-    reasons = [reason_text(r, "vi") for r in s.reasons]
-    assert reasons[0] == "2/4 đối thủ đã hết phòng"
-    assert "giá bạn thấp hơn trung vị đối thủ 20%" in reasons
-    small = suggest(night(own_price=D("95"), comp_pace=D("0.2")))
-    assert small is not None and small.change_pct == 5 and small.confidence == "medium"
-    assert suggest(night()) is None  # rẻ hơn nhưng thị trường không căng
+def test_rms_lite_raise_on_tight_night_is_explained_and_capped() -> None:
+    s = suggest(night(comp_sold_out=2, comp_low=1))
+    # Tham chiếu 1.000.000 (trung vị × định vị 100), căng 3/4 → +10% = 1.100.000; đổi tối đa 15%
+    # so với giá hiện tại 800.000 → 920.000.
+    assert s is not None and s.kind == "raise" and s.change_pct == 15
+    assert (s.reference_price, s.target_price, s.clamped) == (D(1000000), D(920000), "max_change")
+    assert [r.key for r in s.reasons] == ["position", "comp_tight", "clamp_max_change"]
+    assert s.reasons[1].pct == 10 and s.confidence == "medium"
+    assert reason_text(s.reasons[1], "vi") == "3/4 đối thủ hết hoặc còn ≤3 phòng (+10%)"
 
 
-def test_suggest_hold_and_lower_and_guards() -> None:
-    hold = suggest(night(own_price=D("130"), comp_sold_out=2))
-    assert hold is not None and hold.kind == "hold" and hold.change_pct == 0
-    lower = suggest(night(own_price=D("140"), days_to_arrival=3, own_occ=D("0.4")))
-    assert lower is not None and lower.kind == "lower" and lower.change_pct == -10
-    assert suggest(night(own_price=D("140"), days_to_arrival=10, own_occ=D("0.4"))) is None
+def test_rms_lite_positioning_floor_ceiling_and_rounding() -> None:
+    st = Strategy(target_index=D(105), ceiling=D(1030000), round_to=10000)
+    s = suggest(night(own_price=D("1000000")), st)
+    assert s is not None and s.target_price == D(1030000) and s.clamped == "ceiling"
+    st2 = Strategy(target_index=D(90), floor=D(950000), target_source="strategy")
+    low = suggest(night(own_price=D("1000000")), st2)
+    assert low is not None and low.target_price == D(950000) and low.kind == "lower"
+    weekend = Strategy(weekday_adj={5: 10})
+    sat = suggest(night(stay_date=date(2026, 10, 17), own_price=D("1000000")), weekend)
+    assert sat is not None and sat.target_price == D(1100000)
+    assert any(r.key == "weekday" and r.pct == 10 for r in sat.reasons)
+
+
+def test_rms_lite_never_lowers_on_tight_night_or_when_nearly_full() -> None:
+    tight = suggest(night(own_price=D("1300000"), comp_sold_out=2))
+    assert tight is not None and tight.kind == "hold" and tight.clamped == "no_lower_tight"
+    full = suggest(night(own_price=D("1300000"), own_occ=D("0.92"), own_occ_source="otb"))
+    assert full is not None and full.kind == "hold" and full.target_price == D(1300000)
+
+
+def test_rms_lite_last_minute_lower_suggests_promo_and_needs_sample() -> None:
+    s = suggest(
+        night(own_price=D("1300000"), days_to_arrival=3, own_occ=D("0.4"), own_occ_source="otb")
+    )
+    assert s is not None and s.kind == "lower" and s.change_pct == -15
+    # Chỉ có chỉ báo lấp đầy ước tính, chưa đặt chiến lược: không gợi ý giảm giá.
+    est = suggest(night(own_price=D("1300000"), days_to_arrival=3, own_occ=D("0.4")))
+    assert est is not None and est.kind == "hold" and est.clamped == "no_lower_without_demand"
+    assert [r.key for r in s.restrictions] == ["restrict_open_promo"]
+    assert suggest(night(comp_median_price=None, comp_priced=2)) is None
+    base = suggest(night(comp_median_price=None, comp_priced=2), Strategy(base_price=D(850000)))
+    assert base is not None and base.reasons[0].key == "base_price" and base.confidence == "low"
     assert suggest(night(own_status="sold_out", comp_sold_out=4)) is None
-    assert suggest(night(comp_observed=1, comp_sold_out=1)) is None
+
+
+def test_rms_lite_otb_pace_and_min_stay_restriction() -> None:
+    fri = night(
+        stay_date=date(2026, 10, 23),
+        days_to_arrival=14,
+        own_price=D("1000000"),
+        comp_sold_out=3,
+        own_occ=D("0.7"),
+        own_occ_source="otb",
+        own_pace_4w=15,
+        own_capacity=100,
+        own_index=D(90),
+    )
+    s = suggest(fri)
+    assert s is not None and any(r.key == "own_pace_ahead" for r in s.reasons)
+    assert {r.key for r in s.restrictions} == {"restrict_min_stay", "restrict_stop_discounts"}
+    assert s.confidence == "high"
+    assert backtest_verdict("raise", D("0.9")) == "good"
+    assert backtest_verdict("raise", D("0.5")) == "review"
+    assert backtest_verdict("lower", D("0.75")) == "good"
+    assert backtest_verdict("hold", D("0.2")) == "neutral"
 
 
 def test_estimate_rejects_available_without_rooms_and_wide_ranges() -> None:

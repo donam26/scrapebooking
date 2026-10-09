@@ -8,7 +8,7 @@ token, mô hình AI) vào email; mọi chữ động đều được escape.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from html import escape
 from typing import Any
 
@@ -73,7 +73,7 @@ def _layout(
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         f'style="max-width:600px;background:#ffffff;border:1px solid {LINE};border-radius:12px;overflow:hidden">'
         f'<tr><td style="background:{NIGHT};padding:16px 28px;font:800 13px/1 {FONT};'
-        'letter-spacing:.08em;color:#ffffff">SCRAPEBOOKING</td></tr>'
+        'letter-spacing:.08em;color:#ffffff">OTARADAR</td></tr>'
         f'<tr><td style="padding:24px 28px 8px;font:700 20px/1.35 {FONT};color:{INK}">{escape(title)}</td></tr>'
         f"{body_html}{button}"
         f'<tr><td style="padding:16px 28px;border-top:1px solid {LINE};font:400 12px/1.6 {FONT};color:{MUTED}">'
@@ -102,7 +102,12 @@ def render_alerts(
     text_lines = [title, ""]
     rows = []
     for it in shown:
-        link = _url(base_url, f"/hotels/{it.hotel_id}/dates/{it.stay_date.isoformat()}")
+        link = _url(
+            base_url,
+            f"/hotels/{it.hotel_id}/dates/{it.stay_date.isoformat()}"
+            if it.hotel_id
+            else f"/dashboard?start={it.stay_date.isoformat()}",
+        )
         text_lines += [f"• {it.headline}: {it.detail}", f"  {link}"]
         rows.append(
             f'<tr><td style="padding:12px 0;border-bottom:1px solid {LINE}">'
@@ -323,6 +328,38 @@ def render_weekly(
         locale=locale,
     )
     return Email(_subject(subject), "\n".join(text_lines), html)
+
+
+def render_stale(
+    tenant_name: str,
+    channels: list[str],
+    since: datetime | None,
+    base_url: str,
+    locale: str = DEFAULT_LOCALE,
+) -> Email:
+    """Dữ liệu một số kênh cũ hơn một chu kỳ quét (roadmap 0.7): báo khách sạn để không ra quyết
+    định trên số cũ."""
+    from app.channels.registry import channel_name
+
+    names = ", ".join(channel_name(c) for c in channels)
+    when = since.strftime("%H:%M %d/%m") if since else "—"
+    subject = t(locale, "email.stale.subject", channels=names, since=when)
+    title = t(locale, "email.stale.title")
+    body_text = t(locale, "email.stale.body", channels=names, since=when)
+    url = _url(base_url, "/dashboard")
+    html = _layout(
+        preheader=body_text,
+        title=title,
+        body_html=(
+            f'<tr><td style="padding:0 28px 8px;font:400 15px/1.6 {FONT};color:{BODY}">'
+            f"{escape(body_text)}</td></tr>"
+        ),
+        cta=(url, t(locale, "email.stale.cta")),
+        footer=_footer(tenant_name, locale),
+        locale=locale,
+    )
+    text = "\n".join([title, "", body_text, "", url, "", _footer(tenant_name, locale)])
+    return Email(_subject(subject), text, html)
 
 
 def render_test(tenant_name: str, base_url: str, locale: str = DEFAULT_LOCALE) -> Email:

@@ -1,10 +1,13 @@
+from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics.compset import load_compset, review_compset
 from app.api.auth import Principal
 from app.api.deps import (
     ApiQueue,
@@ -19,6 +22,7 @@ from app.api.hotel_views import hotel_out, hotel_outs
 from app.api.scan_now import create_manual_run
 from app.api.schemas import (
     ChannelOut,
+    CompsetReviewOut,
     ListingAction,
     ListingCreate,
     ListingOut,
@@ -27,7 +31,12 @@ from app.api.schemas import (
     WatchItemOut,
     WatchItemUpdate,
 )
-from app.channels.registry import ListingUrl, UnsupportedUrl, channels, parse_listing_url
+from app.channels.registry import (
+    ListingUrl,
+    UnsupportedUrl,
+    channels,
+    parse_listing_url,
+)
 from app.db.models import Hotel, Listing, ScanRun, TenantHotel
 from app.logging import get_logger
 
@@ -79,6 +88,9 @@ async def _item(session: AsyncSession, link: TenantHotel, hotel: Hotel) -> Watch
         label=link.label,
         active=link.active,
         added_at=link.added_at,
+        compset_of=link.compset_of,
+        tier=link.tier or "primary",
+        weight=link.weight if link.weight is not None else Decimal(1),
     )
 
 
@@ -103,9 +115,46 @@ async def list_watchlist(
             label=link.label,
             active=link.active,
             added_at=link.added_at,
+            compset_of=link.compset_of,
+            tier=link.tier or "primary",
+            weight=link.weight if link.weight is not None else Decimal(1),
         )
         for link, h in rows
     ]
+
+
+@router.get("/compset-review", response_model=CompsetReviewOut)
+async def compset_review(
+    tenant_id: TenantDep, session: SessionDep, own_hotel_id: int | None = None
+) -> CompsetReviewOut:
+    """Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (7.3)."""
+    w = await load_compset(session, tenant_id, own_hotel_id)
+    own = own_hotel_id if own_hotel_id in w.own else (w.own[0] if w.own else None)
+    ids = w.competitors
+    rooms: dict[int, int | None] = {}
+    if ids:
+        for hid, total in await session.execute(
+            select(Hotel.id, Hotel.rooms_total).where(Hotel.id.in_(ids))
+        ):
+            rooms[hid] = total
+    last = (
+        await session.execute(
+            select(func.max(TenantHotel.added_at)).where(
+                TenantHotel.tenant_id == tenant_id, TenantHotel.role == "competitor"
+            )
+        )
+    ).scalar_one()
+    r = review_compset(ids, rooms, last, datetime.now(tz=UTC))
+    return CompsetReviewOut(
+        own_hotel_id=own,
+        primary=len(ids),
+        secondary=len(w.secondary),
+        rooms_known=r.rooms_known,
+        warnings=r.warnings,
+        dominant_hotel_id=r.dominant_hotel_id,
+        dominant_share=r.dominant_share,
+        last_change_at=last,
+    )
 
 
 @router.post("", response_model=WatchItemOut, status_code=status.HTTP_201_CREATED)
@@ -117,9 +166,8 @@ async def add_hotel(
     locale: LocaleDep,
     queue: QueueDep = None,
 ) -> WatchItemOut:
-    """Thêm khách sạn bằng URL của bất kỳ kênh hỗ trợ. Listing đã có trong hệ thống (tenant khác
-    theo dõi) thì dùng chung khách sạn đó; listing mới được tạo `unverified` và đẩy job kiểm tra
-    (tên, toạ độ), sau đó worker tự tìm cùng khách sạn trên các kênh khác (gợi ý chờ xác nhận)."""
+    """Thêm khách sạn bằng URL Booking.com. Listing đã có trong hệ thống (tenant khác theo dõi) thì
+    dùng chung khách sạn đó; listing mới được tạo `unverified` và đẩy job kiểm tra (tên, toạ độ)."""
     ref = _parse(body.url, locale)
     listing = (
         await session.execute(
@@ -161,10 +209,6 @@ async def add_hotel(
         hotel = (
             await session.execute(select(Hotel).where(Hotel.id == listing.hotel_id))
         ).scalar_one()
-        if listing.status in ("suggested", "rejected"):
-            # Người dùng tự dán đúng URL đang được gợi ý: coi như xác nhận.
-            listing.status = "unverified"
-            new_listing = True
     link = (
         await session.execute(
             select(TenantHotel).where(
@@ -230,7 +274,22 @@ async def update_item(
     hotel_id: int, body: WatchItemUpdate, tenant_id: TenantDep, _: WriterDep, session: SessionDep
 ) -> WatchItemOut:
     link, hotel = await _tenant_link(session, tenant_id, hotel_id)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if "rooms_total" in data:
+        hotel.rooms_total = data.pop("rooms_total")
+    if data.get("compset_of") is not None:
+        own = await session.execute(
+            select(TenantHotel.hotel_id).where(
+                TenantHotel.tenant_id == tenant_id,
+                TenantHotel.hotel_id == data["compset_of"],
+                TenantHotel.role == "self",
+            )
+        )
+        if own.first() is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "compset_of must be one of your hotels"
+            )
+    for k, v in data.items():
         setattr(link, k, v)
     await session.commit()
     return await _item(session, link, hotel)
@@ -255,8 +314,8 @@ async def add_listing(
     locale: LocaleDep,
     queue: QueueDep = None,
 ) -> Listing:
-    """Gắn thêm một kênh cho khách sạn bằng URL (VD trang Agoda của khách sạn đã có
-    trên Booking). Thay URL của kênh đã có chỉ khi tenant là người theo dõi duy nhất."""
+    """Sửa URL Booking.com của khách sạn (listing hỏng hoặc dán nhầm). Thay URL đang quét chỉ khi
+    tenant là người theo dõi duy nhất."""
     await _tenant_link(session, tenant_id, hotel_id, active_only=True)
     ref = _parse(body.url, locale)
     taken = (
@@ -289,8 +348,8 @@ async def add_listing(
     elif current.listing_key == ref.listing_key and current.status in ("active", "unverified"):
         return current  # dán lại đúng URL đang quét: không đặt lại trạng thái
     else:
-        # Thay URL của kênh này (sửa gợi ý sai hoặc listing hỏng): ảnh hưởng tenant khác.
-        if current.status not in ("suggested", "broken", "rejected"):
+        # Thay URL (sửa listing hỏng): ảnh hưởng tenant khác.
+        if current.status != "broken":
             await _ensure_sole_tracker(session, tenant_id, hotel_id, principal)
         current.listing_key, current.url = ref.listing_key, ref.url
         current.external_id, current.status = ref.external_id, "unverified"
@@ -324,18 +383,7 @@ async def act_on_listing(
         await _ensure_sole_tracker(session, tenant_id, hotel_id, principal)
     if action == "retry" and listing.status not in ("broken", "unverified"):
         raise HTTPException(status.HTTP_409_CONFLICT, "only broken listings can be retried")
-    if action == "reject":
-        if listing.status != "suggested":
-            raise HTTPException(status.HTTP_409_CONFLICT, "only suggestions can be rejected")
-        # Giữ dòng `rejected` để lần tìm sau không gợi ý lại đúng listing này.
-        listing.status = "rejected"
-        await session.commit()
-        return None
-    if action == "confirm":
-        if listing.status != "suggested":
-            raise HTTPException(status.HTTP_409_CONFLICT, "listing is not a suggestion")
-        listing.status = "unverified"
-    elif action == "pause":
+    if action == "pause":
         listing.status = "paused"
     elif action in ("resume", "retry"):
         listing.status, listing.last_error = "unverified", None
@@ -344,24 +392,6 @@ async def act_on_listing(
     if listing.status == "unverified":
         await _enqueue_verify(queue, listing)
     return listing
-
-
-@router.post("/{hotel_id}/discover", status_code=status.HTTP_202_ACCEPTED)
-async def discover_listings(
-    hotel_id: int, tenant_id: TenantDep, _: WriterDep, session: SessionDep, queue: QueueDep = None
-) -> dict[str, list[str]]:
-    """Tìm khách sạn này trên các kênh chưa có listing (kết quả là gợi ý chờ xác nhận)."""
-    await _tenant_link(session, tenant_id, hotel_id, active_only=True)
-    if queue is None:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "job queue unavailable")
-    have = {
-        r[0]
-        for r in await session.execute(select(Listing.channel).where(Listing.hotel_id == hotel_id))
-    }
-    todo = [str(c) for c, i in channels().items() if i.collectable and str(c) not in have]
-    for channel in todo:
-        await queue.enqueue_discover(hotel_id, channel)
-    return {"channels": todo}
 
 
 @router.post("/scan-now", response_model=list[ScanRunOut], status_code=status.HTTP_202_ACCEPTED)

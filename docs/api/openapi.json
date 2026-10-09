@@ -532,7 +532,7 @@
      "watchlist"
     ],
     "summary": "Add Hotel",
-    "description": "Thêm khách sạn bằng URL của bất kỳ kênh hỗ trợ. Listing đã có trong hệ thống (tenant khác\ntheo dõi) thì dùng chung khách sạn đó; listing mới được tạo `unverified` và đẩy job kiểm tra\n(tên, toạ độ), sau đó worker tự tìm cùng khách sạn trên các kênh khác (gợi ý chờ xác nhận).",
+    "description": "Thêm khách sạn bằng URL Booking.com. Listing đã có trong hệ thống (tenant khác theo dõi) thì\ndùng chung khách sạn đó; listing mới được tạo `unverified` và đẩy job kiểm tra (tên, toạ độ).",
     "operationId": "add_hotel_watchlist_post",
     "parameters": [
      {
@@ -571,6 +571,74 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/WatchItemOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/watchlist/compset-review": {
+   "get": {
+    "tags": [
+     "watchlist"
+    ],
+    "summary": "Compset Review",
+    "description": "Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (7.3).",
+    "operationId": "compset_review_watchlist_compset_review_get",
+    "parameters": [
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CompsetReviewOut"
         }
        }
       }
@@ -715,7 +783,7 @@
      "watchlist"
     ],
     "summary": "Add Listing",
-    "description": "Gắn thêm một kênh cho khách sạn bằng URL (VD trang Agoda của khách sạn đã có\ntrên Booking). Thay URL của kênh đã có chỉ khi tenant là người theo dõi duy nhất.",
+    "description": "Sửa URL Booking.com của khách sạn (listing hỏng hoặc dán nhầm). Thay URL đang quét chỉ khi\ntenant là người theo dõi duy nhất.",
     "operationId": "add_listing_watchlist__hotel_id__listings_post",
     "parameters": [
      {
@@ -850,74 +918,6 @@
           }
          ],
          "title": "Response Act On Listing Watchlist  Hotel Id  Listings  Listing Id  Patch"
-        }
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/watchlist/{hotel_id}/discover": {
-   "post": {
-    "tags": [
-     "watchlist"
-    ],
-    "summary": "Discover Listings",
-    "description": "Tìm khách sạn này trên các kênh chưa có listing (kết quả là gợi ý chờ xác nhận).",
-    "operationId": "discover_listings_watchlist__hotel_id__discover_post",
-    "parameters": [
-     {
-      "name": "hotel_id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "integer",
-       "title": "Hotel Id"
-      }
-     },
-     {
-      "name": "tenant_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "integer"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "description": "Operator: tenant cần xem",
-       "title": "Tenant Id"
-      },
-      "description": "Operator: tenant cần xem"
-     }
-    ],
-    "responses": {
-     "202": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "type": "object",
-         "additionalProperties": {
-          "type": "array",
-          "items": {
-           "type": "string"
-          }
-         },
-         "title": "Response Discover Listings Watchlist  Hotel Id  Discover Post"
         }
        }
       }
@@ -1134,19 +1134,19 @@
       }
      },
      {
-      "name": "channel",
+      "name": "own_hotel_id",
       "in": "query",
       "required": false,
       "schema": {
        "anyOf": [
         {
-         "type": "string"
+         "type": "integer"
         },
         {
          "type": "null"
         }
        ],
-       "title": "Channel"
+       "title": "Own Hotel Id"
       }
      },
      {
@@ -1256,22 +1256,6 @@
       }
      },
      {
-      "name": "channel",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Channel"
-      }
-     },
-     {
       "name": "tenant_id",
       "in": "query",
       "required": false,
@@ -1354,22 +1338,6 @@
       }
      },
      {
-      "name": "channel",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Channel"
-      }
-     },
-     {
       "name": "tenant_id",
       "in": "query",
       "required": false,
@@ -1395,6 +1363,58 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/DayDetailOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/data-status": {
+   "get": {
+    "tags": [
+     "data"
+    ],
+    "summary": "Data Status",
+    "description": "Dữ liệu Booking.com mới nhất và tỷ lệ thành công 7 ngày (SLA) trên khách sạn của tenant.\n\"Dữ liệu mới nhất lúc…\" = quan sát thành công cuối cùng, không phải lượt kết thúc cuối cùng.",
+    "operationId": "data_status_data_status_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataStatusOut"
         }
        }
       }
@@ -1501,22 +1521,6 @@
         }
        ],
        "title": "Observed Since"
-      }
-     },
-     {
-      "name": "channel",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Channel"
       }
      },
      {
@@ -2695,6 +2699,367 @@
     }
    }
   },
+  "/notifications/subscriptions": {
+   "get": {
+    "tags": [
+     "notifications"
+    ],
+    "summary": "List Subscriptions",
+    "description": "Quản trị tenant thấy mọi đăng ký; người xem chỉ thấy đăng ký của mình.",
+    "operationId": "list_subscriptions_notifications_subscriptions_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SubscriptionOut"
+         },
+         "title": "Response List Subscriptions Notifications Subscriptions Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "notifications"
+    ],
+    "summary": "Create Subscription",
+    "operationId": "create_subscription_notifications_subscriptions_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SubscriptionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SubscriptionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/notifications/subscriptions/{sub_id}": {
+   "put": {
+    "tags": [
+     "notifications"
+    ],
+    "summary": "Update Subscription",
+    "operationId": "update_subscription_notifications_subscriptions__sub_id__put",
+    "parameters": [
+     {
+      "name": "sub_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Sub Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SubscriptionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SubscriptionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "notifications"
+    ],
+    "summary": "Delete Subscription",
+    "operationId": "delete_subscription_notifications_subscriptions__sub_id__delete",
+    "parameters": [
+     {
+      "name": "sub_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Sub Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/notifications/{notification_id}/resolve": {
+   "post": {
+    "tags": [
+     "notifications"
+    ],
+    "summary": "Resolve Notification",
+    "description": "Đánh dấu \"Đã xử lý\" trên dashboard (người đang đăng nhập).",
+    "operationId": "resolve_notification_notifications__notification_id__resolve_post",
+    "parameters": [
+     {
+      "name": "notification_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Notification Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/NotificationLogOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/notifications/engagement": {
+   "get": {
+    "tags": [
+     "notifications"
+    ],
+    "summary": "Engagement",
+    "description": "Số tin gửi/lỗi/bỏ qua, lượt nhấn, \"Đã xử lý\" và chi phí theo tuần ISO, theo kênh (đo O4).",
+    "operationId": "engagement_notifications_engagement_get",
+    "parameters": [
+     {
+      "name": "weeks",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 52,
+       "minimum": 1,
+       "default": 8,
+       "title": "Weeks"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EngagementOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/export/overview.csv": {
    "get": {
     "tags": [
@@ -2744,22 +3109,6 @@
       "schema": {
        "$ref": "#/components/schemas/PriceBasis",
        "default": "any"
-      }
-     },
-     {
-      "name": "channel",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Channel"
       }
      },
      {
@@ -2893,22 +3242,6 @@
       }
      },
      {
-      "name": "channel",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Channel"
-      }
-     },
-     {
       "name": "tenant_id",
       "in": "query",
       "required": false,
@@ -2947,12 +3280,181 @@
     }
    }
   },
+  "/export/rate-shop.xlsx": {
+   "get": {
+    "tags": [
+     "export"
+    ],
+    "summary": "Export Rate Shop",
+    "description": "Excel \"rate shop\" đúng mẫu khách sạn ghi tay (7.4): khách sạn × đêm, compset, thay đổi.",
+    "operationId": "export_rate_shop_export_rate_shop_xlsx_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "price_basis",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "$ref": "#/components/schemas/PriceBasis",
+       "default": "any"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Excel rate shop",
+      "content": {
+       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/export/monthly-report.html": {
+   "get": {
+    "tags": [
+     "export"
+    ],
+    "summary": "Export Monthly Report",
+    "description": "Báo cáo tháng cho chủ đầu tư (HTML in thành PDF): KPI thật, vị trí giá, quyết định giá.",
+    "operationId": "export_monthly_report_export_monthly_report_html_get",
+    "parameters": [
+     {
+      "name": "month",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Month"
+      }
+     },
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/market/pace": {
    "get": {
     "tags": [
      "market"
     ],
     "summary": "Get Pace",
+    "description": "Nhịp và chỉ báo lấp đầy theo đêm (Booking.com).",
     "operationId": "get_pace_market_pace_get",
     "parameters": [
      {
@@ -2987,6 +3489,22 @@
         }
        ],
        "title": "End"
+      }
+     },
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
       }
      },
      {
@@ -3332,7 +3850,7 @@
      "market"
     ],
     "summary": "Get Occupancy",
-    "description": "Công suất ước tính mới nhất của từng khách sạn trong watchlist theo đêm (kênh tham chiếu).",
+    "description": "Chỉ báo lấp đầy (thử nghiệm) mới nhất của từng khách sạn trong watchlist theo đêm.",
     "operationId": "get_occupancy_market_occupancy_get",
     "parameters": [
      {
@@ -3668,6 +4186,321 @@
     "responses": {
      "204": {
       "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/strategy": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Get Strategy",
+    "description": "Chiến lược giá của khách sạn của bạn (6.1); chưa đặt thì trả mặc định (định vị 100).",
+    "operationId": "get_strategy_market_strategy_get",
+    "parameters": [
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StrategyOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Put Strategy",
+    "operationId": "put_strategy_market_strategy_put",
+    "parameters": [
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StrategyIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StrategyOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/suggestions/outcomes": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Suggestion Outcomes",
+    "description": "Gợi ý đã áp dụng/bỏ qua → kết quả sau đêm lưu trú (công suất, ADR thật).",
+    "operationId": "suggestion_outcomes_market_suggestions_outcomes_get",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 365,
+       "minimum": 7,
+       "default": 60,
+       "title": "Days"
+      }
+     },
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OutcomesOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/suggestions/backtest": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Suggestion Backtest",
+    "description": "Backtest (6.4): với mỗi đêm đã qua có công suất thật, chạy lại luật gợi ý trên quan sát giá\nvà tình trạng phòng của compset khoảng `lead` ngày trước đêm đó, rồi chấm hướng gợi ý.",
+    "operationId": "suggestion_backtest_market_suggestions_backtest_get",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 180,
+       "minimum": 7,
+       "default": 60,
+       "title": "Days"
+      }
+     },
+     {
+      "name": "lead",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 30,
+       "minimum": 1,
+       "default": 7,
+       "title": "Lead"
+      }
+     },
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BacktestOut"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -4275,6 +5108,750 @@
     }
    }
   },
+  "/market/radar/promotions": {
+   "get": {
+    "tags": [
+     "radar"
+    ],
+    "summary": "Promotions",
+    "description": "Radar khuyến mãi (4.1): đối thủ nào chạy KM gì, sâu bao nhiêu, bao nhiêu đêm, từ bao giờ.",
+    "operationId": "promotions_market_radar_promotions_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PromotionsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/radar/restrictions": {
+   "get": {
+    "tags": [
+     "radar"
+    ],
+    "summary": "Restrictions",
+    "description": "Radar hạn chế (4.2): số đêm tối thiểu, không nhận khách ngày đến.",
+    "operationId": "restrictions_market_radar_restrictions_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RestrictionsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/radar/cancellation": {
+   "get": {
+    "tags": [
+     "radar"
+    ],
+    "summary": "Cancellation",
+    "description": "Chính sách huỷ (4.3): % đêm có gói linh hoạt, mức giảm của gói không hoàn huỷ.",
+    "operationId": "cancellation_market_radar_cancellation_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CancellationsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/radar/area-scarcity": {
+   "get": {
+    "tags": [
+     "radar"
+    ],
+    "summary": "Area Scarcity View",
+    "description": "Chỉ số khan phòng khu vực (4.4): số chỗ ở còn phòng kênh báo theo đêm, so 7 ngày trước.",
+    "operationId": "area_scarcity_view_market_radar_area_scarcity_get",
+    "parameters": [
+     {
+      "name": "area_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Area Id"
+      }
+     },
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AreaScarcityOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/pms/otb/template": {
+   "get": {
+    "tags": [
+     "otb"
+    ],
+    "summary": "Otb Template",
+    "operationId": "otb_template_pms_otb_template_get",
+    "parameters": [
+     {
+      "name": "kind",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "otb_report",
+        "bookings"
+       ],
+       "type": "string",
+       "default": "otb_report",
+       "title": "Kind"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/plain": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/pms/otb/import": {
+   "post": {
+    "tags": [
+     "otb"
+    ],
+    "summary": "Import Otb",
+    "description": "Nhập OTB không ghi đè ngày khác: (khách sạn, ngày chụp, đêm) là khoá. File đặt phòng dựng\nlại bản chụp cho cả quá khứ (pace/STLY có ngay).",
+    "operationId": "import_otb_pms_otb_import_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_import_otb_pms_otb_import_post"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OtbImportOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/otb": {
+   "get": {
+    "tags": [
+     "otb"
+    ],
+    "summary": "Otb View",
+    "description": "OTB, pickup, pace (4 tuần trước, STLY) và dự báo theo đêm của khách sạn của bạn.",
+    "operationId": "otb_view_market_otb_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 120,
+       "minimum": 1,
+       "default": 30,
+       "title": "Days"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OtbOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/reputation": {
+   "get": {
+    "tags": [
+     "reputation"
+    ],
+    "summary": "Reputation",
+    "operationId": "reputation_market_reputation_get",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 730,
+       "minimum": 7,
+       "default": 90,
+       "title": "Days"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReputationOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/visibility": {
+   "get": {
+    "tags": [
+     "reputation"
+    ],
+    "summary": "Visibility",
+    "description": "Vị trí trên trang kết quả của khu vực (thứ tự mặc định của kênh) cho bạn và đối thủ.",
+    "operationId": "visibility_market_visibility_get",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 120,
+       "minimum": 1,
+       "default": 14,
+       "title": "Days"
+      }
+     },
+     {
+      "name": "area_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Area Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/VisibilityOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/health/summary": {
    "get": {
     "tags": [
@@ -4448,6 +6025,163 @@
  },
  "components": {
   "schemas": {
+   "AreaNightOut": {
+    "properties": {
+     "stay_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Stay Date"
+     },
+     "properties": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Properties"
+     },
+     "scanned_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scanned At"
+     },
+     "lead_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lead Days"
+     },
+     "week_ago": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Week Ago"
+     },
+     "change_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Change Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "stay_date",
+     "properties",
+     "scanned_at",
+     "lead_days",
+     "week_ago",
+     "change_pct"
+    ],
+    "title": "AreaNightOut"
+   },
+   "AreaScarcityOut": {
+    "properties": {
+     "area_id": {
+      "type": "integer",
+      "title": "Area Id"
+     },
+     "area_name": {
+      "type": "string",
+      "title": "Area Name"
+     },
+     "nights": {
+      "items": {
+       "$ref": "#/components/schemas/AreaNightOut"
+      },
+      "type": "array",
+      "title": "Nights"
+     }
+    },
+    "type": "object",
+    "required": [
+     "area_id",
+     "area_name",
+     "nights"
+    ],
+    "title": "AreaScarcityOut"
+   },
+   "BacktestOut": {
+    "properties": {
+     "nights": {
+      "type": "integer",
+      "title": "Nights"
+     },
+     "raise_nights": {
+      "type": "integer",
+      "title": "Raise Nights"
+     },
+     "lower_nights": {
+      "type": "integer",
+      "title": "Lower Nights"
+     },
+     "good": {
+      "type": "integer",
+      "title": "Good"
+     },
+     "review": {
+      "type": "integer",
+      "title": "Review"
+     },
+     "hit_rate": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hit Rate"
+     },
+     "details": {
+      "items": {
+       "$ref": "#/components/schemas/OutcomeNightOut"
+      },
+      "type": "array",
+      "title": "Details"
+     }
+    },
+    "type": "object",
+    "required": [
+     "nights",
+     "raise_nights",
+     "lower_nights",
+     "good",
+     "review",
+     "hit_rate",
+     "details"
+    ],
+    "title": "BacktestOut",
+    "description": "Chạy lại luật gợi ý trên giá đối thủ ~7 ngày trước mỗi đêm đã qua, so với công suất thật."
+   },
    "Body_import_file_pms_import_post": {
     "properties": {
      "file": {
@@ -4471,6 +6205,57 @@
      "hotel_id"
     ],
     "title": "Body_import_file_pms_import_post"
+   },
+   "Body_import_otb_pms_otb_import_post": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "contentMediaType": "application/octet-stream",
+      "title": "File"
+     },
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "otb_report",
+       "bookings"
+      ],
+      "title": "Kind",
+      "default": "otb_report"
+     },
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "rooms_available": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Available"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file",
+     "hotel_id"
+    ],
+    "title": "Body_import_otb_pms_otb_import_post"
    },
    "Body_preview_pms_preview_post": {
     "properties": {
@@ -4520,6 +6305,23 @@
        }
       ],
       "title": "Bias Pts"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "calibrated",
+       "uncalibrated"
+      ],
+      "title": "Status",
+      "default": "uncalibrated"
+     },
+     "by_lead": {
+      "items": {
+       "$ref": "#/components/schemas/LeadCalibrationOut"
+      },
+      "type": "array",
+      "title": "By Lead",
+      "default": []
      }
     },
     "type": "object",
@@ -4530,99 +6332,109 @@
     ],
     "title": "CalibrationOut"
    },
-   "ChannelDayOut": {
+   "CancellationOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "nights_priced": {
+      "type": "integer",
+      "title": "Nights Priced"
+     },
+     "refundable_share": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Refundable Share"
+     },
+     "nonrefundable_nights": {
+      "type": "integer",
+      "title": "Nonrefundable Nights"
+     },
+     "nr_discount_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nr Discount Pct"
+     },
+     "pairs": {
+      "type": "integer",
+      "title": "Pairs"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "name",
+     "role",
+     "nights_priced",
+     "refundable_share",
+     "nonrefundable_nights",
+     "nr_discount_pct",
+     "pairs"
+    ],
+    "title": "CancellationOut"
+   },
+   "CancellationsOut": {
     "properties": {
      "channel": {
       "type": "string",
       "title": "Channel"
      },
-     "availability_status": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Availability Status"
+     "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
      },
-     "exact_rooms_left": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Exact Rooms Left"
+     "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
      },
-     "min_price": {
-      "anyOf": [
-       {
-        "type": "string",
-        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Min Price"
-     },
-     "min_refundable_price": {
-      "anyOf": [
-       {
-        "type": "string",
-        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Min Refundable Price"
-     },
-     "currency": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Currency"
-     },
-     "last_observed_at": {
-      "anyOf": [
-       {
-        "type": "string",
-        "format": "date-time"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Last Observed At"
-     },
-     "tax_inclusive": {
-      "type": "boolean",
-      "title": "Tax Inclusive"
+     "hotels": {
+      "items": {
+       "$ref": "#/components/schemas/CancellationOut"
+      },
+      "type": "array",
+      "title": "Hotels"
      }
     },
     "type": "object",
     "required": [
      "channel",
-     "availability_status",
-     "exact_rooms_left",
-     "min_price",
-     "min_refundable_price",
-     "currency",
-     "last_observed_at",
-     "tax_inclusive"
+     "start",
+     "end",
+     "hotels"
     ],
-    "title": "ChannelDayOut",
-    "description": "Một kênh cho (khách sạn, đêm): đặt các kênh cạnh nhau (D4: không cộng số phòng)."
+    "title": "CancellationsOut"
    },
    "ChannelOut": {
     "properties": {
@@ -5309,6 +7121,63 @@
      "priced_hotels": {
       "type": "integer",
       "title": "Priced Hotels"
+     },
+     "competitors_total": {
+      "type": "integer",
+      "title": "Competitors Total",
+      "default": 0
+     },
+     "competitors_priced": {
+      "type": "integer",
+      "title": "Competitors Priced",
+      "default": 0
+     },
+     "competitors_restricted": {
+      "type": "integer",
+      "title": "Competitors Restricted",
+      "default": 0
+     },
+     "competitors_low": {
+      "type": "integer",
+      "title": "Competitors Low",
+      "default": 0
+     },
+     "competitors_stale": {
+      "type": "integer",
+      "title": "Competitors Stale",
+      "default": 0
+     },
+     "sample": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "small",
+       "insufficient"
+      ],
+      "title": "Sample",
+      "default": "insufficient"
+     },
+     "own_hotel_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Own Hotel Id"
+     },
+     "own_min_stay": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Own Min Stay"
      }
     },
     "type": "object",
@@ -5329,6 +7198,145 @@
      "priced_hotels"
     ],
     "title": "CompsetDayOut"
+   },
+   "CompsetReviewOut": {
+    "properties": {
+     "own_hotel_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Own Hotel Id"
+     },
+     "primary": {
+      "type": "integer",
+      "title": "Primary"
+     },
+     "secondary": {
+      "type": "integer",
+      "title": "Secondary"
+     },
+     "rooms_known": {
+      "type": "integer",
+      "title": "Rooms Known"
+     },
+     "warnings": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Warnings"
+     },
+     "dominant_hotel_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dominant Hotel Id"
+     },
+     "dominant_share": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dominant Share"
+     },
+     "last_change_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Change At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "own_hotel_id",
+     "primary",
+     "secondary",
+     "rooms_known",
+     "warnings"
+    ],
+    "title": "CompsetReviewOut",
+    "description": "Rà soát compset theo quy tắc CoStar STR (7.3): ≥4 đối thủ, ≥3 không cùng chủ (chưa kiểm\nđược), không khách sạn nào quá 50% số phòng compset; nhắc rà soát ≥2 lần/năm."
+   },
+   "DataStatusOut": {
+    "properties": {
+     "now": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Now"
+     },
+     "stale_after_hours": {
+      "type": "integer",
+      "title": "Stale After Hours"
+     },
+     "last_data_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Data At"
+     },
+     "success_rate_7d": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Success Rate 7D"
+     },
+     "probes_7d": {
+      "type": "integer",
+      "title": "Probes 7D",
+      "default": 0
+     },
+     "failed_7d": {
+      "type": "integer",
+      "title": "Failed 7D",
+      "default": 0
+     },
+     "stale": {
+      "type": "boolean",
+      "title": "Stale",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "now",
+     "stale_after_hours",
+     "last_data_at"
+    ],
+    "title": "DataStatusOut",
+    "description": "Độ tin cậy dữ liệu Booking.com của tenant (roadmap 0.6, 0.7)."
    },
    "DateCell": {
     "properties": {
@@ -5475,6 +7483,54 @@
        }
       ],
       "title": "Days To Arrival"
+     },
+     "state": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "State"
+     },
+     "min_stay": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Stay"
+     },
+     "promos": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promos"
+     },
+     "stale": {
+      "type": "boolean",
+      "title": "Stale",
+      "default": false
      }
     },
     "type": "object",
@@ -5520,21 +7576,15 @@
       "type": "string",
       "title": "Channel"
      },
-     "channels": {
-      "items": {
-       "$ref": "#/components/schemas/ChannelDayOut"
-      },
-      "type": "array",
-      "title": "Channels",
-      "default": []
-     },
-     "demand_signals": {
-      "items": {
-       "$ref": "#/components/schemas/DemandSignalOut"
-      },
-      "type": "array",
-      "title": "Demand Signals",
-      "default": []
+     "rate": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RateDetailOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "room_types": {
       "items": {
@@ -5655,7 +7705,9 @@
         "enum": [
          "tet",
          "holiday",
-         "travel"
+         "travel",
+         "source_market",
+         "season"
         ]
        },
        {
@@ -5689,6 +7741,22 @@
        "dismissed"
       ],
       "title": "Decision"
+     },
+     "applied_price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Applied Price"
      }
     },
     "type": "object",
@@ -5696,73 +7764,6 @@
      "decision"
     ],
     "title": "DecisionIn"
-   },
-   "DemandSignalOut": {
-    "properties": {
-     "channel": {
-      "type": "string",
-      "title": "Channel"
-     },
-     "kind": {
-      "type": "string",
-      "title": "Kind"
-     },
-     "value": {
-      "type": "string",
-      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-      "title": "Value"
-     },
-     "window_hours": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Window Hours"
-     },
-     "stay_date": {
-      "anyOf": [
-       {
-        "type": "string",
-        "format": "date"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Stay Date"
-     },
-     "raw_text": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Raw Text"
-     },
-     "observed_at": {
-      "type": "string",
-      "format": "date-time",
-      "title": "Observed At"
-     }
-    },
-    "type": "object",
-    "required": [
-     "channel",
-     "kind",
-     "value",
-     "window_hours",
-     "stay_date",
-     "raw_text",
-     "observed_at"
-    ],
-    "title": "DemandSignalOut"
    },
    "DestinationOut": {
     "properties": {
@@ -5839,6 +7840,72 @@
      "lng"
     ],
     "title": "DestinationOut"
+   },
+   "EngagementOut": {
+    "properties": {
+     "weeks": {
+      "items": {
+       "$ref": "#/components/schemas/EngagementWeekOut"
+      },
+      "type": "array",
+      "title": "Weeks"
+     }
+    },
+    "type": "object",
+    "required": [
+     "weeks"
+    ],
+    "title": "EngagementOut",
+    "description": "Đo O4: tin tới đúng chỗ và có hành động (lượt nhấn, \"Đã xử lý\") theo tuần, theo kênh."
+   },
+   "EngagementWeekOut": {
+    "properties": {
+     "week": {
+      "type": "string",
+      "title": "Week"
+     },
+     "channel": {
+      "type": "string",
+      "title": "Channel"
+     },
+     "sent": {
+      "type": "integer",
+      "title": "Sent"
+     },
+     "failed": {
+      "type": "integer",
+      "title": "Failed"
+     },
+     "skipped": {
+      "type": "integer",
+      "title": "Skipped"
+     },
+     "clicked": {
+      "type": "integer",
+      "title": "Clicked"
+     },
+     "resolved": {
+      "type": "integer",
+      "title": "Resolved"
+     },
+     "cost_vnd": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Cost Vnd"
+     }
+    },
+    "type": "object",
+    "required": [
+     "week",
+     "channel",
+     "sent",
+     "failed",
+     "skipped",
+     "clicked",
+     "resolved",
+     "cost_vnd"
+    ],
+    "title": "EngagementWeekOut"
    },
    "EventOut": {
     "properties": {
@@ -5953,6 +8020,29 @@
       "type": "string",
       "format": "date-time",
       "title": "Observed At"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "detail": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Detail"
      }
     },
     "type": "object",
@@ -6063,7 +8153,9 @@
       "enum": [
        "tet",
        "holiday",
-       "travel"
+       "travel",
+       "source_market",
+       "season"
       ],
       "title": "Kind"
      },
@@ -6175,14 +8267,6 @@
      "channel": {
       "type": "string",
       "title": "Channel"
-     },
-     "demand_signals": {
-      "items": {
-       "$ref": "#/components/schemas/DemandSignalOut"
-      },
-      "type": "array",
-      "title": "Demand Signals",
-      "default": []
      },
      "horizon_end": {
       "type": "string",
@@ -6380,6 +8464,40 @@
       "type": "array",
       "title": "Listings",
       "default": []
+     },
+     "rooms_total": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Total"
+     },
+     "review_score": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review Score"
+     },
+     "review_count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review Count"
      }
     },
     "type": "object",
@@ -6391,6 +8509,82 @@
      "star_rating"
     ],
     "title": "HotelOut"
+   },
+   "HotelPromosOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "promos": {
+      "items": {
+       "$ref": "#/components/schemas/PromoRunOut"
+      },
+      "type": "array",
+      "title": "Promos"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "name",
+     "role",
+     "promos"
+    ],
+    "title": "HotelPromosOut"
+   },
+   "HotelRestrictionsOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "nights": {
+      "items": {
+       "$ref": "#/components/schemas/RestrictionNightOut"
+      },
+      "type": "array",
+      "title": "Nights"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "name",
+     "role",
+     "nights"
+    ],
+    "title": "HotelRestrictionsOut"
    },
    "HotelRow": {
     "properties": {
@@ -6671,11 +8865,141 @@
     ],
     "title": "InsightOut"
    },
+   "KpiOut": {
+    "properties": {
+     "nights": {
+      "type": "integer",
+      "title": "Nights"
+     },
+     "rooms_sold": {
+      "type": "integer",
+      "title": "Rooms Sold"
+     },
+     "rooms_available": {
+      "type": "integer",
+      "title": "Rooms Available"
+     },
+     "revenue": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Revenue"
+     },
+     "occupancy_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Occupancy Pct"
+     },
+     "adr": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Adr"
+     },
+     "revpar": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revpar"
+     }
+    },
+    "type": "object",
+    "required": [
+     "nights",
+     "rooms_sold",
+     "rooms_available",
+     "revenue",
+     "occupancy_pct",
+     "adr",
+     "revpar"
+    ],
+    "title": "KpiOut"
+   },
+   "LeadCalibrationOut": {
+    "properties": {
+     "bucket": {
+      "type": "string",
+      "title": "Bucket"
+     },
+     "nights": {
+      "type": "integer",
+      "title": "Nights"
+     },
+     "mean_abs_error_pts": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mean Abs Error Pts"
+     },
+     "bias_pts": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bias Pts"
+     },
+     "mape_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mape Pct"
+     },
+     "usable": {
+      "type": "boolean",
+      "title": "Usable"
+     }
+    },
+    "type": "object",
+    "required": [
+     "bucket",
+     "nights",
+     "mean_abs_error_pts",
+     "bias_pts",
+     "mape_pct",
+     "usable"
+    ],
+    "title": "LeadCalibrationOut"
+   },
    "ListingAction": {
     "properties": {
      "action": {
       "type": "string",
-      "pattern": "^(confirm|reject|pause|resume|retry)$",
+      "pattern": "^(pause|resume|retry)$",
       "title": "Action"
      }
     },
@@ -7396,6 +9720,14 @@
       ],
       "title": "Own Hotel Id"
      },
+     "own_hotel_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Own Hotel Ids",
+      "default": []
+     },
      "data_since": {
       "anyOf": [
        {
@@ -7439,7 +9771,12 @@
      "competitor_sold_out",
      "competitor_low_stock",
      "competitor_price_drop",
-     "own_parity_gap"
+     "market_tight",
+     "competitor_price_rise",
+     "competitor_promo",
+     "own_position_drift",
+     "own_closed",
+     "data_stale"
     ],
     "title": "NotificationKind"
    },
@@ -7510,6 +9847,23 @@
        }
       ],
       "title": "Sent At"
+     },
+     "channel": {
+      "type": "string",
+      "title": "Channel",
+      "default": "email"
+     },
+     "resolved_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resolved At"
      }
     },
     "type": "object",
@@ -7592,6 +9946,23 @@
       },
       "type": "array",
       "title": "Rules"
+     },
+     "zalo_configured": {
+      "type": "boolean",
+      "title": "Zalo Configured",
+      "default": false
+     },
+     "channels": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Channels",
+      "default": [
+       "email",
+       "zalo",
+       "webhook"
+      ]
      }
     },
     "type": "object",
@@ -7655,6 +10026,481 @@
     "title": "OccOut",
     "description": "Công suất ước tính một lần quét: khoảng [thấp, cao] và độ phủ (phần biết chắc)."
    },
+   "OtbImportOut": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "rows_read": {
+      "type": "integer",
+      "title": "Rows Read"
+     },
+     "snapshots_written": {
+      "type": "integer",
+      "title": "Snapshots Written"
+     },
+     "as_of_dates": {
+      "type": "integer",
+      "title": "As Of Dates"
+     },
+     "stay_dates": {
+      "type": "integer",
+      "title": "Stay Dates"
+     },
+     "errors": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Errors"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "hotel_id",
+     "rows_read",
+     "snapshots_written",
+     "as_of_dates",
+     "stay_dates",
+     "errors",
+     "status"
+    ],
+    "title": "OtbImportOut"
+   },
+   "OtbNightOut": {
+    "properties": {
+     "stay_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Stay Date"
+     },
+     "lead": {
+      "type": "integer",
+      "title": "Lead"
+     },
+     "rooms_otb": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Otb"
+     },
+     "revenue_otb": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revenue Otb"
+     },
+     "rooms_available": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Available"
+     },
+     "occ_otb_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Occ Otb Pct"
+     },
+     "adr_otb": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Adr Otb"
+     },
+     "pickup_1d": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pickup 1D"
+     },
+     "pickup_7d": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pickup 7D"
+     },
+     "pace_4w": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pace 4W"
+     },
+     "ref_4w": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ref 4W"
+     },
+     "stly": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stly"
+     },
+     "pace_stly": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pace Stly"
+     },
+     "forecast_rooms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Forecast Rooms"
+     },
+     "forecast_occ_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Forecast Occ Pct"
+     },
+     "forecast_basis": {
+      "type": "integer",
+      "title": "Forecast Basis"
+     }
+    },
+    "type": "object",
+    "required": [
+     "stay_date",
+     "lead",
+     "rooms_otb",
+     "revenue_otb",
+     "rooms_available",
+     "occ_otb_pct",
+     "adr_otb",
+     "pickup_1d",
+     "pickup_7d",
+     "pace_4w",
+     "ref_4w",
+     "stly",
+     "pace_stly",
+     "forecast_rooms",
+     "forecast_occ_pct",
+     "forecast_basis"
+    ],
+    "title": "OtbNightOut"
+   },
+   "OtbOut": {
+    "properties": {
+     "hotel_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hotel Id"
+     },
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+     },
+     "nights": {
+      "items": {
+       "$ref": "#/components/schemas/OtbNightOut"
+      },
+      "type": "array",
+      "title": "Nights"
+     },
+     "actual_30d": {
+      "$ref": "#/components/schemas/KpiOut"
+     },
+     "otb_window": {
+      "$ref": "#/components/schemas/KpiOut"
+     },
+     "price_index_median": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Index Median"
+     },
+     "price_index_nights": {
+      "type": "integer",
+      "title": "Price Index Nights"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "as_of_date",
+     "start",
+     "end",
+     "nights",
+     "actual_30d",
+     "otb_window",
+     "price_index_median",
+     "price_index_nights"
+    ],
+    "title": "OtbOut"
+   },
+   "OutcomeNightOut": {
+    "properties": {
+     "stay_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Stay Date"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "decision": {
+      "type": "string",
+      "title": "Decision"
+     },
+     "change_pct": {
+      "type": "integer",
+      "title": "Change Pct"
+     },
+     "own_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Own Price"
+     },
+     "target_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Price"
+     },
+     "applied_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Applied Price"
+     },
+     "actual_occ_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual Occ Pct"
+     },
+     "actual_adr": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual Adr"
+     },
+     "verdict": {
+      "type": "string",
+      "enum": [
+       "good",
+       "review",
+       "neutral",
+       "pending"
+      ],
+      "title": "Verdict"
+     }
+    },
+    "type": "object",
+    "required": [
+     "stay_date",
+     "kind",
+     "decision",
+     "change_pct",
+     "own_price",
+     "target_price",
+     "applied_price",
+     "actual_occ_pct",
+     "actual_adr",
+     "verdict"
+    ],
+    "title": "OutcomeNightOut"
+   },
+   "OutcomesOut": {
+    "properties": {
+     "decided": {
+      "type": "integer",
+      "title": "Decided"
+     },
+     "applied": {
+      "type": "integer",
+      "title": "Applied"
+     },
+     "dismissed": {
+      "type": "integer",
+      "title": "Dismissed"
+     },
+     "apply_rate": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Apply Rate"
+     },
+     "good": {
+      "type": "integer",
+      "title": "Good"
+     },
+     "review": {
+      "type": "integer",
+      "title": "Review"
+     },
+     "nights": {
+      "items": {
+       "$ref": "#/components/schemas/OutcomeNightOut"
+      },
+      "type": "array",
+      "title": "Nights"
+     }
+    },
+    "type": "object",
+    "required": [
+     "decided",
+     "applied",
+     "dismissed",
+     "apply_rate",
+     "good",
+     "review",
+     "nights"
+    ],
+    "title": "OutcomesOut",
+    "description": "Nhật ký \"gợi ý đã áp dụng → kết quả\" (6.4) và tỷ lệ áp dụng."
+   },
    "OverviewOut": {
     "properties": {
      "start": {
@@ -7670,13 +10516,6 @@
      "channel": {
       "type": "string",
       "title": "Channel"
-     },
-     "channels": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "title": "Channels"
      },
      "horizon_end": {
       "type": "string",
@@ -7720,7 +10559,6 @@
      "start",
      "end",
      "channel",
-     "channels",
      "horizon_end",
      "hotels",
      "compset",
@@ -7940,6 +10778,35 @@
       "type": "integer",
       "title": "Comp Occ Hotels"
      },
+     "comp_occ_low": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comp Occ Low"
+     },
+     "comp_occ_high": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comp Occ High"
+     },
+     "comp_priced": {
+      "type": "integer",
+      "title": "Comp Priced",
+      "default": 0
+     },
      "comp_pickup_7d": {
       "anyOf": [
        {
@@ -8153,10 +11020,12 @@
     "type": "string",
     "enum": [
      "any",
-     "refundable"
+     "refundable",
+     "breakfast",
+     "room_only"
     ],
     "title": "PriceBasis",
-    "description": "Giá đem so: rẻ nhất mọi gói, hoặc rẻ nhất trong các gói có huỷ miễn phí. Đối thủ bán gói\nkhông hoàn huỷ rẻ hơn 15–20% làm trung vị lệch; so cùng điều kiện hoàn huỷ thì công bằng hơn."
+    "description": "Giá đem so (cùng điều kiện): rẻ nhất mọi gói; rẻ nhất trong các gói huỷ miễn phí (gần BAR\nnhất); có bữa sáng; chỉ phòng. Đối thủ bán gói không hoàn huỷ rẻ hơn 10–20%, giá gồm bữa sáng\nphổ biến ở Việt Nam: so lệch điều kiện làm trung vị sai."
    },
    "PriceBucketOut": {
     "properties": {
@@ -8189,6 +11058,306 @@
      "count"
     ],
     "title": "PriceBucketOut"
+   },
+   "PromoNightOut": {
+    "properties": {
+     "stay_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Stay Date"
+     },
+     "running": {
+      "type": "integer",
+      "title": "Running"
+     },
+     "observed": {
+      "type": "integer",
+      "title": "Observed"
+     }
+    },
+    "type": "object",
+    "required": [
+     "stay_date",
+     "running",
+     "observed"
+    ],
+    "title": "PromoNightOut"
+   },
+   "PromoRunOut": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "origin": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Origin"
+     },
+     "nights": {
+      "items": {
+       "type": "string",
+       "format": "date"
+      },
+      "type": "array",
+      "title": "Nights"
+     },
+     "max_depth_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Depth Pct"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "origin",
+     "nights",
+     "max_depth_pct",
+     "started_at"
+    ],
+    "title": "PromoRunOut"
+   },
+   "PromotionsOut": {
+    "properties": {
+     "channel": {
+      "type": "string",
+      "title": "Channel"
+     },
+     "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+     },
+     "hotels": {
+      "items": {
+       "$ref": "#/components/schemas/HotelPromosOut"
+      },
+      "type": "array",
+      "title": "Hotels"
+     },
+     "nights": {
+      "items": {
+       "$ref": "#/components/schemas/PromoNightOut"
+      },
+      "type": "array",
+      "title": "Nights"
+     }
+    },
+    "type": "object",
+    "required": [
+     "channel",
+     "start",
+     "end",
+     "hotels",
+     "nights"
+    ],
+    "title": "PromotionsOut"
+   },
+   "RateDetailOut": {
+    "properties": {
+     "availability_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Availability Status"
+     },
+     "exact_rooms_left": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Exact Rooms Left"
+     },
+     "min_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Price"
+     },
+     "min_refundable_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Refundable Price"
+     },
+     "currency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currency"
+     },
+     "last_observed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Observed At"
+     },
+     "min_breakfast_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Breakfast Price"
+     },
+     "min_room_only_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Room Only Price"
+     },
+     "min_stay": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Stay"
+     },
+     "cheapest_rate": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cheapest Rate"
+     },
+     "prices_by_key": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prices By Key"
+     }
+    },
+    "type": "object",
+    "required": [
+     "availability_status",
+     "exact_rooms_left",
+     "min_price",
+     "min_refundable_price",
+     "currency",
+     "last_observed_at"
+    ],
+    "title": "RateDetailOut",
+    "description": "Giá và tình trạng Booking.com của (khách sạn, đêm) ở lần quét gần nhất."
+   },
+   "ReasonOut": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "pct": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "text",
+     "pct"
+    ],
+    "title": "ReasonOut"
    },
    "RecipientCreate": {
     "properties": {
@@ -8232,6 +11401,225 @@
      "created_at"
     ],
     "title": "RecipientOut"
+   },
+   "ReputationHotelOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "review_score": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review Score"
+     },
+     "review_count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review Count"
+     },
+     "reviews_per_month": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviews Per Month"
+     },
+     "score_change": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score Change"
+     },
+     "next_threshold": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Threshold"
+     },
+     "gap_to_next": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gap To Next"
+     },
+     "badges": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Badges"
+     },
+     "price_index": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Index"
+     },
+     "score_index": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score Index"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "name",
+     "role",
+     "review_score",
+     "review_count",
+     "reviews_per_month",
+     "score_change",
+     "next_threshold",
+     "gap_to_next",
+     "badges",
+     "price_index",
+     "score_index"
+    ],
+    "title": "ReputationHotelOut"
+   },
+   "ReputationOut": {
+    "properties": {
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "hotels": {
+      "items": {
+       "$ref": "#/components/schemas/ReputationHotelOut"
+      },
+      "type": "array",
+      "title": "Hotels"
+     }
+    },
+    "type": "object",
+    "required": [
+     "days",
+     "hotels"
+    ],
+    "title": "ReputationOut"
+   },
+   "RestrictionNightOut": {
+    "properties": {
+     "stay_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Stay Date"
+     },
+     "min_stay": {
+      "type": "integer",
+      "title": "Min Stay"
+     },
+     "closed_to_arrival": {
+      "type": "boolean",
+      "title": "Closed To Arrival"
+     }
+    },
+    "type": "object",
+    "required": [
+     "stay_date",
+     "min_stay",
+     "closed_to_arrival"
+    ],
+    "title": "RestrictionNightOut"
+   },
+   "RestrictionsOut": {
+    "properties": {
+     "channel": {
+      "type": "string",
+      "title": "Channel"
+     },
+     "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+     },
+     "hotels": {
+      "items": {
+       "$ref": "#/components/schemas/HotelRestrictionsOut"
+      },
+      "type": "array",
+      "title": "Hotels"
+     }
+    },
+    "type": "object",
+    "required": [
+     "channel",
+     "start",
+     "end",
+     "hotels"
+    ],
+    "title": "RestrictionsOut"
    },
    "RoomSnapshotOut": {
     "properties": {
@@ -8683,6 +12071,405 @@
     ],
     "title": "ScrapeSessionOut"
    },
+   "StrategyIn": {
+    "properties": {
+     "base_price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Price"
+     },
+     "floor_price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Price"
+     },
+     "ceiling_price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ceiling Price"
+     },
+     "target_index": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 200.0,
+        "minimum": 50.0
+       },
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       }
+      ],
+      "title": "Target Index",
+      "default": "100"
+     },
+     "round_to": {
+      "type": "integer",
+      "maximum": 1000000.0,
+      "minimum": 0.0,
+      "title": "Round To",
+      "default": 10000
+     },
+     "max_daily_change_pct": {
+      "type": "integer",
+      "maximum": 50.0,
+      "minimum": 1.0,
+      "title": "Max Daily Change Pct",
+      "default": 15
+     },
+     "weekday_adj": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Weekday Adj"
+     },
+     "holiday_uplift_pct": {
+      "type": "integer",
+      "maximum": 50.0,
+      "minimum": -30.0,
+      "title": "Holiday Uplift Pct",
+      "default": 10
+     },
+     "last_minute_days": {
+      "type": "integer",
+      "maximum": 14.0,
+      "minimum": 0.0,
+      "title": "Last Minute Days",
+      "default": 3
+     },
+     "last_minute_adj_pct": {
+      "type": "integer",
+      "maximum": 0.0,
+      "minimum": -30.0,
+      "title": "Last Minute Adj Pct",
+      "default": -5
+     }
+    },
+    "type": "object",
+    "title": "StrategyIn"
+   },
+   "StrategyOut": {
+    "properties": {
+     "base_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Price"
+     },
+     "floor_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Price"
+     },
+     "ceiling_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ceiling Price"
+     },
+     "target_index": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Target Index",
+      "default": "100"
+     },
+     "round_to": {
+      "type": "integer",
+      "maximum": 1000000.0,
+      "minimum": 0.0,
+      "title": "Round To",
+      "default": 10000
+     },
+     "max_daily_change_pct": {
+      "type": "integer",
+      "maximum": 50.0,
+      "minimum": 1.0,
+      "title": "Max Daily Change Pct",
+      "default": 15
+     },
+     "weekday_adj": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Weekday Adj"
+     },
+     "holiday_uplift_pct": {
+      "type": "integer",
+      "maximum": 50.0,
+      "minimum": -30.0,
+      "title": "Holiday Uplift Pct",
+      "default": 10
+     },
+     "last_minute_days": {
+      "type": "integer",
+      "maximum": 14.0,
+      "minimum": 0.0,
+      "title": "Last Minute Days",
+      "default": 3
+     },
+     "last_minute_adj_pct": {
+      "type": "integer",
+      "maximum": 0.0,
+      "minimum": -30.0,
+      "title": "Last Minute Adj Pct",
+      "default": -5
+     },
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "configured": {
+      "type": "boolean",
+      "title": "Configured"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "configured"
+    ],
+    "title": "StrategyOut"
+   },
+   "SubscriptionIn": {
+    "properties": {
+     "channel": {
+      "type": "string",
+      "enum": [
+       "email",
+       "zalo",
+       "webhook"
+      ],
+      "title": "Channel"
+     },
+     "target": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Target"
+     },
+     "kinds": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "alerts",
+        "daily_insight",
+        "weekly_report",
+        "data_stale"
+       ]
+      },
+      "type": "array",
+      "title": "Kinds",
+      "default": []
+     },
+     "quiet_start": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quiet Start"
+     },
+     "quiet_end": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quiet End"
+     },
+     "max_per_day": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 50.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Per Day"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "channel",
+     "target"
+    ],
+    "title": "SubscriptionIn",
+    "description": "Đăng ký nhận tin của một người (3.4). kinds rỗng = mọi loại tin."
+   },
+   "SubscriptionOut": {
+    "properties": {
+     "channel": {
+      "type": "string",
+      "enum": [
+       "email",
+       "zalo",
+       "webhook"
+      ],
+      "title": "Channel"
+     },
+     "target": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Target"
+     },
+     "kinds": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "alerts",
+        "daily_insight",
+        "weekly_report",
+        "data_stale"
+       ]
+      },
+      "type": "array",
+      "title": "Kinds",
+      "default": []
+     },
+     "quiet_start": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quiet Start"
+     },
+     "quiet_end": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quiet End"
+     },
+     "max_per_day": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 50.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Per Day"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+     },
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "channel",
+     "target",
+     "id",
+     "user_id",
+     "created_at"
+    ],
+    "title": "SubscriptionOut"
+   },
    "SuggestionOut": {
     "properties": {
      "kind": {
@@ -8702,7 +12489,8 @@
       "type": "string",
       "enum": [
        "high",
-       "medium"
+       "medium",
+       "low"
       ],
       "title": "Confidence"
      },
@@ -8727,6 +12515,57 @@
        }
       ],
       "title": "Decision"
+     },
+     "target_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Price"
+     },
+     "reference_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reference Price"
+     },
+     "adjustments": {
+      "items": {
+       "$ref": "#/components/schemas/ReasonOut"
+      },
+      "type": "array",
+      "title": "Adjustments",
+      "default": []
+     },
+     "restrictions": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Restrictions",
+      "default": []
+     },
+     "clamped": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Clamped"
      }
     },
     "type": "object",
@@ -8787,11 +12626,6 @@
       "minLength": 2,
       "title": "Country Code",
       "default": "vn"
-     },
-     "reference_channel": {
-      "type": "string",
-      "title": "Reference Channel",
-      "default": "booking"
      }
     },
     "type": "object",
@@ -8837,10 +12671,6 @@
       "type": "string",
       "title": "Country Code"
      },
-     "reference_channel": {
-      "type": "string",
-      "title": "Reference Channel"
-     },
      "active": {
       "type": "boolean",
       "title": "Active"
@@ -8849,6 +12679,14 @@
       "type": "string",
       "format": "date-time",
       "title": "Created At"
+     },
+     "source_markets": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Source Markets",
+      "default": []
      }
     },
     "type": "object",
@@ -8861,7 +12699,6 @@
      "insight_language",
      "insight_hour",
      "country_code",
-     "reference_channel",
      "active",
      "created_at"
     ],
@@ -8955,17 +12792,6 @@
       ],
       "title": "Country Code"
      },
-     "reference_channel": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Reference Channel"
-     },
      "active": {
       "anyOf": [
        {
@@ -8976,6 +12802,20 @@
        }
       ],
       "title": "Active"
+     },
+     "source_markets": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Markets"
      }
     },
     "type": "object",
@@ -9139,6 +12979,133 @@
     ],
     "title": "ValidationError"
    },
+   "VisibilityHotelOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "scans": {
+      "type": "integer",
+      "title": "Scans"
+     },
+     "avg_rank": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Rank"
+     },
+     "avg_organic_rank": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Organic Rank"
+     },
+     "best_rank": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Best Rank"
+     },
+     "sponsored_share": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sponsored Share"
+     },
+     "badges": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Badges"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "name",
+     "role",
+     "scans",
+     "avg_rank",
+     "avg_organic_rank",
+     "best_rank",
+     "sponsored_share",
+     "badges"
+    ],
+    "title": "VisibilityHotelOut"
+   },
+   "VisibilityOut": {
+    "properties": {
+     "area_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Area Id"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "hotels": {
+      "items": {
+       "$ref": "#/components/schemas/VisibilityHotelOut"
+      },
+      "type": "array",
+      "title": "Hotels"
+     }
+    },
+    "type": "object",
+    "required": [
+     "area_id",
+     "days",
+     "hotels"
+    ],
+    "title": "VisibilityOut"
+   },
    "WatchItemCreate": {
     "properties": {
      "url": {
@@ -9200,6 +13167,32 @@
       "type": "string",
       "format": "date-time",
       "title": "Added At"
+     },
+     "compset_of": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Compset Of"
+     },
+     "tier": {
+      "type": "string",
+      "enum": [
+       "primary",
+       "secondary"
+      ],
+      "title": "Tier",
+      "default": "primary"
+     },
+     "weight": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Weight",
+      "default": "1"
      }
     },
     "type": "object",
@@ -9248,6 +13241,62 @@
        }
       ],
       "title": "Active"
+     },
+     "compset_of": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Compset Of"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "primary",
+         "secondary"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier"
+     },
+     "weight": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 10.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weight"
+     },
+     "rooms_total": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5000.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Total"
      }
     },
     "type": "object",

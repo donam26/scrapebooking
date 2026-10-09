@@ -48,6 +48,10 @@ class SearchCard:
     currency: str | None = None
     sold_out: bool = False
     type_id: int | None = None  # loại chỗ ở của kênh (ht_id: 204 khách sạn, 201 căn hộ…)
+    # Vị trí hiển thị (roadmap 7.2): thẻ quảng cáo ("Ad"), Preferred / Preferred Plus, tên deal.
+    sponsored: bool = False
+    preferred: str | None = None  # preferred | preferred_plus
+    badges: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -149,7 +153,25 @@ def _apollo_card(store: dict[str, Any], raw: dict[str, Any]) -> SearchCard | Non
     shown = r.get("location") or {}
     price, currency = _apollo_price(r.get("priceDisplayInfoIrene"))
     lat, lng = loc.get("latitude"), loc.get("longitude")
+    pers = _deref(store, r.get("persuasion") or {})
+    preferred = (
+        "preferred_plus"
+        if pers.get("preferredPlus")
+        else "preferred"
+        if pers.get("preferred")
+        else None
+    )
+    badges: list[str] = []
+    for src in (r.get("badges") or [], (r.get("priceDisplayInfoIrene") or {}).get("badges") or []):
+        for b in src:
+            name = ((_deref(store, b) or {}).get("name") or {}).get("translation")
+            if isinstance(name, str) and name and name not in badges:
+                badges.append(name[:64])
+    sponsored = bool(r.get("showAdLabel")) or r.get("sponsoredListingData") not in (None, {})
     return SearchCard(
+        sponsored=sponsored,
+        preferred=preferred,
+        badges=tuple(badges),
         slug=slug,
         url=canonical_url(slug),
         name=str((r.get("displayName") or {}).get("text") or page_name)[:300],

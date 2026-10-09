@@ -66,9 +66,10 @@ export function dateRange(startIso: string, endIso: string): string[] {
   return Array.from({ length: n + 1 }, (_, i) => addDays(startIso, i));
 }
 
+/** Đêm cuối tuần của khách sạn: đêm thứ Sáu và thứ Bảy (đêm Chủ nhật là đêm trong tuần). */
 export function isWeekend(iso: string): boolean {
   const d = parseDate(iso).getDay();
-  return d === 0 || d === 6;
+  return d === 5 || d === 6;
 }
 
 /** Hai mốc cùng ngày (giờ trình duyệt)? */
@@ -188,6 +189,21 @@ export function createFmt(locale: Locale, t: FormatTranslator) {
     const f = currency ? currencyFormatter(currency) : null;
     if (f) return f.format(n);
     return currency ? `${numberFmt.format(n)} ${currency}` : numberFmt.format(n);
+  }
+
+  /**
+   * Giá ngắn luôn có đơn vị cho ô hẹp: VND 850.000 -> "850k", 1.250.000 -> "1,3tr" / "1.3M",
+   * 12.400.000 -> "12tr". Tiền khác VND (hoặc không rõ) dùng `fmtMoney` đầy đủ.
+   */
+  function fmtPriceShort(value: string | number | null | undefined, currency: string | null | undefined = "VND"): string {
+    const n = num(value);
+    if (n === null) return "—";
+    if (currency && currency !== "VND") return fmtMoney(n, currency);
+    const abs = Math.abs(n);
+    const k = Math.round(abs / 1000);
+    if (k >= 1000) return t("priceMillion", { value: digitsFmt(abs >= 10_000_000 ? 0 : 1).format(n / 1_000_000) });
+    if (k >= 1) return t("priceThousand", { value: intFmt.format(Math.sign(n) * k) });
+    return fmtMoney(n, "VND");
   }
 
   /** Số thập phân đã là phần trăm (12.5 -> "12,5%"), có dấu khi `signed`. */
@@ -319,6 +335,7 @@ export function createFmt(locale: Locale, t: FormatTranslator) {
     fmtInt,
     fmtCompact,
     fmtMoney,
+    fmtPriceShort,
     fmtPct,
     fmtShare,
     fmtSigned,

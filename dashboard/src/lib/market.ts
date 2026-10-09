@@ -1,11 +1,11 @@
 /**
  * Định dạng số liệu nhịp đặt phòng và gợi ý giá cho màn "Nhịp đặt phòng" và "Hôm nay".
- * Công suất là ước tính từ số phòng còn trên kênh tham chiếu (Booking), luôn ghi rõ "≈".
+ * Công suất là ước tính từ số phòng còn trên Booking.com, luôn ghi rõ "≈".
  */
 
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-import type { PaceNightOut, SuggestionOut } from "@/lib/api";
+import type { PaceNightOut, ReasonOut, SuggestionOut } from "@/lib/api";
 import type { Tone } from "@/lib/labels";
 import { num } from "@/lib/format";
 
@@ -28,7 +28,7 @@ export type MarketTextTranslator = ReturnType<typeof useTranslations<"helpers.ma
  * Ngoài React: `createMarketText(t)` với `t = await getTranslations("helpers.market")`.
  */
 export function createMarketText(t: MarketTextTranslator) {
-  /** Nhịp so cùng kỳ (điểm phần trăm, có dấu): "+12 điểm", "−8 điểm", "ngang cùng kỳ". */
+  /** Nhịp so các tuần trước cùng thứ (điểm phần trăm, có dấu): "+12 điểm", "−8 điểm", "ngang các tuần trước". */
   function fmtPace(delta: string | number | null | undefined): string | null {
     const n = num(delta);
     if (n === null) return null;
@@ -66,7 +66,37 @@ export function useMarketText(): MarketText {
   return useMemo(() => createMarketText(t), [t]);
 }
 
-/** Gợi ý còn chờ xử lý (chưa áp dụng, chưa bỏ qua), đêm gần trước. */
+/**
+ * Giá mục tiêu của một gợi ý (VND). Ưu tiên `target_price` backend đã tính theo chiến lược giá
+ * (tham chiếu × điều chỉnh, chặn sàn/trần/mức đổi tối đa, làm tròn). Dữ liệu cũ chưa có thì tính
+ * tạm = giá thấp nhất của bạn × (1 + mức đổi), làm tròn tới 1.000 ₫ (tiền khác VND: 1 đơn vị).
+ * null khi không có gợi ý hoặc chưa có giá của bạn.
+ */
+export function suggestionTarget(n: Pick<PaceNightOut, "own_price" | "currency" | "suggestion">): number | null {
+  if (!n.suggestion) return null;
+  const backend = num(n.suggestion.target_price);
+  if (backend !== null) return backend;
+  const own = num(n.own_price);
+  if (own === null) return null;
+  const step = n.currency && n.currency !== "VND" ? 1 : 1000;
+  return Math.round((own * (1 + n.suggestion.change_pct / 100)) / step) * step;
+}
+
+/** Gợi ý còn chờ xử lý (chưa áp dụng, chưa bỏ qua), đêm gần trước. Gồm cả "giữ giá". */
 export function pendingSuggestions(nights: PaceNightOut[]): PaceNightOut[] {
   return nights.filter((n) => n.suggestion && !n.suggestion.decision);
+}
+
+/** Gợi ý cần làm: tăng/giảm giá còn chờ xử lý. "Giữ giá" (đa số đêm) không phải việc cần làm. */
+export function actionableSuggestions(nights: PaceNightOut[]): PaceNightOut[] {
+  return pendingSuggestions(nights).filter((n) => n.suggestion!.kind !== "hold");
+}
+
+/**
+ * Chữ của một điều chỉnh không kèm đuôi "(+5%)" backend đã gắn (hiện % riêng thành chip), viết
+ * hoa chữ đầu.
+ */
+export function adjustmentText(r: Pick<ReasonOut, "text" | "pct">): string {
+  const text = r.pct !== null ? r.text.replace(/\s*\([+\-−]?\d+%\)$/, "") : r.text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

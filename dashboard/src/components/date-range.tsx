@@ -4,26 +4,35 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { addDays, todayIso } from "@/lib/format";
+import { useTenantToday } from "@/lib/hooks";
 import { IconCalendar } from "./icons";
 import { Segmented, cx } from "./ui";
 
 export const DAY_OPTIONS = [14, 30, 60] as const;
 
-/** Đọc `?start=&days=` từ URL; mặc định hôm nay + 30 đêm. */
-export function useDateRange(): { start: string; days: number; end: string; today: string } {
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Đọc `?start=&days=` từ URL; mặc định hôm nay (theo múi giờ tenant) + `defaultDays` đêm.
+ * Chọn được đêm bắt đầu bất kỳ (VD xem trước Tết). `ready`: đã biết "hôm nay" của tenant (trước đó
+ * tạm dùng ngày của trình duyệt).
+ */
+export function useDateRange(defaultDays: number = 30): { start: string; days: number; end: string; today: string; ready: boolean } {
   const params = useSearchParams();
-  const [today] = useState(todayIso);
+  const tenantToday = useTenantToday();
+  const [browserToday] = useState(todayIso);
+  const today = tenantToday ?? browserToday;
   const rawStart = params.get("start");
-  const start = rawStart && /^\d{4}-\d{2}-\d{2}$/.test(rawStart) ? rawStart : today;
+  const start = rawStart && ISO_DATE.test(rawStart) ? rawStart : today;
   const rawDays = Number(params.get("days"));
-  const days = (DAY_OPTIONS as readonly number[]).includes(rawDays) ? rawDays : 30;
-  return { start, days, end: addDays(start, days - 1), today };
+  const days = (DAY_OPTIONS as readonly number[]).includes(rawDays) ? rawDays : defaultDays;
+  return { start, days, end: addDays(start, days - 1), today, ready: tenantToday !== null };
 }
 
 /** Kỳ xem: số đêm (14/30/60) + đêm bắt đầu; ghi vào URL để chia sẻ và tải lại được. */
-export function DateRangePicker({ className }: { className?: string }) {
+export function DateRangePicker({ className, defaultDays = 30 }: { className?: string; defaultDays?: number }) {
   const t = useTranslations("components.dateRange");
-  const { start, days, today } = useDateRange();
+  const { start, days, today } = useDateRange(defaultDays);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -34,7 +43,7 @@ export function DateRangePicker({ className }: { className?: string }) {
     const d = next.days ?? days;
     if (s === today) q.delete("start");
     else q.set("start", s);
-    if (d === 30) q.delete("days");
+    if (d === defaultDays) q.delete("days");
     else q.set("days", String(d));
     const qs = q.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });

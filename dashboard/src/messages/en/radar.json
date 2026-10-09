@@ -1,0 +1,76 @@
+{
+  "page": {
+    "title": "Competitive radar",
+    "nights": "{count} nights from {start}",
+    "source": "From data already scanned, no extra scans",
+    "hotelFallback": "Hotel #{id}",
+    "yourHotel": "Your hotel"
+  },
+  "promos": {
+    "title": "Competitor promotions",
+    "info": "Promotion labels on Booking.com and their depth versus the strikethrough price, grouped by label. “Booking.com-applied” is Genius, an app-only price or a coupon applied by Booking.com; “Hotel deal” is a deal the hotel turned on (Late Escape, Early Bird…).",
+    "stripLabel": "Share of competitors on promotion per night",
+    "stripHint": "The taller the bar, the more competitors run a promotion that night.",
+    "nightTitle": "{night}: {running}/{observed} competitors on promotion",
+    "nightNoData": "{night}: no data yet",
+    "nights": "{count} nights",
+    "since": "since {date}",
+    "range": "nights {first}–{last}",
+    "rangeOne": "night {first}",
+    "sinceTitle": "First seen at {time}",
+    "origin": {
+      "channel": "Booking.com-applied",
+      "channelTitle": "Applied by Booking.com (Genius, app-only price, coupon code): guests see a lower price, but it is not a deal the hotel turned on",
+      "hotel": "Hotel deal",
+      "hotelTitle": "The hotel turned this promotion on itself on Booking.com (Early Bird, Last-minute, Late Escape…)"
+    },
+    "none": "No promotion in this period",
+    "emptyTitle": "No promotions seen",
+    "emptyBody": "No competitor ran a promotion on Booking.com in this period."
+  },
+  "restrictions": {
+    "title": "Sales restrictions",
+    "info": "Nights a competitor still sells on Booking.com but with conditions: a minimum stay or no arrivals that day. This is not sold out.",
+    "minStay": "≥{count} nights",
+    "minStayTitle": "Only sold for stays of {count}+ nights",
+    "cta": "no arrivals",
+    "ctaTitle": "Closed to arrival on this date",
+    "count": "{count} restricted nights",
+    "more": "+{count} nights",
+    "less": "Show less",
+    "emptyTitle": "No restrictions",
+    "emptyBody": "No competitor set restrictions in this period."
+  },
+  "cancellation": {
+    "title": "Cancellation policy",
+    "info": "For each priced night: is there a free-cancellation rate, and how much cheaper is the non-refundable rate than the flexible one with the same meal plan (median of same-night pairs). 10–20% is typical.",
+    "col": {
+      "hotel": "Hotel",
+      "refundable": "% nights with free cancellation",
+      "nrNights": "Nights with a non-refundable rate",
+      "nrDiscount": "Non-refundable discount (median)"
+    },
+    "nightsPriced": "/{count} priced nights",
+    "pairs": "{count} pairs",
+    "emptyTitle": "No price data yet",
+    "emptyBody": "No priced nights on Booking.com in this period."
+  },
+  "scarcity": {
+    "title": "Area availability",
+    "description": "{area} · properties with availability on Booking at the latest scan",
+    "info": "Each night: how many hotels/properties in the area still have rooms according to Booking's search page at the latest scan, compared with the same night at a scan at least 7 days earlier. A fast drop = the area is filling up.",
+    "left": "{count} properties available",
+    "nightTitle": "{night}: {count} properties available",
+    "nightChange": "{pct} vs a week earlier ({before})",
+    "nightNoData": "{night}: not scanned",
+    "tightening": "Nights filling up fastest",
+    "change": "{pct} vs a week earlier",
+    "noTightening": "No night has dropped versus a week earlier yet (needs at least 7 days of scans).",
+    "legendDrop": "down ≥10% vs a week earlier",
+    "legendOther": "other nights",
+    "noAreaTitle": "No market area yet",
+    "noAreaBody": "Add an area (city or district) under Settings › Market to track how many properties are still available across the area.",
+    "noAreaAction": "Set up an area",
+    "emptyBody": "The area has no scans for these nights yet."
+  }
+}

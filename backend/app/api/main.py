@@ -15,7 +15,10 @@ from app.api.routers import (
     market,
     market_city,
     notifications,
+    otb,
     pms,
+    radar,
+    reputation,
     tenants,
     watchlist,
 )
@@ -86,6 +89,9 @@ def create_app(
     app.include_router(export.router)
     app.include_router(market.router)
     app.include_router(market_city.router)
+    app.include_router(radar.router)
+    app.include_router(otb.router)
+    app.include_router(reputation.router)
     app.include_router(health.router)
 
     @app.get("/healthz", tags=["health"])

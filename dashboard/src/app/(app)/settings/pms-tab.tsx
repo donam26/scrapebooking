@@ -6,11 +6,12 @@ import { api, type PmsImportOut, type PreviewOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { useErrorMessage } from "@/lib/errors";
-import { hotelTitle } from "@/lib/channels";
+import { hotelTitle } from "@/lib/hotels";
 import { useFmt, type Fmt } from "@/lib/format";
 import { CANONICAL_PMS_COLUMNS, IMPORT_STATUS_TONE, useLabel } from "@/lib/labels";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, ROW_CLASS, Select, Skeleton, Table, Td, Th, cx } from "@/components/ui";
 import { IconAlert, IconCheck, IconDownload, IconFile, IconUpload } from "@/components/icons";
+import { OtbImport } from "./otb-import";
 
 type RowError = { row?: unknown; column?: unknown; message?: unknown };
 
@@ -26,7 +27,7 @@ function fmtBytes(n: number, fmtNum: Fmt["fmtNum"]): string {
   return `${fmtNum(n / (1024 * 1024), 1)} MB`;
 }
 
-function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
+export function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
   const t = useTranslations("settings.pms.errors");
   const label = useLabel();
   const errorText = useErrorMessage();
@@ -83,7 +84,7 @@ function ImportResult({ result }: { result: PmsImportOut }) {
   );
 }
 
-function downloadText(filename: string, text: string) {
+export function downloadText(filename: string, text: string) {
   const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -121,7 +122,7 @@ function Step({ n, title, hint, active, children }: { n: number; title: string; 
   );
 }
 
-function Dropzone({ file, busy, onFile }: { file: File | null; busy: boolean; onFile: (f: File | null) => void }) {
+export function Dropzone({ file, busy, onFile }: { file: File | null; busy: boolean; onFile: (f: File | null) => void }) {
   const [over, setOver] = useState(false);
   const t = useTranslations("settings.pms.dropzone");
   const { fmtNum } = useFmt();
@@ -404,6 +405,8 @@ export function PmsTab() {
           </Step>
         </Card>
       )}
+
+      {canWrite && watchlist.data && <OtbImport hotels={selfHotels.map((w) => ({ id: w.hotel.id, name: hotelTitle(w.hotel, w.label) }))} />}
 
       <Card padded={false} title={t("history.title")} description={imports.data && imports.data.length > 0 ? t("history.description", { count: imports.data.length }) : undefined}>
         <ErrorBox error={imports.error} className="m-5" />

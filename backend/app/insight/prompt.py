@@ -6,13 +6,12 @@ tests/unit/test_insight_scenarios.py.
 
 from app.i18n import LOCALES, t
 
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 SYSTEM_PROMPT = """Bạn là chuyên gia revenue management khách sạn. Bạn nhận một JSON đã tính \
-sẵn về tình hình phòng trống và giá của khách sạn khách hàng và các đối thủ trên các kênh OTA \
-(Booking.com, Agoda, iVIVU, Trip.com…) trong 30 ngày tới, cùng sự kiện biến động, chỉ số compset, \
-occupancy thật từ PMS (nếu có), tín hiệu cầu do kênh công bố và ngày lễ. Chỉ số ngày và compset là \
-của `reference_channel`; mỗi sự kiện ghi `channel` của nó.
+sẵn về tình hình phòng trống và giá của khách sạn khách hàng và các đối thủ trên Booking.com \
+trong 30 ngày tới, cùng sự kiện biến động, chỉ số compset, occupancy thật từ PMS (nếu có), tín \
+hiệu cầu do kênh công bố (nếu có) và ngày lễ.
 
 Nhiệm vụ: viết bản tin ngắn cho quản lý khách sạn theo đúng JSON schema đầu ra.
 
@@ -30,10 +29,8 @@ Ngày đối thủ giảm giá hàng loạt là tín hiệu cầu thấp.
 hoặc dữ liệu thiếu (probe unknown).
 6. Viết bằng ngôn ngữ trong `language`. Ngắn gọn, số liệu cụ thể, không lặp lại.
 7. `data_quality_note`: nêu tỷ lệ quan sát unknown/blocked và mức exact_share nếu thấp.
-8. Đa kênh: số phòng còn trên mỗi kênh là của riêng kênh đó, không cộng giữa kênh. \
-`channel_closed` \
-nghĩa là hết trên một kênh nhưng kênh khác vẫn bán: nói là "đóng kênh", không nói hết phòng. \
-`parity_gap` là khách sạn đang rẻ hơn trên một kênh so với kênh khác (cùng điều kiện đã gồm thuế).
+8. Giá đối thủ là giá niêm yết công khai trên Booking.com, không phải ADR; số phòng còn là phần \
+Booking.com hiển thị, không phải tổng phòng khách sạn.
 9. `demand_signals` là thông điệp marketing của kênh ("đặt 13 lần trong 24 giờ"): chỉ dùng làm tín \
 hiệu phụ, luôn ghi rõ "theo <kênh>", không coi là số đặt phòng thật của khách sạn.
 """

@@ -8,7 +8,6 @@
       "thatHotel": "{price}, that hotel",
       "medianInYours": "Competitor median (in your strip)",
       "hint": "Hover or Tab onto a night to compare the whole stack; click a cell to open night details.",
-      "channelNote": "Rooms and rates on {channel}; each channel is counted separately, never added across channels.",
       "perNight": "{price} per night",
       "hintSingle": "Hover or Tab onto a night to see figures; click a cell to open night details."
     },
@@ -16,16 +15,19 @@
       "month": "{month, select, 1 {Jan} 2 {Feb} 3 {Mar} 4 {Apr} 5 {May} 6 {Jun} 7 {Jul} 8 {Aug} 9 {Sep} 10 {Oct} 11 {Nov} 12 {Dec} other {{month}}}"
     },
     "market": {
-      "aria": "Market",
-      "title": "Market",
-      "observed": "{count, plural, one {# competitor} other {# competitors}} with data on {channel}",
-      "noneObserved": "No competitors with data on {channel} yet",
+      "aria": "Comp set",
+      "title": "Comp set",
+      "observed": "{count, plural, one {# competitor} other {# competitors}} with data on Booking.com",
+      "noneObserved": "No competitors with data on Booking.com yet",
       "yourRate": "Your rate",
       "median": "Competitor median",
       "lowest": "Competitor lowest",
       "soldOutPerNight": "Competitors sold out per night",
       "noneSoldOut": "no competitor sold out in {count, plural, one {this night} other {these # nights}}",
-      "perNight": "{price} per night"
+      "perNight": "{price} per night",
+      "observedOf": "{count}/{total} competitors with data on Booking.com",
+      "restrictedNote": "· yellow dot: some competitors restricted (not counted as sold out)",
+      "restrictedTitle": "{count} competitors restricted (min stay, closed to arrival), not counted as sold out"
     },
     "vsMedian": {
       "title": "Your rate vs competitor median (%)",
@@ -46,10 +48,10 @@
       "pmsOcc": "Occupancy (PMS)"
     },
     "noData": {
-      "notTracked": "Not tracked on {channel}",
-      "broken": "Link on {channel} is broken",
-      "paused": "Paused on {channel}",
-      "unverified": "Checking link on {channel}",
+      "notTracked": "Not tracked on Booking.com",
+      "broken": "Link on Booking.com is broken",
+      "paused": "Paused on Booking.com",
+      "unverified": "Checking link on Booking.com",
       "waiting": "Waiting for the first scan"
     },
     "status": {
@@ -57,16 +59,21 @@
       "soldOut": "Sold out",
       "unknown": "Unknown",
       "available": "Available",
-      "roomsLeft": "{count, plural, one {# room} other {# rooms}} left"
+      "roomsLeft": "{count, plural, one {# room} other {# rooms}} left",
+      "restricted": "Restricted",
+      "minStay": "{count}+ nights",
+      "noPrice": "No price"
     },
     "readout": {
       "soldOut": "Competitors sold out",
       "median": "Competitor median",
       "vsMedian": "Your rate vs median",
-      "rank": "Your rate rank",
+      "rank": "Your price position",
       "pmsOcc": "PMS occupancy",
       "roomsLeft": "{rooms} left",
-      "rel": "{days, plural, =0 {Tonight} =1 {Tomorrow night} other {in # days}}"
+      "rel": "{days, plural, =0 {Tonight} =1 {Tomorrow night} other {in # days}}",
+      "restricted": "Competitors restricted",
+      "sample": "Comps priced"
     }
   }
 }

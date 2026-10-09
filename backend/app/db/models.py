@@ -42,6 +42,10 @@ class Tenant(Base):
     country_code: Mapped[str] = mapped_column(String(2), default="vn")
     # Kênh dùng cho heatmap/compset mặc định (D10).
     reference_channel: Mapped[str] = mapped_column(String(16), default="booking")
+    # Thị trường nguồn khách tenant theo dõi lịch nghỉ (roadmap 7.5), VD ["kr", "cn"].
+    source_markets: Mapped[list[str]] = mapped_column(
+        ARRAY(String(2)), default=list, server_default="{}"
+    )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -64,11 +68,15 @@ class Hotel(Base):
     review_count: Mapped[int | None] = mapped_column(Integer)
     image_url: Mapped[str | None] = mapped_column(Text)
     district: Mapped[str | None] = mapped_column(String(120))
+    # Tổng số phòng công bố/người dùng nhập (roadmap 5.6): mẫu số của chỉ báo lấp đầy và quy tắc
+    # compset (không khách sạn nào quá 50% số phòng compset).
+    rooms_total: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Listing(Base):
-    """Một khách sạn trên một kênh. Khoá nghiệp vụ (hotel_id, channel) dùng ở mọi bảng quan sát."""
+    """Trang Booking.com của một khách sạn. Khoá nghiệp vụ (hotel_id, channel) dùng ở mọi bảng
+    quan sát (channel luôn là "booking")."""
 
     __tablename__ = "listings"
     __table_args__ = (
@@ -83,8 +91,7 @@ class Listing(Base):
     external_id: Mapped[str | None] = mapped_column(String(64))
     url: Mapped[str] = mapped_column(Text)
     name: Mapped[str | None] = mapped_column(String(300))
-    # suggested (gợi ý chờ xác nhận) | rejected (người dùng bỏ gợi ý, không gợi ý lại) |
-    # unverified | active | broken | paused
+    # unverified | active | broken | paused (kênh duy nhất: booking)
     status: Mapped[str] = mapped_column(String(16))
     match_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
     last_error: Mapped[str | None] = mapped_column(Text)
@@ -101,6 +108,13 @@ class TenantHotel(Base):
     label: Mapped[str | None] = mapped_column(String(120))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Nhiều khách sạn của bạn (roadmap 5.5): đối thủ thuộc compset của khách sạn nào; NULL = dùng
+    # chung cho mọi khách sạn của tenant.
+    compset_of: Mapped[int | None] = mapped_column(ForeignKey("hotels.id"))
+    # Compset chính/phụ (7.3): chỉ compset chính vào trung vị/chỉ số; phụ (theo mùa, tham vọng)
+    # hiện riêng. Trọng số để dành cho chỉ số có trọng số.
+    tier: Mapped[str] = mapped_column(String(16), default="primary", server_default="primary")
+    weight: Mapped[Decimal] = mapped_column(Numeric(4, 2), default=1, server_default="1")
 
 
 class RoomType(Base):
@@ -247,13 +261,18 @@ class HotelDateSnapshot(Base):
     scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id"), primary_key=True)
     channel: Mapped[str] = mapped_column(String(16))
     scanned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    status: Mapped[str] = mapped_column(String(16))  # available | sold_out | unknown
+    status: Mapped[str] = mapped_column(String(16))  # available | sold_out | restricted | unknown
     exact_rooms_left: Mapped[int | None] = mapped_column(Integer)
     room_types_available: Mapped[int] = mapped_column(Integer, default=0)
     room_types_sold_out: Mapped[int] = mapped_column(Integer, default=0)
     min_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     min_refundable_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     currency: Mapped[str | None] = mapped_column(String(3))
+    # Roadmap Phase 2: cơ sở giá bữa sáng / chỉ phòng, số đêm tìm (min-stay), trạng thái probe.
+    min_breakfast_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    min_room_only_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    min_stay: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    probe_status: Mapped[str | None] = mapped_column(String(24))
 
 
 class AvailabilityEvent(Base):
@@ -270,6 +289,7 @@ class AvailabilityEvent(Base):
         ),
         Index("ix_availability_events_hotel_observed", "hotel_id", "observed_at"),
         Index("ix_availability_events_stay_date", "stay_date"),
+        Index("ix_availability_events_type_observed", "event_type", "observed_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -285,6 +305,9 @@ class AvailabilityEvent(Base):
     previous_scan_run_id: Mapped[int | None] = mapped_column(ForeignKey("scan_runs.id"))
     scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id"))
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Lý do (lowest_rate_shift: cheapest_gone…; đổi giá: khoá gói) + chi tiết.
+    reason: Mapped[str | None] = mapped_column(String(24))
+    detail: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 class HotelDateMetric(Base):
@@ -307,6 +330,17 @@ class HotelDateMetric(Base):
     exact_rooms_left: Mapped[int | None] = mapped_column(Integer)
     exact_share: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     last_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Roadmap Phase 2/4: so cùng điều kiện, hạn chế, radar KM.
+    min_breakfast_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    min_room_only_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    min_stay: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    probe_status: Mapped[str | None] = mapped_column(String(24))
+    # Gói công khai rẻ nhất {room_type_id, key, price, price_original, promo_label, …}.
+    cheapest_rate: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Giá thấp nhất mỗi khoá gói "hoàn huỷ|bữa sáng" (t/f/?) → so cùng điều kiện.
+    prices_by_key: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Nhãn khuyến mãi đang chạy → độ sâu % (so giá gạch) hoặc null.
+    promos: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 # ---------------------------------------------------------------------------
@@ -458,29 +492,63 @@ class Notification(Base):
     insight_id: Mapped[int | None] = mapped_column(ForeignKey("insights.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Kênh gửi (roadmap 3.1): email | zalo | webhook. Mỗi kênh một dòng outbox (dedupe_key + kênh).
+    channel: Mapped[str] = mapped_column(String(16), default="email", server_default="email")
+    # "Đã xử lý" (3.6): người nhận bấm nút trong tin hoặc đánh dấu trên dashboard.
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
 
-# ---------------------------------------------------------------------------
-# Đa kênh: tín hiệu cầu do kênh công bố (D5)
-# ---------------------------------------------------------------------------
+class NotificationSubscription(Base):
+    """Đăng ký nhận tin theo người (roadmap 3.4): loại tin × kênh × giờ im lặng × trần tin/ngày."""
 
-
-class ListingDemandSignal(Base):
-    """ "Đặt 13 lần trong 24 giờ" (Agoda), "đã bán 2 phòng/24h" (ivivu)… Là thông điệp của kênh,
-    luôn hiển thị kèm nguồn; không đưa vào chỉ số giá."""
-
-    __tablename__ = "listing_demand_signals"
+    __tablename__ = "notification_subscriptions"
     __table_args__ = (
-        Index("ix_listing_demand_signals_hotel_observed", "hotel_id", "channel", "observed_at"),
+        Index(
+            "uq_notification_subscriptions_target",
+            "tenant_id",
+            "channel",
+            func.lower("target"),
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    channel: Mapped[str] = mapped_column(String(16))  # email | zalo | webhook
+    target: Mapped[str] = mapped_column(String(500))  # email | số điện thoại 84… | URL webhook
+    # Loại tin nhận (rỗng = mọi loại): alerts, daily_insight, weekly_report, data_stale…
+    kinds: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list, server_default="{}")
+    quiet_start: Mapped[str | None] = mapped_column(String(5))  # "22:00" giờ tenant
+    quiet_end: Mapped[str | None] = mapped_column(String(5))  # "07:00"
+    max_per_day: Mapped[int | None] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NotificationDelivery(Base):
+    """Một lần gửi tới một người nhận: trạng thái, mã tin của kênh, chi phí, lượt nhấn/đã xử lý
+    (đo O4: tin tới đúng chỗ và có hành động)."""
+
+    __tablename__ = "notification_deliveries"
+    __table_args__ = (
+        Index("ix_notification_deliveries_target_created", "channel", "target", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
-    hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"))
+    notification_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("notifications.id", ondelete="CASCADE")
+    )
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     channel: Mapped[str] = mapped_column(String(16))
-    scan_run_id: Mapped[int | None] = mapped_column(ForeignKey("scan_runs.id"))
-    stay_date: Mapped[date | None] = mapped_column(Date)
-    kind: Mapped[str] = mapped_column(String(24))
-    value: Mapped[Decimal] = mapped_column(Numeric(14, 3))
-    window_hours: Mapped[int | None] = mapped_column(Integer)
-    raw_text: Mapped[str | None] = mapped_column(Text)
-    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    target: Mapped[str] = mapped_column(String(500))
+    # sent | failed | skipped_quiet | skipped_limit
+    status: Mapped[str] = mapped_column(String(16))
+    external_id: Mapped[str | None] = mapped_column(String(128))  # msg_id của Zalo
+    cost_vnd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    error: Mapped[str | None] = mapped_column(Text)
+    token: Mapped[str] = mapped_column(String(48), unique=True)  # link theo dõi nhấn/đã xử lý
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    clicked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

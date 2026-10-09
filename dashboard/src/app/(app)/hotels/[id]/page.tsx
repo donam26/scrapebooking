@@ -4,25 +4,21 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { api, type DateCell } from "@/lib/api";
+import { api, cellState, type DateCell } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { isWeekend, num, useFmt } from "@/lib/format";
 import { useLabel } from "@/lib/labels";
-import { channelName, hotelTitle, sortChannels, withChannel } from "@/lib/channels";
+import { hotelTitle } from "@/lib/hotels";
 import { Card, ErrorBox, PageHeader, ROW_CLASS, SkeletonBlock, StatStrip, Table, Td, Th, cx } from "@/components/ui";
-import { ChannelSwitcher, DemandSignals, ListingChips, useChannelParam } from "@/components/channels";
+import { ListingChips } from "@/components/listing-chip";
 import { DateRangePicker, useDateRange } from "@/components/date-range";
 import { EventTable } from "@/components/event-table";
-import { MarkSwatch, useMarks } from "@/components/marks";
+import { MarkSwatch, PromoDot, useMarks } from "@/components/marks";
+import { holidayMap } from "@/components/holiday-mark";
 import { Board } from "../../overview/board";
 import { ScanHotelButton } from "@/components/scan-hotel-button";
 import { IconArrowDown, IconArrowUp, IconStar } from "@/components/icons";
-
-/** Kênh xem được của khách sạn: listing đã kiểm tra (kể cả đang tạm dừng, có lịch sử), theo thứ tự cố định. */
-function viewableChannels(listings: Array<{ channel: string; status: string }>, current: string): string[] {
-  return sortChannels([...listings.filter((l) => l.status !== "suggested" && l.status !== "unverified").map((l) => l.channel), current]);
-}
 
 type Col = {
   key: string;
@@ -65,26 +61,27 @@ function HotelView() {
   const t = useTranslations("hotels.detail");
   const { fmtCompact, fmtDayTime, fmtInt, fmtNight, fmtNightRel, fmtNum, fmtPct } = useFmt();
   const label = useLabel();
-  const { cellMark } = useMarks();
+  const { cellMark, promoText } = useMarks();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const hotelId = Number(id);
   const { isOperator } = useSession();
   const { start, end } = useDateRange();
-  const [channelParam, setChannel] = useChannelParam();
-  const { data, error, loading } = useApi(Number.isFinite(hotelId) ? `hotel:${hotelId}:${start}:${end}:${channelParam ?? ""}` : null, () =>
-    api.hotel(hotelId, { start, end, channel: channelParam }),
-  );
+  const { data, error, loading } = useApi(Number.isFinite(hotelId) ? `hotel:${hotelId}:${start}:${end}` : null, () => api.hotel(hotelId, { start, end }));
+  // Ngày lễ của kỳ đang xem (theo nước của tenant) để đánh dấu trên dải ô.
+  const holidays = useApi(`hotel:holidays:${start}:${end}`, () => api.market.holidays({ start, end }));
+  const holidayOn = holidayMap(holidays.data);
 
   const title = data ? hotelTitle(data.hotel, data.label) : t("fallbackTitle");
-  const channel = data?.channel ?? null;
   const isSelf = data?.role === "self";
   const metrics = data?.metrics ?? [];
   const prices = metrics.map((m) => num(m.min_price)).filter((v): v is number => v !== null);
   const lo = prices.length ? Math.min(...prices) : 0;
   const hi = prices.length ? Math.max(...prices) : 0;
-  const soldOut = metrics.filter((m) => m.availability_status === "sold_out").length;
-  const tight = metrics.filter((m) => m.exact_rooms_left !== null && m.exact_rooms_left <= 3).length;
+  // Hết phòng chỉ đếm `sold_out`; hạn chế (min-stay, đóng ngày đến) đếm riêng.
+  const soldOut = metrics.filter((m) => cellState(m) === "sold_out").length;
+  const restricted = metrics.filter((m) => cellState(m) === "restricted").length;
+  const tight = metrics.filter((m) => cellState(m) === "available" && m.exact_rooms_left !== null && m.exact_rooms_left <= 3).length;
   const lastObs = metrics.reduce<string | null>((acc, m) => (m.last_observed_at && (!acc || m.last_observed_at > acc) ? m.last_observed_at : acc), null);
 
   const cols: Col[] = [
@@ -93,37 +90,70 @@ function HotelView() {
       label: t("cols.rooms"),
       render: (m) => {
         const mark = cellMark(m, !!data && m.stay_date > data.horizon_end);
+        const state = cellState(m);
         return (
           <span className="inline-flex items-center gap-2.5" title={mark.label}>
-            <MarkSwatch mark={mark} size={26} />
-            <span className="text-sm text-body">
-              {m.availability_status === "sold_out"
+            <span className="relative">
+              <MarkSwatch mark={mark} size={26} />
+              <PromoDot promo={mark.promo} />
+            </span>
+            <span className={cx("text-sm", state === "restricted" ? "font-semibold text-warning-deep" : "text-body", m.stale && "text-faint")}>
+              {state === "sold_out"
                 ? t("rooms.soldOut")
-                : m.availability_status === "unknown"
-                  ? t("rooms.unreadable")
-                  : m.availability_status === null
-                    ? t("rooms.none")
-                    : m.exact_rooms_left === null
-                      ? <><span className="sm:hidden">{t("rooms.hiddenShort")}</span><span className="max-sm:hidden">{t("rooms.hidden")}</span></>
-                      : t("rooms.count", { count: m.exact_rooms_left })}
+                : state === "restricted"
+                  ? (m.min_stay ?? 1) > 1
+                    ? t("rooms.minStay", { count: m.min_stay ?? 2 })
+                    : t("rooms.restricted")
+                  : state === "no_price"
+                    ? t("rooms.noPrice")
+                    : state === "error"
+                      ? t("rooms.unreadable")
+                      : state === null
+                        ? t("rooms.none")
+                        : m.exact_rooms_left === null
+                          ? <><span className="sm:hidden">{t("rooms.hiddenShort")}</span><span className="max-sm:hidden">{t("rooms.hidden")}</span></>
+                          : t("rooms.count", { count: m.exact_rooms_left })}
+              {m.stale && <span className="block text-2xs font-normal text-muted">{t("rooms.stale")}</span>}
             </span>
           </span>
         );
       },
     },
     { key: "price", label: t("cols.price"), right: true, render: (m) => <PriceCell m={m} lo={lo} hi={hi} /> },
+    {
+      key: "promo",
+      label: t("cols.promo"),
+      optional: (m) => promoText(m),
+      render: (m) => {
+        const p = promoText(m);
+        return p ? (
+          <span className="inline-block max-w-[220px] truncate rounded-full bg-[#fce7f3] px-2 py-0.5 text-xs font-semibold text-[#9d174d]" title={p}>
+            {p}
+          </span>
+        ) : (
+          <span className="text-faint">—</span>
+        );
+      },
+    },
     { key: "chg", label: t("cols.change7d"), right: true, optional: (m) => m.price_change_7d_pct, render: (m) => <Change7d v={m.price_change_7d_pct} /> },
     { key: "pickup", label: t("cols.pickup24h"), right: true, optional: (m) => m.pickup_24h, render: (m) => fmtInt(m.pickup_24h) },
     { key: "vel", label: t("cols.velocity3d"), right: true, optional: (m) => m.velocity_3d, render: (m) => fmtNum(m.velocity_3d, 2) },
     { key: "sold", label: t("cols.soldOutAt"), optional: (m) => m.sold_out_at, render: (m) => fmtDayTime(m.sold_out_at) },
     { key: "rest", label: t("cols.restockedAt"), optional: (m) => m.restocked_at, render: (m) => fmtDayTime(m.restocked_at) },
-    // Hai cột kỹ thuật chỉ cho operator: người dùng khách sạn đã thấy mức tin cậy qua dấu ô.
+    // Cột kỹ thuật chỉ cho operator: người dùng khách sạn đã thấy mức tin cậy qua dấu ô.
     ...(isOperator
-      ? [
-          { key: "exact", label: t("cols.exactShare"), right: true, optional: (m: DateCell) => m.exact_share, render: (m: DateCell) => (m.exact_share === null ? "—" : fmtPct(Number(m.exact_share) * 100, { digits: 0 })) },
-          { key: "obs", label: t("cols.observedAt"), render: (m: DateCell) => <span className="text-muted">{fmtDayTime(m.last_observed_at)}</span> },
-        ]
+      ? [{ key: "exact", label: t("cols.exactShare"), right: true, optional: (m: DateCell) => m.exact_share, render: (m: DateCell) => (m.exact_share === null ? "—" : fmtPct(Number(m.exact_share) * 100, { digits: 0 })) }]
       : []),
+    // Tuổi dữ liệu cho mọi vai trò (roadmap 1.13): quan sát cũ hơn 48 giờ tô đỏ, không vào trung vị compset.
+    {
+      key: "obs",
+      label: t("cols.observedAt"),
+      render: (m: DateCell) => (
+        <span className={m.stale ? "font-semibold text-danger" : "text-muted"} title={m.stale ? t("rooms.stale") : undefined}>
+          {fmtDayTime(m.last_observed_at)}
+        </span>
+      ),
+    },
   ];
   const visibleCols = cols.filter((c) => !c.optional || metrics.some((m) => c.optional!(m) !== null && c.optional!(m) !== undefined));
 
@@ -152,15 +182,11 @@ function HotelView() {
                   <IconStar size={14} className="text-[#e0a100]" /> {t("stars", { stars: fmtNum(data.hotel.star_rating, 1) })}
                 </span>
               )}
-              <span>
-                {t.rich("dataOn", { channel: channelName(data.channel), b: (c) => <span className="font-semibold text-body">{c}</span> })}
-              </span>
             </span>
           )
         }
         actions={
           <>
-            {data && <ChannelSwitcher channels={viewableChannels(data.hotel.listings, data.channel)} value={data.channel} onChange={setChannel} />}
             <DateRangePicker />
             {data && <ScanHotelButton hotelId={data.hotel.id} />}
           </>
@@ -178,8 +204,13 @@ function HotelView() {
         <div className={cx("space-y-5 transition-opacity duration-200", loading && "opacity-60")}>
           <StatStrip
             items={[
-              { label: t("stats.soldOut"), value: t("stats.nights", { count: soldOut }), hint: t("stats.soldOutHint", { count: metrics.length }), tone: soldOut > 0 && !isSelf ? "warn" : "default" },
-              { label: t("stats.tight"), value: t("stats.nights", { count: tight }), hint: t("stats.tightHint", { channel: channelName(channel) }) },
+              {
+                label: t("stats.soldOut"),
+                value: t("stats.nights", { count: soldOut }),
+                hint: restricted > 0 ? `${t("stats.soldOutHint", { count: metrics.length })} · ${t("stats.restricted", { count: restricted })}` : t("stats.soldOutHint", { count: metrics.length }),
+                tone: soldOut > 0 && !isSelf ? "warn" : "default",
+              },
+              { label: t("stats.tight"), value: t("stats.nights", { count: tight }), hint: t("stats.tightHint") },
               {
                 label: t("stats.priceRange"),
                 value: prices.length ? `${fmtCompact(lo)} – ${fmtCompact(hi)}` : "—",
@@ -189,19 +220,16 @@ function HotelView() {
             ]}
           />
 
-          <DemandSignals signals={data.demand_signals} isOperator={isOperator} />
-
           <Board
             market={false}
             data={{
               start,
               end,
               channel: data.channel,
-              channels: [data.channel],
               horizon_end: data.horizon_end,
               hotels: [{ hotel: data.hotel, role: data.role, label: data.label, cells: metrics }],
               compset: [],
-              holidays: [],
+              holidays: holidays.data ?? [],
               last_run: null,
             }}
           />
@@ -220,7 +248,7 @@ function HotelView() {
               </thead>
               <tbody>
                 {metrics.map((m) => {
-                  const href = withChannel(`/hotels/${hotelId}/dates/${m.stay_date}`, channel);
+                  const href = `/hotels/${hotelId}/dates/${m.stay_date}`;
                   return (
                     <tr key={m.stay_date} className={cx(ROW_CLASS, "cursor-pointer", isWeekend(m.stay_date) && "bg-subtle")} onClick={() => router.push(href)}>
                       <Td className="whitespace-nowrap pl-5">
@@ -228,6 +256,7 @@ function HotelView() {
                           {fmtNight(m.stay_date)}
                         </Link>
                         <span className="text-xs text-muted max-sm:block sm:ml-2">{fmtNightRel(m.days_to_arrival)}</span>
+                        {holidayOn.get(m.stay_date) && <span className="block text-2xs font-semibold text-ink">{holidayOn.get(m.stay_date)?.name}</span>}
                       </Td>
                       {visibleCols.map((c) => (
                         <Td key={c.key} right={c.right} className="whitespace-nowrap">

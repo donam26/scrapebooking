@@ -14,7 +14,6 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.analytics.cross_channel import FRESH_FOR, ChannelView, channel_closed, parity_gap
 from app.analytics.rules import (
     DateStatus,
     EventDraft,
@@ -24,7 +23,8 @@ from app.analytics.rules import (
     compute_metrics,
     date_status_for_probe,
     diff_events,
-    last_usable_before,
+    last_observed_before,
+    summarize_rates,
 )
 from app.db.models import (
     AvailabilityEvent,
@@ -34,7 +34,6 @@ from app.db.models import (
     RoomSnapshot,
     RoomType,
     ScanRun,
-    TenantHotel,
 )
 from app.domain.models import StockConfidence
 from app.logging import get_logger
@@ -44,6 +43,22 @@ log = get_logger(__name__)
 
 HISTORY_WINDOW = timedelta(days=8)
 ROOM_TYPE_ACTIVE_WINDOW = timedelta(days=30)
+
+
+def room_obs(s: RoomSnapshot) -> RoomObs:
+    summary = summarize_rates(s.rates or [])
+    return RoomObs(
+        s.room_type_id,
+        s.rooms_left,
+        StockConfidence(s.stock_confidence),
+        s.min_price,
+        s.min_refundable_price,
+        summary.prices_by_key,
+        summary.min_breakfast_price,
+        summary.min_room_only_price,
+        summary.promos,
+        summary.cheapest,
+    )
 
 
 @dataclass
@@ -103,9 +118,6 @@ class AnalyticsService:
             for hotel_id in hotel_ids:
                 await self._process_hotel(scan_run_id, hotel_id, channel, report)
             await self._s.flush()
-            for hotel_id in hotel_ids:
-                await self._cross_channel(scan_run_id, hotel_id, channel, report)
-            await self._s.flush()
             ANALYTICS_RUNS.labels("ok").inc()
             log.info(
                 "analytics_done",
@@ -146,16 +158,7 @@ class AnalyticsService:
             by_probe[s.probe_id].append(s)
         out: dict[date, HotelDateObs] = {}
         for p in probes:
-            rooms = {
-                s.room_type_id: RoomObs(
-                    s.room_type_id,
-                    s.rooms_left,
-                    StockConfidence(s.stock_confidence),
-                    s.min_price,
-                    s.min_refundable_price,
-                )
-                for s in by_probe.get(p.id, [])
-            }
+            rooms = {s.room_type_id: room_obs(s) for s in by_probe.get(p.id, [])}
             status = date_status_for_probe(p.status)
             if status == DateStatus.AVAILABLE and not rooms:
                 # ok nhưng không parse ra phòng nào: không dùng được
@@ -167,6 +170,8 @@ class AnalyticsService:
                 status=status,
                 rooms=rooms,
                 currency=currency,
+                min_stay=max(1, p.nights or 1),
+                probe_status=p.status,
             )
         return out
 
@@ -207,13 +212,7 @@ class AnalyticsService:
         )
         rooms_by_key: dict[tuple[date, datetime], dict[int, RoomObs]] = defaultdict(dict)
         for s in snaps:
-            rooms_by_key[(s.stay_date, s.scanned_at)][s.room_type_id] = RoomObs(
-                s.room_type_id,
-                s.rooms_left,
-                StockConfidence(s.stock_confidence),
-                s.min_price,
-                s.min_refundable_price,
-            )
+            rooms_by_key[(s.stay_date, s.scanned_at)][s.room_type_id] = room_obs(s)
         history: dict[date, list[HotelDateObs]] = defaultdict(list)
         for r in rows:
             history[r.stay_date].append(
@@ -223,6 +222,8 @@ class AnalyticsService:
                     status=DateStatus(r.status),
                     rooms=rooms_by_key.get((r.stay_date, r.scanned_at), {}),
                     currency=r.currency,
+                    min_stay=r.min_stay or 1,
+                    probe_status=r.probe_status,
                 )
             )
         return history
@@ -258,9 +259,11 @@ class AnalyticsService:
             # 1. hotel_date_snapshots
             await self._upsert_hotel_date(hotel_id, channel, stay_date, cur, known_types)
             report.hotel_dates += 1
-            # 2. events
-            prev = last_usable_before(hist, cur.scanned_at)
-            drafts = diff_events(prev, cur, self._thresholds)
+            # 2. events (so với lần có trạng thái gần nhất; lần trước nữa để chống nhấp nháy)
+            prev = last_observed_before(hist, cur.scanned_at)
+            prev2 = last_observed_before(hist, prev.scanned_at) if prev is not None else None
+            seen = {rt for h in hist if h.scanned_at < cur.scanned_at for rt in h.rooms}
+            drafts = diff_events(prev, cur, self._thresholds, prev2, seen)
             for d in drafts:
                 await self._insert_event(
                     scan_run_id, hotel_id, channel, stay_date, cur.scanned_at, d
@@ -293,6 +296,10 @@ class AnalyticsService:
             min_price=cur.min_price if cur.usable else None,
             min_refundable_price=cur.min_refundable_price if cur.usable else None,
             currency=cur.currency if cur.usable else None,
+            min_breakfast_price=cur.min_breakfast_price if cur.usable else None,
+            min_room_only_price=cur.min_room_only_price if cur.usable else None,
+            min_stay=cur.min_stay,
+            probe_status=cur.probe_status,
         )
         stmt = (
             insert(HotelDateSnapshot)
@@ -336,6 +343,8 @@ class AnalyticsService:
                 previous_scan_run_id=d.previous_scan_run_id,
                 scan_run_id=scan_run_id,
                 observed_at=observed_at,
+                reason=d.reason,
+                detail=d.detail,
             )
             .on_conflict_do_nothing(constraint="uq_availability_events_run_scope")
         )
@@ -400,6 +409,13 @@ class AnalyticsService:
             exact_rooms_left=m.exact_rooms_left,
             exact_share=m.exact_share,
             last_observed_at=m.last_observed_at,
+            min_breakfast_price=m.min_breakfast_price,
+            min_room_only_price=m.min_room_only_price,
+            min_stay=m.min_stay,
+            probe_status=m.probe_status,
+            cheapest_rate=m.cheapest_rate,
+            prices_by_key=m.prices_by_key,
+            promos=m.promos,
         )
         stmt = (
             insert(HotelDateMetric)
@@ -417,107 +433,3 @@ class AnalyticsService:
         )
         await self._s.execute(stmt)
         return True
-
-    async def _cross_channel(
-        self, scan_run_id: int, hotel_id: int, channel: str, report: AnalyticsReport
-    ) -> None:
-        """Sự kiện chéo kênh cho các đêm của run này (cần ≥2 kênh có metric)."""
-        rows = (
-            (
-                await self._s.execute(
-                    select(HotelDateMetric).where(
-                        HotelDateMetric.hotel_id == hotel_id,
-                        HotelDateMetric.stay_date.in_(
-                            select(Probe.stay_date).where(
-                                Probe.scan_run_id == scan_run_id, Probe.hotel_id == hotel_id
-                            )
-                        ),
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        # Parity (D11) chỉ có nghĩa với khách sạn mà ít nhất một tenant theo dõi là "của bạn":
-        # giá đối thủ lệch giữa kênh là chuyện thường, sinh sự kiện cho mọi khách sạn chỉ gây nhiễu.
-        is_own = (
-            await self._s.execute(
-                select(TenantHotel.hotel_id)
-                .where(
-                    TenantHotel.hotel_id == hotel_id,
-                    TenantHotel.role == "self",
-                    TenantHotel.active.is_(True),
-                )
-                .limit(1)
-            )
-        ).first() is not None
-        by_date: dict[date, list[HotelDateMetric]] = defaultdict(list)
-        for m in rows:
-            by_date[m.stay_date].append(m)
-        # Các run cùng mốc chốt lệch giờ: mỗi lần một kênh xong, đánh giá lại mọi kênh có quan sát
-        # trong cùng mốc (FRESH_FOR) và gắn sự kiện cho đúng kênh rẻ nhất / kênh đóng bán, bất kể
-        # kênh nào xong trước. Không lặp lại trong 24h (mốc theo giờ quan sát, không theo DB).
-        seen: dict[tuple[date, str], list[datetime]] = defaultdict(list)
-        for r in await self._s.execute(
-            select(
-                AvailabilityEvent.stay_date,
-                AvailabilityEvent.event_type,
-                AvailabilityEvent.channel,
-                AvailabilityEvent.observed_at,
-            ).where(
-                AvailabilityEvent.hotel_id == hotel_id,
-                AvailabilityEvent.event_type.in_(["parity_gap", "channel_closed"]),
-                AvailabilityEvent.stay_date.in_(list(by_date)),
-                AvailabilityEvent.scan_run_id != scan_run_id,
-            )
-        ):
-            key = "parity_gap" if r[1] == "parity_gap" else f"channel_closed:{r[2]}"
-            seen[(r[0], key)].append(r[3])
-        # Hết phòng mới (sự kiện sold_out) của mọi kênh trong cùng mốc.
-        new_sold_out: set[tuple[date, str]] = {
-            (r[0], r[1])
-            for r in await self._s.execute(
-                select(AvailabilityEvent.stay_date, AvailabilityEvent.channel).where(
-                    AvailabilityEvent.hotel_id == hotel_id,
-                    AvailabilityEvent.event_type == "sold_out",
-                    AvailabilityEvent.room_type_id.is_(None),
-                    AvailabilityEvent.stay_date.in_(list(by_date)),
-                )
-            )
-        }
-
-        def recently(stay: date, key: str, now: datetime) -> bool:
-            return any(now - timedelta(hours=24) <= t <= now for t in seen.get((stay, key), []))
-
-        for stay_date, metrics in by_date.items():
-            views = [
-                ChannelView(m.channel, m.availability_status, m.min_price, m.last_observed_at)
-                for m in metrics
-            ]
-            current = next((v for v in views if v.channel == channel), None)
-            if current is None:
-                continue
-            now = current.observed_at
-            fresh = [v for v in views if abs(now - v.observed_at) <= FRESH_FOR]
-            if len(fresh) < 2:
-                continue
-            drafts: list[tuple[str, EventDraft]] = []
-            for v in fresh:
-                if (stay_date, v.channel) not in new_sold_out or recently(
-                    stay_date, f"channel_closed:{v.channel}", now
-                ):
-                    continue
-                d = channel_closed(v, [o for o in fresh if o is not v], now)
-                if d is not None:
-                    drafts.append((v.channel, d))
-            if is_own and not recently(stay_date, "parity_gap", now):
-                priced = [v for v in fresh if v.status == "available" and v.min_price is not None]
-                if len(priced) >= 2:
-                    cheapest = min(priced, key=lambda v: v.min_price or Decimal(0))
-                    d = parity_gap(cheapest, [o for o in fresh if o is not cheapest], now)
-                    if d is not None:
-                        drafts.append((cheapest.channel, d))
-            for event_channel, d in drafts:
-                await self._insert_event(scan_run_id, hotel_id, event_channel, stay_date, now, d)
-                EVENTS_TOTAL.labels(str(d.event_type)).inc()
-                report.events += 1

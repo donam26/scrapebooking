@@ -1,13 +1,15 @@
 {
   "title": "Hôm nay",
-  "scannedAt": "Quét lúc {when}",
   "hotelFallback": "Khách sạn #{id}",
   "status": {
     "noData": "Chưa có dữ liệu",
     "soldOut": "Hết phòng",
     "unknown": "Không đọc được",
     "available": "Còn phòng",
-    "roomsLeft": "Còn {count} phòng"
+    "roomsLeft": "Còn {count} phòng",
+    "restricted": "Bị hạn chế (không phải hết phòng)",
+    "minStay": "Chỉ bán từ {count} đêm",
+    "noPrice": "Không có giá"
   },
   "empty": {
     "title": "Chưa theo dõi khách sạn nào",
@@ -28,16 +30,18 @@
     "title": "{days} đêm tới",
     "compSoldOut": "{soldOut}/{observed} đối thủ hết phòng",
     "noComp": "Chưa có số đối thủ",
-    "vsMedian": "so trung vị {pct}"
+    "vsMedian": "so trung vị {pct}",
+    "compRestricted": "{count} bị hạn chế"
   },
   "changes": {
     "title": "Thay đổi 24 giờ qua",
-    "allEvents": "Mọi sự kiện",
+    "allEvents": "Mọi thay đổi",
     "empty": "Không có thay đổi nào trong 24 giờ qua."
   },
   "brief": {
     "title": "Bản tin AI mới nhất",
     "read": "Đọc bản tin",
     "noSummary": "Bản tin không có phần tóm tắt."
-  }
+  },
+  "resolvedNotice": "Đã ghi nhận: đã xử lý. Cảm ơn bạn!"
 }

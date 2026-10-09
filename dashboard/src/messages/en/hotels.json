@@ -3,17 +3,17 @@
     "fallbackTitle": "Hotel",
     "crumb": "Competitors",
     "stars": "{stars}-star",
-    "dataOn": "Data from <b>{channel}</b>",
     "cols": {
       "rooms": "Rooms left",
       "price": "Lowest rate",
       "change7d": "7-day rate change",
-      "pickup24h": "24h pickup",
-      "velocity3d": "3-day velocity",
+      "pickup24h": "≈ Rooms-left drop (24h)",
+      "velocity3d": "≈ Rooms-left drop per day (3 days)",
       "soldOutAt": "Sold out at",
       "restockedAt": "Back in stock at",
       "exactShare": "Exact count share",
-      "observedAt": "Observed at"
+      "observedAt": "Observed at",
+      "promo": "Promotion"
     },
     "rooms": {
       "soldOut": "Sold out",
@@ -21,17 +21,22 @@
       "none": "No data",
       "hiddenShort": "Hidden",
       "hidden": "Available, count hidden",
-      "count": "{count, plural, one {# room} other {# rooms}}"
+      "count": "{count, plural, one {# room} other {# rooms}}",
+      "minStay": "Sold only for {count}+ nights",
+      "restricted": "Restricted",
+      "noPrice": "No price",
+      "stale": "data older than 48 hours"
     },
     "stats": {
       "soldOut": "Sold-out nights",
       "nights": "{count, plural, one {# night} other {# nights}}",
       "soldOutHint": "Out of {count, plural, one {# night} other {# nights}} in view",
       "tight": "Nights with ≤ 3 rooms",
-      "tightHint": "Based on exact counts from {channel}",
+      "tightHint": "Based on exact counts from Booking.com",
       "priceRange": "Lowest rate per night",
       "lastObserved": "Last observed",
-      "lastObservedHint": "{count, plural, one {Latest event below} other {# latest events below}}"
+      "lastObservedHint": "{count, plural, one {Latest change below} other {# latest changes below}}",
+      "restricted": "{count, plural, one {# night} other {# nights}} restricted (not sold out)"
     },
     "nights": {
       "title": "By night",
@@ -39,7 +44,7 @@
       "night": "Night"
     },
     "events": {
-      "title": "Recent events",
+      "title": "Recent changes",
       "description": "{count, plural, one {Latest change for this hotel} other {# latest changes for this hotel}}",
       "empty": "No changes recorded for this hotel yet."
     }
@@ -50,11 +55,8 @@
     "nightCrumb": "Night of {night}",
     "invalidDate": "Invalid date",
     "title": "{weekday}, {date}",
-    "onChannel": "on {channel}",
     "lastScan": "Last scanned {when}",
-    "market": "Market this night:",
-    "marketOn": "Market this night on {channel}:",
-    "detailOn": "Details on {channel}",
+    "market": "Comp set this night:",
     "roomTypeFallback": "Room type #{id}",
     "rates": {
       "refundable": "Refundable",
@@ -65,7 +67,11 @@
       "exact": "{count, plural, one {# room left} other {# rooms left}}",
       "hidden": "Available, count hidden",
       "soldOut": "Sold out",
-      "unknown": "Unreadable"
+      "unknown": "Unreadable",
+      "minStay": "Sold only for {count}+ nights",
+      "restricted": "Restricted",
+      "noPrice": "No price",
+      "stale": "data older than 48 hours"
     },
     "noData": {
       "beyondTitle": "This night is beyond the scan horizon",
@@ -81,33 +87,38 @@
       "notRecorded": "Recent scans (up to {when}) did not capture this night."
     },
     "sameNight": {
-      "title": "Same night on {channel}",
+      "title": "Same night on Booking.com",
       "summary": "{soldOut}/{observed} competitors sold out · median {median}",
       "noCompetitors": "No competitor has data for this night yet",
-      "yours": "· yours"
+      "yours": "· yours",
+      "soldOut": "{soldOut}/{observed} competitors sold out",
+      "restricted": "{count} restricted (not sold out)",
+      "median": "Median {median}"
     },
-    "compare": {
-      "aria": "Channel comparison for this night",
-      "title": "Channel comparison",
-      "hint": "Each channel counts rooms separately, never added together; rates are only compared across channels that include taxes and fees",
-      "viewing": "· viewing",
+    "nightRate": {
+      "title": "Booking.com rate for this night",
       "noPrice": "No rate",
-      "cheapestHint": "Cheapest among channels with rates including taxes and fees",
-      "cheapest": "Cheapest",
-      "taxExclusive": "Excludes taxes and fees, not compared",
       "refundableFrom": "Refundable from {price}",
       "scannedAt": "Scanned {when}",
-      "notScanned": "Night not scanned yet"
+      "notScanned": "Night not scanned yet",
+      "priceBeforePromo": "Price before promotion",
+      "conditionsTitle": "Conditions of the cheapest plan",
+      "supplier": "Sold by: {supplier}",
+      "breakfastFrom": "With breakfast from {price}",
+      "roomOnlyFrom": "Room only from {price}",
+      "minStay": "Minimum {count} nights",
+      "taxExclusive": "Excludes taxes and fees"
     },
     "latest": {
       "title": "Room types in the latest scan",
-      "description": "{count, plural, one {# room type} other {# room types}} on sale for 2 adults on {channel}",
+      "description": "{count, plural, one {# room type} other {# room types}} on sale for 2 adults on Booking.com",
       "soldOut": "The scan at {when} found it sold out: no room types on sale. See the history below.",
       "unknown": "The scan at {when} could not read the page (blocked or failed). See the history below.",
       "empty": "The scan at {when} did not capture any room types.",
       "maxGuests": "Up to {count, plural, one {# guest} other {# guests}}",
       "refundableFrom": "Refundable from {price}",
-      "rateScoped": "“By rate”: the channel only reports rooms left at the cheapest rate, so for the whole room type it is at least N"
+      "rateScoped": "“By rate”: rooms left are only reported at the cheapest rate, so for the whole room type it is at least N",
+      "restricted": "Scan {when}: Booking.com does not sell 1-night arrivals from this date (minimum stay or closed to arrival); not sold out. See history below."
     },
     "cols": {
       "roomType": "Room type",
@@ -127,7 +138,7 @@
       "range": "History range",
       "days": "{count, plural, one {# day} other {# days}}",
       "roomsChart": "Rooms left per scan",
-      "onlyFloor": "Every room type reported <b>at least {count, plural, one {# room} other {# rooms}} left</b> in every scan. {channel} does not show exact counts, so there is no line to draw.",
+      "onlyFloor": "Every room type reported <b>at least {count, plural, one {# room} other {# rooms}} left</b> in every scan. Booking.com does not show exact counts, so there is no line to draw.",
       "roomsEmpty": "No countable rooms in this period",
       "priceChart": "Lowest rate per scan",
       "priceChartCurrency": "Lowest rate per scan ({currency})",
@@ -142,7 +153,7 @@
       "title": "Room type history <muted>({count, plural, one {# record} other {# records}})</muted>"
     },
     "events": {
-      "title": "Events for this night",
+      "title": "Changes for this night",
       "description": "{count, plural, one {# change} other {# changes}}",
       "empty": "No changes for this night in the selected period."
     }

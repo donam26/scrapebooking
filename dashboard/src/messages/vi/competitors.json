@@ -2,27 +2,35 @@
   "page": {
     "title": "Đối thủ",
     "count": "{count} đối thủ trong compset",
-    "channel": "Kênh <b>{channel}</b>",
-    "scannedAt": "Quét lúc {when}",
     "addHotel": "Thêm khách sạn",
     "emptyTitle": "Chưa theo dõi khách sạn nào",
-    "emptyBody": "Thêm khách sạn của bạn và đối thủ bằng đường dẫn trang khách sạn trên một kênh đặt phòng."
+    "emptyBody": "Thêm khách sạn của bạn và đối thủ bằng đường dẫn trang khách sạn trên Booking.com.",
+    "signLegend": "“So giá bạn”: giá đối thủ so với giá của bạn cùng đêm. (+) đối thủ đắt hơn bạn / (−) rẻ hơn."
   },
   "rooms": {
     "notScanned": "Chưa quét",
     "soldOut": "Hết phòng",
     "unknown": "Không đọc được",
     "available": "Còn phòng",
-    "left": "Còn {count}"
+    "left": "Còn {count}",
+    "restricted": "Hạn chế",
+    "minStay": "Từ {count} đêm",
+    "noPrice": "Không giá"
   },
   "card": {
     "yourHotel": "Khách sạn của bạn",
     "stars": "{count} sao",
     "distance": "cách bạn {km} km",
     "tonightRate": "Giá đêm nay",
+    "nightRate": "Giá đêm {night}",
     "vsYours": "So giá bạn",
+    "vsYoursTitle": "Giá đối thủ so với giá của bạn: (+) đối thủ đắt hơn bạn, (−) rẻ hơn",
     "change7d": "Giá 7 ngày",
-    "nextNights": "Giá {count} đêm tới",
-    "details": "Chi tiết"
+    "nextNights": "Giá {count} đêm đang xem",
+    "details": "Chi tiết",
+    "minStayPrice": "giá khi ở từ {count} đêm",
+    "promo": "KM: {promos}",
+    "stale": "Dữ liệu cũ · {ago}",
+    "staleTitle": "Quan sát cũ hơn 48 giờ: không tính vào trung vị compset"
   }
 }

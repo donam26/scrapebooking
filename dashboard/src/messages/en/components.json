@@ -6,8 +6,6 @@
   "eventTable": {
     "soldOut": "Available → Sold out",
     "restock": "Sold out → Available",
-    "stillSelling": "Still selling on {channels}",
-    "otherChannelsSelling": "Still selling on other channels",
     "roomTypeNewRooms": "On sale, {rooms} left",
     "roomTypeNew": "On sale",
     "roomTypeGoneRooms": "Off sale (was {rooms})",
@@ -18,14 +16,25 @@
     "confidenceTitle": "Confidence in the room count",
     "confidenceLevel": "{level} confidence",
     "hotelFallback": "Hotel #{id}",
-    "vsChannel": "vs {channel}",
     "wholeHotel": "Whole hotel",
-    "observedOn": "Observed on {channel}",
     "openNight": "Open this night",
     "night": "Night {night}",
-    "empty": "No events in the selected period.",
+    "empty": "No changes in the selected period.",
     "run": "Scan {when}",
-    "changes": "{count, plural, one {# change} other {# changes}}"
+    "changes": "{count, plural, one {# change} other {# changes}}",
+    "restricted": "Selling → Restricted",
+    "restrictionLifted": "Restricted → Selling",
+    "restrictedNote": "No 1-night arrivals from this date (minimum stay, closed to arrival); not sold out",
+    "minStayChange": "{from} → {to} night minimum",
+    "promoStart": "On: {labels}",
+    "promoEnd": "Off: {labels}",
+    "shift": {
+      "cheapest_gone": "Lowest rate moved because the cheapest room sold out, not a price change",
+      "cheapest_back": "Lowest rate moved because a cheaper room reopened, not a price change",
+      "rate_gone": "Lowest rate moved because the cheapest plan disappeared, not a price change",
+      "rate_back": "Lowest rate moved because a cheaper plan reopened, not a price change",
+      "mix": "Lowest rate moved because the cheapest room/plan changed, not a price change"
+    }
   },
   "marks": {
     "beyond": "Beyond scan range",
@@ -33,11 +42,11 @@
     "soldOutShort": "FULL",
     "soldOut": "Sold out",
     "unknown": "Could not read (blocked or error)",
-    "hiddenChannel": "Available, channel hides the count",
+    "hiddenChannel": "Available, Booking.com hides the count",
     "hiddenUnknown": "Available, count unknown",
-    "exactChannel": "{count, plural, one {# room} other {# rooms}} left (exact count from channel)",
+    "exactChannel": "{count, plural, one {# room} other {# rooms}} left (exact count from Booking.com)",
     "exact": "{count, plural, one {# room} other {# rooms}} left (exact)",
-    "cappedRate": "At least {count, plural, one {# room} other {# rooms}} left (channel only reports rooms left at the lowest rate)",
+    "cappedRate": "At least {count, plural, one {# room} other {# rooms}} left (rooms left only known at the lowest rate)",
     "capped": "At least {count, plural, one {# room} other {# rooms}} left",
     "cappedSome": "At least a few rooms left",
     "chip": {
@@ -47,17 +56,36 @@
       "sold_out": "Sold out",
       "unknown": "Unknown",
       "nodata": "No data",
-      "rate": "Per rate"
+      "rate": "Per rate",
+      "restricted": "Restricted",
+      "no_price": "No price",
+      "error": "Error"
     },
     "legend": {
-      "hotelExact": "Exact rooms left from the channel: red/orange is nearly full, green has plenty",
+      "hotelExact": "Exact rooms left from Booking.com: red/orange is nearly full, green has plenty",
       "hidden": "Available, count hidden",
       "soldOut": "Sold out",
       "unknown": "Could not read",
       "notScanned": "Not scanned",
       "roomExact": "Exact (“Only 2 rooms left”)",
-      "roomCapped": "At least N (channel only shows a floor)"
-    }
+      "roomCapped": "At least N (Booking.com only shows a floor)",
+      "restricted": "Restricted (≥2n = 2-night minimum), still selling",
+      "noPrice": "No price",
+      "error": "Read failed",
+      "stale": "Data older than 48 hours",
+      "promo": "Promotion running"
+    },
+    "restrictedShort": "RESTR",
+    "restricted": "Restricted: Booking.com does not sell 1-night stays from this date (closed to arrival or minimum stay), not sold out",
+    "minStayShort": "≥{count}n",
+    "minStay": "Sold only for {count}+ nights (minimum stay), not sold out",
+    "minStayRooms": "Sold only for {count}+ nights, {rooms} rooms left (restricted, not sold out)",
+    "noPrice": "No 1-night price (not counted as sold out)",
+    "errorShort": "ERR",
+    "error": "Page read failed (blocked or error)",
+    "stale": "data older than 48 hours",
+    "promo": "Promo: {promos}",
+    "promoDepth": "{name} −{pct}%"
   },
   "gauge": {
     "outOf100": "{value} out of 100"
@@ -71,12 +99,29 @@
   "marketSuggestion": {
     "confidenceHigh": "High confidence",
     "confidenceMedium": "Medium confidence",
-    "yourPrice": "Your rate {price}",
+    "target": "Target rate",
+    "holdAt": "Hold at",
+    "basis": "from your rate {price}",
     "applied": "Applied",
     "dismissed": "Dismissed",
     "undo": "Undo",
     "markApplied": "Mark as applied",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "confidenceLow": "Low confidence (small sample)",
+    "reference": "Reference {price}",
+    "referenceTitle": "Competitors' median listed rate × target position (or base price when the sample is too small), rounded",
+    "restrictions": "Restriction ideas",
+    "clamp": {
+      "floor": "Held at your floor price",
+      "ceiling": "Held at your ceiling price",
+      "max_change": "Capped at the maximum change per day",
+      "no_lower_tight": "No price cut while the night is tight or you're nearly full"
+    },
+    "applyPrice": "Rate you set (VND)",
+    "applyHint": "Edit if you set a different rate than the target, so results are measured correctly.",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "invalidPrice": "Enter a rate above 0, or leave empty to use the target."
   },
   "priceBasis": {
     "label": "Rate compared",
@@ -86,13 +131,18 @@
     "refundableTitle": "Compare only the lowest rate among packages with free cancellation",
     "noun": {
       "any": "Lowest rate",
-      "refundable": "Lowest refundable rate"
-    }
+      "refundable": "Lowest refundable rate",
+      "breakfast": "Lowest breakfast rate",
+      "room_only": "Lowest room-only rate"
+    },
+    "breakfast": "Breakfast",
+    "breakfastTitle": "Compare only the cheapest rate among plans with breakfast",
+    "room_only": "Room only",
+    "room_onlyTitle": "Compare only the cheapest rate among plans without breakfast"
   },
   "runSummary": {
     "empty": "No completed scans yet.",
     "run": "Scan",
-    "channel": "Channel",
     "finished": "Finished",
     "duration": "Duration",
     "probesOk": "Successful probes",
@@ -108,9 +158,10 @@
     "label": "Sub-sections",
     "tabs": {
       "aiBriefs": "AI briefs",
-      "events": "Change events",
+      "events": "Changes",
       "compset": "Your comp set",
-      "market": "Explore the market"
+      "market": "Explore the market",
+      "radar": "Competitive radar"
     }
   },
   "dateRange": {
@@ -119,14 +170,97 @@
     "nightsLabel": "Number of nights",
     "nights": "{count, plural, one {# night} other {# nights}}"
   },
-  "channels": {
-    "switcher": "Channel shown",
-    "switcherTitle": "Rooms left and rates on {channel}",
-    "suggestedMatch": "Suggested · {score}% match",
-    "openOnChannel": "Open the hotel page on {channel}",
-    "tracked": "Tracked channels",
-    "demandTitle": "Demand signals from channels",
-    "demandSource": "From {channel}:",
-    "demandNote": "Messages the channel shows to guests. For reference only; not counted in rooms left or rates."
+  "listing": {
+    "open": "Open the hotel page on Booking.com",
+    "tracked": "Tracked page"
+  },
+  "freshness": {
+    "updated": "Latest data {when}",
+    "noData": "No data yet",
+    "latestEmpty": "latest scan collected no data",
+    "latestEmptyTitle": "The scan that finished {when} collected no data; figures shown are from the latest scan that did.",
+    "overdue": "missed scan, data from {ago}",
+    "bannerTitle": "Booking.com data is stale: no fresh data for over {hours, plural, one {# hour} other {# hours}}",
+    "bannerLast": "Last successful read {when}.",
+    "bannerBody": "Figures on this screen may be out of date.",
+    "bannerLink": "See scans",
+    "stale": "no fresh Booking.com data",
+    "bannerNever": "No successful read yet."
+  },
+  "holidays": {
+    "label": "Holidays in view:",
+    "single": "{name} · {date}",
+    "range": "{name} · {from}–{to}",
+    "kind": {
+      "tet": "Tet",
+      "holiday": "Public holiday",
+      "travel": "Travel peak",
+      "source_market": "Source-market holiday",
+      "season": "Holiday season"
+    }
+  },
+  "todayActions": {
+    "title": "Today's actions",
+    "info": "Pending raise/lower suggestions (with the target rate from your price strategy), competitors sold out tonight and tight nights in the next {nights} nights: at least half of observed competitors sold out or with ≤3 rooms left, or a fill indicator of 85%+. “Hold” nights aren't listed. Up to 5 items; nothing changes your rates automatically.",
+    "empty": "Nothing to do yet: no raise/lower suggestions, no competitor sold out tonight and no tight night in the next {nights} nights.",
+    "more": "{count, plural, one {# more item} other {# more items}}",
+    "tonight": "Tonight",
+    "badge": {
+      "soldOut": "Competitor sold out",
+      "tight": "Tight night"
+    },
+    "target": "Target rate <b>{price}</b> ({change})",
+    "basis": "Basis: your rate {price} (lowest rate on Booking.com)",
+    "noOwnPrice": "Change {change}; no rate of yours on Booking.com to calculate a target",
+    "reason": "Why: {reason}",
+    "soldOutTonight": "{count, plural, one {# competitor} other {# competitors}} sold out: {names}",
+    "tightCount": "{tight}/{observed} competitors sold out or nearly",
+    "fill": "fill indicator on Booking.com ≈{pct}%"
+  },
+  "sample": {
+    "countShort": "{n}/{total}",
+    "count": "{n}/{total} competitors priced",
+    "small": "small sample",
+    "insufficient": "not enough data ({n}/{total}, need ≥{min})",
+    "okTitle": "{n}/{total} primary-compset competitors have a like-for-like price this night.",
+    "smallTitle": "Only {n}/{total} competitors have a like-for-like price: indicative only (CoStar STR standard needs ≥{min}).",
+    "insufficientTitle": "{n}/{total} competitors have a like-for-like price: below 3, median, price index and price position are not computed (need ≥{min}).",
+    "index": "Listed-rate index",
+    "indexTitle": "Your lowest listed rate ÷ competitor median × 100 (100 = at the median). This is an asking-rate index, not a revenue index: competitors’ actual revenue is unknown.",
+    "rankLabel": "Price position",
+    "rank": "{rank}/{total} (1 = cheapest)"
+  },
+  "fill": {
+    "range": "≈{pct}% ({low}–{high}%)",
+    "point": "≈{pct}%",
+    "hidden": "hidden",
+    "hiddenTitle": "Hidden: error vs PMS at {bucket} is ±{mae} pts (above the 20-pt limit), so this night’s indicator is not reliable.",
+    "calibrated": "error vs PMS {values} pts at 0–7 / 8–30 / 31–90 days",
+    "calibratedAll": "error vs PMS ±{mae} pts ({count, plural, one {# night} other {# nights}})",
+    "uncalibrated": "not calibrated (no PMS data yet)",
+    "calibrationInfo": "Mean absolute error of the indicator vs actual PMS occupancy, by days before arrival. Buckets with error above 20 pts are hidden.",
+    "leadLine": "{bucket}: ±{mae} pts, bias {bias}, {count, plural, one {# night} other {# nights}}{usable, select, no { (hidden)} other {}}",
+    "leadLineNone": "{bucket}: no nights to compare yet",
+    "bucket": {
+      "0-7": "0–7 days",
+      "8-30": "8–30 days",
+      "31-90": "31–90 days"
+    }
+  },
+  "ownHotel": {
+    "label": "Your hotel",
+    "title": "View the comp set and pace of {name}"
+  },
+  "exportMenu": {
+    "label": "Export data",
+    "button": "Export",
+    "csv": "Download CSV",
+    "csvHint": "This screen's table, opens in Excel.",
+    "rateShop": "Download rate shop Excel",
+    "rateShopHint": "Hotel × night: listed rate, status, promotions, restrictions, n/N for the period in view.",
+    "monthly": "Monthly report (print to PDF)",
+    "monthlyHint": "Opens the owner report page; print it or save as PDF.",
+    "monthAria": "Report month",
+    "open": "Open"
   }
 }

@@ -245,6 +245,28 @@ a {
   color: var(--sb-line-strong);
   box-shadow: inset 0 0 0 1px var(--sb-line);
 }
+/* Bị hạn chế (số đêm tối thiểu, đóng ngày đến): vẫn bán ở điều kiện khác, KHÔNG phải hết phòng (không đỏ) */
+.sb-mark-restricted {
+  background: var(--sb-warning-soft);
+  color: var(--sb-warning-deep);
+  box-shadow: inset 0 0 0 1px #fcd34d;
+}
+/* Có trang nhưng không có giá cho đêm này */
+.sb-mark-no_price {
+  background: var(--sb-sunken);
+  color: var(--sb-faint);
+}
+/* Lỗi đọc trang (bị chặn, lỗi): sọc chéo */
+.sb-mark-error {
+  background: repeating-linear-gradient(45deg, var(--sb-line) 0 2px, var(--sb-surface) 2px 5px);
+  color: var(--sb-muted);
+  box-shadow: inset 0 0 0 1px var(--sb-line-strong);
+}
+/* Quan sát cũ hơn 48 giờ: làm xám, không vào trung vị compset */
+.sb-stale {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
 /* Đêm sau phạm vi quét: chưa tới lượt được quét, khác với "chưa có dữ liệu" */
 .sb-mark-beyond {
   background: repeating-linear-gradient(-45deg, var(--sb-line) 0 1px, transparent 1px 5px);

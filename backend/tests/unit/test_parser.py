@@ -54,8 +54,9 @@ def test_reverie_rates_only_for_searched_party(fixtures_dir: Path) -> None:
     page = parse_hotel_page(_load(fixtures_dir, "reverie_2026-10-10"), "VND", adults=2)
     twin = page.offers[0]
     assert [(r.name, r.price, r.refundable, r.breakfast, r.max_persons) for r in twin.rates] == [
-        ("Non-refundable", Decimal("8879220"), False, None, 2),
-        ("Free cancellation", Decimal("9865800"), True, None, 2),
+        # "breakfast VND 1,120,000": bữa sáng trả thêm → giá chỉ phòng (breakfast=False).
+        ("Non-refundable", Decimal("8879220"), False, False, 2),
+        ("Free cancellation", Decimal("9865800"), True, False, 2),
         ("Non-refundable + breakfast", Decimal("10807020"), False, True, 2),
         ("Free cancellation + breakfast", Decimal("11793600"), True, True, 2),
     ]
@@ -100,7 +101,7 @@ def test_last_minute_layout(fixtures_dir: Path) -> None:
     twin = page.offers[0]
     assert (twin.badge_count, twin.dropdown_max) == (4, 4)
     assert [(r.price, r.refundable, r.breakfast, r.max_persons) for r in twin.rates] == [
-        (Decimal("8699198"), False, None, 2),  # giá hiện tại, không phải giá gạch 9157050
+        (Decimal("8699198"), False, False, 2),  # giá hiện tại, không phải giá gạch 9157050
         (Decimal("10439037"), False, True, 2),
     ]
     romance = page.offers[2]

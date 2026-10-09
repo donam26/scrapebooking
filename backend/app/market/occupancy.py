@@ -74,7 +74,10 @@ def inventory_from(observations: Iterable[RoomState]) -> dict[int, int]:
 
 
 def estimate(
-    status: str, rooms: Iterable[RoomState], inventory: dict[int, int]
+    status: str,
+    rooms: Iterable[RoomState],
+    inventory: dict[int, int],
+    rooms_total: int | None = None,
 ) -> OccEstimate | None:
     """Công suất một (khách sạn, kênh, đêm) ở một lần quét.
 
@@ -84,10 +87,13 @@ def estimate(
     - Chính xác: biết chắc. "Ít nhất N": [N, inventory]. Ẩn số: [1, inventory].
     """
     total = sum(v for v in inventory.values() if v > 0)
-    if status == "unknown" or total == 0:
+    if status not in ("available", "sold_out") or total == 0:
         return None
+    # Tổng phòng công bố/người dùng nhập (5.6): mẫu số là tổng phòng của khách sạn khi lớn hơn
+    # phần kênh từng mở bán — "lớn nhất từng thấy" là cận dưới và làm công suất ra cao.
+    denom = max(total, rooms_total or 0)
     if status == "sold_out":
-        return OccEstimate(total, 0, 0, Decimal(1))
+        return OccEstimate(denom, 0, 0, Decimal(1))
     by_type = {r.room_type_id: r for r in rooms}
     if not by_type:
         # "Còn phòng" mà không đọc được loại phòng nào (parse lỗi một phần): không suy ra là hết.
@@ -107,4 +113,4 @@ def estimate(
             low, high = low + min(r.floor, inv), high + inv
         else:  # ẩn số: còn ít nhất 1
             low, high = low + 1, high + inv
-    return OccEstimate(total, low, high, (Decimal(known) / Decimal(total)).quantize(Q4))
+    return OccEstimate(denom, low, high, (Decimal(known) / Decimal(total)).quantize(Q4))

@@ -21,6 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models import Base
@@ -115,3 +116,7 @@ class MarketListPrice(Base):
     rank: Mapped[int] = mapped_column(Integer)
     price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     currency: Mapped[str | None] = mapped_column(String(3))
+    # Vị trí hiển thị (roadmap 7.2): thẻ quảng cáo ("Ad") tách khỏi thứ hạng tự nhiên; huy hiệu
+    # Preferred/Preferred Plus và tên deal trên thẻ.
+    sponsored: Mapped[bool | None] = mapped_column(Boolean)
+    badges: Mapped[list[str] | None] = mapped_column(JSONB)

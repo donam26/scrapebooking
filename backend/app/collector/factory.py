@@ -7,7 +7,7 @@ from datetime import timedelta
 from typing import Protocol
 
 from app.clock import Clock
-from app.collector.base import Collector, ListingFinder, ListingVerifier
+from app.collector.base import Collector, ListingVerifier
 from app.collector.proxy import ProxyProvider
 from app.collector.ratelimit import RateLimiter
 from app.collector.session import SessionListener
@@ -38,7 +38,7 @@ class CollectorDeps:
     country: str = "vn"  # nước của proxy / điểm bán (POS)
 
 
-class ChannelCollector(Collector, ListingVerifier, ListingFinder, Protocol):
+class ChannelCollector(Collector, ListingVerifier, Protocol):
     async def close(self) -> None: ...
 
 

@@ -4,6 +4,7 @@
   "operatorSection": "Operations",
   "sessionError": "Could not load your session",
   "nav": {
+    "today": "Today",
     "dashboard": "Dashboard",
     "competitors": "Competitors",
     "availability": "Availability",
@@ -27,8 +28,8 @@
   "freshness": {
     "noScan": "No scans yet",
     "scanning": "Scanning…",
-    "scannedAt": "Scanned {when}",
-    "failed": "Last scan failed, no new data",
+    "updatedAt": "Updated {when}",
+    "failed": "Latest scan collected no data",
     "overdue": "Missed scan · data from {ago}",
     "next": "Next scan {when}"
   },
@@ -37,8 +38,7 @@
     "data": "Data",
     "pickTenant": "Choose a tenant to view",
     "heatTitle": "Rooms-left colours",
-    "heatNote": "Rooms left are per channel and never added across channels. “≥N” means the channel only shows a floor.",
-    "openToday": "Open the “Today” view for phones"
+    "heatNote": "Rooms left on Booking.com. “≥N” means Booking.com only shows a floor."
   },
   "bell": {
     "title": "Notifications",

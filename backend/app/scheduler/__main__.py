@@ -8,7 +8,7 @@ from app.logging import configure_logging
 from app.marketscan.scheduling import MarketScheduler
 from app.ops.alerts import make_alerter
 from app.ops.metrics import start_metrics_server
-from app.ops.proxy_check import ProxyHealth, check_proxies
+from app.ops.proxy_check import ProxyHealth, ProxyHealthStore, check_proxies
 from app.scheduler.channel_pause import RedisChannelPauses
 from app.scheduler.queue import ArqJobQueue
 from app.scheduler.service import SchedulerService
@@ -49,6 +49,7 @@ async def main() -> None:
         pause_minutes=settings.channel_pause_minutes,
         market=market,
         market_deadline=timedelta(hours=settings.market_run_deadline_hours),
+        proxy_health=ProxyHealthStore(queue.redis),
     )
     try:
         await service.run_forever()

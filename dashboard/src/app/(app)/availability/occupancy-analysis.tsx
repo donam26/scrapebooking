@@ -1,15 +1,17 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { MarketOccupancyOut, PaceNightOut } from "@/lib/api";
+import type { CalibrationOut, MarketOccupancyOut, PaceNightOut } from "@/lib/api";
 import { num, useFmt } from "@/lib/format";
-import { MARKET_LINE_COLOR } from "@/lib/market-metrics";
+import { DEMAND_TEXT, MARKET_LINE_COLOR, demandLevel, fillHidden, fillIndicator } from "@/lib/market-metrics";
+import { CalibrationNote } from "@/components/fill";
 import { Card, cx } from "@/components/ui";
 import { TrendChart, type TrendRow, type TrendSeries } from "@/components/trend-chart";
 
 /**
- * PHÂN TÍCH CÔNG SUẤT (như mẫu): mỗi khách sạn một đường công suất ước tính, trung vị compset nét đứt,
- * khách sạn của bạn đậm; công suất PMS khi đã nhập. Bốn ô: TB, cao nhất, thấp nhất, số KS ≈≥90% đêm đầu.
+ * CHỈ BÁO LẤP ĐẦY (thử nghiệm, không phải công suất): mỗi khách sạn một đường ước tính từ số phòng
+ * còn, trung vị compset nét đứt, khách sạn của bạn đậm; công suất PMS thật khi đã nhập. Bốn ô: TB,
+ * cao nhất, thấp nhất, số KS ≈≥90% đêm đầu. Màu theo thang mức chung.
  */
 
 function pct(v: string | number | null | undefined): number | null {
@@ -26,10 +28,23 @@ function StatBox({ value, label, tone }: { value: string; label: string; tone: s
   );
 }
 
-export function OccupancyAnalysis({ nights, perHotel, colors }: { nights: PaceNightOut[]; perHotel: MarketOccupancyOut | undefined; colors: Map<number, string> }) {
+export function OccupancyAnalysis({
+  nights,
+  calibration,
+  perHotel,
+  colors,
+}: {
+  nights: PaceNightOut[];
+  /** Nhóm lead time sai số quá ngưỡng so PMS: ẩn chỉ báo của đêm đó. */
+  calibration: CalibrationOut | undefined;
+  perHotel: MarketOccupancyOut | undefined;
+  colors: Map<number, string>;
+}) {
   const t = useTranslations("availability.occupancy");
   const { fmtNight } = useFmt();
-  const comp = nights.map((n) => ({ d: n.stay_date, v: pct(n.comp_occ) })).filter((x): x is { d: string; v: number } => x.v !== null);
+  const hiddenNights = nights.filter((n) => n.comp_occ !== null && fillHidden(calibration, n.days_to_arrival)).length;
+  const hide = new Set(nights.filter((n) => fillHidden(calibration, n.days_to_arrival)).map((n) => n.stay_date));
+  const comp = nights.map((n) => ({ d: n.stay_date, v: pct(fillIndicator(n, calibration)) })).filter((x): x is { d: string; v: number } => x.v !== null);
   const avg = comp.length ? Math.round(comp.reduce((a, b) => a + b.v, 0) / comp.length) : null;
   const peak = comp.reduce<{ d: string; v: number } | null>((m, x) => (!m || x.v > m.v ? x : m), null);
   const low = comp.reduce<{ d: string; v: number } | null>((m, x) => (!m || x.v < m.v ? x : m), null);
@@ -42,8 +57,8 @@ export function OccupancyAnalysis({ nights, perHotel, colors }: { nights: PaceNi
 
   const occBy = new Map(hotels.map((h) => [h.hotel_id, new Map(h.nights.map((n) => [n.stay_date, pct(n.occ_mid)]))]));
   const rows: TrendRow[] = nights.map((n) => {
-    const row: TrendRow = { x: n.stay_date, comp: pct(n.comp_occ), pms: pct(n.own_pms_occ) };
-    for (const h of hotels) row[`h${h.hotel_id}`] = occBy.get(h.hotel_id)?.get(n.stay_date) ?? null;
+    const row: TrendRow = { x: n.stay_date, comp: pct(fillIndicator(n, calibration)), pms: pct(n.own_pms_occ) };
+    for (const h of hotels) row[`h${h.hotel_id}`] = hide.has(n.stay_date) ? null : (occBy.get(h.hotel_id)?.get(n.stay_date) ?? null);
     return row;
   });
   const series: TrendSeries[] = [
@@ -58,12 +73,13 @@ export function OccupancyAnalysis({ nights, perHotel, colors }: { nights: PaceNi
   if (hasPms) series.push({ key: "pms", name: t("pms"), color: "#16a34a", width: 2, dashed: true });
 
   return (
-    <Card
-      title={t("title")}
-      info={t("info")}
-    >
+    <Card title={t("title")} info={t("info")} description={t("source")}>
+      <p className="mb-3 text-xs">
+        <CalibrationNote calibration={calibration} />
+        {hiddenNights > 0 && <span className="text-muted"> · {t("hiddenNights", { count: hiddenNights })}</span>}
+      </p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatBox value={avg === null ? "—" : `≈${avg}%`} label={t("avg", { count: comp.length })} tone={avg === null ? "text-faint" : avg >= 75 ? "text-hot" : "text-yours"} />
+        <StatBox value={avg === null ? "—" : `≈${avg}%`} label={t("avg", { count: comp.length })} tone={avg === null ? "text-faint" : DEMAND_TEXT[demandLevel(avg)]} />
         <StatBox value={peak ? `≈${peak.v}%` : "—"} label={peak ? t("peakOn", { night: fmtNight(peak.d) }) : t("peak")} tone="text-danger" />
         <StatBox value={low ? `≈${low.v}%` : "—"} label={low ? t("lowOn", { night: fmtNight(low.d) }) : t("low")} tone="text-yours" />
         <StatBox value={firstKnown.length ? `${hot}/${firstKnown.length}` : "—"} label={t("hotFirstNight")} tone="text-brand" />

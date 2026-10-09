@@ -15,12 +15,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.compset import compset_by_day
+from app.channels.registry import BOOKING
 from app.db.models import (
     AvailabilityEvent,
     Hotel,
     HotelDateMetric,
     HotelDateSnapshot,
-    ListingDemandSignal,
     OwnHotelDaily,
     RoomType,
     Tenant,
@@ -35,8 +35,6 @@ EVENT_LIMIT_7D = 200
 INSIGHT_MAX_DAYS = 30
 
 PRIORITY_EVENTS = (
-    "channel_closed",
-    "parity_gap",
     "sold_out",
     "restock",
     "low_stock_enter",
@@ -68,7 +66,7 @@ async def build_input(
     today = now.astimezone(tz).date()
     days_n = min(tenant.horizon_days, INSIGHT_MAX_DAYS)
     start, end = today, today + timedelta(days=days_n - 1)
-    channel = tenant.reference_channel
+    channel = BOOKING
 
     links = (
         await session.execute(
@@ -89,7 +87,6 @@ async def build_input(
         },
         "language": tenant.insight_language,
         "generated_at": now.isoformat(),
-        "reference_channel": channel,
         "period": {"start": start.isoformat(), "end": end.isoformat(), "days": days_n},
         "hotels": [],
         "events_24h": [],
@@ -238,41 +235,6 @@ async def build_input(
 
     payload["events_24h"] = await _events(now - timedelta(hours=24), EVENT_LIMIT_24H)
     payload["events_7d"] = await _events(now - timedelta(days=7), EVENT_LIMIT_7D)
-
-    signals = (
-        (
-            await session.execute(
-                select(ListingDemandSignal)
-                .where(
-                    ListingDemandSignal.hotel_id.in_(hotel_ids),
-                    ListingDemandSignal.observed_at >= now - timedelta(days=2),
-                )
-                .order_by(ListingDemandSignal.observed_at.desc())
-            )
-        )
-        .scalars()
-        .all()
-    )
-    seen: set[tuple[int, str, str, date | None]] = set()
-    for sig in signals:
-        key = (sig.hotel_id, sig.channel, sig.kind, sig.stay_date)
-        if key in seen:
-            continue  # chỉ giữ giá trị mới nhất mỗi (khách sạn, kênh, loại, đêm)
-        seen.add(key)
-        ref = f"demand:{sig.id}"
-        refs.add(ref)
-        payload["demand_signals"].append(
-            {
-                "ref": ref,
-                "hotel_id": sig.hotel_id,
-                "channel": sig.channel,
-                "kind": sig.kind,
-                "value": _num(sig.value),
-                "window_hours": sig.window_hours,
-                "stay_date": sig.stay_date.isoformat() if sig.stay_date else None,
-                "text": sig.raw_text,
-            }
-        )
 
     for c in await compset_by_day(session, tenant.id, start, end, channel=channel):
         ref = f"compset:{c.stay_date.isoformat()}"

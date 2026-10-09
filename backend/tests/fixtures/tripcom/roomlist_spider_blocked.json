@@ -1,9 +1,0 @@
-{
- "data": {
-  "htlSpiderActionErrorCode": 4030
- },
- "ResponseStatus": {
-  "Ack": "Success",
-  "Errors": []
- }
-}

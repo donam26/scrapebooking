@@ -1,0 +1,69 @@
+{
+  "hotelFallback": "Hotel #{id}",
+  "yourHotel": "Your hotel",
+  "badge": {
+    "ad": "Ad",
+    "preferred": "Preferred",
+    "preferred_plus": "Preferred Plus",
+    "genius": "Genius",
+    "free_cancellation": "Free cancellation"
+  },
+  "reputation": {
+    "title": "Reputation",
+    "description": "Review score and count on Booking.com, last {days} days.",
+    "info": "Read from search result pages already scanned, no extra scans. New reviews per month reflect how many guests stay. Booking score milestones: 7.0 qualifies for Preferred, 7.5 for Genius, 8.0 Traveller Review Award, 9.0 the “Superb” label.",
+    "col": {
+      "hotel": "Hotel",
+      "score": "Score",
+      "change": "Change",
+      "perMonth": "New reviews/month",
+      "count": "Reviews",
+      "next": "Next milestone",
+      "badges": "Badges"
+    },
+    "gap": "{gap} points to {threshold}",
+    "top": "above 9.0",
+    "threshold": {
+      "t70": "7.0: qualifies for Booking Preferred",
+      "t75": "7.5: qualifies for Genius",
+      "t80": "8.0: Traveller Review Award",
+      "t90": "9.0: the “Superb” label"
+    },
+    "changeTitle": "Versus the start of the {days}-day window",
+    "emptyTitle": "No review scores yet",
+    "emptyBody": "Scores and review counts are read from search result pages. They appear after a few scans."
+  },
+  "valueMap": {
+    "title": "Price versus score",
+    "description": "Listed-price index and score index versus the comp set median (100 = median).",
+    "caveat": "This is correlation, not causation: a price above the score level doesn't mean the price is losing guests, only that it's worth a look.",
+    "axisPrice": "Listed-price index",
+    "axisScore": "Score index",
+    "point": "{name}: price {price}, score {score}",
+    "verdict": {
+      "above": "Priced above its score",
+      "below": "Priced below its score",
+      "match": "Price in line with score"
+    },
+    "values": "price {price} · score {score}",
+    "empty": "Needs both listed prices for the next 30 nights and a review score to compare."
+  },
+  "visibility": {
+    "title": "Search visibility",
+    "description": "Rank on the area's result pages in Booking's default order, last {days} days.",
+    "info": "1 = top of page 1. “Excluding ads” removes sponsored cards ranked above. Badges are the labels on the hotel card (Preferred, ad, deals…).",
+    "col": {
+      "hotel": "Hotel",
+      "organic": "Avg rank (excl. ads)",
+      "best": "Best",
+      "ads": "% shown as ad",
+      "badges": "Badges",
+      "scans": "Times seen"
+    },
+    "shown": "shown {rank}",
+    "notSeen": "Not seen on the result pages",
+    "emptyTitle": "No visibility data yet",
+    "emptyBody": "Needs a market area (Settings › Market) and at least one scan of the area's result pages.",
+    "emptyAction": "Set up an area"
+  }
+}

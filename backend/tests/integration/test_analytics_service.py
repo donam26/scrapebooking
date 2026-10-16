@@ -8,8 +8,10 @@ from app.analytics.compset import compset_by_day
 from app.analytics.service import AnalyticsService
 from app.db.models import (
     AvailabilityEvent,
+    HotelCalendar,
     HotelDateMetric,
     HotelDateSnapshot,
+    Listing,
     OwnHotelDaily,
     Tenant,
     TenantHotel,
@@ -93,7 +95,9 @@ async def test_pipeline_over_three_runs(db: AsyncSession) -> None:
     assert (rep1.hotel_dates, rep1.events, rep1.metrics) == (1, 0, 1)
     hds = (await db.execute(select(HotelDateSnapshot))).scalar_one()
     assert hds.channel == "booking"
-    assert hds.status == "available" and hds.exact_rooms_left == 5 and hds.room_types_available == 2
+    assert hds.status == "available" and hds.room_types_available == 2
+    # Loại 2 còn "≥10": cả khách sạn còn ít nhất 15, không phải "5" (tổng riêng loại chính xác).
+    assert (hds.rooms_left_min, hds.rooms_left_max, hds.exact_rooms_left) == (15, None, None)
     assert hds.min_price == Decimal("100.00") and hds.room_types_sold_out == 0
 
     # Run 2, 8 giờ sau: loại 1 còn 2 (giảm 3, vào mức thấp), giá loại 2 tăng 10%.
@@ -128,7 +132,8 @@ async def test_pipeline_over_three_runs(db: AsyncSession) -> None:
     await db.commit()
     assert len((await db.execute(select(AvailabilityEvent))).scalars().all()) == 3
 
-    # Run 3: bị chặn -> unknown, không sinh sự kiện, metrics giữ status unknown.
+    # Run 3: bị chặn -> unknown, không sinh sự kiện; metrics GIỮ số tốt gần nhất (run 2), không
+    # bị xoá thành "lỗi".
     run3 = await _run(db, "r3", T0 + timedelta(hours=16))
     await _write(
         db,
@@ -156,7 +161,8 @@ async def test_pipeline_over_three_runs(db: AsyncSession) -> None:
     db.expire_all()
     assert rep3.events == 0
     metric = (await db.execute(select(HotelDateMetric))).scalar_one()
-    assert metric.availability_status == "unknown" and metric.as_of_scan_run_id == run3
+    assert metric.availability_status == "available" and metric.as_of_scan_run_id == run2
+    assert (metric.rooms_left_min, metric.min_price) == (12, Decimal("100.00"))
 
     # Run 4, ngày hôm sau: hết phòng. So với lần dùng được gần nhất (run 2), không phải run 3.
     run4 = await _run(db, "r4", T0 + timedelta(days=1))
@@ -259,3 +265,57 @@ async def test_compset_by_day(db: AsyncSession) -> None:
     assert d.price_index == Decimal("100.0") and d.own_rank == 3
     assert d.competitors_low == 1  # c2 còn 2 phòng (chính xác)
     assert days[1].competitors_observed == 0 and days[1].median_price is None
+
+
+async def test_calendar_ladder_bounds_reach_snapshots_and_metrics(db: AsyncSession) -> None:
+    """Trang (2 người lớn) thấy 4 + 2 phòng, thang nbRooms của lịch: còn ≥8, <12 → khoảng 8–11."""
+    hotel = await _hotel(db, "vn/ladder")
+    svc = AnalyticsService(db, low_stock_threshold=3, price_change_threshold_pct=3.0)
+    run1 = await _run(db, "r1", T0)
+    await _write(
+        db,
+        run1,
+        hotel,
+        result(ProbeStatus.OK, offer("1", 4, 4, "100"), offer("2", 2, 2, "120")),
+        T0,
+    )
+    db.add(
+        HotelCalendar(
+            hotel_id=hotel,
+            scan_run_id=run1,
+            stay_date=STAY,
+            available=True,
+            min_length_of_stay=1,
+            fetched_at=T0,
+            rooms_min=8,
+            rooms_max=11,
+        )
+    )
+    await db.commit()
+    await svc.run(run1)
+    await db.commit()
+    db.expire_all()
+    hds = (await db.execute(select(HotelDateSnapshot))).scalar_one()
+    assert (hds.rooms_left_min, hds.rooms_left_max, hds.exact_rooms_left) == (8, 11, None)
+    metric = (await db.execute(select(HotelDateMetric))).scalar_one()
+    assert (metric.rooms_left_min, metric.rooms_left_max, metric.exact_rooms_left) == (8, 11, None)
+    # "Booking từng mở bán tối đa" của listing: sàn lớn nhất từng thấy.
+    listing = (await db.execute(select(Listing))).scalar_one()
+    assert (listing.rooms_max_seen, listing.rooms_max_seen_at) == (8, T0)
+
+
+async def test_rooms_max_seen_never_decreases(db: AsyncSession) -> None:
+    hotel = await _hotel(db, "vn/maxseen")
+    svc = AnalyticsService(db, low_stock_threshold=3, price_change_threshold_pct=3.0)
+    run1 = await _run(db, "r1", T0)
+    await _write(db, run1, hotel, result(ProbeStatus.OK, offer("1", 6, 6, "100")), T0)
+    run2 = await _run(db, "r2", T0 + timedelta(hours=8))
+    later = T0 + timedelta(hours=8)
+    await _write(db, run2, hotel, result(ProbeStatus.OK, offer("1", 2, 2, "100")), later)
+    await db.commit()
+    await svc.run(run1)
+    await svc.run(run2)
+    await db.commit()
+    db.expire_all()
+    listing = (await db.execute(select(Listing))).scalar_one()
+    assert (listing.rooms_max_seen, listing.rooms_max_seen_at) == (6, T0)

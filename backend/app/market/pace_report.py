@@ -11,7 +11,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.analytics.compset import load_compset
+from app.analytics.compset import LOW_STOCK, load_compset
+from app.analytics.rooms_left_bounds import definitely_low
 from app.analytics.rules import median
 from app.channels.registry import BOOKING
 from app.db.models import HotelDateMetric, OwnHotelDaily, Tenant
@@ -476,9 +477,7 @@ async def build_pace_report(
         comp_low = sum(
             1
             for m in comp_m
-            if m.availability_status == "available"
-            and m.exact_rooms_left is not None
-            and m.exact_rooms_left <= 3
+            if m.availability_status == "available" and definitely_low(m.rooms_left_max, LOW_STOCK)
         )
         comp_median = median(comp_prices) if len(comp_prices) >= 3 else None
         own_price_now = own_m.min_price if own_m else None

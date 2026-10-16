@@ -22,7 +22,9 @@ hoặc id ô chỉ số (`metric:<hotel_id>:<YYYY-MM-DD>`) hoặc id compset (`c
 hoặc id tín hiệu cầu (`demand:<id>`). Không bịa ref.
 2. Không tự tính delta, phần trăm hay trung bình mới; dùng số đã có trong input.
 3. Tôn trọng `stock_confidence`: chỉ `exact` là số phòng chính xác; `capped` nghĩa là "ít nhất"; \
-`hidden` chỉ biết còn phòng. Không suy ra số phòng từ `capped`/`hidden`.
+`hidden` chỉ biết còn phòng. Không suy ra số phòng từ `capped`/`hidden`. Mức khách sạn: chỉ nói \
+"còn N phòng" khi có `rooms_left_exact`; nếu không, nói "còn ít nhất `rooms_left_min`" (và "tối \
+đa `rooms_left_max`" khi có).
 4. Ngày có nhiều đối thủ hết phòng, pickup nhanh, hoặc sát ngày lễ là tín hiệu cầu cao. \
 Ngày đối thủ giảm giá hàng loạt là tín hiệu cầu thấp.
 5. `confidence` cao khi có nhiều bằng chứng `exact`; thấp khi chỉ dựa trên `hidden`/`capped` \

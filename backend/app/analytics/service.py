@@ -6,11 +6,12 @@
 """
 
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,8 +29,10 @@ from app.analytics.rules import (
 )
 from app.db.models import (
     AvailabilityEvent,
+    HotelCalendar,
     HotelDateMetric,
     HotelDateSnapshot,
+    Listing,
     Probe,
     RoomSnapshot,
     RoomType,
@@ -156,6 +159,18 @@ class AnalyticsService:
         by_probe: dict[int, list[RoomSnapshot]] = defaultdict(list)
         for s in snaps:
             by_probe[s.probe_id].append(s)
+        # Thang nbRooms của lịch trong cùng run (worker/capacity_ladder.py).
+        ladder = {
+            r.stay_date: (r.rooms_min, r.rooms_max)
+            for r in await self._s.execute(
+                select(
+                    HotelCalendar.stay_date, HotelCalendar.rooms_min, HotelCalendar.rooms_max
+                ).where(
+                    HotelCalendar.scan_run_id == scan_run_id,
+                    HotelCalendar.hotel_id == hotel_id,
+                )
+            )
+        }
         out: dict[date, HotelDateObs] = {}
         for p in probes:
             rooms = {s.room_type_id: room_obs(s) for s in by_probe.get(p.id, [])}
@@ -164,6 +179,7 @@ class AnalyticsService:
                 # ok nhưng không parse ra phòng nào: không dùng được
                 status = DateStatus.UNKNOWN
             currency = next((s.currency for s in by_probe.get(p.id, []) if s.currency), None)
+            cal_min, cal_max = ladder.get(p.stay_date, (None, None))
             out[p.stay_date] = HotelDateObs(
                 scan_run_id=scan_run_id,
                 scanned_at=p.fetched_at,
@@ -172,6 +188,8 @@ class AnalyticsService:
                 currency=currency,
                 min_stay=max(1, p.nights or 1),
                 probe_status=p.status,
+                calendar_min=cal_min,
+                calendar_max=cal_max,
             )
         return out
 
@@ -224,6 +242,10 @@ class AnalyticsService:
                     currency=r.currency,
                     min_stay=r.min_stay or 1,
                     probe_status=r.probe_status,
+                    # Khoảng đã lưu (gồm thang lịch của run đó) làm cận phụ: hotel_bounds() trên
+                    # chính kết quả của nó cho lại cùng khoảng.
+                    calendar_min=r.rooms_left_min,
+                    calendar_max=r.rooms_left_max,
                 )
             )
         return history
@@ -252,6 +274,7 @@ class AnalyticsService:
             scan_run_id, hotel_id, channel, dates, earliest - HISTORY_WINDOW
         )
         known_types = await self._known_room_type_count(hotel_id, channel, earliest)
+        await self._update_rooms_max_seen(hotel_id, channel, current.values())
 
         for stay_date in dates:
             cur = current[stay_date]
@@ -274,6 +297,25 @@ class AnalyticsService:
             if await self._upsert_metrics(scan_run_id, hotel_id, channel, stay_date, cur, hist):
                 report.metrics += 1
 
+    async def _update_rooms_max_seen(
+        self, hotel_id: int, channel: str, observations: Iterable[HotelDateObs]
+    ) -> None:
+        """Booking từng mở bán tối đa: sàn phòng còn lớn nhất từng thấy của listing (cận dưới)."""
+        best = max(
+            ((o.rooms_left_min, o.scanned_at) for o in observations if o.rooms_left_min),
+            key=lambda x: x[0],
+            default=None,
+        )
+        if best is None:
+            return
+        value, seen_at = best
+        bigger = value > func.coalesce(Listing.rooms_max_seen, 0)
+        await self._s.execute(
+            update(Listing)
+            .where(Listing.hotel_id == hotel_id, Listing.channel == channel, bigger)
+            .values(rooms_max_seen=value, rooms_max_seen_at=seen_at)
+        )
+
     async def _upsert_hotel_date(
         self, hotel_id: int, channel: str, stay_date: date, cur: HotelDateObs, known_types: int
     ) -> None:
@@ -291,6 +333,8 @@ class AnalyticsService:
             scanned_at=cur.scanned_at,
             status=str(cur.status),
             exact_rooms_left=cur.exact_rooms_left if cur.usable else None,
+            rooms_left_min=cur.rooms_left_min if cur.usable else None,
+            rooms_left_max=cur.rooms_left_max if cur.usable else None,
             room_types_available=cur.room_types_available if cur.usable else 0,
             room_types_sold_out=sold_out_types,
             min_price=cur.min_price if cur.usable else None,
@@ -361,14 +405,21 @@ class AnalyticsService:
     ) -> bool:
         existing = (
             await self._s.execute(
-                select(HotelDateMetric.last_observed_at).where(
+                select(HotelDateMetric.last_observed_at, HotelDateMetric.availability_status).where(
                     HotelDateMetric.hotel_id == hotel_id,
                     HotelDateMetric.channel == channel,
                     HotelDateMetric.stay_date == stay_date,
                 )
             )
-        ).scalar_one_or_none()
-        if existing is not None and existing > cur.scanned_at:
+        ).one_or_none()
+        if existing is not None and existing.last_observed_at > cur.scanned_at:
+            return False
+        if (
+            cur.status == DateStatus.UNKNOWN
+            and existing is not None
+            and existing.availability_status != DateStatus.UNKNOWN
+        ):
+            # Lượt bị chặn/lỗi không xoá số tốt gần nhất; ô thành "cũ" theo last_observed_at.
             return False
         m = compute_metrics(cur, hist, (stay_date - cur.scanned_at.date()).days)
         sold_out_at = (
@@ -407,6 +458,8 @@ class AnalyticsService:
             price_change_7d_pct=m.price_change_7d_pct,
             availability_status=str(m.availability_status),
             exact_rooms_left=m.exact_rooms_left,
+            rooms_left_min=m.rooms_left_min,
+            rooms_left_max=m.rooms_left_max,
             exact_share=m.exact_share,
             last_observed_at=m.last_observed_at,
             min_breakfast_price=m.min_breakfast_price,

@@ -25,7 +25,8 @@ function triggerKind(key: string): TriggerKind {
 /** Thanh tỷ lệ: xanh thành công, đỏ bị chặn, cam lỗi. */
 function ProbeBar({ r }: { r: ScanRunOut }) {
   const total = Math.max(1, r.total_probes);
-  const ok = ((r.ok_count + r.sold_out_count) / total) * 100;
+  // Thành công = mọi đêm đọc được (còn, hết, hạn chế), tức là trừ bị chặn và lỗi.
+  const ok = ((r.total_probes - r.blocked_count - r.error_count) / total) * 100;
   const blocked = (r.blocked_count / total) * 100;
   const err = (r.error_count / total) * 100;
   return (
@@ -56,7 +57,7 @@ export default function RunsPage() {
   const all = runs.data ?? [];
   const day = all.filter((r) => now - new Date(r.started_at ?? r.scheduled_at).getTime() < 24 * 3600 * 1000);
   const probes = day.reduce((s, r) => s + r.total_probes, 0);
-  const good = day.reduce((s, r) => s + r.ok_count + r.sold_out_count, 0);
+  const good = day.reduce((s, r) => s + r.total_probes - r.blocked_count - r.error_count, 0);
   const blocked = day.reduce((s, r) => s + r.blocked_count, 0);
   const empty = day.filter((r) => scanCollectedNothing(r)).length;
 

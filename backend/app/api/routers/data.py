@@ -135,6 +135,8 @@ def _cell(
         stay_date=d,
         availability_status=m.availability_status,
         exact_rooms_left=m.exact_rooms_left,
+        rooms_left_min=m.rooms_left_min,
+        rooms_left_max=m.rooms_left_max,
         min_price=metric_price(m, basis),
         currency=m.currency,
         pickup_24h=m.pickup_24h,
@@ -279,8 +281,7 @@ async def _tenant_runs(
                 total_jobs=total_jobs,
                 total_probes=sum(by_status.values()),
                 ok_count=by_status.get(str(ProbeStatus.OK), 0),
-                sold_out_count=by_status.get(str(ProbeStatus.SOLD_OUT), 0)
-                + by_status.get(str(ProbeStatus.SKIPPED_CALENDAR), 0),
+                sold_out_count=by_status.get(str(ProbeStatus.SOLD_OUT), 0),
                 blocked_count=by_status.get(str(ProbeStatus.BLOCKED), 0),
                 error_count=by_status.get(str(ProbeStatus.ERROR), 0),
             )
@@ -579,6 +580,8 @@ async def day_detail(
         rate=RateDetailOut(
             availability_status=metric.availability_status,
             exact_rooms_left=metric.exact_rooms_left,
+            rooms_left_min=metric.rooms_left_min,
+            rooms_left_max=metric.rooms_left_max,
             min_price=metric.min_price,
             min_refundable_price=metric.min_refundable_price,
             currency=metric.currency,
@@ -737,8 +740,7 @@ async def list_run_jobs(
                 finished_at=j.finished_at,
                 total_probes=sum(by.values()),
                 ok_count=by.get(str(ProbeStatus.OK), 0),
-                sold_out_count=by.get(str(ProbeStatus.SOLD_OUT), 0)
-                + by.get(str(ProbeStatus.SKIPPED_CALENDAR), 0),
+                sold_out_count=by.get(str(ProbeStatus.SOLD_OUT), 0),
                 blocked_count=by.get(str(ProbeStatus.BLOCKED), 0),
                 error_count=by.get(str(ProbeStatus.ERROR), 0),
                 error=j.error if principal.is_operator else None,

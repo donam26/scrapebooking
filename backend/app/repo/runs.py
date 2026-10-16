@@ -166,8 +166,7 @@ class ScanRunRepository:
                 finished_at=now,
                 total_probes=sum(by_status.values()),
                 ok_count=by_status.get(str(ProbeStatus.OK), 0),
-                sold_out_count=by_status.get(str(ProbeStatus.SOLD_OUT), 0)
-                + by_status.get(str(ProbeStatus.SKIPPED_CALENDAR), 0),
+                sold_out_count=by_status.get(str(ProbeStatus.SOLD_OUT), 0),
                 blocked_count=by_status.get(str(ProbeStatus.BLOCKED), 0),
                 error_count=by_status.get(str(ProbeStatus.ERROR), 0),
             )

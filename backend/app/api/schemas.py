@@ -153,8 +153,14 @@ class HotelOut(BaseModel):
     lat: float | None = None
     lng: float | None = None
     listings: list[ListingOut] = []
-    # Tổng số phòng công bố/người dùng nhập (5.6); điểm và số review mới nhất (trang kết quả).
+    # Tổng số phòng công bố/người dùng nhập (5.6) kèm nguồn và lúc nhập; điểm và số review mới
+    # nhất (trang kết quả).
     rooms_total: int | None = None
+    rooms_total_source: str | None = None
+    rooms_total_updated_at: datetime | None = None
+    # Booking từng mở bán tối đa bao nhiêu phòng một đêm (cận dưới phần phòng giao cho Booking).
+    booking_rooms_max_seen: int | None = None
+    booking_rooms_max_seen_at: datetime | None = None
     review_score: Decimal | None = None
     review_count: int | None = None
 
@@ -185,8 +191,10 @@ class WatchItemUpdate(BaseModel):
     compset_of: int | None = None
     tier: Literal["primary", "secondary"] | None = None
     weight: Decimal | None = Field(default=None, ge=0, le=10)
-    # Tổng số phòng của khách sạn (công bố trên website/OTA, hoặc số thật với khách sạn của bạn).
+    # Tổng số phòng của khách sạn (công bố trên website/OTA, hoặc số thật với khách sạn của bạn)
+    # và nguồn (URL web khách sạn, Trip.com, danh bạ MICE…).
     rooms_total: int | None = Field(default=None, ge=1, le=5000)
+    rooms_total_source: str | None = Field(default=None, max_length=500)
 
 
 class CompsetReviewOut(BaseModel):
@@ -209,7 +217,11 @@ class CompsetReviewOut(BaseModel):
 class DateCell(BaseModel):
     stay_date: date
     availability_status: str | None
+    # Phòng còn cả khách sạn trên Booking.com: chính xác chỉ khi biết chắc (min = max); còn lại là
+    # khoảng [rooms_left_min, rooms_left_max] (max null = chưa biết trần → hiển thị "≥min").
     exact_rooms_left: int | None
+    rooms_left_min: int | None = None
+    rooms_left_max: int | None = None
     min_price: Decimal | None
     currency: str | None
     pickup_24h: int | None
@@ -332,6 +344,8 @@ class HotelDateSnapshotOut(ORM):
     scanned_at: datetime
     status: str
     exact_rooms_left: int | None
+    rooms_left_min: int | None = None
+    rooms_left_max: int | None = None
     room_types_available: int
     room_types_sold_out: int
     min_price: Decimal | None
@@ -343,6 +357,8 @@ class RateDetailOut(BaseModel):
 
     availability_status: str | None
     exact_rooms_left: int | None
+    rooms_left_min: int | None = None
+    rooms_left_max: int | None = None
     min_price: Decimal | None
     min_refundable_price: Decimal | None
     currency: str | None

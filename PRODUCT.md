@@ -21,7 +21,8 @@ Thành công: khách sạn ra quyết định giá mỗi sáng dựa trên dữ 
 
 ## Positioning
 
-- Đo **số phòng còn lại** của đối thủ trên Booking.com, không chỉ giá. Minh bạch mức tin cậy: `exact` (kênh báo số chính xác), `capped` (ít nhất N, gồm "còn N phòng có giá này"), `hidden`, `sold_out`. Không đoán số khi không có.
+- Đo **số phòng còn lại** của đối thủ trên Booking.com, không chỉ giá. Minh bạch mức tin cậy: `exact` (badge hoặc dropdown dưới trần), `capped` (ít nhất N: dropdown chạm trần 10/loại phòng), `hidden`, `sold_out`. Cả khách sạn: "N" chỉ khi biết chắc, còn lại "N–M" hoặc "≥N" (thang nbRooms của lịch Booking đo tổng tới 100 phòng). Không đoán số khi không có.
+- **Đối thủ có bao nhiêu phòng**: số phòng công bố lưu kèm nguồn (URL, thời điểm) và "Booking từng mở bán ≥N phòng/đêm" suy từ dữ liệu; hai số tách nhãn, cảnh báo khi mâu thuẫn.
 - Đọc calendar trước để biết số đêm tối thiểu, tránh báo "hết phòng" sai.
 - Bản tin AI chỉ nêu điều có bằng chứng trong dữ liệu; điểm nổi bật không có bằng chứng bị loại và ghi lại.
 - Occupancy PMS (CSV/Excel từ ezCloud, Newway…) đặt cạnh compset.

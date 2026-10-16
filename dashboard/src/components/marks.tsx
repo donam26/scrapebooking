@@ -1,11 +1,13 @@
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { cellState, type DateCell, type RoomSnapshotOut } from "@/lib/api";
+import { roomsLeftOf, roomsLeftText, type RoomsLeft } from "@/lib/rooms-left";
 import { cx } from "./ui";
 
 /**
  * Dấu số phòng còn theo mức tin cậy: số chính xác tô theo thang nhiệt (đỏ hết → xanh lá nhiều),
- * sọc = ít nhất N, viền đứt = còn phòng nhưng không lộ số, đỏ đậm = hết phòng.
+ * sọc = ít nhất N hoặc khoảng N–M (cả khách sạn: chỉ tô màu khi chắc chắn thuộc một mức nhiệt),
+ * viền đứt = còn phòng nhưng không lộ số, đỏ đậm = hết phòng.
  * Năm trạng thái một ô (roadmap 2.7): còn bán / hết phòng / bị hạn chế (hổ phách, KHÔNG đỏ: bán
  * được ở số đêm khác hoặc đóng ngày đến) / không có giá (xám) / lỗi (sọc). Thêm: chưa quét, ngoài
  * phạm vi; ô có quan sát cũ hơn 48 giờ thì làm xám (`sb-stale`).
@@ -45,6 +47,16 @@ export function exactShade(n: number): string {
   if (n <= 20) return "sb-heat-3";
   if (n <= 30) return "sb-heat-4";
   return "sb-heat-5";
+}
+
+/**
+ * Màu cho số phòng còn của cả khách sạn: số chính xác theo thang nhiệt; khoảng/mức sàn chỉ tô màu
+ * khi chắc chắn thuộc một mức (sàn > 30 luôn là "nhiều"), còn lại dùng nền sọc "ít nhất".
+ */
+export function roomsShade(r: RoomsLeft): string {
+  if (r.exact !== null) return exactShade(r.exact);
+  const certain = r.max !== null ? exactShade(r.min) === exactShade(r.max) : r.min > 30;
+  return certain ? exactShade(r.min) : "sb-mark-capped";
 }
 
 /** Nhãn mức của thang nhiệt (chú giải, tooltip). */
@@ -92,13 +104,13 @@ export function createMarks(t: MarksTranslator) {
           return { kind: "sold_out", cls: "sb-mark-sold_out", text: t("soldOutShort"), label: t("soldOut") };
         case "restricted": {
           const n = cell.min_stay ?? 1;
-          const rooms = cell.exact_rooms_left;
+          const rooms = roomsLeftOf(cell);
           if (n > 1) {
             return {
               kind: "restricted",
               cls: "sb-mark-restricted",
               text: t("minStayShort", { count: n }),
-              label: rooms === null ? t("minStay", { count: n }) : t("minStayRooms", { count: n, rooms }),
+              label: rooms === null ? t("minStay", { count: n }) : t("minStayRooms", { count: n, rooms: roomsLeftText(rooms) }),
             };
           }
           return { kind: "restricted", cls: "sb-mark-restricted", text: t("restrictedShort"), label: t("restricted") };
@@ -108,9 +120,11 @@ export function createMarks(t: MarksTranslator) {
         case "error":
           return { kind: "error", cls: "sb-mark-error", text: t("errorShort"), label: t("error") };
         default: {
-          const n = cell.exact_rooms_left;
-          if (n === null) return { kind: "hidden", cls: "sb-mark-hidden", text: "", label: t("hiddenChannel") };
-          return { kind: "exact", cls: exactShade(n), text: String(n), label: t("exactChannel", { count: n }) };
+          const r = roomsLeftOf(cell);
+          if (r === null) return { kind: "hidden", cls: "sb-mark-hidden", text: "", label: t("hiddenChannel") };
+          if (r.exact !== null) return { kind: "exact", cls: roomsShade(r), text: String(r.exact), label: t("exactChannel", { count: r.exact }) };
+          const label = r.max !== null ? t("hotelRange", { min: r.min, max: r.max }) : t("hotelFloor", { count: r.min });
+          return { kind: "capped", cls: roomsShade(r), text: roomsLeftText(r), label };
         }
       }
     })();
@@ -185,10 +199,11 @@ export function PromoDot({ promo, className }: { promo: string | null | undefine
 }
 
 /** `key`: khoá trong components.marks.legend. Chữ "HẾT" trong ô hết phòng điền lúc render. */
-type LegendItem = { mark: Mark; key: "hotelExact" | "hidden" | "soldOut" | "restricted" | "noPrice" | "error" | "unknown" | "notScanned" | "stale" | "roomExact" | "roomCapped" };
+type LegendItem = { mark: Mark; key: "hotelExact" | "hotelFloor" | "hidden" | "soldOut" | "restricted" | "noPrice" | "error" | "unknown" | "notScanned" | "stale" | "roomExact" | "roomCapped" };
 
 const LEGEND_HOTEL: LegendItem[] = [
   { mark: { kind: "exact", cls: "sb-heat-1", text: "2", label: "" }, key: "hotelExact" },
+  { mark: { kind: "capped", cls: "sb-mark-capped", text: "≥", label: "" }, key: "hotelFloor" },
   { mark: { kind: "hidden", cls: "sb-mark-hidden", text: "", label: "" }, key: "hidden" },
   { mark: { kind: "sold_out", cls: "sb-mark-sold_out", text: "", label: "" }, key: "soldOut" },
   { mark: { kind: "restricted", cls: "sb-mark-restricted", text: "", label: "" }, key: "restricted" },

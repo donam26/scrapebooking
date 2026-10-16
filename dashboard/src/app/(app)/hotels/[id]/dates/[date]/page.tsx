@@ -11,6 +11,7 @@ import { addDays, num, useFmt } from "@/lib/format";
 import { useLabel } from "@/lib/labels";
 import { useRateText } from "@/lib/rate-text";
 import { hotelTitle } from "@/lib/hotels";
+import { roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
 import { Button, ButtonLink, Card, EmptyState, ErrorBox, Note, PageHeader, ROW_CLASS, Segmented, SkeletonBlock, Table, Td, Th, cx } from "@/components/ui";
 import { SampleTag, sampleFade, useSampleText } from "@/components/compset-sample";
 import { EventTable } from "@/components/event-table";
@@ -53,12 +54,16 @@ function RateList({ rates, currency, minPrice }: { rates: Record<string, unknown
   );
 }
 
-function statusMark(cellMark: Marks["cellMark"], status: string, exact: number | null, minStay: number | null = null): Mark {
+type RoomsFields = { exact_rooms_left: number | null; rooms_left_min?: number | null; rooms_left_max?: number | null };
+
+function statusMark(cellMark: Marks["cellMark"], status: string, rooms: RoomsFields | null, minStay: number | null = null): Mark {
   // Còn bán nhưng chỉ từ N đêm = bị hạn chế (không phải hết phòng), như `DateCell.state` của backend.
   const state = status === "available" && (minStay ?? 1) > 1 ? "restricted" : null;
   return cellMark({
     availability_status: status,
-    exact_rooms_left: exact,
+    exact_rooms_left: rooms?.exact_rooms_left ?? null,
+    rooms_left_min: rooms?.rooms_left_min ?? null,
+    rooms_left_max: rooms?.rooms_left_max ?? null,
     min_stay: minStay,
     state,
     stale: false,
@@ -67,6 +72,7 @@ function statusMark(cellMark: Marks["cellMark"], status: string, exact: number |
 
 function shortMark(t: ShortMarkTranslator, m: Mark, minStay?: number | null): string {
   if (m.kind === "exact") return t("exact", { count: Number(m.text) });
+  if (m.kind === "capped") return t("roomsText", { rooms: m.text });
   if (m.kind === "hidden") return t("hidden");
   if (m.kind === "sold_out") return t("soldOut");
   if (m.kind === "restricted") return (minStay ?? 1) > 1 ? t("minStay", { count: minStay ?? 2 }) : t("restricted");
@@ -240,7 +246,7 @@ function NightRate({ rate }: { rate: RateDetailOut }) {
   const { fmtMoney, fmtWhen } = useFmt();
   const { cellMark } = useMarks();
   const { rateConditions } = useRateText();
-  const mark = rate.availability_status ? statusMark(cellMark, rate.availability_status, rate.exact_rooms_left, rate.min_stay ?? null) : cellMark(undefined);
+  const mark = rate.availability_status ? statusMark(cellMark, rate.availability_status, rate, rate.min_stay ?? null) : cellMark(undefined);
   const cr = cheapestRate(rate);
   const original = num(cr?.price_original);
   const price = num(rate.min_price);
@@ -535,11 +541,14 @@ export default function DayDetailPage() {
                           <Td className="whitespace-nowrap pl-5 font-medium text-ink">{fmtWhen(o.scanned_at)}</Td>
                           <Td>
                             <span className="inline-flex items-center gap-2">
-                              <MarkSwatch mark={statusMark(cellMark, o.status, o.exact_rooms_left)} size={20} />
+                              <MarkSwatch mark={statusMark(cellMark, o.status, o)} size={20} />
                               {label("availability", o.status)}
                             </span>
                           </Td>
-                          <Td right>{fmtInt(o.exact_rooms_left)}</Td>
+                          <Td right>{(() => {
+                            const r = roomsLeftOf(o);
+                            return r === null ? fmtInt(null) : roomsLeftText(r, fmtInt);
+                          })()}</Td>
                           <Td right>
                             {fmtInt(o.room_types_available)} / {fmtInt(o.room_types_sold_out)}
                           </Td>

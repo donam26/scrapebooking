@@ -8,6 +8,7 @@ import { dateRange, isWeekend, num, parseDate, useFmt } from "@/lib/format";
 import { hotelTitle } from "@/lib/hotels";
 import { useElementWidth } from "@/lib/use-width";
 import { MarkSwatch, MarksLegend, PromoDot, isWordMark, useMarks } from "@/components/marks";
+import { roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
 import { SampleTag, sampleFade, useCompsetLabels, useSampleText } from "@/components/compset-sample";
 import { IconArrowRight } from "@/components/icons";
 import { cx } from "@/components/ui";
@@ -522,7 +523,9 @@ function shortStatus(cell: DateCell | undefined, t: BoardTranslator): string {
   if (state === "restricted") return (cell.min_stay ?? 1) > 1 ? t("status.minStay", { count: cell.min_stay ?? 2 }) : t("status.restricted");
   if (state === "no_price") return t("status.noPrice");
   if (state === "error") return t("status.unknown");
-  return cell.exact_rooms_left === null ? t("status.available") : t("status.roomsLeft", { count: cell.exact_rooms_left });
+  const r = roomsLeftOf(cell);
+  if (r === null) return t("status.available");
+  return r.exact !== null ? t("status.roomsLeft", { count: r.exact }) : t("status.roomsLeftText", { rooms: roomsLeftText(r) });
 }
 
 // ---------------------------------------------------------------------------

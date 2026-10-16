@@ -165,6 +165,8 @@ async def build_input(
                 "weekend": is_weekend(d),
                 "status": m.availability_status,
                 "rooms_left_exact": m.exact_rooms_left,
+                "rooms_left_min": m.rooms_left_min,
+                "rooms_left_max": m.rooms_left_max,
                 "exact_share_7d": _num(m.exact_share),
                 "min_price": _num(m.min_price),
                 "currency": m.currency,

@@ -97,6 +97,13 @@
       "roomsTitle": "Published total room count, used for the fill indicator and the CoStar 50% rule",
       "roomsPlaceholder": "—",
       "roomsAria": "Total rooms of {name}",
+      "source": "Source",
+      "sourceTitle": "Where the room count comes from: hotel website, Trip.com, MICE directory… (paste a URL); saved with the time it was entered",
+      "sourcePlaceholder": "Room count source URL",
+      "sourceAria": "Room count source for {name}",
+      "bookingMax": "Booking has offered ≥{count, number} rooms in a night",
+      "bookingMaxTitle": "Most rooms left ever seen on Booking.com for one night: a lower bound of the hotel's Booking allotment, not its total rooms",
+      "roomsBelowBooking": "The room count ({rooms, number}) is below what Booking has offered (≥{max, number}): please check (Booking may sell dorm beds).",
       "reviewTitle": "Review score on Booking.com",
       "reviews": "({count, plural, one {# review} other {# reviews}})",
       "saving": "Saving…"

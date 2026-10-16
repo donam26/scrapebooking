@@ -60,6 +60,7 @@
       "unknown": "Unknown",
       "available": "Available",
       "roomsLeft": "{count, plural, one {# room} other {# rooms}} left",
+      "roomsLeftText": "{rooms} rooms left",
       "restricted": "Restricted",
       "minStay": "{count}+ nights",
       "noPrice": "No price"

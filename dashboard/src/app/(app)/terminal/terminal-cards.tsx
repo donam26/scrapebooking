@@ -70,7 +70,7 @@ export function MarketIndicator({
       <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
         <div>
           <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-faint">{t("indicator.roomsLeft")}</dt>
-          <dd className="text-md font-bold text-ink tabular">{s.roomsKnown ? fmtInt(s.roomsLeft) : "—"}</dd>
+          <dd className="text-md font-bold text-ink tabular">{s.roomsKnown ? `${s.roomsExact ? "" : "≥"}${fmtInt(s.roomsLeft)}` : "—"}</dd>
         </div>
         <div>
           <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-faint">{t("indicator.withRooms")}</dt>

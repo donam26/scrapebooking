@@ -24,3 +24,31 @@ def test_settings_defaults(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     assert s.low_stock_threshold == 3
     assert s.price_change_threshold_pct == 3.0
     assert s.cors_origin_list == ["http://localhost:3000"]
+
+
+def test_capacity_ladder_rungs(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@h:5432/db")
+    monkeypatch.setenv("REDIS_URL", "redis://h:6379/1")
+    monkeypatch.setenv("PROXY_URL_TEMPLATE", "http://a-{country}-{session}:b@p:1")
+    # Nấc nhỏ 2–4 chốt được "còn ≤3" chính xác; tới 100: lịch Booking nhận nbRooms ≤ 100
+    # (120 → lỗi 500, kiểm live 16/10/2026).
+    assert Settings(_env_file=None).capacity_rungs == (
+        2,
+        3,
+        4,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+    )
+    monkeypatch.setenv("CAPACITY_LADDER", " 5, 10 ")
+    assert Settings(_env_file=None).capacity_rungs == (5, 10)
+    monkeypatch.setenv("CAPACITY_LADDER", "")
+    assert Settings(_env_file=None).capacity_rungs == ()

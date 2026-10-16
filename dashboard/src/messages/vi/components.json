@@ -44,7 +44,9 @@
     "unknown": "Không đọc được (bị chặn hoặc lỗi)",
     "hiddenChannel": "Còn phòng, Booking.com không lộ số",
     "hiddenUnknown": "Còn phòng, không rõ số",
-    "exactChannel": "Còn {count} phòng (Booking.com báo chính xác)",
+    "exactChannel": "Còn {count} phòng trên Booking.com (chính xác)",
+    "hotelFloor": "Còn ít nhất {count, number} phòng trên Booking.com (chưa biết trần: có loại phòng chạm mức tối đa Booking cho xem)",
+    "hotelRange": "Còn {min, number}–{max, number} phòng trên Booking.com",
     "exact": "Còn {count} phòng (chính xác)",
     "cappedRate": "Còn ít nhất {count, number} phòng (chỉ biết số phòng còn ở mức giá rẻ nhất)",
     "capped": "Còn ít nhất {count, number} phòng",
@@ -62,7 +64,8 @@
       "error": "Lỗi"
     },
     "legend": {
-      "hotelExact": "Số phòng Booking.com báo chính xác: đỏ/cam là sắp kín, xanh là còn nhiều",
+      "hotelExact": "Số phòng còn chính xác: đỏ/cam là sắp kín, xanh là còn nhiều",
+      "hotelFloor": "≥N hoặc N–M: chưa biết chính xác (màu chỉ hiện khi chắc mức)",
       "hidden": "Còn phòng, không lộ số",
       "soldOut": "Hết phòng",
       "unknown": "Không đọc được",

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { cellState, type CalibrationOut, type OverviewOut, type PaceNightOut, type TenantOut } from "@/lib/api";
 import { useFmt } from "@/lib/format";
 import { successPct, type DataFreshness, type FreshnessState } from "@/lib/freshness";
-import { bookablePrice, cellOn, compsetDay, compsetTightness, competitorRows, fillIndicator, isTightNight, medianCompRate, rowName, selfRow, useMarketMetrics } from "@/lib/market-metrics";
+import { LOW_ROOMS, bookablePrice, cellOn, compsetDay, compsetTightness, competitorRows, fillIndicator, isTightNight, medianCompRate, rowName, selfRow, useMarketMetrics } from "@/lib/market-metrics";
+import { definitelyAtMost, roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
 import { useMarketText } from "@/lib/market";
 import { Card, cx } from "@/components/ui";
 import { KeyValueRow } from "@/components/kpi";
@@ -33,13 +34,18 @@ function buildAlerts(o: OverviewOut, fresh: DataFreshness, isToday: boolean, nig
   }
   const own = cellOn(selfRow(o), o.start);
   if (cellState(own) === "sold_out") out.push({ key: "own", tone: "info", text: t("ownSoldOut", { when, night }) });
-  else if (own?.exact_rooms_left !== null && own?.exact_rooms_left !== undefined && own.exact_rooms_left <= 3)
-    out.push({ key: "own", tone: "info", text: t("ownLow", { count: own.exact_rooms_left, when, night }) });
+  else if (definitelyAtMost(own, LOW_ROOMS)) {
+    const r = roomsLeftOf(own)!;
+    out.push({ key: "own", tone: "info", text: r.exact !== null ? t("ownLow", { count: r.exact, when, night }) : t("ownLowAtMost", { count: r.max!, when, night }) });
+  }
   for (const r of competitorRows(o)) {
     const c = cellOn(r, o.start);
     if (cellState(c) === "sold_out" && !isToday) out.push({ key: `so${r.hotel.id}`, tone: "bad", text: t("compSoldOut", { name: rowName(r), when, night }), href: `/hotels/${r.hotel.id}` });
-    else if (cellState(c) === "available" && c?.exact_rooms_left !== null && c?.exact_rooms_left !== undefined && c.exact_rooms_left <= 3)
-      out.push({ key: `low${r.hotel.id}`, tone: "warn", text: t("compLow", { name: rowName(r), count: c.exact_rooms_left, when, night }), href: `/hotels/${r.hotel.id}` });
+    else if (cellState(c) === "available" && definitelyAtMost(c, LOW_ROOMS)) {
+      const left = roomsLeftOf(c)!;
+      const text = left.exact !== null ? t("compLow", { name: rowName(r), count: left.exact, when, night }) : t("compLowAtMost", { name: rowName(r), count: left.max!, when, night });
+      out.push({ key: `low${r.hotel.id}`, tone: "warn", text, href: `/hotels/${r.hotel.id}` });
+    }
   }
   return out;
 }
@@ -106,7 +112,8 @@ export function YourHotel({ overview, night, calibration, isToday }: { overview:
   const pos = ratePosition(own, market, tight);
   const occ = night ? ownOccText(night) : null;
   const inventory = night?.own_occ?.inventory ?? null;
-  const roomsLeft = cellState(cell) === "sold_out" ? 0 : (cell?.exact_rooms_left ?? null);
+  const rooms = roomsLeftOf(cell);
+  const left = cellState(cell) === "sold_out" ? "0" : rooms === null ? null : roomsLeftText(rooms);
   const currency = cell?.currency ?? null;
   const when = isToday ? "tonight" : "other";
   return (
@@ -126,7 +133,7 @@ export function YourHotel({ overview, night, calibration, isToday }: { overview:
             </span>
           }
         />
-        <KeyValueRow label={t("roomsLeft")} value={roomsLeft === null ? (cell?.availability_status ? t("hidden") : "—") : inventory ? `${roomsLeft} / ${inventory}` : String(roomsLeft)} />
+        <KeyValueRow label={t("roomsLeft")} value={left === null ? (cell?.availability_status ? t("hidden") : "—") : inventory ? `${left} / ${inventory}` : left} />
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-line pt-2.5 text-base">
         <span className="text-body">{t("position")}</span>

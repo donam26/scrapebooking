@@ -60,6 +60,7 @@
       "unknown": "Không rõ",
       "available": "Còn phòng",
       "roomsLeft": "Còn {count} phòng",
+      "roomsLeftText": "Còn {rooms} phòng",
       "restricted": "Hạn chế",
       "minStay": "Từ {count} đêm",
       "noPrice": "Không giá"

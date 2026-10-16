@@ -22,6 +22,7 @@
       "hiddenShort": "Hidden",
       "hidden": "Available, count hidden",
       "count": "{count, plural, one {# room} other {# rooms}}",
+      "countText": "{rooms} rooms",
       "minStay": "Sold only for {count}+ nights",
       "restricted": "Restricted",
       "noPrice": "No price",
@@ -32,11 +33,17 @@
       "nights": "{count, plural, one {# night} other {# nights}}",
       "soldOutHint": "Out of {count, plural, one {# night} other {# nights}} in view",
       "tight": "Nights with ≤ 3 rooms",
-      "tightHint": "Based on exact counts from Booking.com",
+      "tightHint": "Certainly ≤ 3 rooms left (\"≥N\" not counted)",
       "priceRange": "Lowest rate per night",
       "lastObserved": "Last observed",
       "lastObservedHint": "{count, plural, one {Latest change below} other {# latest changes below}}",
-      "restricted": "{count, plural, one {# night} other {# nights}} restricted (not sold out)"
+      "restricted": "{count, plural, one {# night} other {# nights}} restricted (not sold out)",
+      "capacity": "Hotel rooms",
+      "roomsTotal": "{count, plural, one {# room} other {# rooms}}",
+      "bookingMax": "Booking has offered ≥{count, number}/night",
+      "sourced": "sourced",
+      "unsourced": "no source yet",
+      "enterRooms": "Enter it in Settings › Watchlist"
     },
     "nights": {
       "title": "By night",
@@ -65,6 +72,7 @@
     },
     "shortMark": {
       "exact": "{count, plural, one {# room left} other {# rooms left}}",
+      "roomsText": "{rooms} rooms left",
       "hidden": "Available, count hidden",
       "soldOut": "Sold out",
       "unknown": "Unreadable",

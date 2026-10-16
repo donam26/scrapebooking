@@ -164,3 +164,16 @@ def test_estimate_rejects_available_without_rooms_and_wide_ranges() -> None:
     )
     assert wide is not None and wide.coverage == D("0.5")
     assert wide.occ_high - wide.occ_low == D("0.45") and not wide.reliable
+
+
+def test_published_rooms_not_on_booking_are_unknown_not_sold() -> None:
+    """Park Hyatt (245 phòng công bố) mà Booking chỉ cho thấy 18 phòng còn chính xác: 227 phòng kia
+    không phải "đã bán" — độ phủ tính trên tổng phòng nên chỉ báo không đủ tin để hiện "≈93%"."""
+    inv = {1: 10, 2: 8}
+    rooms = [RoomState(1, "exact", 10), RoomState(2, "exact", 8)]
+    est = estimate("available", rooms, inv, rooms_total=245)
+    assert est is not None and est.inventory == 245
+    assert est.coverage == D("0.0735") and not est.reliable  # 18/245
+    # Không nhập tổng phòng: mẫu số là phần Booking từng mở bán, biết chắc hết → 0% lấp đầy.
+    own = estimate("available", rooms, inv)
+    assert own is not None and own.coverage == 1 and own.occ_mid == 0

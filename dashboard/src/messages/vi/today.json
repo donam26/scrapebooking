@@ -7,6 +7,7 @@
     "unknown": "Không đọc được",
     "available": "Còn phòng",
     "roomsLeft": "Còn {count} phòng",
+    "roomsLeftText": "Còn {rooms} phòng",
     "restricted": "Bị hạn chế (không phải hết phòng)",
     "minStay": "Chỉ bán từ {count} đêm",
     "noPrice": "Không có giá"

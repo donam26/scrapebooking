@@ -35,7 +35,7 @@ class BrowserCollector:
         self._currency = currency
 
     async def fetch_calendar(
-        self, hotel: ListingRef, start: date, days: int, adults: int
+        self, hotel: ListingRef, start: date, days: int, adults: int, rooms: int = 1
     ) -> CalendarResult:
         return CalendarResult(ok=False, error="browser collector does not fetch calendars")
 

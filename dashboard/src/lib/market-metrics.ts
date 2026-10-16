@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { cellState, type CalibrationOut, type CompsetDayOut, type DateCell, type HotelRow, type LeadCalibrationOut, type OverviewOut, type PaceNightOut } from "@/lib/api";
 import { hotelTitle } from "@/lib/hotels";
+import { definitelyAtMost, roomsLeftOf } from "@/lib/rooms-left";
 import { isWeekend, num, useFmt, type Fmt } from "@/lib/format";
 
 export type DemandLevel = "low" | "moderate" | "high";
@@ -147,11 +148,11 @@ export function rowName(row: HotelRow): string {
   return hotelTitle(row.hotel, row.label);
 }
 
-/** Một khách sạn đã hết hoặc còn rất ít phòng (≤ `LOW_ROOMS`, Booking.com báo chính xác). Hạn chế không tính. */
+/** Một khách sạn đã hết hoặc chắc chắn còn rất ít phòng (≤ `LOW_ROOMS`; "≥2" không tính). Hạn chế không tính. */
 export function isTight(c: DateCell | undefined): boolean {
   if (!c) return false;
   const s = cellState(c);
-  return s === "sold_out" || (s === "available" && c.exact_rooms_left !== null && c.exact_rooms_left <= LOW_ROOMS);
+  return s === "sold_out" || (s === "available" && definitelyAtMost(c, LOW_ROOMS));
 }
 
 /** Trung vị; null khi rỗng. */
@@ -190,7 +191,7 @@ function tightnessOf(cells: Array<DateCell | undefined>): Tightness {
     const s = cellState(c);
     if (s === "sold_out") soldOut += 1;
     else if (s === "restricted") restricted += 1;
-    else if (c.exact_rooms_left !== null && c.exact_rooms_left <= LOW_ROOMS) low += 1;
+    else if (definitelyAtMost(c, LOW_ROOMS)) low += 1;
   }
   const tight = soldOut + low;
   return { tight, soldOut, low, restricted, observed: seen, share: seen >= MIN_SAMPLE ? Math.round((tight / seen) * 100) : null, smallSample: seen > 0 && seen < MIN_SAMPLE };
@@ -213,10 +214,12 @@ export type MarketSnapshot = {
   low: number;
   restricted: number;
   tightness: Tightness;
-  /** Tổng số phòng còn của đối thủ có số chính xác. */
+  /** Tổng số phòng còn (mức sàn) của các đối thủ đọc được số. */
   roomsLeft: number;
   /** Số đối thủ góp vào `roomsLeft`. */
   roomsKnown: number;
+  /** Mọi đối thủ góp vào đều có số chính xác; ngược lại `roomsLeft` chỉ là "ít nhất". */
+  roomsExact: boolean;
   /** Trung vị giá niêm yết thấp nhất của các đối thủ còn bán (null khi chưa đủ mẫu). */
   medianRate: number | null;
   /** Số đối thủ có giá góp vào trung vị. */
@@ -233,14 +236,17 @@ export function marketSnapshot(o: OverviewOut, date: string = o.start): MarketSn
   const comps = competitorRows(o);
   let roomsLeft = 0;
   let roomsKnown = 0;
+  let roomsExact = true;
   let currency: string | null = null;
   const prices: Array<{ value: number; name: string }> = [];
   for (const r of comps) {
     const c = cellOn(r, date);
     if (!observed(c)) continue;
-    if (c.exact_rooms_left !== null && cellState(c) === "available") {
-      roomsLeft += c.exact_rooms_left;
+    const rooms = cellState(c) === "available" ? roomsLeftOf(c) : null;
+    if (rooms !== null) {
+      roomsLeft += rooms.min;
       roomsKnown += 1;
+      roomsExact &&= rooms.exact !== null;
     }
     const p = bookablePrice(c);
     if (p !== null) {
@@ -258,6 +264,7 @@ export function marketSnapshot(o: OverviewOut, date: string = o.start): MarketSn
     restricted: tightness.restricted,
     tightness,
     roomsLeft,
+    roomsExact,
     roomsKnown,
     medianRate: medianCompRate(o, date),
     priced: compsetDay(o, date)?.competitors_priced ?? prices.length,

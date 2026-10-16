@@ -118,3 +118,66 @@ async def test_add_user(db: AsyncSession) -> None:
     assert r.exit_code == 0, r.output
     r = await invoke("add-user", "v@example.com", "--password", "x", "--role", "viewer")
     assert r.exit_code == 1
+
+
+async def test_rederive_stock_command_runs(db: AsyncSession) -> None:
+    r = await invoke("rederive-stock", "--no-reanalyze")
+    assert r.exit_code == 0, r.output
+    assert "rederived=0 runs=0 reanalyzed_runs=0" in r.output
+
+
+async def test_rederive_stock_reanalyzes_runs_without_changed_rooms(db: AsyncSession) -> None:
+    """Đổi nghĩa exact_rooms_left (0016) cần tính lại MỌI run, kể cả run không có loại phòng nào đổi
+    mức tin cậy; không thì ô cũ giữ tổng thiếu cũ mà không có khoảng min/max."""
+    from datetime import UTC, date, datetime, timedelta
+    from decimal import Decimal
+
+    from app.db.models import HotelDateMetric
+    from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
+    from app.repo.snapshots import SnapshotRepository
+    from tests.integration.seed import add_hotel, scan_run
+
+    at = datetime(2026, 10, 1, 6, 0, tzinfo=UTC)
+    stay = date(2026, 10, 5)
+    hotel = await add_hotel(db, "vn/legacy")
+    run = scan_run("legacy:booking", at, finished_at=at + timedelta(minutes=30))
+    run.total_probes = 1
+    db.add(run)
+    await db.flush()
+    offer = RoomOffer("1", "Deluxe", 2, 2, 2, (RatePlan("Std", Decimal(100), "VND", True, None),))
+    result = ProbeResult(
+        ProbeStatus.OK,
+        ProbeMethod.HTTP,
+        stay,
+        stay + timedelta(days=1),
+        1,
+        2,
+        (offer,),
+        None,
+        200,
+        "s",
+        10,
+    )
+    await SnapshotRepository(db, 10).write_probe(
+        run.id, hotel.id, "booking", stay, result, None, "1", "vn", at
+    )
+    db.add(
+        HotelDateMetric(
+            hotel_id=hotel.id,
+            channel="booking",
+            stay_date=stay,
+            as_of_scan_run_id=run.id,
+            days_to_arrival=4,
+            availability_status="available",
+            exact_rooms_left=2,
+            last_observed_at=at,
+        )
+    )
+    await db.commit()
+
+    r = await invoke("rederive-stock")
+    assert r.exit_code == 0, r.output
+    assert "reanalyzed_runs=1" in r.output
+    db.expire_all()
+    metric = (await db.execute(select(HotelDateMetric))).scalar_one()
+    assert (metric.rooms_left_min, metric.rooms_left_max, metric.exact_rooms_left) == (2, 2, 2)

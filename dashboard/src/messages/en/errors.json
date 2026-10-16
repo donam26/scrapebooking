@@ -53,6 +53,7 @@
   "invalidEmail": "invalid email",
   "invalidValue": "invalid value",
   "hotelSharedTracked": "This hotel is tracked by other tenants: ask an operator to change or pause its scanning",
+  "roomsTotalShared": "This hotel's room count is shared with other tenants: ask an operator to change it",
   "urlLinkedElsewhere": "This link is already attached to another hotel",
   "duplicateListing": "Duplicate: same hotel #{hotel} on Booking.com (id {id})",
   "proxyNotConfigured": "The proxy is not configured",

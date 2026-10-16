@@ -16,7 +16,7 @@
     "soldOut": "hết phòng",
     "low": "còn ≤3 phòng",
     "roomsLeft": "phòng còn (đối thủ)",
-    "roomsLeftTitle": "Cộng từ {known}/{observed} đối thủ có số chính xác",
+    "roomsLeftTitle": "Cộng mức sàn của {known}/{observed} đối thủ đọc được số (\"≥\" khi chưa chính xác hết)",
     "medianRate": "giá trung vị đối thủ",
     "medianRateTitle": "{price}: trung vị giá niêm yết thấp nhất của {count} đối thủ còn bán",
     "restricted": "bị hạn chế",
@@ -74,8 +74,10 @@
     "runFailed": "Lượt quét gần nhất không thu được dữ liệu",
     "ownSoldOut": "Khách sạn của bạn đã hết phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
     "ownLow": "Khách sạn của bạn chỉ còn {count} phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
+    "ownLowAtMost": "Khách sạn của bạn chỉ còn tối đa {count} phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
     "compSoldOut": "{name} đã hết phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
-    "compLow": "{name} chỉ còn {count} phòng {when, select, tonight {đêm nay} other {đêm {night}}}"
+    "compLow": "{name} chỉ còn {count} phòng {when, select, tonight {đêm nay} other {đêm {night}}}",
+    "compLowAtMost": "{name} chỉ còn tối đa {count} phòng {when, select, tonight {đêm nay} other {đêm {night}}}"
   },
   "yourHotel": {
     "title": "Khách sạn của bạn",

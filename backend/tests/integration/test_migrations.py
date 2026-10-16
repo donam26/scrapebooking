@@ -263,3 +263,27 @@ async def test_booking_only_migration_drops_other_channels(
         }
     finally:
         await engine.dispose()
+
+
+async def test_rooms_left_bounds_columns_exist(db: AsyncSession) -> None:
+    """0016: trần dropdown theo listing, thang nbRooms, khoảng phòng còn, nguồn số phòng."""
+    rows = await db.execute(
+        text(
+            "select table_name, column_name from information_schema.columns "
+            "where table_schema = 'public'"
+        )
+    )
+    found = {(r[0], r[1]) for r in rows}
+    assert {
+        ("listings", "dropdown_cap_seen"),
+        ("listings", "rooms_max_seen"),
+        ("listings", "rooms_max_seen_at"),
+        ("hotel_calendars", "rooms_min"),
+        ("hotel_calendars", "rooms_max"),
+        ("hotel_date_snapshots", "rooms_left_min"),
+        ("hotel_date_snapshots", "rooms_left_max"),
+        ("hotel_date_metrics", "rooms_left_min"),
+        ("hotel_date_metrics", "rooms_left_max"),
+        ("hotels", "rooms_total_source"),
+        ("hotels", "rooms_total_updated_at"),
+    } <= found

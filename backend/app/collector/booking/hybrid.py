@@ -73,12 +73,14 @@ class HybridCollector:
         await self._fetcher.close(session.id)
 
     async def fetch_calendar(
-        self, hotel: ListingRef, start: date, days: int, adults: int
+        self, hotel: ListingRef, start: date, days: int, adults: int, rooms: int = 1
     ) -> CalendarResult:
         session = await self._sessions.get(hotel.country_code, hotel.url)
         await self._budget.acquire()
         await self._limiter.wait(session.id)
-        payload = build_calendar_request(hotel.country_code, pagename(hotel), start, days, adults)
+        payload = build_calendar_request(
+            hotel.country_code, pagename(hotel), start, days, adults, rooms
+        )
         headers = calendar_headers(session.csrf_token, referer=hotel.url)
         try:
             response = await self._fetcher.post_json(GRAPHQL_URL, payload, headers, session)

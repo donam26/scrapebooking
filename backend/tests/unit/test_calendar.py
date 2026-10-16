@@ -85,3 +85,10 @@ def test_parse_garbage() -> None:
     res = parse_calendar_response("<html>challenge</html>")
     assert not res.ok
     assert res.error and "json" in res.error.lower()
+
+
+def test_build_request_for_n_rooms() -> None:
+    """Thang nbRooms: lịch trả lời "khách sạn còn ≥ N phòng (1 người lớn/phòng)?" cho mọi đêm."""
+    req = build_calendar_request("vn", "caravelle", date(2026, 10, 20), 31, adults=15, rooms=15)
+    cfg = req["variables"]["input"]["searchConfig"]
+    assert (cfg["nbRooms"], cfg["nbAdults"]) == (15, 15)

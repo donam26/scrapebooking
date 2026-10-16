@@ -313,6 +313,8 @@ async def _seed_market(db: AsyncSession, ids: dict[str, int]) -> int:
                 days_to_arrival=5,
                 availability_status=status_,
                 exact_rooms_left=left,
+                rooms_left_min=left,
+                rooms_left_max=left,
                 last_observed_at=NOW - timedelta(hours=1),
             )
         )

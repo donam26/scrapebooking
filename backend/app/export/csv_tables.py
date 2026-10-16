@@ -29,6 +29,9 @@ _OVERVIEW_COLUMNS = (
     "price_rank",
     "priced_hotels",
     "holiday",
+    # Thêm cuối (16/10) để file đọc theo vị trí cột không lệch.
+    "rooms_left_min",
+    "rooms_left_max",
 )
 
 _EVENTS_COLUMNS = (
@@ -121,6 +124,8 @@ def overview_rows(
                     _num(c.own_rank) if c else "",
                     _num(c.priced_hotels) if c and c.priced_hotels else "",
                     _text(holidays.get(cell.stay_date)),
+                    _num(cell.rooms_left_min),
+                    _num(cell.rooms_left_max),
                 ]
             )
     return rows

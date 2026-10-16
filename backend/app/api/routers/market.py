@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import case, delete, select
 from sqlalchemy.dialects.postgresql import insert
 
-from app.analytics.compset import load_compset
+from app.analytics.compset import LOW_STOCK, load_compset
+from app.analytics.rooms_left_bounds import definitely_low
 from app.analytics.rules import median
 from app.api.deps import LocaleDep, SessionDep, SettingsDep, TenantDep, WriterDep
 from app.api.hotel_views import tenant_channel
@@ -907,9 +908,7 @@ async def suggestion_backtest(
             comp_low=sum(
                 1
                 for c in comps
-                if c.status == "available"
-                and c.exact_rooms_left is not None
-                and c.exact_rooms_left <= 3
+                if c.status == "available" and definitely_low(c.rooms_left_max, LOW_STOCK)
             ),
         )
         sug = suggest(sig, strategy)

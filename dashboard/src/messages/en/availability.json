@@ -20,7 +20,7 @@
     "occ": "Fill ≈ %",
     "cellTitle": "{hotel} · {weekday} {date}: {status}",
     "cellAria": "{hotel} {date}: {status}",
-    "sumPartial": "{known, plural, one {# cell} other {# cells}} with a count, {missing} hidden or not scanned: the total is a minimum",
+    "sumPartial": "{known, plural, one {# cell} other {# cells}} exact, {missing} only a minimum, hidden or not scanned: the total is a minimum",
     "sumFull": "{known, plural, one {# cell} other {# cells}}, all counted",
     "cell": {
       "noData": "No data yet",

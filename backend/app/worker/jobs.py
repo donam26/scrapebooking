@@ -8,12 +8,19 @@ from app.clock import Clock
 from app.collector.base import Collector
 from app.collector.booking.results import failed_result
 from app.collector.storage import RawStore, raw_key
-from app.domain.models import ProbeMethod, ProbeStatus
+from app.domain.models import (
+    CalendarResult,
+    ListingRef,
+    ProbeMethod,
+    ProbeResult,
+    ProbeStatus,
+)
 from app.logging import get_logger
 from app.ops.alerts import Alerter, RunStats, run_summary_alert
 from app.ops.metrics import JOBS_TOTAL, PROBE_DURATION, PROBES_TOTAL
 from app.repo.runs import ScanRunRepository
 from app.repo.snapshots import SnapshotRepository
+from app.worker.capacity_ladder import run_capacity_ladder
 
 log = get_logger(__name__)
 
@@ -66,6 +73,8 @@ class WorkerDeps:
     on_run_finished: RunFinishedHook | None = None
     tiers: TierPolicy | None = field(default_factory=TierPolicy)
     before_job: BeforeJobHook | None = None
+    # Các nấc nbRooms đo tổng phòng còn cả khách sạn (worker/capacity_ladder.py); rỗng = tắt.
+    capacity_rungs: tuple[int, ...] = ()
 
 
 @dataclass
@@ -76,6 +85,7 @@ class JobSummary:
     skipped: int = 0
     failed: int = 0
     fresh: int = 0  # đêm bỏ qua theo tầng (đã có quan sát đủ mới)
+    ladder_requests: int = 0  # request lịch của thang nbRooms
     run_finished: bool = False
 
 
@@ -98,6 +108,50 @@ async def _fresh_dates(
             hotel_id, channel, list(by_age)
         )
     return {d for d, max_age in by_age.items() if d in last and now - last[d] < max_age}
+
+
+async def _probe_closed_night(
+    deps: WorkerDeps,
+    hotel: ListingRef,
+    stay_date: date,
+    start_date: date,
+    calendar: CalendarResult,
+) -> ProbeResult | None:
+    """Lịch báo không nhận khách đêm `stay_date`: hết phòng thật hay chỉ đóng ngày đến?
+
+    Probe trang 1 đêm: còn phòng → lịch cũ, dùng kết quả. Trang báo hết phòng → probe "bắc cầu"
+    nhận phòng hôm trước, ở 2 đêm qua đêm này: bắc cầu cũng hết → hết phòng thật; còn phòng → đêm
+    này vẫn bán, chỉ không nhận khách ngày này. Chỉ kết luận "hết" khi có bằng chứng: đêm đầu cửa
+    sổ (tối nay: có thể chỉ là giờ cắt đặt trong ngày), hôm trước cũng đóng (khối đêm đóng bán trông
+    y như hết phòng), hoặc hôm trước cần ≥3 đêm (bắc cầu phủ cả đêm sau) → None: giữ "hạn chế".
+    Đọc không được → None."""
+    adults = deps.default_adults
+    try:
+        page = await deps.collector.probe(hotel, stay_date, 1, adults)
+    except Exception:  # noqa: BLE001
+        log.exception("closed_night_probe_raised", hotel_id=hotel.id, stay_date=str(stay_date))
+        return None
+    if page.status == ProbeStatus.OK:
+        return page
+    if page.status != ProbeStatus.SOLD_OUT:
+        return None
+    before = stay_date - timedelta(days=1)
+    prev_day = calendar.day(before) if calendar.ok else None
+    if (
+        before < start_date
+        or prev_day is None
+        or not prev_day.available
+        or prev_day.min_length_of_stay > 2
+    ):
+        return None
+    try:
+        bridge = await deps.collector.probe(hotel, before, 2, adults)
+    except Exception:  # noqa: BLE001
+        log.exception("bridge_probe_raised", hotel_id=hotel.id, stay_date=str(stay_date))
+        return None
+    if bridge.status == ProbeStatus.SOLD_OUT:
+        return page
+    return None
 
 
 async def run_probe_hotel(
@@ -156,36 +210,41 @@ async def run_probe_hotel(
             fetched_at = deps.clock.now()
 
             if day is not None and not day.available:
-                async with deps.session_factory() as s:
-                    await SnapshotRepository(s, deps.page_cap).write_skipped(
-                        scan_run_id,
-                        hotel_id,
-                        channel,
-                        stay_date,
-                        nights=day.min_length_of_stay,
-                        adults=deps.default_adults,
-                        fetched_at=fetched_at,
+                closed = await _probe_closed_night(deps, hotel, stay_date, start_date, calendar)
+                if closed is None:
+                    async with deps.session_factory() as s:
+                        await SnapshotRepository(s, deps.page_cap).write_skipped(
+                            scan_run_id,
+                            hotel_id,
+                            channel,
+                            stay_date,
+                            nights=day.min_length_of_stay,
+                            adults=deps.default_adults,
+                            fetched_at=fetched_at,
+                        )
+                        await s.commit()
+                    PROBES_TOTAL.labels(
+                        str(ProbeStatus.SKIPPED_CALENDAR), str(ProbeMethod.CALENDAR)
+                    ).inc()
+                    summary.skipped += 1
+                    continue
+                result = closed
+            else:
+                nights = day.min_length_of_stay if day is not None else 1
+                try:
+                    result = await deps.collector.probe(
+                        hotel, stay_date, nights, deps.default_adults
                     )
-                    await s.commit()
-                PROBES_TOTAL.labels(
-                    str(ProbeStatus.SKIPPED_CALENDAR), str(ProbeMethod.CALENDAR)
-                ).inc()
-                summary.skipped += 1
-                continue
-
-            nights = day.min_length_of_stay if day is not None else 1
-            try:
-                result = await deps.collector.probe(hotel, stay_date, nights, deps.default_adults)
-            except Exception as exc:  # noqa: BLE001
-                log_ctx.exception("probe_raised", stay_date=str(stay_date))
-                result = failed_result(
-                    ProbeStatus.ERROR,
-                    method=ProbeMethod.HTTP,
-                    checkin=stay_date,
-                    nights=nights,
-                    adults=deps.default_adults,
-                    error=f"{type(exc).__name__}: {exc}",
-                )
+                except Exception as exc:  # noqa: BLE001
+                    log_ctx.exception("probe_raised", stay_date=str(stay_date))
+                    result = failed_result(
+                        ProbeStatus.ERROR,
+                        method=ProbeMethod.HTTP,
+                        checkin=stay_date,
+                        nights=nights,
+                        adults=deps.default_adults,
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
 
             key: str | None = None
             if result.raw_html:
@@ -218,6 +277,20 @@ async def run_probe_hotel(
             if result.status == ProbeStatus.ERROR and result.error == "not_found":
                 # Trang khách sạn 404 (URL/slug sai): mọi ngày khác cũng 404, dừng thay vì quét hết.
                 raise HotelPageNotFound(f"hotel page not found (http 404): {hotel.url}")
+
+        if deps.capacity_rungs and calendar.ok:
+            try:
+                async with deps.session_factory() as s:
+                    summary.ladder_requests = await run_capacity_ladder(
+                        deps.collector,
+                        SnapshotRepository(s, deps.page_cap),
+                        hotel,
+                        scan_run_id,
+                        deps.capacity_rungs,
+                    )
+                    await s.commit()
+            except Exception:  # noqa: BLE001 — thang chỉ làm số mịn hơn, không được hỏng job
+                log_ctx.exception("capacity_ladder_failed")
     except Exception as exc:  # noqa: BLE001
         status, error = "failed", f"{type(exc).__name__}: {exc}"
         permanent = isinstance(exc, HotelPageNotFound)
@@ -273,6 +346,7 @@ async def run_probe_hotel(
         skipped=summary.skipped,
         fresh=summary.fresh,
         failed=summary.failed,
+        ladder_requests=summary.ladder_requests,
     )
     return summary
 

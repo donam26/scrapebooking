@@ -83,6 +83,8 @@
     "exactShare7d": "7-day exact count share",
     "exactShare": "exact count share",
     "exactRoomsLeft": "exact rooms left",
+    "roomsLeftMin": "minimum rooms left",
+    "roomsLeftMax": "maximum rooms left",
     "priceIndex": "price index",
     "pickup24h": "≈ rooms-left drop in 24 hours",
     "velocity3d": "≈ rooms-left drop rate (3 days)",

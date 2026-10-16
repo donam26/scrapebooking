@@ -197,7 +197,8 @@ class RunStats:
     def success_rate(self) -> float:
         if self.total_probes == 0:
             return 0.0
-        return (self.ok_count + self.sold_out_count) / self.total_probes
+        # Thất bại = bị chặn + lỗi; đêm hạn chế (lịch báo đóng) là quan sát hợp lệ.
+        return 1 - (self.blocked_count + self.error_count) / self.total_probes
 
 
 def run_summary_alert(stats: RunStats, threshold: float = 0.9) -> str | None:

@@ -314,3 +314,108 @@ async def test_last_usable_probe_at_per_channel(db: AsyncSession) -> None:
     }  # bị chặn không phải quan sát dùng được
     assert await repo.last_usable_probe_at(hotel_id, "other", [d1, d2, d3]) == {}
     assert await repo.last_usable_probe_at(hotel_id, "booking", []) == {}
+
+
+def _bare_offer(room_id: str, dropdown: int | None, badge: int | None = None) -> RoomOffer:
+    return RoomOffer(
+        room_id,
+        f"Room {room_id}",
+        2,
+        badge,
+        dropdown,
+        (RatePlan("Standard", Decimal("1000000"), "VND", None, None),),
+    )
+
+
+async def _stock_by_room(db: AsyncSession) -> dict[str, tuple[int | None, str]]:
+    rows = await db.execute(
+        select(
+            RoomType.external_room_id, RoomSnapshot.rooms_left, RoomSnapshot.stock_confidence
+        ).join(RoomType, RoomType.id == RoomSnapshot.room_type_id)
+    )
+    return {r[0]: (r[1], r[2]) for r in rows}
+
+
+async def test_dropdown_below_listing_cap_is_exact_and_at_cap_is_floor(db: AsyncSession) -> None:
+    """Park Hyatt Saigon: dropdown không bao giờ quá 9 → 9 là "ít nhất 9", 8 là số thật."""
+    hotel_id, run_id = await _seed(db)
+    listing = (await db.execute(select(Listing))).scalar_one()
+    listing.dropdown_cap_seen = 9
+    await db.flush()
+    offers = (_bare_offer("301", 9), _bare_offer("302", 8), _bare_offer("303", 4, badge=4))
+    await SnapshotRepository(db, page_cap=10).write_probe(
+        run_id, hotel_id, "booking", date(2026, 10, 5), _result(*offers), None, "1", "vn", NOW
+    )
+    await db.commit()
+    assert await _stock_by_room(db) == {
+        "301": (9, "capped"),
+        "302": (8, "exact"),
+        "303": (4, "exact"),
+    }
+    await db.refresh(listing)
+    assert listing.dropdown_cap_seen == 9
+
+
+async def test_page_max_raises_listing_cap_seen(db: AsyncSession) -> None:
+    hotel_id, run_id = await _seed(db)
+    offers = (_bare_offer("401", 10), _bare_offer("402", 9), _bare_offer("403", 8))
+    await SnapshotRepository(db, page_cap=10).write_probe(
+        run_id, hotel_id, "booking", date(2026, 10, 5), _result(*offers), None, "1", "vn", NOW
+    )
+    await db.commit()
+    assert await _stock_by_room(db) == {
+        "401": (10, "capped"),
+        "402": (9, "exact"),
+        "403": (8, "exact"),
+    }
+    listing = (await db.execute(select(Listing))).scalar_one()
+    assert listing.dropdown_cap_seen == 10
+
+
+async def test_new_listing_treats_its_first_page_max_as_a_floor(db: AsyncSession) -> None:
+    """Chưa biết trần riêng: mức lớn nhất của trang đầu chỉ là "ít nhất" (thận trọng)."""
+    hotel_id, run_id = await _seed(db)
+    offers = (_bare_offer("501", 9), _bare_offer("502", 8))
+    await SnapshotRepository(db, page_cap=10).write_probe(
+        run_id, hotel_id, "booking", date(2026, 10, 5), _result(*offers), None, "1", "vn", NOW
+    )
+    await db.commit()
+    assert await _stock_by_room(db) == {"501": (9, "capped"), "502": (8, "exact")}
+
+
+async def test_rederive_stock_recomputes_old_hidden_rows_from_raw_signals(
+    db: AsyncSession,
+) -> None:
+    """Dữ liệu quét trước khi sửa quy tắc: dropdown 8–9 bị lưu `hidden`. Tính lại từ badge/dropdown
+    đã lưu (không cần HTML thô), trần riêng của listing lấy từ chính dữ liệu."""
+    hotel_id, run_id = await _seed(db)
+    repo = SnapshotRepository(db, page_cap=10)
+    offers = (_bare_offer("601", 10), _bare_offer("602", 9), _bare_offer("603", 3, badge=3))
+    await repo.write_probe(
+        run_id, hotel_id, "booking", date(2026, 10, 5), _result(*offers), None, "1", "vn", NOW
+    )
+    # Giả lập quy tắc cũ: 9 không badge → hidden; listing chưa có trần riêng.
+    old = (
+        await db.execute(
+            select(RoomSnapshot)
+            .join(RoomType, RoomType.id == RoomSnapshot.room_type_id)
+            .where(RoomType.external_room_id == "602")
+        )
+    ).scalar_one()
+    old.rooms_left, old.stock_confidence = None, "hidden"
+    listing = (await db.execute(select(Listing))).scalar_one()
+    listing.dropdown_cap_seen = None
+    await db.commit()
+
+    changed, runs = await repo.rederive_stock()
+    await db.commit()
+
+    assert (changed, runs) == (1, {run_id})
+    assert await _stock_by_room(db) == {
+        "601": (10, "capped"),
+        "602": (9, "exact"),
+        "603": (3, "exact"),
+    }
+    await db.refresh(listing)
+    assert listing.dropdown_cap_seen == 10
+    assert await repo.rederive_stock() == (0, set())

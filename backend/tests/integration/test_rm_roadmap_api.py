@@ -128,10 +128,10 @@ async def _market(db: AsyncSession, ids: dict[str, int]) -> None:
     run = ids["run"]
     db.add_all(
         [
-            _metric(ids["own"], N1, run, "available", "900000", exact_rooms_left=6,
+            _metric(ids["own"], N1, run, "available", "900000", exact_rooms_left=6, rooms_left_min=6, rooms_left_max=6,
                     prices_by_key={"t|f": "900000"}),
             _metric(ids["c1"], N1, run, "sold_out", None),
-            _metric(ids["c2"], N1, run, "available", "1000000", exact_rooms_left=2,
+            _metric(ids["c2"], N1, run, "available", "1000000", exact_rooms_left=2, rooms_left_min=2, rooms_left_max=2,
                     prices_by_key={"t|f": "1200000", "f|f": "1000000"},
                     promos={"Late Escape Deal": "40.0"}),
             _metric(ids["c3"], N1, run, "available", "1100000", min_stay=2,
@@ -342,3 +342,56 @@ async def test_subscriptions_zalo_fanout_tracking_and_engagement(
     eng = (await client.get("/notifications/engagement")).json()["weeks"]
     z = next(w for w in eng if w["channel"] == "zalo")
     assert (z["sent"], z["clicked"], z["resolved"], z["cost_vnd"]) == (1, 1, 1, "300.00")
+
+
+async def test_rooms_total_keeps_its_source_and_booking_max_is_exposed(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Số phòng công bố lưu kèm nguồn + thời điểm; "Booking từng mở bán tối đa" đọc từ listing."""
+    ids = await _seed(db)
+    listing = (
+        await db.execute(
+            select(Listing).where(Listing.hotel_id == ids["c1"], Listing.channel == "booking")
+        )
+    ).scalar_one()
+    listing.rooms_max_seen = 94
+    await db.commit()
+    await _login(client, "admin@rex.vn", "admin-pass-1")
+    r = await client.patch(
+        f"/watchlist/{ids['c1']}",
+        json={"rooms_total": 286, "rooms_total_source": "https://en.wikipedia.org/wiki/Rex_Hotel"},
+    )
+    assert r.status_code == 200, r.text
+    hotel = r.json()["hotel"]
+    assert hotel["rooms_total"] == 286
+    assert hotel["rooms_total_source"] == "https://en.wikipedia.org/wiki/Rex_Hotel"
+    assert hotel["rooms_total_updated_at"] is not None
+    assert hotel["booking_rooms_max_seen"] == 94
+    items = (await client.get("/watchlist")).json()
+    other = next(i for i in items if i["hotel"]["id"] == ids["c2"])
+    assert other["hotel"]["booking_rooms_max_seen"] is None
+
+
+async def test_shared_rooms_total_is_not_overwritten_by_another_tenant(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Số phòng nằm ở hàng khách sạn dùng chung: tenant khác cũng theo dõi thì chỉ được nhập lần
+    đầu; sửa số đã có cần operator (như đổi URL listing dùng chung)."""
+    ids = await _seed(db)
+    other = Tenant(name="Other", timezone="Asia/Ho_Chi_Minh", scan_times=["06:00"])
+    db.add(other)
+    await db.flush()
+    db.add(TenantHotel(tenant_id=other.id, hotel_id=ids["c1"], role="competitor", active=True))
+    await db.commit()
+    await _login(client, "admin@rex.vn", "admin-pass-1")
+    first = await client.patch(
+        f"/watchlist/{ids['c1']}",
+        json={"rooms_total": 286, "rooms_total_source": "https://a.example"},
+    )
+    assert first.status_code == 200, first.text
+    again = await client.patch(f"/watchlist/{ids['c1']}", json={"rooms_total": 100})
+    assert again.status_code == 403
+    assert "room count is shared" in again.json()["detail"]
+    hotel = (await db.execute(select(Hotel).where(Hotel.id == ids["c1"]))).scalar_one()
+    await db.refresh(hotel)
+    assert hotel.rooms_total == 286

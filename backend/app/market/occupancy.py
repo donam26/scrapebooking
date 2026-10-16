@@ -90,7 +90,8 @@ def estimate(
     if status not in ("available", "sold_out") or total == 0:
         return None
     # Tổng phòng công bố/người dùng nhập (5.6): mẫu số là tổng phòng của khách sạn khi lớn hơn
-    # phần kênh từng mở bán — "lớn nhất từng thấy" là cận dưới và làm công suất ra cao.
+    # phần kênh từng mở bán. Phòng không hiện trên kênh là CHƯA BIẾT (không phải đã bán): độ phủ
+    # tính trên cùng mẫu số, nên khi kênh chỉ thấy một phần nhỏ thì chỉ báo không đủ tin để hiện.
     denom = max(total, rooms_total or 0)
     if status == "sold_out":
         return OccEstimate(denom, 0, 0, Decimal(1))
@@ -113,4 +114,4 @@ def estimate(
             low, high = low + min(r.floor, inv), high + inv
         else:  # ẩn số: còn ít nhất 1
             low, high = low + 1, high + inv
-    return OccEstimate(denom, low, high, (Decimal(known) / Decimal(total)).quantize(Q4))
+    return OccEstimate(denom, low, high, (Decimal(known) / Decimal(denom)).quantize(Q4))

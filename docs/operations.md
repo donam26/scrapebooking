@@ -55,10 +55,17 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 
 ## 4. Quy tắc analytics (cấu hình qua `.env`)
 
-- Trạng thái ngày theo probe: `ok` → available; `sold_out`, `skipped_calendar` → sold_out; `no_rooms_1n`, `blocked`, `error` → unknown.
+- Trạng thái ngày theo probe: `ok` → available; `sold_out` → sold_out; `skipped_calendar` → restricted (không nhận khách ngày đó, không phải hết phòng); `no_rooms_1n`, `blocked`, `error` → unknown. Lượt unknown không ghi đè số tốt gần nhất của ô (ô thành "cũ" sau 48 giờ).
+- Đêm lịch báo không nhận khách vẫn được probe trang 1 đêm; trang báo hết thì probe "bắc cầu" (nhận phòng hôm trước, ở 2 đêm qua đêm đó): bắc cầu cũng hết → sold_out; còn phòng → restricted. Chỉ kết luận hết phòng khi có bằng chứng: đêm nay (giờ cắt đặt trong ngày), hôm trước cũng đóng (khối đêm đóng bán), hoặc hôm trước cần ≥3 đêm → giữ restricted (`worker/jobs.py` `_probe_closed_night`).
+- Tỷ lệ thành công của run = 1 − (bị chặn + lỗi)/tổng: đêm hạn chế là quan sát hợp lệ, không tính vào "hết phòng" (`sold_out_count`).
+- Số phòng công bố nằm ở hàng khách sạn dùng chung giữa tenant: nhập lần đầu thì ai cũng được; sửa số đã có cần là tenant duy nhất theo dõi hoặc operator.
+- Số phòng còn mỗi loại phòng (`domain/stock.py`): badge "We have N left" hoặc dropdown dưới trần → `exact`; dropdown chạm trần (10, hoặc trần riêng `listings.dropdown_cap_seen`, VD Park Hyatt 9) → `capped` "≥N".
+- Cả khách sạn (`analytics/rooms_left_bounds.py`): khoảng `[rooms_left_min, rooms_left_max]` từ trang (Σ loại phòng) và thang nbRooms của lịch; `exact_rooms_left` chỉ có khi min = max. Giao diện: "N", "N–M" hoặc "≥N"; "sắp hết" chỉ khi chắc chắn ≤ 3.
+- Thang nbRooms (`worker/capacity_ladder.py`, `CAPACITY_LADDER`, mặc định `5,10,…,100`, rỗng = tắt): sau vòng probe, mỗi nấc N là một request lịch `nbRooms=N` cho cả cửa sổ đêm ("còn bán được N phòng?", tính trên tổng loại phòng; Booking nhận tới 100). Kết quả ở `hotel_calendars.rooms_min/rooms_max`. Đơn vị là đơn vị Booking bán: khách sạn có phòng dorm thì mỗi giường là một đơn vị (Meander: 42 phòng công bố, lịch vẫn còn ở N = 60 nhiều đêm). Chỉ đo đêm lịch báo còn nhận khách; nấc lỗi giữa chừng vẫn giữ các nấc đã đo.
 - So sánh với **lần quan sát dùng được gần nhất** (available/sold_out), không phải đợt liền trước.
 - `LOW_STOCK_THRESHOLD` (mặc định 3), `PRICE_CHANGE_THRESHOLD_PCT` (mặc định 3).
 - pickup/velocity chỉ dùng cặp loại phòng `exact` ở cả hai lần.
+- Sức chứa đối thủ: `hotels.rooms_total` + `rooms_total_source`/`rooms_total_updated_at` (nhập ở Cài đặt › Theo dõi, kèm URL nguồn); `listings.rooms_max_seen` = Booking từng mở bán tối đa (sàn lớn nhất từng thấy, analytics cập nhật).
 
 ## 5. AI insight
 
@@ -138,6 +145,7 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 | `run-status --limit 5` | Trạng thái các đợt quét gần nhất. |
 | `analyze [--run-id N] [--all-pending]` | Chạy analytics tay. |
 | `insight <tenant_id> [--sync/--batch]` | Sinh bản tin tay. |
+| `rederive-stock [--no-reanalyze]` | Tính lại `rooms_left`/`stock_confidence` mọi room snapshot từ `badge_count`/`dropdown_max` đã lưu (không cần HTML thô) sau khi đổi `domain/stock.py`, cập nhật trần riêng listing, rồi tính lại analytics các run bị đổi. Sau migration 0016 chạy thêm `analyze --reanalyze-days 30` để điền khoảng phòng còn cho mọi run. |
 | `reparse --since-days 30 [--no-reanalyze]` | Parse lại HTML thô **Booking** sau khi đổi parser, rồi tính lại analytics cho các run bị ảnh hưởng. Kênh khác lưu payload JSON; `parser_version` mỗi probe có dạng `<kênh>:<phiên bản>`. |
 | `ensure-partitions`, `prune-partitions --keep-months 24` | Partition `room_snapshots`. |
 | `backup-db` | pg_dump → gzip → MinIO bucket `BACKUP_BUCKET`, giữ `BACKUP_KEEP` bản. |

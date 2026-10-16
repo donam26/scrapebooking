@@ -701,7 +701,10 @@ async def test_export_overview_and_events_csv(client: AsyncClient, db: AsyncSess
     assert r.headers["content-type"].startswith("text/csv")
     assert "scrapebooking-tong-quan-2026-10-05.csv" in r.headers["content-disposition"]
     text = r.content.decode("utf-8")
-    assert text.startswith("﻿Kênh,Khách sạn,Vai trò,Đêm,Thứ,Trạng thái")
+    assert text.startswith(
+        "﻿Kênh,Khách sạn,Vai trò,Đêm,Thứ,Trạng thái,Phòng còn (chính xác),Giá niêm yết"
+    )
+    assert text.split("\r\n")[0].endswith("Ngày lễ,Phòng còn ít nhất,Phòng còn nhiều nhất")
     lines = text.lstrip("﻿").strip().split("\r\n")
     assert len(lines) == 3  # tiêu đề + 2 khách sạn × 1 đêm
     assert lines[1].startswith(

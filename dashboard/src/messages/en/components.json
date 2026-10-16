@@ -44,7 +44,9 @@
     "unknown": "Could not read (blocked or error)",
     "hiddenChannel": "Available, Booking.com hides the count",
     "hiddenUnknown": "Available, count unknown",
-    "exactChannel": "{count, plural, one {# room} other {# rooms}} left (exact count from Booking.com)",
+    "exactChannel": "{count, plural, one {# room} other {# rooms}} left on Booking.com (exact)",
+    "hotelFloor": "At least {count, plural, one {# room} other {# rooms}} left on Booking.com (upper bound unknown: a room type is at the most Booking will show)",
+    "hotelRange": "{min, number}–{max, number} rooms left on Booking.com",
     "exact": "{count, plural, one {# room} other {# rooms}} left (exact)",
     "cappedRate": "At least {count, plural, one {# room} other {# rooms}} left (rooms left only known at the lowest rate)",
     "capped": "At least {count, plural, one {# room} other {# rooms}} left",
@@ -62,7 +64,8 @@
       "error": "Error"
     },
     "legend": {
-      "hotelExact": "Exact rooms left from Booking.com: red/orange is nearly full, green has plenty",
+      "hotelExact": "Exact rooms left: red/orange is nearly full, green has plenty",
+      "hotelFloor": "≥N or N–M: not exact yet (colour only when the level is certain)",
       "hidden": "Available, count hidden",
       "soldOut": "Sold out",
       "unknown": "Could not read",

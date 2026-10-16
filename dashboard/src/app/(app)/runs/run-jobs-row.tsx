@@ -66,7 +66,7 @@ export function RunJobsRow({ runId, colSpan }: { runId: number; colSpan: number 
                     <td className="py-1.5 pr-3 tabular">{j.started_at ? fmtDayTime(j.started_at) : "—"}</td>
                     <td className="py-1.5 pr-3 tabular">{fmtDuration(j.started_at, j.finished_at)}</td>
                     <td className="py-1.5 pr-3 text-right tabular">{fmtInt(j.total_probes)}</td>
-                    <td className="py-1.5 pr-3 text-right font-semibold text-yours-deep tabular">{fmtInt(j.ok_count + j.sold_out_count)}</td>
+                    <td className="py-1.5 pr-3 text-right font-semibold text-yours-deep tabular">{fmtInt(j.total_probes - j.blocked_count - j.error_count)}</td>
                     <td className={cx("py-1.5 pr-3 text-right tabular", j.blocked_count > 0 && "font-semibold text-danger")}>{fmtInt(j.blocked_count)}</td>
                     <td className={cx("py-1.5 pr-3 text-right tabular", j.error_count > 0 && "font-semibold text-hot")}>{fmtInt(j.error_count)}</td>
                     {isOperator && (

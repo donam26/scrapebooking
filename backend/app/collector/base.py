@@ -13,7 +13,7 @@ class Collector(Protocol):
     """Thu dữ liệu một listing. Mỗi kênh một cài đặt (app/collector/<kênh>/)."""
 
     async def fetch_calendar(
-        self, listing: ListingRef, start: date, days: int, adults: int
+        self, listing: ListingRef, start: date, days: int, adults: int, rooms: int = 1
     ) -> CalendarResult: ...
 
     async def probe(

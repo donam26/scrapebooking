@@ -12,6 +12,7 @@ import { useDataFreshness } from "@/lib/freshness";
 import { deltaVsMedian, useNightReason } from "@/lib/night-reason";
 import { actionableSuggestions, SUGGESTION_TONE, useMarketText } from "@/lib/market";
 import { MarkSwatch, useMarks } from "@/components/marks";
+import { roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
 import { EventTable } from "@/components/event-table";
 import { SuggestionCard } from "@/components/market-suggestion";
 import { DataUpdated, StaleBanner } from "@/components/freshness";
@@ -38,7 +39,9 @@ function statusText(cell: DateCell | undefined, t: TodayTranslator): string {
   if (state === "restricted") return (cell.min_stay ?? 1) > 1 ? t("status.minStay", { count: cell.min_stay ?? 2 }) : t("status.restricted");
   if (state === "no_price") return t("status.noPrice");
   if (state === "error") return t("status.unknown");
-  return cell.exact_rooms_left === null ? t("status.available") : t("status.roomsLeft", { count: cell.exact_rooms_left });
+  const r = roomsLeftOf(cell);
+  if (r === null) return t("status.available");
+  return r.exact !== null ? t("status.roomsLeft", { count: r.exact }) : t("status.roomsLeftText", { rooms: roomsLeftText(r) });
 }
 
 /** Mở từ nút "Đã xử lý" trong tin (Zalo/email): backend ghi nhận rồi chuyển về `/today?resolved=1`. */

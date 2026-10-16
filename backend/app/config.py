@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     request_min_interval_seconds: float = 2.0
     request_jitter_seconds: float = 1.0
     page_dropdown_cap: int = 10
+    # Thang nbRooms (worker/capacity_ladder.py): các nấc N cách nhau dấu phẩy, rỗng = tắt. Nấc 2–4
+    # chốt được "còn ≤3" chính xác; lịch Booking nhận tới 100 phòng (120 → lỗi 500, kiểm live
+    # 16/10/2026).
+    capacity_ladder: str = "2,3,4,5,10,15,20,25,30,40,50,60,80,100"
     run_deadline_minutes: int = 90
     default_adults: int = 2
 
@@ -114,6 +118,10 @@ class Settings(BaseSettings):
     # Backup (giai đoạn 5)
     backup_bucket: str = "pg-backups"
     backup_keep: int = 14
+
+    @property
+    def capacity_rungs(self) -> tuple[int, ...]:
+        return tuple(int(x) for x in self.capacity_ladder.split(",") if x.strip())
 
     @property
     def proxy_templates(self) -> list[str]:

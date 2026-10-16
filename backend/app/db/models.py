@@ -71,6 +71,9 @@ class Hotel(Base):
     # Tổng số phòng công bố/người dùng nhập (roadmap 5.6): mẫu số của chỉ báo lấp đầy và quy tắc
     # compset (không khách sạn nào quá 50% số phòng compset).
     rooms_total: Mapped[int | None] = mapped_column(Integer)
+    # Số phòng công bố lấy từ đâu (URL web khách sạn, Trip.com, danh bạ MICE…) và lúc nào.
+    rooms_total_source: Mapped[str | None] = mapped_column(Text)
+    rooms_total_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -97,6 +100,13 @@ class Listing(Base):
     last_error: Mapped[str | None] = mapped_column(Text)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Dropdown "chọn số phòng" lớn nhất từng thấy: có khách sạn không bao giờ mở quá một mức thấp
+    # hơn trần trang (Park Hyatt Saigon: 9), nên mức đó chỉ là "ít nhất" (domain/stock.py).
+    dropdown_cap_seen: Mapped[int | None] = mapped_column(Integer)
+    # Booking từng mở bán tối đa bao nhiêu phòng một đêm (sàn lớn nhất của khoảng phòng còn) và lúc
+    # thấy: cận dưới phần phòng khách sạn giao cho Booking (analytics/service.py).
+    rooms_max_seen: Mapped[int | None] = mapped_column(Integer)
+    rooms_max_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class TenantHotel(Base):
@@ -205,6 +215,10 @@ class HotelCalendar(Base):
     min_length_of_stay: Mapped[int] = mapped_column(Integer, default=1)
     avg_price_display: Mapped[str | None] = mapped_column(String(64))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Thang nbRooms của run (worker/capacity_ladder.py): khách sạn còn ≥ rooms_min và ≤ rooms_max
+    # phòng cho đêm này (tổng mọi loại phòng, 1 người lớn/phòng); null = không đo.
+    rooms_min: Mapped[int | None] = mapped_column(Integer)
+    rooms_max: Mapped[int | None] = mapped_column(Integer)
 
 
 class RoomSnapshot(Base):
@@ -262,7 +276,10 @@ class HotelDateSnapshot(Base):
     channel: Mapped[str] = mapped_column(String(16))
     scanned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(16))  # available | sold_out | restricted | unknown
+    # Khoảng phòng còn cả khách sạn (analytics/rooms_left_bounds.py); exact khi min = max.
     exact_rooms_left: Mapped[int | None] = mapped_column(Integer)
+    rooms_left_min: Mapped[int | None] = mapped_column(Integer)
+    rooms_left_max: Mapped[int | None] = mapped_column(Integer)
     room_types_available: Mapped[int] = mapped_column(Integer, default=0)
     room_types_sold_out: Mapped[int] = mapped_column(Integer, default=0)
     min_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
@@ -327,7 +344,10 @@ class HotelDateMetric(Base):
     currency: Mapped[str | None] = mapped_column(String(3))
     price_change_7d_pct: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     availability_status: Mapped[str] = mapped_column(String(16))
+    # Khoảng phòng còn cả khách sạn; exact_rooms_left chỉ có khi min = max.
     exact_rooms_left: Mapped[int | None] = mapped_column(Integer)
+    rooms_left_min: Mapped[int | None] = mapped_column(Integer)
+    rooms_left_max: Mapped[int | None] = mapped_column(Integer)
     exact_share: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     last_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     # Roadmap Phase 2/4: so cùng điều kiện, hạn chế, radar KM.

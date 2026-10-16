@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { cellState, type CalibrationOut, type DateCell, type HotelRow, type OverviewOut, type PaceNightOut } from "@/lib/api";
 import { dateRange, useFmt, type Fmt } from "@/lib/format";
+import { roomsLeftOf } from "@/lib/rooms-left";
 import { useLabel } from "@/lib/labels";
 import { DEMAND_TEXT, demandLevel, fillReading, rowName, useMarketMetrics } from "@/lib/market-metrics";
 import { useFillText } from "@/components/fill";
@@ -31,30 +32,40 @@ function Trend({ pickup }: { pickup: number | null }) {
 }
 
 /**
- * Tổng số phòng còn của một nhóm ô. Ô hết phòng góp 0; ô còn phòng mà không lộ số, không đọc được
- * hoặc chưa quét là "thiếu số": khi có ô thiếu, tổng chỉ là mức sàn (≥N); không ô nào có số thì "—".
+ * Tổng số phòng còn của một nhóm ô. Ô hết phòng góp 0; ô "≥N"/"N–M" góp mức sàn N; ô không lộ số,
+ * không đọc được hoặc chưa quét là "thiếu số". Có ô thiếu hoặc chưa chính xác thì tổng chỉ là mức
+ * sàn (≥N); không ô nào có số thì "—".
  */
-type Sum = { value: number; known: number; missing: number };
+type Sum = { value: number; known: number; missing: number; inexact: number };
 
 function sumCells(cells: Array<DateCell | undefined>): Sum {
-  const out: Sum = { value: 0, known: 0, missing: 0 };
+  const out: Sum = { value: 0, known: 0, missing: 0, inexact: 0 };
   for (const c of cells) {
-    if (cellState(c) === "sold_out") out.known += 1;
-    else if (c?.exact_rooms_left !== null && c?.exact_rooms_left !== undefined) {
-      out.value += c.exact_rooms_left;
+    if (cellState(c) === "sold_out") {
       out.known += 1;
-    } else out.missing += 1;
+      continue;
+    }
+    const r = roomsLeftOf(c);
+    if (r === null) {
+      out.missing += 1;
+      continue;
+    }
+    out.value += r.min;
+    out.known += 1;
+    if (r.exact === null) out.inexact += 1;
   }
   return out;
 }
 
 function fmtSum(s: Sum, fmtInt: Fmt["fmtInt"]): string {
   if (s.known === 0) return "—";
-  return s.missing > 0 ? `≥${fmtInt(s.value)}` : fmtInt(s.value);
+  return s.missing + s.inexact > 0 ? `≥${fmtInt(s.value)}` : fmtInt(s.value);
 }
 
 function sumTitle(s: Sum, t: HeatmapTranslator): string {
-  return s.missing > 0 ? t("sumPartial", { known: s.known, missing: s.missing }) : t("sumFull", { known: s.known });
+  return s.missing + s.inexact > 0
+    ? t("sumPartial", { known: s.known - s.inexact, missing: s.missing + s.inexact })
+    : t("sumFull", { known: s.known });
 }
 
 /** Màu chữ chỉ báo lấp đầy theo thang mức chung (lib/market-metrics.ts: cao ≥ 75, vừa ≥ 50). */

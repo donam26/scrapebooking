@@ -146,10 +146,15 @@ class SnapshotRepository:
             duration_ms=result.duration_ms,
         )
         await self._s.execute(delete(RoomSnapshot).where(RoomSnapshot.probe_id == probe_id))
+        listing_cap = await self._listing_cap(hotel_id, channel, result.offers)
         for offer in result.offers:
             room_type_id = await self.upsert_room_type(hotel_id, channel, offer, fetched_at)
             stock = derive_stock(
-                offer.badge_count, offer.dropdown_max, self._page_cap, offer.stock_scope
+                offer.badge_count,
+                offer.dropdown_max,
+                self._page_cap,
+                offer.stock_scope,
+                listing_cap,
             )
             self._s.add(
                 RoomSnapshot(
@@ -176,6 +181,147 @@ class SnapshotRepository:
             )
         await self._s.flush()
         return probe_id
+
+    async def _listing_cap(
+        self, hotel_id: int, channel: str, offers: tuple[RoomOffer, ...]
+    ) -> int | None:
+        """Trần riêng của listing = dropdown lớn nhất từng thấy, gồm cả trang này (thận trọng: với
+        listing mới, mức lớn nhất của trang đầu chỉ là "ít nhất")."""
+        page_max = max((o.dropdown_max for o in offers if o.dropdown_max is not None), default=None)
+        where = (Listing.hotel_id == hotel_id, Listing.channel == channel)
+        if page_max is None:
+            return (
+                await self._s.execute(select(Listing.dropdown_cap_seen).where(*where))
+            ).scalar_one_or_none()
+        grown = (
+            await self._s.execute(
+                update(Listing)
+                .where(*where, func.coalesce(Listing.dropdown_cap_seen, 0) < page_max)
+                .values(dropdown_cap_seen=page_max)
+                .returning(Listing.dropdown_cap_seen)
+            )
+        ).scalar_one_or_none()
+        if grown is not None:
+            return grown
+        # Không tăng (hoặc không có listing): đọc trần hiện có, không ghi lại dòng mỗi probe.
+        return (
+            await self._s.execute(select(Listing.dropdown_cap_seen).where(*where))
+        ).scalar_one_or_none()
+
+    async def rederive_stock(self) -> tuple[int, set[int]]:
+        """Tính lại rooms_left/stock_confidence của mọi room snapshot từ badge_count/dropdown_max đã
+        lưu, với trần riêng mới nhất của từng listing (sau khi đổi quy tắc, không cần HTML thô).
+
+        Trả (số dòng đổi, các scan run bị ảnh hưởng) để tính lại analytics."""
+        maxima = (
+            select(
+                RoomSnapshot.hotel_id,
+                RoomSnapshot.channel,
+                func.max(RoomSnapshot.dropdown_max).label("cap"),
+            )
+            .group_by(RoomSnapshot.hotel_id, RoomSnapshot.channel)
+            .having(func.max(RoomSnapshot.dropdown_max).is_not(None))
+            .subquery()
+        )
+        await self._s.execute(
+            update(Listing)
+            .where(Listing.hotel_id == maxima.c.hotel_id, Listing.channel == maxima.c.channel)
+            .values(
+                dropdown_cap_seen=func.greatest(
+                    func.coalesce(Listing.dropdown_cap_seen, 0), maxima.c.cap
+                )
+            )
+        )
+        caps = {
+            (h, c): cap
+            for h, c, cap in await self._s.execute(
+                select(Listing.hotel_id, Listing.channel, Listing.dropdown_cap_seen)
+            )
+        }
+        rows = await self._s.execute(
+            select(
+                RoomSnapshot.id,
+                RoomSnapshot.scanned_at,
+                RoomSnapshot.hotel_id,
+                RoomSnapshot.channel,
+                RoomSnapshot.badge_count,
+                RoomSnapshot.dropdown_max,
+                RoomSnapshot.stock_scope,
+                RoomSnapshot.rooms_left,
+                RoomSnapshot.stock_confidence,
+                Probe.scan_run_id,
+            ).join(Probe, Probe.id == RoomSnapshot.probe_id)
+        )
+        changed = 0
+        runs: set[int] = set()
+        for r in rows:
+            stock = derive_stock(
+                r.badge_count,
+                r.dropdown_max,
+                self._page_cap,
+                r.stock_scope,
+                caps.get((r.hotel_id, r.channel)),
+            )
+            if (stock.rooms_left, str(stock.confidence)) == (r.rooms_left, r.stock_confidence):
+                continue
+            await self._s.execute(
+                update(RoomSnapshot)
+                .where(RoomSnapshot.id == r.id, RoomSnapshot.scanned_at == r.scanned_at)
+                .values(rooms_left=stock.rooms_left, stock_confidence=str(stock.confidence))
+            )
+            changed += 1
+            runs.add(r.scan_run_id)
+        await self._s.flush()
+        return changed, runs
+
+    async def room_states_by_date(
+        self, scan_run_id: int, hotel_id: int
+    ) -> dict[date, list[tuple[str, int | None]]]:
+        """(mức tin cậy, rooms_left) các loại phòng của những đêm còn bán (probe ok) trong run."""
+        rows = await self._s.execute(
+            select(RoomSnapshot.stay_date, RoomSnapshot.stock_confidence, RoomSnapshot.rooms_left)
+            .join(Probe, Probe.id == RoomSnapshot.probe_id)
+            .where(
+                Probe.scan_run_id == scan_run_id,
+                Probe.hotel_id == hotel_id,
+                Probe.status == str(ProbeStatus.OK),
+            )
+        )
+        out: dict[date, list[tuple[str, int | None]]] = {}
+        for d, conf, left in rows:
+            out.setdefault(d, []).append((conf, left))
+        return out
+
+    async def calendar_dates(self, scan_run_id: int, hotel_id: int) -> set[date]:
+        """Đêm lịch của run báo còn nhận khách (đêm lịch báo đóng mà trang vẫn còn phòng thì mọi
+        nấc nbRooms đều "không": đo sẽ ra trần giả)."""
+        rows = await self._s.execute(
+            select(HotelCalendar.stay_date).where(
+                HotelCalendar.scan_run_id == scan_run_id,
+                HotelCalendar.hotel_id == hotel_id,
+                HotelCalendar.available.is_(True),
+            )
+        )
+        return {r[0] for r in rows}
+
+    async def set_capacity_bounds(
+        self,
+        scan_run_id: int,
+        hotel_id: int,
+        bounds: dict[date, tuple[int | None, int | None]],
+    ) -> None:
+        """Kết quả thang nbRooms (worker/capacity_ladder.py) vào hàng lịch của run."""
+        for d, (lo, hi) in bounds.items():
+            await self._s.execute(
+                update(HotelCalendar)
+                .where(
+                    HotelCalendar.scan_run_id == scan_run_id,
+                    HotelCalendar.hotel_id == hotel_id,
+                    HotelCalendar.stay_date == d,
+                )
+                .values(rooms_min=lo, rooms_max=hi)
+            )
+        await self._s.flush()
 
     async def write_skipped(
         self,

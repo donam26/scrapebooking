@@ -22,10 +22,13 @@ CALENDAR_QUERY = (
 
 
 def build_calendar_request(
-    country_code: str, pagename: str, start: date, days: int, adults: int
+    country_code: str, pagename: str, start: date, days: int, adults: int, rooms: int = 1
 ) -> dict[str, Any]:
     """Biến theo frontend Booking (2026-09): `pagenameDetails` thay cho `pagename`, và
-    `nbChildren`/`childrenAges` bắt buộc; dạng cũ bị VALIDATION_INVALID_TYPE_VARIABLE."""
+    `nbChildren`/`childrenAges` bắt buộc; dạng cũ bị VALIDATION_INVALID_TYPE_VARIABLE.
+
+    `rooms` > 1: `available` của từng đêm nghĩa là khách sạn bán được chừng ấy phòng cùng lúc,
+    tính trên tổng mọi loại phòng (kiểm live 16/10/2026; nhận tới ít nhất 50, 120 → lỗi 500)."""
     return {
         "operationName": "AvailabilityCalendar",
         "variables": {
@@ -35,7 +38,7 @@ def build_calendar_request(
                 "searchConfig": {
                     "searchConfigDate": {"startDate": start.isoformat(), "amountOfDays": days},
                     "nbAdults": adults,
-                    "nbRooms": 1,
+                    "nbRooms": rooms,
                     "nbChildren": 0,
                     "childrenAges": [],
                 },

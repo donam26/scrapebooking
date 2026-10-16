@@ -258,6 +258,9 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
   const { fmtInt, fmtNum } = useFmt();
   const current = item.hotel.rooms_total ?? null;
   const [rooms, setRooms] = useState(current === null ? "" : String(current));
+  const currentSource = item.hotel.rooms_total_source ?? "";
+  const [source, setSource] = useState(currentSource);
+  const bookingMax = item.hotel.booking_rooms_max_seen ?? null;
   const patch = useMutation(async (body: WatchItemUpdate) => {
     await api.watchlist.update(item.hotel.id, body);
     onChanged();
@@ -275,6 +278,12 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
     }
     if (next === current) return;
     void patch.run({ rooms_total: next });
+  }
+
+  function commitSource() {
+    const next = source.trim();
+    if (next === currentSource) return;
+    void patch.run({ rooms_total_source: next || null });
   }
 
   return (
@@ -341,6 +350,43 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
           <span className="font-semibold text-ink tabular">{current === null ? "—" : fmtInt(current)}</span>
         )}
       </label>
+      <label className="inline-flex items-center gap-2" title={t("sourceTitle")}>
+        <span className="whitespace-nowrap text-muted">{t("source")}</span>
+        {editable ? (
+          <Input
+            type="text"
+            maxLength={500}
+            placeholder={t("sourcePlaceholder")}
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            onBlur={commitSource}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitSource();
+              }
+            }}
+            aria-label={t("sourceAria", { name: hotelTitle(item.hotel, item.label) })}
+            className="w-56"
+          />
+        ) : currentSource.startsWith("http") ? (
+          <a href={currentSource} target="_blank" rel="noopener noreferrer nofollow" className="max-w-56 truncate text-brand underline">
+            {currentSource}
+          </a>
+        ) : (
+          <span className="text-ink">{currentSource || "—"}</span>
+        )}
+      </label>
+      {bookingMax !== null && (
+        <span className="whitespace-nowrap text-muted" title={t("bookingMaxTitle")}>
+          {t("bookingMax", { count: bookingMax })}
+        </span>
+      )}
+      {current !== null && bookingMax !== null && current < bookingMax && (
+        <span role="status" className="basis-full text-sm text-warning-deep">
+          {t("roomsBelowBooking", { rooms: current, max: bookingMax })}
+        </span>
+      )}
       {score !== null && (
         <span className="inline-flex items-center gap-1 text-muted" title={t("reviewTitle")}>
           <IconStar size={13} className="text-[#e0a100]" />

@@ -21,6 +21,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Any
 
+from app.analytics.rooms_left_bounds import RoomsLeftBounds, hotel_bounds
 from app.domain.models import ProbeStatus, StockConfidence
 
 
@@ -197,6 +198,9 @@ class HotelDateObs:
     # Số đêm đã tìm (số đêm tối thiểu của lịch kênh); >1 = đêm bị hạn chế số đêm.
     min_stay: int = 1
     probe_status: str | None = None
+    # Thang nbRooms của lịch trong cùng run: khách sạn còn ≥ calendar_min, ≤ calendar_max phòng.
+    calendar_min: int | None = None
+    calendar_max: int | None = None
 
     @property
     def usable(self) -> bool:
@@ -231,9 +235,34 @@ class HotelDateObs:
         return min(prices) if prices else None
 
     @property
+    def rooms_left_bounds(self) -> RoomsLeftBounds | None:
+        """Khoảng phòng còn của cả khách sạn (analytics/rooms_left_bounds.py); None khi không biết
+        (bị hạn chế, lỗi, trang không đọc được)."""
+        if self.status not in USABLE:
+            return None
+        return hotel_bounds(
+            ((r.confidence, r.rooms_left) for r in self.rooms.values()),
+            sold_out=self.status == DateStatus.SOLD_OUT,
+            calendar_min=self.calendar_min,
+            calendar_max=self.calendar_max,
+        )
+
+    @property
+    def rooms_left_min(self) -> int | None:
+        b = self.rooms_left_bounds
+        return b.min if b is not None else None
+
+    @property
+    def rooms_left_max(self) -> int | None:
+        b = self.rooms_left_bounds
+        return b.max if b is not None else None
+
+    @property
     def exact_rooms_left(self) -> int | None:
-        exact = [r.rooms_left for r in self.rooms.values() if r.exact]
-        return sum(x for x in exact if x is not None) if exact else None
+        """Tổng phòng còn chỉ khi biết chắc (min = max); không còn là tổng riêng các loại phòng
+        chính xác (cách cũ báo "2 phòng" cho khách sạn còn ≥72)."""
+        b = self.rooms_left_bounds
+        return b.exact if b is not None else None
 
     @property
     def room_types_available(self) -> int:
@@ -626,6 +655,8 @@ class MetricsDraft:
     cheapest_rate: dict[str, Any] | None = None
     prices_by_key: dict[str, str] | None = None
     promos: dict[str, str | None] | None = None
+    rooms_left_min: int | None = None
+    rooms_left_max: int | None = None
 
 
 def compute_metrics(
@@ -658,9 +689,10 @@ def compute_metrics(
         if ref7d is not None:
             price_change = like_for_like_change(ref7d, cur)
 
-    window = [h for h in all_obs if h.usable and h.scanned_at >= now - timedelta(days=7)]
+    window = [h for h in all_obs if h.usable and now - timedelta(days=7) <= h.scanned_at <= now]
     exact_share: Decimal | None = None
     if window:
+        # Tỉ lệ quan sát có TỔNG phòng còn chính xác (khoảng min = max).
         n_exact = sum(1 for h in window if h.exact_rooms_left is not None)
         exact_share = (Decimal(n_exact) / Decimal(len(window))).quantize(Decimal("0.0001"))
 
@@ -677,6 +709,8 @@ def compute_metrics(
         exact_rooms_left=cur.exact_rooms_left if cur.usable else None,
         exact_share=exact_share,
         last_observed_at=now,
+        rooms_left_min=cur.rooms_left_min if cur.usable else None,
+        rooms_left_max=cur.rooms_left_max if cur.usable else None,
         min_breakfast_price=cur.min_breakfast_price if priced else None,
         min_room_only_price=cur.min_room_only_price if priced else None,
         min_stay=cur.min_stay,

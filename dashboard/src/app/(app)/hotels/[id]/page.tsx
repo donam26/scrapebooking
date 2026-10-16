@@ -10,6 +10,8 @@ import { useSession } from "@/lib/session";
 import { isWeekend, num, useFmt } from "@/lib/format";
 import { useLabel } from "@/lib/labels";
 import { hotelTitle } from "@/lib/hotels";
+import { LOW_ROOMS } from "@/lib/market-metrics";
+import { definitelyAtMost, roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
 import { Card, ErrorBox, PageHeader, ROW_CLASS, SkeletonBlock, StatStrip, Table, Td, Th, cx } from "@/components/ui";
 import { ListingChips } from "@/components/listing-chip";
 import { DateRangePicker, useDateRange } from "@/components/date-range";
@@ -81,7 +83,7 @@ function HotelView() {
   // Hết phòng chỉ đếm `sold_out`; hạn chế (min-stay, đóng ngày đến) đếm riêng.
   const soldOut = metrics.filter((m) => cellState(m) === "sold_out").length;
   const restricted = metrics.filter((m) => cellState(m) === "restricted").length;
-  const tight = metrics.filter((m) => cellState(m) === "available" && m.exact_rooms_left !== null && m.exact_rooms_left <= 3).length;
+  const tight = metrics.filter((m) => cellState(m) === "available" && definitelyAtMost(m, LOW_ROOMS)).length;
   const lastObs = metrics.reduce<string | null>((acc, m) => (m.last_observed_at && (!acc || m.last_observed_at > acc) ? m.last_observed_at : acc), null);
 
   const cols: Col[] = [
@@ -91,6 +93,7 @@ function HotelView() {
       render: (m) => {
         const mark = cellMark(m, !!data && m.stay_date > data.horizon_end);
         const state = cellState(m);
+        const left = roomsLeftOf(m);
         return (
           <span className="inline-flex items-center gap-2.5" title={mark.label}>
             <span className="relative">
@@ -110,9 +113,11 @@ function HotelView() {
                       ? t("rooms.unreadable")
                       : state === null
                         ? t("rooms.none")
-                        : m.exact_rooms_left === null
+                        : left === null
                           ? <><span className="sm:hidden">{t("rooms.hiddenShort")}</span><span className="max-sm:hidden">{t("rooms.hidden")}</span></>
-                          : t("rooms.count", { count: m.exact_rooms_left })}
+                          : left.exact !== null
+                            ? t("rooms.count", { count: left.exact })
+                            : t("rooms.countText", { rooms: roomsLeftText(left) })}
               {m.stale && <span className="block text-2xs font-normal text-muted">{t("rooms.stale")}</span>}
             </span>
           </span>
@@ -217,6 +222,16 @@ function HotelView() {
                 hint: metrics.find((m) => m.currency)?.currency ?? undefined,
               },
               { label: t("stats.lastObserved"), value: lastObs ? fmtDayTime(lastObs) : "—", hint: t("stats.lastObservedHint", { count: data.events.length }) },
+              {
+                label: t("stats.capacity"),
+                value: data.hotel.rooms_total ? t("stats.roomsTotal", { count: data.hotel.rooms_total }) : "—",
+                hint: [
+                  data.hotel.booking_rooms_max_seen ? t("stats.bookingMax", { count: data.hotel.booking_rooms_max_seen }) : null,
+                  data.hotel.rooms_total ? (data.hotel.rooms_total_source ? t("stats.sourced") : t("stats.unsourced")) : t("stats.enterRooms"),
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+              },
             ]}
           />
 

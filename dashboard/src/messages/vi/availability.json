@@ -20,7 +20,7 @@
     "occ": "Lấp đầy ≈ %",
     "cellTitle": "{hotel} · {weekday} {date}: {status}",
     "cellAria": "{hotel} {date}: {status}",
-    "sumPartial": "{known} ô có số, {missing} ô không lộ số hoặc chưa quét: tổng là mức tối thiểu",
+    "sumPartial": "{known} ô có số chính xác, {missing} ô chỉ biết mức sàn, không lộ số hoặc chưa quét: tổng là mức tối thiểu",
     "sumFull": "{known} ô, đủ số",
     "cell": {
       "noData": "Chưa có dữ liệu",

@@ -13,6 +13,7 @@
     "unknown": "Không đọc được",
     "available": "Còn phòng",
     "left": "Còn {count}",
+    "leftText": "Còn {rooms}",
     "restricted": "Hạn chế",
     "minStay": "Từ {count} đêm",
     "noPrice": "Không giá"
@@ -21,6 +22,10 @@
     "yourHotel": "Khách sạn của bạn",
     "stars": "{count} sao",
     "distance": "cách bạn {km} km",
+    "roomsTotal": "{count, number} phòng",
+    "roomsTotalNoSource": "Số phòng nhập tay, chưa ghi nguồn",
+    "bookingMax": "Booking từng mở bán ≥{count, number}/đêm",
+    "bookingMaxTitle": "Số phòng còn lớn nhất từng thấy trên Booking.com trong một đêm: cận dưới phần phòng giao cho Booking",
     "tonightRate": "Giá đêm nay",
     "nightRate": "Giá đêm {night}",
     "vsYours": "So giá bạn",

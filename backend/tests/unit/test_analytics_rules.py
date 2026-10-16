@@ -226,3 +226,52 @@ def test_hotel_date_obs_min_refundable_price_ignores_rooms_without_refundable_ra
     assert cur.min_refundable_price == Decimal("120")
     none = HotelDateObs(1, T0, DateStatus.AVAILABLE, {1: RoomObs(1, 2, C.EXACT, Decimal("90"))})
     assert none.min_refundable_price is None
+
+
+def test_hotel_rooms_left_is_a_floor_when_a_room_type_is_capped() -> None:
+    # Trước đây ô hiện "2" (tổng riêng loại phòng chính xác) dù 1 loại còn ≥10.
+    o = obs(1, T0, DateStatus.AVAILABLE, room(1, 2, C.EXACT), room(2, 10, C.CAPPED))
+    assert (o.rooms_left_min, o.rooms_left_max, o.exact_rooms_left) == (12, None, None)
+
+
+def test_hotel_rooms_left_is_exact_when_every_room_type_is_exact() -> None:
+    o = obs(1, T0, DateStatus.AVAILABLE, room(1, 2, C.EXACT), room(2, 5, C.EXACT))
+    assert (o.rooms_left_min, o.rooms_left_max, o.exact_rooms_left) == (7, 7, 7)
+
+
+def test_calendar_ladder_bounds_feed_the_hotel_range() -> None:
+    o = HotelDateObs(
+        1,
+        T0,
+        DateStatus.AVAILABLE,
+        {1: room(1, 14, C.EXACT)},
+        "VND",
+        calendar_min=15,
+        calendar_max=19,
+    )
+    assert (o.rooms_left_min, o.rooms_left_max, o.exact_rooms_left) == (15, 19, None)
+
+
+def test_sold_out_is_exactly_zero_and_restricted_is_unknown() -> None:
+    sold = obs(1, T0, DateStatus.SOLD_OUT)
+    assert (sold.rooms_left_min, sold.rooms_left_max, sold.exact_rooms_left) == (0, 0, 0)
+    closed = obs(1, T0, DateStatus.RESTRICTED)
+    assert (closed.rooms_left_min, closed.rooms_left_max, closed.exact_rooms_left) == (
+        None,
+        None,
+        None,
+    )
+
+
+def test_compute_metrics_carries_the_range_and_counts_exact_totals_only() -> None:
+    partial = obs(
+        1, T0 - timedelta(days=1), DateStatus.AVAILABLE, room(1, 2, C.EXACT), room(2, 10, C.CAPPED)
+    )
+    cur = obs(2, T0, DateStatus.AVAILABLE, room(1, 1, C.EXACT), room(2, 10, C.CAPPED))
+    m = compute_metrics(cur, [partial], 5)
+    assert (m.rooms_left_min, m.rooms_left_max, m.exact_rooms_left) == (11, None, None)
+    # Tỉ lệ quan sát có TỔNG chính xác (không phải "có ít nhất 1 loại phòng chính xác").
+    assert m.exact_share == Decimal("0.0000")
+    whole = obs(3, T0 + timedelta(hours=8), DateStatus.AVAILABLE, room(1, 1, C.EXACT))
+    m2 = compute_metrics(whole, [partial, cur], 5)
+    assert m2.exact_rooms_left == 1 and m2.exact_share == Decimal("0.3333")

@@ -51,6 +51,7 @@ const RULES: Rule[] = [
   [/^job queue unavailable$/, "queueUnavailable"],
   [/^scan run already created$/, "scanAlreadyCreated"],
   [/^hotel is tracked by other tenants.*$/, "hotelSharedTracked"],
+  [/^room count is shared with other tenants.*$/, "roomsTotalShared"],
   [/^url already linked to another hotel$/, "urlLinkedElsewhere"],
   [/^duplicate: same hotel #(\d+) on this channel \(id (.+)\)$/, "duplicateListing", (m) => ({ hotel: m[1], id: m[2] })],
   // thị trường toàn thành phố

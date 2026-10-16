@@ -83,6 +83,8 @@
     "exactShare7d": "tỷ lệ số phòng chính xác trong 7 ngày",
     "exactShare": "tỷ lệ số phòng chính xác",
     "exactRoomsLeft": "số phòng chính xác",
+    "roomsLeftMin": "số phòng còn ít nhất",
+    "roomsLeftMax": "số phòng còn nhiều nhất",
     "priceIndex": "chỉ số giá",
     "pickup24h": "≈ số phòng còn giảm trong 24 giờ",
     "velocity3d": "≈ tốc độ phòng còn giảm (3 ngày)",

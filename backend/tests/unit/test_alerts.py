@@ -68,3 +68,12 @@ async def test_log_alerter_writes_warning(monkeypatch: pytest.MonkeyPatch) -> No
     with capture_logs() as logs:
         await LogAlerter().send("hello")
     assert logs == [{"event": "ops_alert", "text": "hello", "log_level": "warning"}]
+
+
+def test_restricted_nights_are_not_failures() -> None:
+    """Đêm lịch báo đóng (skipped_calendar) không nằm trong ok/sold_out nhưng cũng không phải lỗi:
+    1/3 đêm hạn chế không được thành "success 67%"."""
+    stats = RunStats(
+        4, total_probes=3, ok_count=2, sold_out_count=0, blocked_count=0, error_count=0
+    )
+    assert stats.success_rate == 1.0 and run_summary_alert(stats) is None

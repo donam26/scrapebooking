@@ -23,6 +23,7 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics.rooms_left_bounds import definitely_low
 from app.analytics.rules import median
 from app.db.models import HotelDateMetric, OwnHotelDaily, TenantHotel
 
@@ -169,9 +170,7 @@ def compset_day(
     low = [
         m
         for m in observed
-        if m.availability_status == "available"
-        and m.exact_rooms_left is not None
-        and m.exact_rooms_left <= LOW_STOCK
+        if m.availability_status == "available" and definitely_low(m.rooms_left_max, LOW_STOCK)
     ]
     prices = [
         p

@@ -142,6 +142,8 @@ async def _observe(
                 scanned_at=at,
                 status=status,
                 exact_rooms_left=left,
+                rooms_left_min=left,
+                rooms_left_max=left,
             )
         )
     await db.commit()
@@ -183,6 +185,8 @@ async def test_pace_estimates_suggestion_and_decision_flow(
                 currency="VND",
                 availability_status=status,
                 exact_rooms_left=left,
+                rooms_left_min=left,
+                rooms_left_max=left,
                 last_observed_at=NOW - timedelta(hours=1),
             )
         )

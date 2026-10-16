@@ -9,13 +9,14 @@ import { useSession } from "@/lib/session";
 import { dateRange, num, useFmt } from "@/lib/format";
 import { useDataFreshness } from "@/lib/freshness";
 import { HOTEL_LINE_COLORS, OWN_LINE_COLOR, bookablePrice, cellOn, distanceKm, rowName, selfRow } from "@/lib/market-metrics";
+import { roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
 import { ButtonLink, EmptyState, ErrorBox, SkeletonBlock, cx } from "@/components/ui";
 import { PageStrip } from "@/components/page-strip";
 import { DateRangePicker, useDateRange } from "@/components/date-range";
 import { DataUpdated } from "@/components/freshness";
 import { HolidayChips } from "@/components/holiday-mark";
 import { ListingChips } from "@/components/listing-chip";
-import { exactShade, useMarks } from "@/components/marks";
+import { roomsShade, useMarks } from "@/components/marks";
 import { Sparkline } from "@/components/trend-chart";
 import { ScanHotelButton } from "@/components/scan-hotel-button";
 import { COMPETITOR_TABS, SubTabs } from "@/components/sub-tabs";
@@ -46,8 +47,13 @@ function RoomsBadge({ row, date }: { row: HotelRow; date: string }) {
     );
   if (state === "no_price") return <span className={cx("sb-mark-no_price shrink-0 rounded-md px-2 py-0.5 text-sm font-semibold", stale)}>{t("noPrice")}</span>;
   if (state === "error") return <span className="text-sm text-muted">{t("unknown")}</span>;
-  if (c.exact_rooms_left === null) return <span className={cx("shrink-0 text-sm font-semibold text-body", stale)}>{t("available")}</span>;
-  return <span className={cx("shrink-0 rounded-md px-2 py-0.5 text-sm font-bold tabular", exactShade(c.exact_rooms_left), stale)}>{t("left", { count: c.exact_rooms_left })}</span>;
+  const r = roomsLeftOf(c);
+  if (r === null) return <span className={cx("shrink-0 text-sm font-semibold text-body", stale)}>{t("available")}</span>;
+  return (
+    <span className={cx("shrink-0 rounded-md px-2 py-0.5 text-sm font-bold tabular", roomsShade(r), stale)}>
+      {r.exact !== null ? t("left", { count: r.exact }) : t("leftText", { rooms: roomsLeftText(r) })}
+    </span>
+  );
 }
 
 function HotelCard({ row, o, color, ownPrice, km, isToday }: { row: HotelRow; o: OverviewOut; color: string; ownPrice: number | null; km: number | null; isToday: boolean }) {
@@ -87,6 +93,14 @@ function HotelCard({ row, o, color, ownPrice, km, isToday }: { row: HotelRow; o:
             {km !== null && <span className="font-medium text-body">{t("distance", { km: fmtNum(km, 1) })}</span>}
             {row.hotel.city && <span className="truncate">{row.hotel.city}</span>}
           </div>
+          {(row.hotel.rooms_total || row.hotel.booking_rooms_max_seen) && (
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+              {row.hotel.rooms_total ? (
+                <span title={row.hotel.rooms_total_source ?? t("roomsTotalNoSource")}>{t("roomsTotal", { count: row.hotel.rooms_total })}</span>
+              ) : null}
+              {row.hotel.booking_rooms_max_seen ? <span title={t("bookingMaxTitle")}>{t("bookingMax", { count: row.hotel.booking_rooms_max_seen })}</span> : null}
+            </div>
+          )}
         </div>
         <RoomsBadge row={row} date={o.start} />
       </header>

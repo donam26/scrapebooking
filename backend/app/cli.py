@@ -379,6 +379,46 @@ def reparse(
     )
 
 
+@app.command("rederive-stock")
+def rederive_stock(
+    reanalyze: bool = typer.Option(True, "--reanalyze/--no-reanalyze"),
+) -> None:
+    """Tính lại số phòng còn/mức tin cậy của mọi room snapshot từ badge/dropdown đã lưu (sau khi
+    đổi quy tắc trong domain/stock.py; không cần HTML thô), rồi tính lại analytics MỌI run đã chốt
+    (khoảng phòng còn mức khách sạn đổi nghĩa cả ở run không có loại phòng nào đổi)."""
+
+    async def _do(s: AsyncSession) -> tuple[int, int, int]:
+        from app.analytics.service import AnalyticsService
+
+        settings = get_settings()
+        changed, runs = await SnapshotRepository(s, settings.page_dropdown_cap).rederive_stock()
+        await s.commit()
+        analyzed = 0
+        if reanalyze:
+            svc = AnalyticsService(
+                s,
+                low_stock_threshold=settings.low_stock_threshold,
+                price_change_threshold_pct=settings.price_change_threshold_pct,
+            )
+            # Theo thứ tự chốt run: mốc so sự kiện/chỉ số của run sau dựa trên run trước.
+            ordered = [
+                rid
+                for (rid,) in await s.execute(
+                    select(ScanRun.id)
+                    .where(ScanRun.status.in_(["completed", "partial"]), ScanRun.total_probes > 0)
+                    .order_by(ScanRun.finished_at)
+                )
+            ]
+            for run_id in ordered:
+                await svc.run(run_id)
+                await s.commit()
+                analyzed += 1
+        return changed, len(runs), analyzed
+
+    changed, runs, analyzed = _run(_do)
+    typer.echo(f"rederived={changed} runs={runs} reanalyzed_runs={analyzed}")
+
+
 @app.command("run-status")
 def run_status(limit: int = typer.Option(5, "--limit")) -> None:
     async def _do(s: AsyncSession) -> list[str]:

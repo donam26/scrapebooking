@@ -372,7 +372,9 @@ type FieldWordKey = Parameters<FieldWordsTranslator>[0];
 const FIELD_WORDS: Array<[RegExp, FieldWordKey]> = [
   [/\bexact_share_7d\b/g, "exactShare7d"],
   [/\bexact_share\b/g, "exactShare"],
-  [/\bexact_rooms_left\b/g, "exactRoomsLeft"],
+  [/\bexact_rooms_left\b|\brooms_left_exact\b/g, "exactRoomsLeft"],
+  [/\brooms_left_min\b/g, "roomsLeftMin"],
+  [/\brooms_left_max\b/g, "roomsLeftMax"],
   [/\bprice_index\b/g, "priceIndex"],
   [/\bpickup_24h\b/g, "pickup24h"],
   [/\bvelocity_3d\b/g, "velocity3d"],

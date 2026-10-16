@@ -87,8 +87,11 @@ async def test_happy_path_probes_skips_and_finishes_run(db: AsyncSession) -> Non
         True,
     )
     assert finished == [run_id]
+    # Đêm lịch báo đóng vẫn được probe trang để tách hết phòng / đóng ngày đến; trang không đọc được
+    # (ở đây: chưa kịch bản → lỗi) thì giữ kết luận của lịch.
     assert collector.probe_calls == [
         (hotel_id, START, 1, 2),
+        (hotel_id, START + timedelta(days=1), 1, 2),
         (hotel_id, START + timedelta(days=2), 2, 2),
     ]
     probes = (await db.execute(select(Probe).order_by(Probe.stay_date))).scalars().all()
@@ -100,7 +103,8 @@ async def test_happy_path_probes_skips_and_finishes_run(db: AsyncSession) -> Non
     job = (await db.execute(select(ScanJob))).scalar_one()
     run = (await db.execute(select(ScanRun))).scalar_one()
     assert job.status == "done" and run.status == "completed"
-    assert run.ok_count == 2 and run.sold_out_count == 1
+    # Đêm lịch báo đóng (hạn chế) không phải hết phòng: không đếm vào sold_out_count.
+    assert run.ok_count == 2 and run.sold_out_count == 0
 
 
 async def test_rerun_is_idempotent(db: AsyncSession) -> None:
@@ -339,3 +343,185 @@ async def test_fail_job_closes_job_without_probing(db: AsyncSession) -> None:
     assert (await db.get(ScanRun, run_id)).status == "partial"  # type: ignore[union-attr]
     # Gọi lại (arq chạy lại job): không làm gì.
     assert await fail_job(deps, run_id, hotel_id, "again") is False
+
+
+def _closed_middle_night(collector: FakeCollector, hotel_id: int) -> date:
+    """Lịch 3 đêm, đêm giữa không nhận khách; đêm đầu và cuối còn phòng."""
+    closed = START + timedelta(days=1)
+    collector.set_calendar(
+        hotel_id,
+        _calendar((START, True, 1), (closed, False, 1), (START + timedelta(days=2), True, 1)),
+    )
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
+    collector.set_probe(hotel_id, START + timedelta(days=2), ProbeStatus.OK, offers=(OFFER,))
+    return closed
+
+
+async def _statuses(db: AsyncSession) -> list[str]:
+    probes = (await db.execute(select(Probe).order_by(Probe.stay_date))).scalars().all()
+    return [p.status for p in probes]
+
+
+async def test_closed_night_with_rooms_on_the_page_is_available(db: AsyncSession) -> None:
+    run_id, hotel_id = await _seed(db, horizon=3)
+    collector = FakeCollector()
+    closed = _closed_middle_night(collector, hotel_id)
+    collector.set_probe(hotel_id, closed, ProbeStatus.OK, offers=(OFFER,))
+    await run_probe_hotel(_deps(db, collector, MemoryRawStore()), run_id, hotel_id, True)
+    assert await _statuses(db) == ["ok", "ok", "ok"]
+
+
+async def test_closed_night_sold_out_even_when_arriving_the_day_before_is_sold_out(
+    db: AsyncSession,
+) -> None:
+    run_id, hotel_id = await _seed(db, horizon=3)
+    collector = FakeCollector()
+    closed = _closed_middle_night(collector, hotel_id)
+    collector.set_probe(hotel_id, closed, ProbeStatus.SOLD_OUT)
+    collector.set_stay_probe(hotel_id, START, 2, ProbeStatus.SOLD_OUT)
+    summary = await run_probe_hotel(_deps(db, collector, MemoryRawStore()), run_id, hotel_id, True)
+    assert await _statuses(db) == ["ok", "sold_out", "ok"]
+    assert (hotel_id, START, 2, 2) in collector.probe_calls  # probe bắc cầu D-1 → D+1
+    assert (summary.probed, summary.skipped) == (3, 0)
+
+
+async def test_closed_night_bookable_from_the_day_before_is_only_closed_to_arrival(
+    db: AsyncSession,
+) -> None:
+    run_id, hotel_id = await _seed(db, horizon=3)
+    collector = FakeCollector()
+    closed = _closed_middle_night(collector, hotel_id)
+    collector.set_probe(hotel_id, closed, ProbeStatus.SOLD_OUT)
+    collector.set_stay_probe(hotel_id, START, 2, ProbeStatus.OK, offers=(OFFER,))
+    summary = await run_probe_hotel(_deps(db, collector, MemoryRawStore()), run_id, hotel_id, True)
+    assert await _statuses(db) == ["ok", "skipped_calendar", "ok"]
+    assert (summary.probed, summary.skipped) == (2, 1)
+    # Probe bắc cầu (2 đêm từ hôm trước) không ghi thành dữ liệu của đêm nào.
+    assert len((await db.execute(select(RoomSnapshot))).scalars().all()) == 2
+
+
+async def test_closed_first_night_stays_restricted(db: AsyncSession) -> None:
+    """Đêm đầu cửa sổ (tối nay) không bắc cầu được; trang "hết" có thể chỉ là chặn đặt trong ngày
+    sau giờ cắt → giữ "hạn chế", chỉ kết luận hết phòng khi có bằng chứng."""
+    run_id, hotel_id = await _seed(db, horizon=2)
+    collector = FakeCollector()
+    collector.set_calendar(
+        hotel_id, _calendar((START, False, 1), (START + timedelta(days=1), True, 1))
+    )
+    collector.set_probe(hotel_id, START, ProbeStatus.SOLD_OUT)
+    collector.set_probe(hotel_id, START + timedelta(days=1), ProbeStatus.OK, offers=(OFFER,))
+    await run_probe_hotel(_deps(db, collector, MemoryRawStore()), run_id, hotel_id, True)
+    assert await _statuses(db) == ["skipped_calendar", "ok"]
+    assert [c for c in collector.probe_calls if c[2] == 2] == []  # không có hôm trước để bắc cầu
+
+
+async def test_closed_block_of_nights_stays_restricted(db: AsyncSession) -> None:
+    """Hôm trước cũng đóng (một khối đêm đóng bán trên Booking trông y như hết phòng)."""
+    run_id, hotel_id = await _seed(db, horizon=3)
+    collector = FakeCollector()
+    d1, d2 = START + timedelta(days=1), START + timedelta(days=2)
+    collector.set_calendar(hotel_id, _calendar((START, True, 1), (d1, False, 1), (d2, False, 1)))
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
+    collector.set_probe(hotel_id, d1, ProbeStatus.SOLD_OUT)
+    collector.set_probe(hotel_id, d2, ProbeStatus.SOLD_OUT)
+    collector.set_stay_probe(hotel_id, START, 2, ProbeStatus.SOLD_OUT)
+    await run_probe_hotel(_deps(db, collector, MemoryRawStore()), run_id, hotel_id, True)
+    # Đêm 2: bắc cầu từ đêm 1 (còn bán) cũng hết → hết phòng; đêm 3: hôm trước cũng đóng → hạn chế.
+    assert await _statuses(db) == ["ok", "sold_out", "skipped_calendar"]
+
+
+async def test_bridge_is_skipped_when_the_day_before_needs_three_nights(db: AsyncSession) -> None:
+    """minLOS hôm trước ≥3: probe bắc cầu phủ cả đêm sau, "hết" không chỉ ra đêm nào → hạn chế."""
+    run_id, hotel_id = await _seed(db, horizon=3)
+    collector = FakeCollector()
+    closed = START + timedelta(days=1)
+    collector.set_calendar(
+        hotel_id,
+        _calendar((START, True, 3), (closed, False, 1), (START + timedelta(days=2), True, 1)),
+    )
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,), nights=3)
+    collector.set_probe(hotel_id, closed, ProbeStatus.SOLD_OUT)
+    collector.set_probe(hotel_id, START + timedelta(days=2), ProbeStatus.OK, offers=(OFFER,))
+    await run_probe_hotel(_deps(db, collector, MemoryRawStore()), run_id, hotel_id, True)
+    assert await _statuses(db) == ["ok", "skipped_calendar", "ok"]
+    # Chỉ có probe thường của đêm đầu (3 đêm), không có probe bắc cầu nào.
+    assert collector.probe_calls.count((hotel_id, START, 3, 2)) == 1
+
+
+async def test_capacity_ladder_measures_whole_hotel_rooms_left(db: AsyncSession) -> None:
+    """Trang: mỗi đêm 1 loại phòng còn 2 (sàn 2). Thang nbRooms (5, 10): đêm 1 còn ≥5 nhưng không
+    tới 10 → 5–9; đêm 2 không tới 5 → ≤4; đêm 3 còn ≥10."""
+    run_id, hotel_id = await _seed(db, horizon=3)
+    collector = FakeCollector()
+    d1, d2, d3 = START, START + timedelta(days=1), START + timedelta(days=2)
+    collector.set_calendar(hotel_id, _calendar((d1, True, 1), (d2, True, 1), (d3, True, 1)))
+    collector.set_calendar(
+        hotel_id, _calendar((d1, True, 1), (d2, False, 1), (d3, True, 1)), rooms=5
+    )
+    collector.set_calendar(hotel_id, _calendar((d1, False, 1), (d3, True, 1)), rooms=10)
+    for d in (d1, d2, d3):
+        collector.set_probe(hotel_id, d, ProbeStatus.OK, offers=(OFFER,))
+    deps = _deps(db, collector, MemoryRawStore())
+    deps.capacity_rungs = (5, 10)
+    await run_probe_hotel(deps, run_id, hotel_id, final_attempt=True)
+
+    rows = (
+        await db.execute(
+            select(
+                HotelCalendar.stay_date, HotelCalendar.rooms_min, HotelCalendar.rooms_max
+            ).order_by(HotelCalendar.stay_date)
+        )
+    ).all()
+    assert [tuple(r) for r in rows] == [(d1, 5, 9), (d2, None, 4), (d3, 10, None)]
+    # Một request lịch cho mỗi nấc, mỗi request phủ cả cửa sổ đêm cần đo.
+    assert [(c[1], c[3]) for c in collector.calendar_calls] == [(d1, 1), (d1, 5), (d1, 10)]
+
+
+async def test_capacity_ladder_is_off_by_default(db: AsyncSession) -> None:
+    run_id, hotel_id = await _seed(db, horizon=1)
+    collector = FakeCollector()
+    collector.set_calendar(hotel_id, _calendar((START, True, 1)))
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
+    await run_probe_hotel(_deps(db, collector, MemoryRawStore()), run_id, hotel_id, True)
+    assert len(collector.calendar_calls) == 1
+
+
+class _LadderBreaks(FakeCollector):
+    """Lịch nấc 10 ném lỗi (VD hết ngân sách request): giữ kết quả các nấc trước."""
+
+    async def fetch_calendar(  # type: ignore[override]
+        self, hotel: ListingRef, start: date, days: int, adults: int, rooms: int = 1
+    ) -> CalendarResult:
+        if rooms == 10:
+            raise RuntimeError("budget exhausted")
+        return await super().fetch_calendar(hotel, start, days, adults, rooms)
+
+
+async def test_capacity_ladder_keeps_measured_rungs_when_a_rung_raises(db: AsyncSession) -> None:
+    run_id, hotel_id = await _seed(db, horizon=1)
+    collector = _LadderBreaks()
+    collector.set_calendar(hotel_id, _calendar((START, True, 1)))
+    collector.set_calendar(hotel_id, _calendar((START, True, 1)), rooms=5)
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
+    deps = _deps(db, collector, MemoryRawStore())
+    deps.capacity_rungs = (5, 10)
+    summary = await run_probe_hotel(deps, run_id, hotel_id, final_attempt=True)
+    assert summary.probed == 1
+    row = (await db.execute(select(HotelCalendar.rooms_min, HotelCalendar.rooms_max))).one()
+    assert tuple(row) == (5, None)
+
+
+async def test_capacity_ladder_skips_nights_the_calendar_says_are_closed(db: AsyncSession) -> None:
+    """Lịch (cũ) báo đóng nhưng trang còn phòng: ở mọi nấc lịch vẫn báo không → trần giả "≤4"."""
+    run_id, hotel_id = await _seed(db, horizon=1)
+    collector = FakeCollector()
+    collector.set_calendar(hotel_id, _calendar((START, False, 1)))
+    collector.set_calendar(hotel_id, _calendar((START, False, 1)), rooms=5)
+    collector.set_probe(hotel_id, START, ProbeStatus.OK, offers=(OFFER,))
+    deps = _deps(db, collector, MemoryRawStore())
+    deps.capacity_rungs = (5,)
+    await run_probe_hotel(deps, run_id, hotel_id, final_attempt=True)
+    assert await _statuses(db) == ["ok"]
+    row = (await db.execute(select(HotelCalendar.rooms_min, HotelCalendar.rooms_max))).one()
+    assert tuple(row) == (None, None)
+    assert [c[3] for c in collector.calendar_calls] == [1]  # không gọi nấc nào

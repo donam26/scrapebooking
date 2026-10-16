@@ -16,7 +16,7 @@
     "soldOut": "sold out",
     "low": "≤3 rooms left",
     "roomsLeft": "rooms left (competitors)",
-    "roomsLeftTitle": "Sum of {known}/{observed} competitors with exact counts",
+    "roomsLeftTitle": "Sum of minimums for {known}/{observed} competitors with a count (\"≥\" when not all exact)",
     "medianRate": "comp median rate",
     "medianRateTitle": "{price}: median lowest advertised rate of {count, plural, one {# competitor} other {# competitors}} on sale",
     "restricted": "restricted",
@@ -74,8 +74,10 @@
     "runFailed": "The latest scan collected no data",
     "ownSoldOut": "Your hotel is sold out {when, select, tonight {tonight} other {on {night}}}",
     "ownLow": "Your hotel has only {count, plural, one {# room} other {# rooms}} left {when, select, tonight {tonight} other {on {night}}}",
+    "ownLowAtMost": "Your hotel has at most {count, plural, one {# room} other {# rooms}} left {when, select, tonight {tonight} other {on {night}}}",
     "compSoldOut": "{name} is sold out {when, select, tonight {tonight} other {on {night}}}",
-    "compLow": "{name} has only {count, plural, one {# room} other {# rooms}} left {when, select, tonight {tonight} other {on {night}}}"
+    "compLow": "{name} has only {count, plural, one {# room} other {# rooms}} left {when, select, tonight {tonight} other {on {night}}}",
+    "compLowAtMost": "{name} has at most {count, plural, one {# room} other {# rooms}} left {when, select, tonight {tonight} other {on {night}}}"
   },
   "yourHotel": {
     "title": "Your hotel",

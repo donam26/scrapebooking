@@ -97,6 +97,13 @@
       "roomsTitle": "Tổng số phòng công bố, dùng cho chỉ báo lấp đầy và quy tắc 50% của CoStar",
       "roomsPlaceholder": "—",
       "roomsAria": "Tổng số phòng của {name}",
+      "source": "Nguồn",
+      "sourceTitle": "Số phòng lấy từ đâu: web khách sạn, Trip.com, danh bạ MICE… (dán URL); lưu kèm thời điểm nhập",
+      "sourcePlaceholder": "URL nguồn số phòng",
+      "sourceAria": "Nguồn số phòng của {name}",
+      "bookingMax": "Booking từng mở bán ≥{count, number} phòng/đêm",
+      "bookingMaxTitle": "Số phòng còn lớn nhất từng thấy trên Booking.com trong một đêm: cận dưới phần phòng khách sạn giao cho Booking, không phải tổng phòng",
+      "roomsBelowBooking": "Số phòng nhập ({rooms, number}) nhỏ hơn mức Booking từng mở bán (≥{max, number}): kiểm tra lại (có thể Booking bán theo giường dorm).",
       "reviewTitle": "Điểm đánh giá trên Booking.com",
       "reviews": "({count, number} đánh giá)",
       "saving": "Đang lưu…"

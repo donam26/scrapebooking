@@ -123,6 +123,7 @@ async def startup(ctx: dict[str, Any]) -> None:
             far_max_age=timedelta(hours=settings.tier_far_max_age_hours),
         ),
         before_job=sync_proxy_health,
+        capacity_rungs=settings.capacity_rungs,
     )
     ctx["listing_deps"] = ListingJobDeps(
         session_factory=session_factory,

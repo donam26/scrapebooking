@@ -254,3 +254,11 @@ async def test_calendar_blocked_retires_session() -> None:
     assert not cal.ok and cal.error == "blocked"
     assert fetcher.closed == [fetcher.post_calls[0][3]]
     assert len(boot.calls) == 1
+
+
+async def test_calendar_for_n_rooms_sends_nb_rooms() -> None:
+    fetcher = FakeFetcher(resp(200, json.dumps({"data": {"availabilityCalendar": {"days": []}}})))
+    collector, _ = _build(fetcher)
+    await collector.fetch_calendar(HOTEL, any_date(), 30, adults=20, rooms=20)
+    cfg = fetcher.post_calls[0][1]["variables"]["input"]["searchConfig"]
+    assert (cfg["nbRooms"], cfg["nbAdults"]) == (20, 20)

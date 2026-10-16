@@ -177,7 +177,7 @@ function MarketSnapshotCard({ o, isToday }: { o: OverviewOut; isToday: boolean }
             { value: s.soldOut, label: t("soldOut"), tone: s.soldOut ? "bad" : "default" },
             { value: s.low, label: t("low"), tone: s.low ? "hot" : "default" },
             ...(s.restricted ? [{ value: s.restricted, label: t("restricted"), tone: "default" as const, title: t("restrictedTitle") }] : []),
-            { value: s.roomsKnown ? fmtInt(s.roomsLeft) : "—", label: t("roomsLeft"), title: t("roomsLeftTitle", { known: s.roomsKnown, observed: s.observed }) },
+            { value: s.roomsKnown ? `${s.roomsExact ? "" : "≥"}${fmtInt(s.roomsLeft)}` : "—", label: t("roomsLeft"), title: t("roomsLeftTitle", { known: s.roomsKnown, observed: s.observed }) },
             median,
           ]}
         />

@@ -247,7 +247,13 @@ async def _tenant_link(
 
 
 async def _ensure_sole_tracker(
-    session: AsyncSession, tenant_id: int, hotel_id: int, principal: Principal
+    session: AsyncSession,
+    tenant_id: int,
+    hotel_id: int,
+    principal: Principal,
+    detail: str = (
+        "hotel is tracked by other tenants; ask an operator to change or pause its channels"
+    ),
 ) -> None:
     """Listing dùng chung giữa tenant: đổi URL, tạm dừng hay quét lại một kênh ảnh hưởng mọi tenant
     theo dõi khách sạn đó. Chỉ cho phép khi tenant này là người theo dõi duy nhất, hoặc operator."""
@@ -263,20 +269,35 @@ async def _ensure_sole_tracker(
         )
     ).first()
     if others is not None:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "hotel is tracked by other tenants; ask an operator to change or pause its channels",
-        )
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail)
 
 
 @router.patch("/{hotel_id}", response_model=WatchItemOut)
 async def update_item(
-    hotel_id: int, body: WatchItemUpdate, tenant_id: TenantDep, _: WriterDep, session: SessionDep
+    hotel_id: int,
+    body: WatchItemUpdate,
+    tenant_id: TenantDep,
+    principal: WriterDep,
+    session: SessionDep,
 ) -> WatchItemOut:
     link, hotel = await _tenant_link(session, tenant_id, hotel_id)
     data = body.model_dump(exclude_unset=True)
-    if "rooms_total" in data:
-        hotel.rooms_total = data.pop("rooms_total")
+    if "rooms_total" in data or "rooms_total_source" in data:
+        if hotel.rooms_total is not None:
+            # Số phòng nằm ở hàng khách sạn dùng chung: tenant khác cũng theo dõi thì chỉ nhập lần
+            # đầu được; sửa số đã có cần operator.
+            await _ensure_sole_tracker(
+                session,
+                tenant_id,
+                hotel_id,
+                principal,
+                "room count is shared with other tenants; ask an operator to change it",
+            )
+        if "rooms_total" in data:
+            hotel.rooms_total = data.pop("rooms_total")
+        if "rooms_total_source" in data:
+            hotel.rooms_total_source = (data.pop("rooms_total_source") or "").strip() or None
+        hotel.rooms_total_updated_at = datetime.now(tz=UTC)
     if data.get("compset_of") is not None:
         own = await session.execute(
             select(TenantHotel.hotel_id).where(

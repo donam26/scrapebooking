@@ -7367,6 +7367,28 @@
       ],
       "title": "Exact Rooms Left"
      },
+     "rooms_left_min": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Min"
+     },
+     "rooms_left_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Max"
+     },
      "min_price": {
       "anyOf": [
        {
@@ -8199,6 +8221,28 @@
       ],
       "title": "Exact Rooms Left"
      },
+     "rooms_left_min": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Min"
+     },
+     "rooms_left_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Max"
+     },
      "room_types_available": {
       "type": "integer",
       "title": "Room Types Available"
@@ -8475,6 +8519,52 @@
        }
       ],
       "title": "Rooms Total"
+     },
+     "rooms_total_source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Total Source"
+     },
+     "rooms_total_updated_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Total Updated At"
+     },
+     "booking_rooms_max_seen": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Booking Rooms Max Seen"
+     },
+     "booking_rooms_max_seen_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Booking Rooms Max Seen At"
      },
      "review_score": {
       "anyOf": [
@@ -11208,6 +11298,28 @@
       ],
       "title": "Exact Rooms Left"
      },
+     "rooms_left_min": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Min"
+     },
+     "rooms_left_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Max"
+     },
      "min_price": {
       "anyOf": [
        {
@@ -13297,6 +13409,18 @@
        }
       ],
       "title": "Rooms Total"
+     },
+     "rooms_total_source": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Total Source"
      }
     },
     "type": "object",

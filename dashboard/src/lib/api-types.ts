@@ -1832,6 +1832,10 @@ export interface components {
             availability_status: string | null;
             /** Exact Rooms Left */
             exact_rooms_left: number | null;
+            /** Rooms Left Min */
+            rooms_left_min?: number | null;
+            /** Rooms Left Max */
+            rooms_left_max?: number | null;
             /** Min Price */
             min_price: string | null;
             /** Currency */
@@ -2062,6 +2066,10 @@ export interface components {
             status: string;
             /** Exact Rooms Left */
             exact_rooms_left: number | null;
+            /** Rooms Left Min */
+            rooms_left_min?: number | null;
+            /** Rooms Left Max */
+            rooms_left_max?: number | null;
             /** Room Types Available */
             room_types_available: number;
             /** Room Types Sold Out */
@@ -2142,6 +2150,14 @@ export interface components {
             listings: components["schemas"]["ListingOut"][];
             /** Rooms Total */
             rooms_total?: number | null;
+            /** Rooms Total Source */
+            rooms_total_source?: string | null;
+            /** Rooms Total Updated At */
+            rooms_total_updated_at?: string | null;
+            /** Booking Rooms Max Seen */
+            booking_rooms_max_seen?: number | null;
+            /** Booking Rooms Max Seen At */
+            booking_rooms_max_seen_at?: string | null;
             /** Review Score */
             review_score?: string | null;
             /** Review Count */
@@ -3055,6 +3071,10 @@ export interface components {
             availability_status: string | null;
             /** Exact Rooms Left */
             exact_rooms_left: number | null;
+            /** Rooms Left Min */
+            rooms_left_min?: number | null;
+            /** Rooms Left Max */
+            rooms_left_max?: number | null;
             /** Min Price */
             min_price: string | null;
             /** Min Refundable Price */
@@ -3737,6 +3757,8 @@ export interface components {
             weight?: number | string | null;
             /** Rooms Total */
             rooms_total?: number | null;
+            /** Rooms Total Source */
+            rooms_total_source?: string | null;
         };
         /** WeatherDayOut */
         WeatherDayOut: {

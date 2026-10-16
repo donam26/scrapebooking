@@ -49,9 +49,9 @@ class BookingCollector:
         )
 
     async def fetch_calendar(
-        self, listing: ListingRef, start: date, days: int, adults: int
+        self, listing: ListingRef, start: date, days: int, adults: int, rooms: int = 1
     ) -> CalendarResult:
-        return await self._hybrid.fetch_calendar(listing, start, days, adults)
+        return await self._hybrid.fetch_calendar(listing, start, days, adults, rooms)
 
     async def probe(
         self, listing: ListingRef, checkin: date, nights: int, adults: int

@@ -13,6 +13,7 @@
     "unknown": "Could not read",
     "available": "Available",
     "left": "{count} left",
+    "leftText": "{rooms} left",
     "restricted": "Restricted",
     "minStay": "{count}+ nights",
     "noPrice": "No price"
@@ -21,6 +22,10 @@
     "yourHotel": "Your hotel",
     "stars": "{count, plural, one {# star} other {# stars}}",
     "distance": "{km} km from you",
+    "roomsTotal": "{count, plural, one {# room} other {# rooms}}",
+    "roomsTotalNoSource": "Entered by hand, no source yet",
+    "bookingMax": "Booking has offered ≥{count, number} rooms/night",
+    "bookingMaxTitle": "Most rooms left ever seen on Booking.com for one night: a lower bound of the Booking allotment",
     "tonightRate": "Rate tonight",
     "nightRate": "Rate {night}",
     "vsYours": "Vs your rate",

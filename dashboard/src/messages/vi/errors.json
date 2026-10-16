@@ -53,6 +53,7 @@
   "invalidEmail": "email không hợp lệ",
   "invalidValue": "giá trị không hợp lệ",
   "hotelSharedTracked": "Khách sạn đang được tenant khác theo dõi: nhờ đơn vị vận hành đổi hoặc tạm dừng việc quét",
+  "roomsTotalShared": "Số phòng của khách sạn này dùng chung với tenant khác: nhờ đơn vị vận hành sửa",
   "urlLinkedElsewhere": "Đường dẫn này đã gắn với một khách sạn khác",
   "duplicateListing": "Trùng: cùng khách sạn #{hotel} trên Booking.com (id {id})",
   "proxyNotConfigured": "Hệ thống chưa cấu hình proxy",

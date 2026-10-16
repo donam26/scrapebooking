@@ -22,6 +22,7 @@
       "hiddenShort": "Ẩn số",
       "hidden": "Còn phòng, ẩn số",
       "count": "{count} phòng",
+      "countText": "{rooms} phòng",
       "minStay": "Chỉ bán từ {count} đêm",
       "restricted": "Bị hạn chế",
       "noPrice": "Không có giá",
@@ -32,11 +33,17 @@
       "nights": "{count} đêm",
       "soldOutHint": "Trong {count} đêm đang xem",
       "tight": "Đêm còn ≤ 3 phòng",
-      "tightHint": "Theo số Booking.com báo chính xác",
+      "tightHint": "Chắc chắn còn ≤ 3 phòng (không tính \"≥N\")",
       "priceRange": "Giá thấp nhất mỗi đêm",
       "lastObserved": "Quan sát gần nhất",
       "lastObservedHint": "{count} thay đổi gần nhất bên dưới",
-      "restricted": "{count} đêm bị hạn chế (không tính là hết)"
+      "restricted": "{count} đêm bị hạn chế (không tính là hết)",
+      "capacity": "Số phòng khách sạn",
+      "roomsTotal": "{count, number} phòng",
+      "bookingMax": "Booking từng mở bán ≥{count, number}/đêm",
+      "sourced": "có nguồn",
+      "unsourced": "chưa ghi nguồn",
+      "enterRooms": "Nhập ở Cài đặt › Theo dõi"
     },
     "nights": {
       "title": "Theo từng đêm",
@@ -65,6 +72,7 @@
     },
     "shortMark": {
       "exact": "Còn {count} phòng",
+      "roomsText": "Còn {rooms} phòng",
       "hidden": "Còn phòng, ẩn số",
       "soldOut": "Hết phòng",
       "unknown": "Không đọc được",

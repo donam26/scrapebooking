@@ -1,4 +1,5 @@
-"""Worker thu dữ liệu Booking.com: probe khách sạn, verify listing, quét danh sách thị trường."""
+"""Worker thu dữ liệu Booking.com: probe khách sạn, verify listing, đo số phòng bán tối đa, quét
+danh sách thị trường."""
 
 import importlib
 import os
@@ -24,6 +25,7 @@ from app.ops.metrics import start_metrics_server
 from app.ops.proxy_check import ProxyHealthStore
 from app.scheduler.channel_pause import RedisChannelPauses
 from app.scheduler.queue import ArqJobQueue, collector_queue, worker_redis_settings
+from app.worker.capacity_probe import run_measure_capacity
 from app.worker.jobs import (
     JobFailed,
     PermanentJobFailure,
@@ -125,11 +127,17 @@ async def startup(ctx: dict[str, Any]) -> None:
         before_job=sync_proxy_health,
         capacity_rungs=settings.capacity_rungs,
     )
+
+    async def on_verified(listing_id: int) -> None:
+        # Khách sạn mới: đo ngay số phòng Booking bán tối đa (gợi ý "Số phòng" cho tenant).
+        await queue.enqueue_capacity(listing_id, channel)
+
     ctx["listing_deps"] = ListingJobDeps(
         session_factory=session_factory,
         collector=collector,
         clock=SystemClock(),
         channel=channel,
+        on_verified=on_verified,
     )
     log.info("worker_started", worker=worker_id, channel=channel, queue=collector_queue(channel))
 
@@ -177,6 +185,14 @@ async def verify_listing(ctx: dict[str, Any], listing_id: int) -> str:
         raise Retry(defer=RETRY_DEFER_SECONDS * 2) from None
 
 
+async def measure_capacity(ctx: dict[str, Any], listing_id: int, force: bool = False) -> str:
+    """Đo số phòng Booking bán nhiều nhất trong một đêm (~9 request lịch). Kênh đang tạm dừng
+    vì bị chặn: bỏ, cron hằng ngày đo bù."""
+    if await ctx["pauses"].is_paused(ctx["channel"]):
+        return "paused"
+    return await run_measure_capacity(ctx["listing_deps"], listing_id, force)
+
+
 class WorkerSettings:
     # Số lần thử theo từng hàm: probe_hotel coi lần MAX_TRIES là lần cuối (tự chốt run), nên arq
     # phải dừng đúng ở đó; scan_market_list một lần (chuỗi đêm tự đi tiếp/bù, không chạy lại đêm).
@@ -184,6 +200,7 @@ class WorkerSettings:
     functions = [
         func(probe_hotel, max_tries=MAX_TRIES),
         func(verify_listing, max_tries=LISTING_MAX_TRIES),
+        func(measure_capacity, max_tries=1),
         func(scan_market_list, max_tries=1),
     ]
     on_startup = startup

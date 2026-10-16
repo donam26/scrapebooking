@@ -419,6 +419,51 @@ def rederive_stock(
     typer.echo(f"rederived={changed} runs={runs} reanalyzed_runs={analyzed}")
 
 
+@app.command("measure-capacity")
+def measure_capacity(
+    hotel_id: int | None = typer.Option(
+        None, "--hotel-id", help="Chỉ khách sạn này (kể cả đã có số phòng), đo lại ngay"
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Đo cả listing chưa tới lịch đo lại; kết quả mới thay kết quả cũ"
+    ),
+    limit: int = typer.Option(20, "--limit", help="Số listing tối đa (mỗi job ~9 request lịch)"),
+) -> None:
+    """Đẩy job đo số phòng Booking bán nhiều nhất trong một đêm (gợi ý "Số phòng" ở Cài đặt ›
+    Watchlist): khách sạn chưa có số phòng mà tới lịch đo, hoặc một khách sạn. Worker Booking
+    chạy job, giãn 2 phút một job."""
+    from app.worker.capacity_probe import due_capacity_listings
+
+    async def _do(s: AsyncSession) -> list[tuple[int, str]]:
+        if hotel_id is not None:
+            rows = await s.execute(
+                select(Listing.id, Listing.channel).where(
+                    Listing.hotel_id == hotel_id, Listing.status == "active"
+                )
+            )
+            targets = [(int(r[0]), str(r[1])) for r in rows]
+        else:
+            targets = await due_capacity_listings(
+                s, datetime.now(tz=UTC), limit=limit, include_fresh=force
+            )
+        if targets:
+            queue = await ArqJobQueue.connect(get_settings().redis_url)
+            try:
+                for i, (listing_id, channel) in enumerate(targets):
+                    await queue.enqueue_capacity(
+                        listing_id,
+                        channel,
+                        force=force or hotel_id is not None,
+                        defer_by=timedelta(minutes=2 * i),
+                    )
+            finally:
+                await queue.close()
+        return targets
+
+    targets = _run(_do)
+    typer.echo(f"capacity jobs enqueued: {len(targets)} ({', '.join(str(t[0]) for t in targets)})")
+
+
 @app.command("run-status")
 def run_status(limit: int = typer.Option(5, "--limit")) -> None:
     async def _do(s: AsyncSession) -> list[str]:

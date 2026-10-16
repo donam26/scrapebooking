@@ -17,6 +17,7 @@ export type UserUpdate = Schemas["UserUpdate"];
 export type WatchItemOut = Schemas["WatchItemOut"];
 export type WatchItemCreate = Schemas["WatchItemCreate"];
 export type WatchItemUpdate = Schemas["WatchItemUpdate"];
+export type RoomsSuggestionOut = Schemas["RoomsSuggestionOut"];
 export type OverviewOut = Schemas["OverviewOut"];
 export type HotelRow = Schemas["HotelRow"];
 export type DateCell = Schemas["DateCell"];
@@ -340,6 +341,9 @@ export const api = {
     add: (body: WatchItemCreate) => request<WatchItemOut>("POST", "/watchlist", { body }),
     update: (hotelId: number, body: WatchItemUpdate) =>
       request<WatchItemOut>("PATCH", `/watchlist/${hotelId}`, { body }),
+    /** Dùng gợi ý "Số phòng" đo trên Booking.com (chỉ khi khách sạn chưa có số; 409 nếu gợi ý đã đổi). */
+    confirmRoomsSuggestion: (hotelId: number, rooms: number) =>
+      request<WatchItemOut>("POST", `/watchlist/${hotelId}/rooms-suggestion/confirm`, { body: { rooms } }),
     remove: (hotelId: number) => request<void>("DELETE", `/watchlist/${hotelId}`),
     /** Quét ngay toàn bộ watchlist của tenant (202; trong 10 phút trả về đợt đang chạy). */
     scanNow: () => request<ScanRunOut[]>("POST", "/watchlist/scan-now"),

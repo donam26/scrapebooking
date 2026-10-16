@@ -2,7 +2,7 @@ import asyncio
 import os
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from typer.testing import CliRunner
 
@@ -91,6 +91,40 @@ async def test_scan_now_creates_run_without_queue(db: AsyncSession) -> None:
     assert run.total_jobs == 1 and run.channel == "booking"
     assert run.trigger_key.startswith("manual:") and run.trigger_key.endswith(":booking")
     assert f"scan run {run.id} [booking] created with 1 jobs" in r.output
+
+
+async def test_measure_capacity_enqueues_due_listings(db: AsyncSession, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from app.scheduler.queue import ArqJobQueue
+
+    sent: list[tuple[int, str, bool]] = []
+
+    class Recorder:
+        async def enqueue_capacity(
+            self, listing_id: int, channel: str, force: bool = False, defer_by: object = None
+        ) -> None:
+            sent.append((listing_id, channel, force))
+
+        async def close(self) -> None:
+            return None
+
+    async def connect(_url: str) -> Recorder:
+        return Recorder()
+
+    monkeypatch.setattr(ArqJobQueue, "connect", staticmethod(connect))
+    await invoke("add-tenant", "T")
+    tenant = (await db.execute(select(Tenant))).scalar_one()
+    await invoke("add-hotel", str(tenant.id), "https://www.booking.com/hotel/vn/x.html")
+    listing = (await db.execute(select(Listing))).scalar_one()
+    r = await invoke("measure-capacity")
+    assert r.exit_code == 0, r.output
+    assert sent == [(listing.id, "booking", False)]
+    r = await invoke("measure-capacity", "--hotel-id", str(listing.hotel_id))
+    assert r.exit_code == 0 and sent[-1] == (listing.id, "booking", True)
+    # Khách sạn đã có số phòng: cron/CLI không đo nữa (trừ khi chỉ định --hotel-id).
+    await db.execute(update(Hotel).where(Hotel.id == listing.hotel_id).values(rooms_total=40))
+    await db.commit()
+    r = await invoke("measure-capacity", "--force")
+    assert r.exit_code == 0 and len(sent) == 2
 
 
 async def test_add_user(db: AsyncSession) -> None:

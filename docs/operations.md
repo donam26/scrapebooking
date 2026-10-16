@@ -4,17 +4,17 @@
 
 | Tiến trình | Lệnh | Việc làm |
 |---|---|---|
-| `migrate` | `alembic upgrade head` | Tạo/cập nhật schema (migration 0001–0015; 0015 = chỉ giữ Booking.com, xoá dữ liệu kênh khác). |
+| `migrate` | `alembic upgrade head` | Tạo/cập nhật schema (migration 0001–0017; 0015 = chỉ giữ Booking.com, xoá dữ liệu kênh khác; 0017 = cột đo sức chứa `listings.capacity_*`). |
 | `scheduler` | `python -m app.scheduler` | Mỗi 60 giây: tạo scan run Booking.com cho mốc giờ quét của tenant, đẩy job `probe_hotel`, đẩy lại job kẹt, chốt run quá hạn 90 phút, cảnh báo block rate và **tự ngắt** khi bị chặn >20%/15 phút (30 phút), hoãn mốc khi mọi proxy hỏng, kiểm tra proxy mỗi 15 phút, tạo partition tháng. |
-| `worker` | `arq app.worker.settings.WorkerSettings` (`WORKER_CHANNEL=booking`) | Collector Booking.com: mỗi job = 1 khách sạn, lấy calendar rồi probe từng đêm theo tầng (0–14 đêm mọi lượt, xa hơn chỉ khi dữ liệu cũ), ghi snapshot, HTML thô lên MinIO. Cũng chạy `verify_listing` (URL người dùng dán trỏ khách sạn nào) và `scan_market_list`. Ngân sách request/phút `CHANNEL_BUDGETS=booking=40`. Scale: `--scale worker=N`. |
-| `jobs` | `arq app.jobs.settings.JobsWorkerSettings` | Analytics sau mỗi run (+ catch-up mỗi 30 phút), insight hằng ngày theo `insight_hour` của tenant (Batch API), insight theo yêu cầu (đồng bộ), poll batch mỗi 10 phút, backup Postgres 02:30 giờ VN, dọn partition >24 tháng ngày 1 hằng tháng. |
+| `worker` | `arq app.worker.settings.WorkerSettings` (`WORKER_CHANNEL=booking`) | Collector Booking.com: mỗi job = 1 khách sạn, lấy calendar rồi probe từng đêm theo tầng (0–14 đêm mọi lượt, xa hơn chỉ khi dữ liệu cũ), ghi snapshot, HTML thô lên MinIO. Cũng chạy `verify_listing` (URL người dùng dán trỏ khách sạn nào), `measure_capacity` (đo số phòng Booking bán tối đa một đêm, gợi ý "Số phòng") và `scan_market_list`. Ngân sách request/phút `CHANNEL_BUDGETS=booking=40`. Scale: `--scale worker=N`. |
+| `jobs` | `arq app.jobs.settings.JobsWorkerSettings` | Analytics sau mỗi run (+ catch-up mỗi 30 phút), insight hằng ngày theo `insight_hour` của tenant (Batch API), insight theo yêu cầu (đồng bộ), poll batch mỗi 10 phút, đẩy job đo sức chứa Booking còn thiếu/cũ 09:20 giờ VN (`capacity_catch_up`), backup Postgres 02:30 giờ VN, dọn partition >24 tháng ngày 1 hằng tháng. |
 | `api` | `uvicorn app.api.asgi:app` | FastAPI cho dashboard và import PMS. OpenAPI tại `/docs`, Prometheus tại `/metrics`. |
 | `dashboard` | Next.js | Giao diện tenant và operator; gọi API qua rewrite `/api/*`. |
 
 Hạ tầng: Postgres 16, Redis 7 (hàng đợi arq), MinIO (HTML thô 30 ngày, backup), Prometheus + Grafana (profile monitoring).
 
 Hàng đợi arq tách riêng theo worker: `arq:queue:collector:booking` (`probe_hotel`, `verify_listing`,
-`scan_market_list`) và `arq:queue:jobs` (analytics, bản tin, cron, tiến trình `jobs`). Hai worker
+`measure_capacity`, `scan_market_list`) và `arq:queue:jobs` (analytics, bản tin, cron, tiến trình `jobs`). Hai worker
 không được dùng chung một hàng đợi: job của hàm mà worker không có sẽ bị bỏ ("function not found").
 
 **Chỉ Booking.com (0015, 09/10/2026):** đã bỏ Agoda, iVIVU, Trip.com, Mytour, Traveloka, Expedia và
@@ -65,7 +65,10 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 - So sánh với **lần quan sát dùng được gần nhất** (available/sold_out), không phải đợt liền trước.
 - `LOW_STOCK_THRESHOLD` (mặc định 3), `PRICE_CHANGE_THRESHOLD_PCT` (mặc định 3).
 - pickup/velocity chỉ dùng cặp loại phòng `exact` ở cả hai lần.
-- Sức chứa đối thủ: `hotels.rooms_total` + `rooms_total_source`/`rooms_total_updated_at` (nhập ở Cài đặt › Theo dõi, kèm URL nguồn); `listings.rooms_max_seen` = Booking từng mở bán tối đa (sàn lớn nhất từng thấy, analytics cập nhật).
+- Sức chứa đối thủ: `hotels.rooms_total` + `rooms_total_source`/`rooms_total_updated_at` (nhập ở Cài đặt › Theo dõi, kèm URL nguồn); `listings.rooms_max_seen` = Booking từng mở bán tối đa (sàn lớn nhất từng thấy, analytics và lần đo đêm xa cập nhật).
+- Gợi ý "Số phòng" (chỉ dùng Booking.com; Booking **không công bố** tổng số phòng): `worker/capacity_probe.py` tìm nhị phân trên lịch `nbRooms` số N lớn nhất mà ít nhất một đêm trong cửa sổ **hôm nay + 60, 61 đêm** còn bán (N = 1 trước để biết cửa sổ có phòng, rồi N = 100; ~9 request lịch/khách sạn khi không lỗi). Lỗi GraphQL/5xx (có thể tạm thời) được hỏi lại 1 lần; bị chặn, lỗi mạng, hết ngân sách thì dừng ngay, không gửi thêm request; trả lời rỗng = chưa biết. Ghi `listings.capacity_max` (giữ số lớn nhất, cập nhật nguyên tử), `capacity_capped` (còn bán ở trần 100), `capacity_checked_at` (lần đo xong), `capacity_next_at` (đo lại: xong +30 ngày, cửa sổ chưa có phòng +7 ngày, đo dở +1 ngày) và nâng `rooms_max_seen`. Đo ngay sau khi verify listing thành công và cron `capacity_catch_up` 09:20 giờ VN (khách sạn **chưa có số phòng** mà tới lịch đo, tối đa 20 listing, giãn 2 phút một job); job bỏ qua khi kênh đang tạm dừng. Đổi URL Booking của khách sạn thì xoá mọi số đo theo trang cũ (`capacity_*`, `rooms_max_seen`, `dropdown_cap_seen`).
+  - Gợi ý = max(`capacity_max`, `rooms_max_seen`), chỉ có khi đã đo xong các đêm xa **và** cửa sổ đó có phòng (sàn các đêm gần một mình có thể thấp xa số thật). Chỉ là cận dưới ("≥N", không có nút dùng) khi chạm trần 100 hoặc lượt quét thường từng thấy nhiều hơn số đo (VD khách sạn giới hạn số phòng mỗi lần đặt). Có loại phòng giường dorm (`domain/capacity.py`: "Dormitory"/"Dorm", "Capsule"…) thì hiện số kèm cảnh báo đếm cả giường, không có nút dùng. Live 16/10/2026: Meander 94 đơn vị (42 phòng + giường dorm), Reverie ≥ 100 (286 phòng).
+  - API: `HotelOut.rooms_suggestion {rooms, lower_bound, capped, includes_beds, confirmable, measured_at, source_url}` (`GET /watchlist`, `/hotels/{id}`); `POST /watchlist/{hotel_id}/rooms-suggestion/confirm {"rooms": N}` ghi `rooms_total` + nguồn = URL Booking của khách sạn, chỉ khi chưa có số (cập nhật có điều kiện, không ghi đè số đã nhập); 409 khi đã có số / chưa có gợi ý / gợi ý chỉ là cận dưới / đếm giường dorm / gợi ý vừa đổi. Số lấy từ gợi ý (nguồn = URL Booking) là ước tính: tenant nào theo dõi cũng thay được bằng số công bố qua `PATCH /watchlist/{id}`; số nhập tay vẫn theo quy tắc chỉ người theo dõi duy nhất/operator sửa.
 
 ## 5. AI insight
 
@@ -146,6 +149,7 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
 | `analyze [--run-id N] [--all-pending]` | Chạy analytics tay. |
 | `insight <tenant_id> [--sync/--batch]` | Sinh bản tin tay. |
 | `rederive-stock [--no-reanalyze]` | Tính lại `rooms_left`/`stock_confidence` mọi room snapshot từ `badge_count`/`dropdown_max` đã lưu (không cần HTML thô) sau khi đổi `domain/stock.py`, cập nhật trần riêng listing, rồi tính lại analytics các run bị đổi. Sau migration 0016 chạy thêm `analyze --reanalyze-days 30` để điền khoảng phòng còn cho mọi run. |
+| `measure-capacity [--hotel-id N] [--force] [--limit 20]` | Đẩy job đo số phòng Booking bán tối đa một đêm (gợi ý "Số phòng") cho khách sạn chưa có số phòng mà tới lịch đo, giãn 2 phút một job; `--force` đo cả listing chưa tới lịch và thay kết quả cũ (VD gỡ cờ chạm trần đo nhầm); `--hotel-id` đo lại ngay một khách sạn (kể cả đã có số). Cần worker Booking và proxy sống. |
 | `reparse --since-days 30 [--no-reanalyze]` | Parse lại HTML thô **Booking** sau khi đổi parser, rồi tính lại analytics cho các run bị ảnh hưởng. Kênh khác lưu payload JSON; `parser_version` mỗi probe có dạng `<kênh>:<phiên bản>`. |
 | `ensure-partitions`, `prune-partitions --keep-months 24` | Partition `room_snapshots`. |
 | `backup-db` | pg_dump → gzip → MinIO bucket `BACKUP_BUCKET`, giữ `BACKUP_KEEP` bản. |

@@ -52,6 +52,11 @@ const RULES: Rule[] = [
   [/^scan run already created$/, "scanAlreadyCreated"],
   [/^hotel is tracked by other tenants.*$/, "hotelSharedTracked"],
   [/^room count is shared with other tenants.*$/, "roomsTotalShared"],
+  [/^room count already confirmed$/, "roomsTotalConfirmed"],
+  [/^no room count suggestion for this hotel$/, "roomsSuggestionMissing"],
+  [/^room count suggestion is only a lower bound.*$/, "roomsSuggestionCapped"],
+  [/^room count suggestion counts dorm beds.*$/, "roomsSuggestionBeds"],
+  [/^room count suggestion changed; reload$/, "roomsSuggestionChanged"],
   [/^url already linked to another hotel$/, "urlLinkedElsewhere"],
   [/^duplicate: same hotel #(\d+) on this channel \(id (.+)\)$/, "duplicateListing", (m) => ({ hotel: m[1], id: m[2] })],
   // thị trường toàn thành phố

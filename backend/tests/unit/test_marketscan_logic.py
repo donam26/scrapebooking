@@ -69,5 +69,7 @@ def test_collector_functions_have_their_own_max_tries() -> None:
     assert tries == {
         "probe_hotel": MAX_TRIES,
         "verify_listing": 3,
+        # Đo sức chứa một lần: lần đo dở để cron hằng ngày đo lại (không dồn request bị chặn).
+        "measure_capacity": 1,
         "scan_market_list": 1,
     }

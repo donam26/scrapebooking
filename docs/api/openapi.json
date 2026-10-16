@@ -777,6 +777,77 @@
     }
    }
   },
+  "/watchlist/{hotel_id}/rooms-suggestion/confirm": {
+   "post": {
+    "tags": [
+     "watchlist"
+    ],
+    "summary": "Confirm Rooms Suggestion",
+    "description": "Dùng gợi ý \"Số phòng\" (số phòng Booking bán nhiều nhất trong một đêm) làm số phòng của khách\nsạn, nguồn = trang Booking.com. Chỉ khi khách sạn chưa có số: không ghi đè số đã nhập. Gợi ý\nchỉ là cận dưới hoặc đếm cả giường dorm thì không dùng được: nhập số phòng công bố.",
+    "operationId": "confirm_rooms_suggestion_watchlist__hotel_id__rooms_suggestion_confirm_post",
+    "parameters": [
+     {
+      "name": "hotel_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RoomsSuggestionConfirm"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchItemOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/watchlist/{hotel_id}/listings": {
    "post": {
     "tags": [
@@ -8566,6 +8637,16 @@
       ],
       "title": "Booking Rooms Max Seen At"
      },
+     "rooms_suggestion": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RoomsSuggestionOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "review_score": {
       "anyOf": [
        {
@@ -11900,6 +11981,72 @@
      "max_occupancy"
     ],
     "title": "RoomTypeOut"
+   },
+   "RoomsSuggestionConfirm": {
+    "properties": {
+     "rooms": {
+      "type": "integer",
+      "maximum": 5000.0,
+      "minimum": 1.0,
+      "title": "Rooms"
+     }
+    },
+    "type": "object",
+    "required": [
+     "rooms"
+    ],
+    "title": "RoomsSuggestionConfirm"
+   },
+   "RoomsSuggestionOut": {
+    "properties": {
+     "rooms": {
+      "type": "integer",
+      "title": "Rooms"
+     },
+     "lower_bound": {
+      "type": "boolean",
+      "title": "Lower Bound"
+     },
+     "capped": {
+      "type": "boolean",
+      "title": "Capped"
+     },
+     "includes_beds": {
+      "type": "boolean",
+      "title": "Includes Beds"
+     },
+     "confirmable": {
+      "type": "boolean",
+      "title": "Confirmable"
+     },
+     "measured_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Measured At"
+     },
+     "source_url": {
+      "type": "string",
+      "title": "Source Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "rooms",
+     "lower_bound",
+     "capped",
+     "includes_beds",
+     "confirmable",
+     "source_url"
+    ],
+    "title": "RoomsSuggestionOut",
+    "description": "Gợi ý \"Số phòng\" (5.6): số phòng Booking.com bán nhiều nhất trong một đêm, đo bằng lịch\nnbRooms trên các đêm xa (app/worker/capacity_probe.py). Booking không công bố tổng số phòng."
    },
    "RunJobOut": {
     "properties": {

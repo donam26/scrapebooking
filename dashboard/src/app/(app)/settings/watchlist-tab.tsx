@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { api, type ChannelOut, type ListingAction, type ListingOut, type ScanRunOut, type WatchItemOut, type WatchItemUpdate } from "@/lib/api";
+import { api, type ChannelOut, type ListingAction, type ListingOut, type RoomsSuggestionOut, type ScanRunOut, type WatchItemOut, type WatchItemUpdate } from "@/lib/api";
 import { useApi, useInterval, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { BOOKING, hotelTitle, isBookingUrl } from "@/lib/hotels";
@@ -249,6 +249,35 @@ function ReplaceUrlForm({ hotelId, channels, onDone, onCancel }: { hotelId: numb
 type OwnHotelOption = { id: number; name: string };
 
 /**
+ * Gợi ý "Số phòng" khi khách sạn chưa có số: số phòng Booking.com bán nhiều nhất trong một đêm (đo
+ * bằng lịch Booking trên các đêm xa; Booking không công bố tổng số phòng). Chỉ là cận dưới (≥N) hoặc
+ * đếm cả giường dorm thì không có nút dùng.
+ */
+function RoomsSuggestion({ suggestion, name, busy, onUse }: { suggestion: RoomsSuggestionOut; name: string; busy: boolean; onUse: (() => void) | null }) {
+  const t = useTranslations("settings.watchlist.compset");
+  const { fmtDateTime } = useFmt();
+  const count = suggestion.rooms;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <a
+        href={suggestion.source_url}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        title={t("suggestTitle", { date: suggestion.measured_at ? fmtDateTime(suggestion.measured_at) : "—" })}
+        className="text-muted underline decoration-dotted underline-offset-2 hover:text-brand"
+      >
+        {suggestion.lower_bound ? t("suggestCapped", { count }) : t("suggest", { count })}
+      </a>
+      {onUse && suggestion.confirmable && (
+        <Button size="sm" variant="quiet" busy={busy} icon={<IconCheck size={14} />} onClick={onUse} aria-label={t("suggestUseAria", { count, name })}>
+          {t("suggestUse", { count })}
+        </Button>
+      )}
+    </span>
+  );
+}
+
+/**
  * Cài đặt compset của một khách sạn (roadmap 7.3, 5.5, 5.6): compset chính/phụ (chỉ compset chính
  * vào trung vị, chỉ số giá, vị trí giá), thuộc compset của khách sạn nào (khi có từ hai khách sạn của
  * bạn), tổng số phòng công bố.
@@ -261,6 +290,8 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
   const currentSource = item.hotel.rooms_total_source ?? "";
   const [source, setSource] = useState(currentSource);
   const bookingMax = item.hotel.booking_rooms_max_seen ?? null;
+  // Gợi ý chỉ hiện khi chưa có số: không bao giờ thay số đã nhập/xác nhận.
+  const suggestion = current === null ? (item.hotel.rooms_suggestion ?? null) : null;
   const patch = useMutation(async (body: WatchItemUpdate) => {
     await api.watchlist.update(item.hotel.id, body);
     onChanged();
@@ -285,6 +316,21 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
     if (next === currentSource) return;
     void patch.run({ rooms_total_source: next || null });
   }
+
+  // Dùng gợi ý: ô nhập hiện số và nguồn vừa lưu (state cục bộ không tự theo props). Lỗi (VD vừa
+  // có người nhập số, gợi ý vừa đo lại) thì tải lại để thấy trạng thái mới.
+  const applySuggestion = useMutation(async (rooms: number) => {
+    try {
+      const next = await api.watchlist.confirmRoomsSuggestion(item.hotel.id, rooms);
+      setRooms(next.hotel.rooms_total == null ? "" : String(next.hotel.rooms_total));
+      setSource(next.hotel.rooms_total_source ?? "");
+    } finally {
+      onChanged();
+    }
+  });
+  // Số phòng đang là gợi ý đo trên Booking (nguồn = trang Booking của khách sạn): ghi rõ là ước tính.
+  const bookingUrl = item.hotel.listings.find((l) => l.channel === "booking")?.url ?? null;
+  const measuredOnBooking = current !== null && bookingUrl !== null && currentSource === bookingUrl;
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -350,6 +396,14 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
           <span className="font-semibold text-ink tabular">{current === null ? "—" : fmtInt(current)}</span>
         )}
       </label>
+      {suggestion && (
+        <RoomsSuggestion
+          suggestion={suggestion}
+          name={hotelTitle(item.hotel, item.label)}
+          busy={applySuggestion.busy || patch.busy}
+          onUse={editable ? () => void applySuggestion.run(suggestion.rooms) : null}
+        />
+      )}
       <label className="inline-flex items-center gap-2" title={t("sourceTitle")}>
         <span className="whitespace-nowrap text-muted">{t("source")}</span>
         {editable ? (
@@ -377,7 +431,12 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
           <span className="text-ink">{currentSource || "—"}</span>
         )}
       </label>
-      {bookingMax !== null && (
+      {measuredOnBooking && (
+        <span className="whitespace-nowrap text-xs text-muted" title={t("sourceBookingMeasuredTitle")}>
+          {t("sourceBookingMeasured")}
+        </span>
+      )}
+      {bookingMax !== null && !suggestion && (
         <span className="whitespace-nowrap text-muted" title={t("bookingMaxTitle")}>
           {t("bookingMax", { count: bookingMax })}
         </span>
@@ -394,10 +453,25 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
           {item.hotel.review_count ? <span className="tabular">{t("reviews", { count: item.hotel.review_count })}</span> : null}
         </span>
       )}
+      {suggestion?.capped ? (
+        <span className="basis-full text-sm text-muted">{t("suggestCappedNote")}</span>
+      ) : (
+        suggestion?.lower_bound && <span className="basis-full text-sm text-muted">{t("suggestLowerNote", { count: suggestion.rooms })}</span>
+      )}
+      {suggestion?.includes_beds && (
+        <span role="note" className="basis-full text-sm text-warning-deep">
+          {t("suggestBeds")}
+        </span>
+      )}
       {patch.busy && <span className="text-xs text-muted">{t("saving")}</span>}
       {patch.error && (
         <span role="alert" className="basis-full text-sm text-danger">
           {patch.error}
+        </span>
+      )}
+      {applySuggestion.error && (
+        <span role="alert" className="basis-full text-sm text-danger">
+          {applySuggestion.error}
         </span>
       )}
     </div>

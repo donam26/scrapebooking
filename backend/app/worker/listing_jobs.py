@@ -1,6 +1,7 @@
 """Job vòng đời listing: verify_listing — URL Booking.com người dùng dán → khách sạn nào (tên, id,
 toạ độ) → active | broken."""
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from sqlalchemy import select, update
@@ -26,6 +27,8 @@ class ListingJobDeps:
     collector: ChannelCollector
     clock: Clock
     channel: str
+    # Gọi sau khi listing xác minh xong (worker: đẩy job đo số phòng Booking bán tối đa).
+    on_verified: Callable[[int], Awaitable[None]] | None = None
 
 
 async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attempt: bool) -> str:
@@ -95,6 +98,11 @@ async def run_verify_listing(deps: ListingJobDeps, listing_id: int, final_attemp
             hotel.star_rating = identity.star_rating
         await s.commit()
     log.info("listing_verified", listing_id=listing_id, channel=deps.channel, name=identity.name)
+    if deps.on_verified is not None:
+        try:
+            await deps.on_verified(listing_id)
+        except Exception:  # noqa: BLE001 — listing đã active; cron đo bù vào hôm sau
+            log.exception("on_verified_failed", listing_id=listing_id)
     return "active"
 
 

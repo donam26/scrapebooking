@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from arq.connections import ArqRedis, RedisSettings, create_pool
@@ -66,6 +67,27 @@ class ArqJobQueue:
     async def enqueue_verify(self, listing_id: int, channel: str) -> None:
         await self._redis.enqueue_job(
             "verify_listing", listing_id, _queue_name=collector_queue(channel)
+        )
+
+    async def enqueue_capacity(
+        self,
+        listing_id: int,
+        channel: str,
+        force: bool = False,
+        defer_by: timedelta | None = None,
+    ) -> None:
+        """Đo số phòng Booking bán nhiều nhất trong một đêm (app/worker/capacity_probe.py).
+        `_job_id` (listing, ngày) chỉ chặn đẩy trùng khi job còn chờ/chạy hoặc kết quả còn lưu;
+        job tự bỏ qua listing chưa tới lịch đo lại (`capacity_next_at`) nên đẩy trùng là vô hại.
+        `defer_by`: giãn các job của cron để probe vẫn chen giữa (worker chạy một job một lúc)."""
+        day = datetime.now(tz=UTC).strftime("%Y%m%d")
+        await self._redis.enqueue_job(
+            "measure_capacity",
+            listing_id,
+            force,
+            _job_id=None if force else f"capacity:{listing_id}:{day}",
+            _queue_name=collector_queue(channel),
+            _defer_by=defer_by,
         )
 
     async def enqueue_market_list(

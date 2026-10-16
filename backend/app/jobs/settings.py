@@ -2,7 +2,7 @@
 poll Batch API, gửi thông báo email, backup đêm, dọn partition. Tách khỏi worker collector để
 không chặn probe."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from arq import cron
@@ -22,6 +22,7 @@ from app.ops.alerts import make_alerter
 from app.ops.backup import run_backup
 from app.ops.metrics import start_metrics_server
 from app.scheduler.queue import JOBS_QUEUE, ArqJobQueue, worker_redis_settings
+from app.worker.capacity_probe import due_capacity_listings
 
 log = get_logger(__name__)
 
@@ -145,6 +146,17 @@ async def dispatch_notifications(ctx: dict[str, Any]) -> dict[str, int]:
     }
 
 
+async def capacity_catch_up(ctx: dict[str, Any]) -> int:
+    """Cron hằng ngày: đẩy job đo số phòng Booking bán tối đa (gợi ý "Số phòng") cho khách sạn
+    chưa có số phòng mà tới lịch đo (app/worker/capacity_probe.py). Job chạy ở worker Booking
+    (session, proxy, ngân sách), giãn 2 phút một job để probe vẫn chen giữa."""
+    async with ctx["session_factory"]() as s:
+        due = await due_capacity_listings(s, datetime.now(tz=UTC))
+    for i, (listing_id, channel) in enumerate(due):
+        await ctx["queue"].enqueue_capacity(listing_id, channel, defer_by=timedelta(minutes=2 * i))
+    return len(due)
+
+
 async def parser_canary(ctx: dict[str, Any]) -> int:
     """Cron hằng ngày (0.8): báo operator khi độ phủ trường parse của một kênh tụt."""
     from app.ops.canary import run_canary
@@ -189,6 +201,7 @@ class JobsWorkerSettings:
         cron(dispatch_notifications, minute={1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56}),
         cron(nightly_backup, hour={19}, minute={30}),  # 02:30 giờ Việt Nam
         cron(parser_canary, hour={1}, minute={15}),  # 08:15 giờ Việt Nam, sau lượt 06:00
+        cron(capacity_catch_up, hour={2}, minute={20}),  # 09:20 giờ Việt Nam
         cron(prune_partitions, day={1}, hour={20}, minute={0}),
     ]
     on_startup = startup

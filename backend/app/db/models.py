@@ -103,10 +103,18 @@ class Listing(Base):
     # Dropdown "chọn số phòng" lớn nhất từng thấy: có khách sạn không bao giờ mở quá một mức thấp
     # hơn trần trang (Park Hyatt Saigon: 9), nên mức đó chỉ là "ít nhất" (domain/stock.py).
     dropdown_cap_seen: Mapped[int | None] = mapped_column(Integer)
-    # Booking từng mở bán tối đa bao nhiêu phòng một đêm (sàn lớn nhất của khoảng phòng còn) và lúc
-    # thấy: cận dưới phần phòng khách sạn giao cho Booking (analytics/service.py).
+    # Booking từng mở bán tối đa bao nhiêu phòng một đêm (sàn lớn nhất của khoảng phòng còn, hoặc
+    # kết quả đo các đêm xa) và lúc thấy: cận dưới phần phòng khách sạn giao cho Booking
+    # (analytics/service.py, worker/capacity_probe.py).
     rooms_max_seen: Mapped[int | None] = mapped_column(Integer)
     rooms_max_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Đo riêng trên các đêm xa (app/worker/capacity_probe.py): số phòng Booking bán nhiều nhất
+    # trong một đêm (≤ trần đo 100), có còn bán ở trần không, lần đo xong gần nhất, lúc đo lại
+    # (NULL = chưa đo). Nguồn gợi ý "Số phòng".
+    capacity_max: Mapped[int | None] = mapped_column(Integer)
+    capacity_capped: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    capacity_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    capacity_next_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class TenantHotel(Base):

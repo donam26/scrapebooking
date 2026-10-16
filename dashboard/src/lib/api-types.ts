@@ -204,6 +204,28 @@ export interface paths {
         patch: operations["update_item_watchlist__hotel_id__patch"];
         trace?: never;
     };
+    "/watchlist/{hotel_id}/rooms-suggestion/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Rooms Suggestion
+         * @description Dùng gợi ý "Số phòng" (số phòng Booking bán nhiều nhất trong một đêm) làm số phòng của khách
+         *     sạn, nguồn = trang Booking.com. Chỉ khi khách sạn chưa có số: không ghi đè số đã nhập. Gợi ý
+         *     chỉ là cận dưới hoặc đếm cả giường dorm thì không dùng được: nhập số phòng công bố.
+         */
+        post: operations["confirm_rooms_suggestion_watchlist__hotel_id__rooms_suggestion_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/watchlist/{hotel_id}/listings": {
         parameters: {
             query?: never;
@@ -2158,6 +2180,7 @@ export interface components {
             booking_rooms_max_seen?: number | null;
             /** Booking Rooms Max Seen At */
             booking_rooms_max_seen_at?: string | null;
+            rooms_suggestion?: components["schemas"]["RoomsSuggestionOut"] | null;
             /** Review Score */
             review_score?: string | null;
             /** Review Count */
@@ -3244,6 +3267,32 @@ export interface components {
             /** Max Occupancy */
             max_occupancy: number | null;
         };
+        /** RoomsSuggestionConfirm */
+        RoomsSuggestionConfirm: {
+            /** Rooms */
+            rooms: number;
+        };
+        /**
+         * RoomsSuggestionOut
+         * @description Gợi ý "Số phòng" (5.6): số phòng Booking.com bán nhiều nhất trong một đêm, đo bằng lịch
+         *     nbRooms trên các đêm xa (app/worker/capacity_probe.py). Booking không công bố tổng số phòng.
+         */
+        RoomsSuggestionOut: {
+            /** Rooms */
+            rooms: number;
+            /** Lower Bound */
+            lower_bound: boolean;
+            /** Capped */
+            capped: boolean;
+            /** Includes Beds */
+            includes_beds: boolean;
+            /** Confirmable */
+            confirmable: boolean;
+            /** Measured At */
+            measured_at?: string | null;
+            /** Source Url */
+            source_url: string;
+        };
         /**
          * RunJobOut
          * @description Job của một khách sạn trong một lượt quét (chỉ khách sạn thuộc tenant).
@@ -4313,6 +4362,44 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["WatchItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_rooms_suggestion_watchlist__hotel_id__rooms_suggestion_confirm_post: {
+        parameters: {
+            query?: {
+                /** @description Operator: tenant cần xem */
+                tenant_id?: number | null;
+            };
+            header?: never;
+            path: {
+                hotel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomsSuggestionConfirm"];
             };
         };
         responses: {

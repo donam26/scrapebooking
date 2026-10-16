@@ -287,3 +287,22 @@ async def test_rooms_left_bounds_columns_exist(db: AsyncSession) -> None:
         ("hotels", "rooms_total_source"),
         ("hotels", "rooms_total_updated_at"),
     } <= found
+
+
+async def test_booking_capacity_columns_exist(db: AsyncSession) -> None:
+    """0017: số phòng Booking bán nhiều nhất trong một đêm (gợi ý "Số phòng")."""
+    rows = await db.execute(
+        text(
+            "select column_name, is_nullable, column_default from information_schema.columns "
+            "where table_schema = 'public' and table_name = 'listings' "
+            "and column_name like 'capacity_%'"
+        )
+    )
+    cols = {r[0]: (r[1], r[2]) for r in rows}
+    assert set(cols) == {
+        "capacity_max",
+        "capacity_capped",
+        "capacity_checked_at",
+        "capacity_next_at",
+    }
+    assert cols["capacity_capped"] == ("NO", "false")

@@ -143,6 +143,28 @@ class ListingAction(BaseModel):
 # ---- watchlist ----
 
 
+class RoomsSuggestionOut(BaseModel):
+    """Gợi ý "Số phòng" (5.6): số phòng Booking.com bán nhiều nhất trong một đêm, đo bằng lịch
+    nbRooms trên các đêm xa (app/worker/capacity_probe.py). Booking không công bố tổng số phòng."""
+
+    rooms: int
+    # Chỉ biết "≥ rooms" (chạm trần đo, hoặc lượt quét thường từng thấy nhiều hơn kết quả đo).
+    lower_bound: bool
+    # Chạm trần đo 100: khách sạn lớn → nhập số công bố.
+    capped: bool
+    # Booking bán giường dorm của khách sạn: con số đếm cả giường, lớn hơn số phòng thật.
+    includes_beds: bool
+    # Dùng được bằng một nút (…/rooms-suggestion/confirm): không phải cận dưới, không đếm giường.
+    confirmable: bool
+    measured_at: datetime | None = None
+    source_url: str  # trang Booking.com của khách sạn
+
+
+class RoomsSuggestionConfirm(BaseModel):
+    # Số người dùng đang thấy: khác gợi ý hiện tại (vừa đo lại) → 409, tải lại rồi xác nhận.
+    rooms: int = Field(ge=1, le=5000)
+
+
 class HotelOut(BaseModel):
     id: int
     name: str | None
@@ -161,6 +183,8 @@ class HotelOut(BaseModel):
     # Booking từng mở bán tối đa bao nhiêu phòng một đêm (cận dưới phần phòng giao cho Booking).
     booking_rooms_max_seen: int | None = None
     booking_rooms_max_seen_at: datetime | None = None
+    # Gợi ý số phòng đo trên Booking (có cả khi đã nhập số; giao diện chỉ hiện khi chưa có số).
+    rooms_suggestion: RoomsSuggestionOut | None = None
     review_score: Decimal | None = None
     review_count: int | None = None
 
@@ -191,8 +215,8 @@ class WatchItemUpdate(BaseModel):
     compset_of: int | None = None
     tier: Literal["primary", "secondary"] | None = None
     weight: Decimal | None = Field(default=None, ge=0, le=10)
-    # Tổng số phòng của khách sạn (công bố trên website/OTA, hoặc số thật với khách sạn của bạn)
-    # và nguồn (URL web khách sạn, Trip.com, danh bạ MICE…).
+    # Tổng số phòng của khách sạn (công bố trên website, hoặc số thật với khách sạn của bạn) và
+    # nguồn (URL web khách sạn, danh bạ MICE…).
     rooms_total: int | None = Field(default=None, ge=1, le=5000)
     rooms_total_source: str | None = Field(default=None, max_length=500)
 

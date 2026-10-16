@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,12 +26,14 @@ from app.api.schemas import (
     ListingAction,
     ListingCreate,
     ListingOut,
+    RoomsSuggestionConfirm,
     ScanRunOut,
     WatchItemCreate,
     WatchItemOut,
     WatchItemUpdate,
 )
 from app.channels.registry import (
+    BOOKING,
     ListingUrl,
     UnsupportedUrl,
     channels,
@@ -272,6 +274,18 @@ async def _ensure_sole_tracker(
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail)
 
 
+async def _booking_estimate(session: AsyncSession, hotel: Hotel) -> bool:
+    """Số phòng hiện tại lấy từ gợi ý đo trên Booking: nguồn là trang Booking của khách sạn."""
+    if not hotel.rooms_total_source:
+        return False
+    url = (
+        await session.execute(
+            select(Listing.url).where(Listing.hotel_id == hotel.id, Listing.channel == BOOKING)
+        )
+    ).scalar_one_or_none()
+    return url is not None and url == hotel.rooms_total_source
+
+
 @router.patch("/{hotel_id}", response_model=WatchItemOut)
 async def update_item(
     hotel_id: int,
@@ -283,9 +297,10 @@ async def update_item(
     link, hotel = await _tenant_link(session, tenant_id, hotel_id)
     data = body.model_dump(exclude_unset=True)
     if "rooms_total" in data or "rooms_total_source" in data:
-        if hotel.rooms_total is not None:
+        if hotel.rooms_total is not None and not await _booking_estimate(session, hotel):
             # Số phòng nằm ở hàng khách sạn dùng chung: tenant khác cũng theo dõi thì chỉ nhập lần
-            # đầu được; sửa số đã có cần operator.
+            # đầu được; sửa số đã có cần operator. Riêng số lấy từ gợi ý đo trên Booking (ước tính)
+            # thì ai theo dõi cũng thay được bằng số công bố.
             await _ensure_sole_tracker(
                 session,
                 tenant_id,
@@ -313,6 +328,54 @@ async def update_item(
     for k, v in data.items():
         setattr(link, k, v)
     await session.commit()
+    return await _item(session, link, hotel)
+
+
+@router.post("/{hotel_id}/rooms-suggestion/confirm", response_model=WatchItemOut)
+async def confirm_rooms_suggestion(
+    hotel_id: int,
+    body: RoomsSuggestionConfirm,
+    tenant_id: TenantDep,
+    _: WriterDep,
+    session: SessionDep,
+) -> WatchItemOut:
+    """Dùng gợi ý "Số phòng" (số phòng Booking bán nhiều nhất trong một đêm) làm số phòng của khách
+    sạn, nguồn = trang Booking.com. Chỉ khi khách sạn chưa có số: không ghi đè số đã nhập. Gợi ý
+    chỉ là cận dưới hoặc đếm cả giường dorm thì không dùng được: nhập số phòng công bố."""
+    link, hotel = await _tenant_link(session, tenant_id, hotel_id, active_only=True)
+    if hotel.rooms_total is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "room count already confirmed")
+    suggestion = (await hotel_out(session, hotel)).rooms_suggestion
+    if suggestion is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "no room count suggestion for this hotel")
+    if suggestion.lower_bound:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "room count suggestion is only a lower bound; enter the published count",
+        )
+    if suggestion.includes_beds:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "room count suggestion counts dorm beds; enter the real room count",
+        )
+    if suggestion.rooms != body.rooms:
+        raise HTTPException(status.HTTP_409_CONFLICT, "room count suggestion changed; reload")
+    # Có điều kiện: hai người cùng xác nhận, hay operator vừa nhập số khác, thì không ghi đè.
+    written = await session.execute(
+        update(Hotel)
+        .where(Hotel.id == hotel_id, Hotel.rooms_total.is_(None))
+        .values(
+            rooms_total=suggestion.rooms,
+            rooms_total_source=suggestion.source_url,
+            rooms_total_updated_at=datetime.now(tz=UTC),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if written.rowcount != 1:  # type: ignore[attr-defined]
+        await session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "room count already confirmed")
+    await session.commit()
+    await session.refresh(hotel)
     return await _item(session, link, hotel)
 
 
@@ -375,6 +438,11 @@ async def add_listing(
         current.listing_key, current.url = ref.listing_key, ref.url
         current.external_id, current.status = ref.external_id, "unverified"
         current.last_error, current.match_score = None, None
+        # Số đo theo trang cũ (có thể là khách sạn khác nếu dán nhầm): đo lại từ đầu sau verify.
+        current.dropdown_cap_seen = None
+        current.rooms_max_seen, current.rooms_max_seen_at = None, None
+        current.capacity_max, current.capacity_capped = None, False
+        current.capacity_checked_at, current.capacity_next_at = None, None
     await session.commit()
     await session.refresh(current)
     await _enqueue_verify(queue, current)

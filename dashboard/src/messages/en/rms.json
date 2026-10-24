@@ -1,32 +1,30 @@
 {
   "strategy": {
     "title": "Price strategy",
-    "description": "A suggestion is built in four steps: reference price (competitors' median listed rate × your target position, or your base price when the sample is too small) → add up adjustments with numbers (tight night, your OTB and pace, day of week, holiday, last minute) → clamp to floor/ceiling and the maximum daily change → round.",
-    "defaults": "Using defaults (position 100, max change 15%/day). Save to apply a strategy of your own for this hotel.",
-    "driftNote": "The target position also drives the “Your rate drifted from your target position” alert in <link>Notifications</link>.",
+    "description": "Price suggestions take the competitors' middle price for the night times the price position you choose, add demand signals (tight nights, rooms booked, holidays), then keep within your floor/ceiling and maximum daily change.",
+    "defaults": "No strategy of your own yet: the system keeps your usual price position (≈{index}% of the competitors' middle price, measured over the next 30 days). Save to set a different position.",
+    "driftNote": "Your price position is also used for the “Your rate drifted from your price position” alert in <link>Alerts</link>.",
     "noOwnTitle": "No hotel of yours yet",
     "noOwnBody": "Add your hotel (role “Your hotel”) to the watchlist to set a price strategy.",
     "addOwn": "Open watchlist",
     "save": "Save strategy",
     "saved": "Saved",
     "sections": {
-      "limits": "Base price, floor and ceiling",
-      "position": "Position versus competitors",
-      "weekday": "Day-of-week adjustments",
+      "limits": "Limits (optional)",
+      "position": "Price position",
+      "weekday": "Weekday adjustments",
       "special": "Holidays and last minute"
     },
     "field": {
       "base": "Base price",
-      "baseHint": "Used when fewer than 3 competitors have a price to compare.",
+      "baseHint": "Used when fewer than 3 competitors have a rate to compare.",
       "floor": "Floor price",
       "floorHint": "Never suggest below this.",
       "ceiling": "Ceiling price",
       "ceilingHint": "Never suggest above this.",
       "optional": "Optional, VND",
-      "targetIndex": "Target position",
-      "targetIndexHint": "100 = equal to the comp set's median listed rate; 105 = 5% above; 95 = 5% below.",
-      "targetPreview": "Reference price = competitor median × {factor}",
-      "targetEqual": "Reference price = competitor median",
+      "targetIndex": "Exact price position",
+      "targetIndexHint": "100% = level with the competitors' middle price; 105% = 5% above; 95% = 5% below.",
       "roundTo": "Round to",
       "roundNone": "No rounding",
       "maxChange": "Maximum change per day",
@@ -53,55 +51,42 @@
       "price": "Prices must be numbers above 0.",
       "floorCeiling": "The floor price must be at or below the ceiling price.",
       "baseRange": "The base price must sit between the floor and ceiling prices.",
-      "targetIndex": "The target position must be from 50 to 200.",
+      "targetIndex": "The price position must be between 50% and 200%.",
       "maxChange": "The maximum daily change must be a whole number from 1 to 50.",
       "weekday": "Day-of-week adjustments must be whole numbers from −30 to 50.",
       "holiday": "The holiday uplift must be a whole number from −30 to 50.",
       "lastMinuteDays": "The last-minute window must be a whole number from 0 to 14.",
       "lastMinuteAdj": "The last-minute adjustment must be a whole number from −30 to 0."
-    }
-  },
-  "outcomes": {
-    "title": "Applied suggestions → results",
-    "description": "Last {days} days. Occupancy and ADR are actual PMS numbers after the stay night.",
-    "info": "On target: raised and still reached ≥85% occupancy, or lowered and reached ≥70%. To review: raised but occupancy <60%, or lowered but <50%. Holds aren't scored. Backtest: re-runs the suggestion rules on competitor prices {lead} days before each past night, then compares with actual occupancy.",
-    "applyRate": "Apply rate",
-    "applyRateHint": "{applied}/{decided} suggestions handled",
-    "good": "On target",
-    "goodHint": "Out of {count} nights with PMS numbers",
-    "review": "To review",
-    "reviewHint": "Raised and stayed empty, or lowered and still empty",
-    "backtest": "{days}-day backtest",
-    "backtestHint": "On target {good}/{scored} nights (raise {raise}, lower {lower})",
-    "backtestNone": "Not enough nights with PMS numbers yet",
-    "emptyTitle": "Not enough data to measure",
-    "emptyBody": "Needs actual PMS numbers after the stay (Settings › PMS import) and suggestions marked “Applied” or “Dismissed”.",
-    "recent": "Recent nights",
-    "showAll": "Show all {count} nights",
-    "col": {
+    },
+    "defaultsNoTypical": "No strategy of your own yet and not enough data to measure your usual price position: the system uses level with the competitors' middle price for now. Save to set a different position.",
+    "stepSr": "Step {n}:",
+    "positionHint": "Compared with the competitors' middle price (half of them cheaper, half pricier).",
+    "limitsHint": "Optional. Suggestions never go beyond these.",
+    "advancedShow": "Advanced: base price, rounding, weekdays, holidays, last minute",
+    "advancedHide": "Hide advanced",
+    "cards": {
+      "keep": "Keep as now (≈{index}% of middle price)",
+      "keepHint": "Follows your usual price level, recalculated daily; only suggests a change when the market shows a signal (competitors selling out, tight nights, high occupancy…).",
+      "cheaper": "About 10% below competitors",
+      "cheaperHint": "Reference price = middle price × 0.9. Prioritises filling rooms.",
+      "level": "Level with competitors",
+      "levelHint": "Reference price = the competitors' middle price.",
+      "higher": "About 10% above",
+      "higherHint": "Reference price = middle price × 1.1. When you beat competitors on stars or score.",
+      "sameAsNow": "Close to your current position.",
+      "custom": "Using a custom position: {index}% of middle price (set under Advanced)."
+    },
+    "preview": {
+      "title": "Preview of the next {nights} nights",
+      "description": "Suggestions for your current choice, not saved yet.",
       "night": "Night",
-      "suggestion": "Suggestion",
-      "decision": "Decision",
-      "price": "Rate before → set",
-      "occ": "Occupancy (PMS)",
-      "adr": "ADR (PMS)",
-      "verdict": "Result"
-    },
-    "decision": {
-      "applied": "Applied",
-      "dismissed": "Dismissed"
-    },
-    "verdict": {
-      "good": "On target",
-      "review": "To review",
-      "neutral": "Neutral",
-      "pending": "Awaiting actuals"
-    },
-    "showLess": "Show less"
-  },
-  "pace": {
-    "strategyLink": "Price strategy",
-    "holds": "{count, plural, =0 {} one {# other night is priced about right (hold).} other {# other nights are priced about right (hold).}}",
-    "pendingHolds": "{count} nights on hold"
+      "yours": "Your rate",
+      "suggested": "Suggested",
+      "change": "Change",
+      "hold": "Hold",
+      "empty": "No nights to preview yet.",
+      "invalid": "Fix the field showing an error to see the preview.",
+      "note": "Listed prices on Booking.com. Once saved, suggestions on Today use these same numbers."
+    }
   }
 }

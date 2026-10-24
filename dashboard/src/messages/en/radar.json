@@ -1,14 +1,13 @@
 {
   "page": {
-    "title": "Competitive radar",
+    "title": "Promotions & restrictions",
     "nights": "{count} nights from {start}",
-    "source": "From data already scanned, no extra scans",
     "hotelFallback": "Hotel #{id}",
     "yourHotel": "Your hotel"
   },
   "promos": {
-    "title": "Competitor promotions",
-    "info": "Promotion labels on Booking.com and their depth versus the strikethrough price, grouped by label. “Booking.com-applied” is Genius, an app-only price or a coupon applied by Booking.com; “Hotel deal” is a deal the hotel turned on (Late Escape, Early Bird…).",
+    "title": "Promotions",
+    "info": "Promotion labels on Booking.com and the discount off the struck-through rate, grouped by label. “Applied by Booking” is Genius, app-only rates or coupons applied by Booking.com; “set by the hotel” is a deal the hotel runs itself (Late Escape, Early Bird…).",
     "stripLabel": "Share of competitors on promotion per night",
     "stripHint": "The taller the bar, the more competitors run a promotion that night.",
     "nightTitle": "{night}: {running}/{observed} competitors on promotion",
@@ -19,19 +18,21 @@
     "rangeOne": "night {first}",
     "sinceTitle": "First seen at {time}",
     "origin": {
-      "channel": "Booking.com-applied",
+      "channel": "Applied by Booking",
       "channelTitle": "Applied by Booking.com (Genius, app-only price, coupon code): guests see a lower price, but it is not a deal the hotel turned on",
-      "hotel": "Hotel deal",
+      "hotel": "set by the hotel",
       "hotelTitle": "The hotel turned this promotion on itself on Booking.com (Early Bird, Last-minute, Late Escape…)"
     },
     "none": "No promotion in this period",
     "emptyTitle": "No promotions seen",
-    "emptyBody": "No competitor ran a promotion on Booking.com in this period."
+    "emptyBody": "No competitor ran a promotion on Booking.com in this period.",
+    "yours": "Your promotions",
+    "genericDeal": "Discount"
   },
   "restrictions": {
     "title": "Sales restrictions",
     "info": "Nights a competitor still sells on Booking.com but with conditions: a minimum stay or no arrivals that day. This is not sold out.",
-    "minStay": "≥{count} nights",
+    "minStay": "{count}+ nights",
     "minStayTitle": "Only sold for stays of {count}+ nights",
     "cta": "no arrivals",
     "ctaTitle": "Closed to arrival on this date",
@@ -43,17 +44,17 @@
   },
   "cancellation": {
     "title": "Cancellation policy",
-    "info": "For each priced night: is there a free-cancellation rate, and how much cheaper is the non-refundable rate than the flexible one with the same meal plan (median of same-night pairs). 10–20% is typical.",
+    "info": "For each priced night: is there a free-cancellation rate, and how much cheaper the non-refundable rate usually is than the free-cancellation one (same breakfast, same night). 10–20% is common.",
     "col": {
       "hotel": "Hotel",
       "refundable": "% nights with free cancellation",
       "nrNights": "Nights with a non-refundable rate",
-      "nrDiscount": "Non-refundable discount (median)"
+      "nrDiscount": "Non-refundable usually cheaper by"
     },
     "nightsPriced": "/{count} priced nights",
-    "pairs": "{count} pairs",
     "emptyTitle": "No price data yet",
-    "emptyBody": "No priced nights on Booking.com in this period."
+    "emptyBody": "No priced nights on Booking.com in this period.",
+    "pairsTitle": "Middle value of {count, plural, one {# same-night comparison} other {# same-night comparisons}}: half differ less, half differ more"
   },
   "scarcity": {
     "title": "Area availability",
@@ -66,7 +67,7 @@
     "tightening": "Nights filling up fastest",
     "change": "{pct} vs a week earlier",
     "noTightening": "No night has dropped versus a week earlier yet (needs at least 7 days of scans).",
-    "legendDrop": "down ≥10% vs a week earlier",
+    "legendDrop": "down 10% or more vs last week",
     "legendOther": "other nights",
     "noAreaTitle": "No market area yet",
     "noAreaBody": "Add an area (city or district) under Settings › Market to track how many properties are still available across the area.",

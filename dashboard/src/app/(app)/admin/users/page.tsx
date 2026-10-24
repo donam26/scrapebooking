@@ -67,6 +67,7 @@ export default function AdminUsersPage() {
                 <Th className="hidden md:table-cell">{t("table.tenant")}</Th>
                 <Th>{t("table.role")}</Th>
                 <Th className="hidden sm:table-cell">{t("table.status")}</Th>
+                <Th className="hidden md:table-cell">{t("table.lastLogin")}</Th>
                 <Th className="relative">
                   <span className="sr-only">{t("table.actions")}</span>
                 </Th>
@@ -74,7 +75,7 @@ export default function AdminUsersPage() {
             </thead>
             <tbody>
               {rows.map((u) => (
-                <UserRow key={u.id} user={u} roles={ALL_ROLES} canWrite isSelf={u.id === me?.id} tenantName={tenantName(u.tenant_id)} onChanged={list.reload} />
+                <UserRow key={u.id} user={u} roles={ALL_ROLES} canWrite isSelf={u.id === me?.id} tenantName={tenantName(u.tenant_id)} showLastLogin onChanged={list.reload} />
               ))}
             </tbody>
           </Table>

@@ -119,13 +119,15 @@ def test_price_reasons_in_english() -> None:
     s = suggest(n)
     assert s is not None and s.kind == "raise"
     assert [reason_text(r, "en") for r in s.reasons] == [
-        "reference = median of 4 competitors 1.000.000 ₫ × target position 100",
-        "2/4 competitors sold out or ≤3 rooms left (+5%)",
+        "competitors sell this night at about ₫1,000,000 (middle price of 4 competitors); "
+        "with no price strategy set, the target is 100% of that",
+        "2/4 competitors sold out or down to ≤3 rooms (+5%)",
         "you only have 1 room left on Booking (+5%)",
-        "falls on National Day (+10%)",
-        "capped at 15% change per update",
+        "this night falls on National Day (+10%)",
+        "never more than 15% change at a time (set in Price strategy)",
     ]
-    assert reason_text(s.reasons[1], "vi") == "2/4 đối thủ hết hoặc còn ≤3 phòng (+5%)"
+    assert reason_text(s.reasons[1], "vi") == "2/4 đối thủ đã hết hoặc chỉ còn ≤3 phòng (+5%)"
+    assert "1.000.000 ₫" in reason_text(s.reasons[0], "vi")
 
 
 def test_url_error_in_english() -> None:

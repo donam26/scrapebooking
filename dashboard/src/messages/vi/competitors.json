@@ -1,7 +1,7 @@
 {
   "page": {
     "title": "Đối thủ",
-    "count": "{count} đối thủ trong compset",
+    "count": "{count} đối thủ đang theo dõi",
     "addHotel": "Thêm khách sạn",
     "emptyTitle": "Chưa theo dõi khách sạn nào",
     "emptyBody": "Thêm khách sạn của bạn và đối thủ bằng đường dẫn trang khách sạn trên Booking.com.",
@@ -24,8 +24,8 @@
     "distance": "cách bạn {km} km",
     "roomsTotal": "{count, number} phòng",
     "roomsTotalNoSource": "Số phòng nhập tay, chưa ghi nguồn",
-    "bookingMax": "Booking từng mở bán ≥{count, number}/đêm",
-    "bookingMaxTitle": "Số phòng còn lớn nhất từng thấy trên Booking.com trong một đêm: cận dưới phần phòng giao cho Booking",
+    "bookingMax": "Booking từng mở bán ít nhất {count, number} phòng/đêm",
+    "bookingMaxTitle": "Số phòng còn lớn nhất từng thấy trên Booking.com trong một đêm: khách sạn giao cho Booking ít nhất chừng này phòng",
     "tonightRate": "Giá đêm nay",
     "nightRate": "Giá đêm {night}",
     "vsYours": "So giá bạn",
@@ -36,6 +36,8 @@
     "minStayPrice": "giá khi ở từ {count} đêm",
     "promo": "KM: {promos}",
     "stale": "Dữ liệu cũ · {ago}",
-    "staleTitle": "Quan sát cũ hơn 48 giờ: không tính vào trung vị compset"
+    "staleTitle": "Lần đọc cuối cũ hơn 48 giờ: không tính vào giá giữa của nhóm đối thủ",
+    "staleValueTitle": "Giá đọc được lần cuối, cũ hơn 48 giờ",
+    "staleShort": "(cũ)"
   }
 }

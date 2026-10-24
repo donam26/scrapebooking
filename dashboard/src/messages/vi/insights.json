@@ -38,7 +38,10 @@
     "noSummary": "Không có tóm tắt.",
     "readFull": "Đọc đầy đủ",
     "operatorOnly": "Chỉ tài khoản vận hành thấy",
-    "tech": "{model} · {version} · {tokensIn}/{tokensOut} token · {cost} USD"
+    "tech": "{model} · {version} · {tokensIn}/{tokensOut} token · {cost} USD",
+    "briefAge": "Bản tin ngày {date} · {ago}",
+    "briefAgeTitle": "Bản tin mới nhất đã cũ hơn 1 ngày. Bản tin mới cần có lượt quét mới.",
+    "generateFailed": "Chưa tạo được bản tin lần này. Thử lại sau ít phút."
   },
   "detail": {
     "crumb": "Bản tin AI",
@@ -52,7 +55,8 @@
     "basedOnRun": "Dựa trên lượt quét",
     "model": "Mô hình",
     "tokens": "Token vào / ra",
-    "cost": "Chi phí"
+    "cost": "Chi phí",
+    "unavailable": "Bản tin này không có nội dung để đọc. Xem bản tin khác trong danh sách."
   },
   "view": {
     "unknownHotel": "KS #{id}",

@@ -3,9 +3,9 @@
     "rankCheapest": "price position 1/{total} (cheapest)",
     "rankPriciest": "price position {total}/{total} (priciest)",
     "rank": "price position {rank}/{total} (1 = cheapest)",
-    "vsMedianLevel": "in line with the median",
-    "vsMedianBelow": "{pct}% below the median",
-    "vsMedianAbove": "{pct}% above the median",
+    "vsMedianLevel": "in line with competitors' middle rate",
+    "vsMedianBelow": "{pct}% below competitors' middle rate",
+    "vsMedianAbove": "{pct}% above competitors' middle rate",
     "soldOut": "{soldOut}/{observed} competitors sold out",
     "yourPrice": "your rate {vs}",
     "yourPriceRank": "your rate {vs}, {rank}",
@@ -20,10 +20,10 @@
       "high": "High"
     },
     "position": {
-      "level": "In line with median",
-      "below": "Below median",
+      "level": "In line with competitors",
+      "below": "Below competitors' middle rate",
       "belowTight": "Cheaper while the market is tight — room to raise",
-      "above": "Above median"
+      "above": "Above competitors' middle rate"
     },
     "smallSample": "small sample",
     "smallSampleTitle": "Fewer than {min} competitors observed: counts only, no percentage or level"
@@ -35,7 +35,8 @@
     "suggestion": {
       "raise": "Room to raise rate",
       "hold": "Hold rate",
-      "lower": "Review rate"
+      "lower": "Room to lower rate",
+      "belowUsual": "Below your usual rate"
     },
     "noChange": "No change",
     "soldOut": "Sold out",
@@ -58,5 +59,32 @@
     "unknownConditions": "rate conditions unknown",
     "anyRate": "lowest rate of any plan",
     "sameRate": "same plan: {conditions}"
+  },
+  "marketArea": {
+    "segment": {
+      "all": "All property types",
+      "hotels": "Hotels",
+      "hotelsPlus": "Hotels + resorts + aparthotels",
+      "custom": "Custom filter ({nflt})"
+    },
+    "radius": "{km} km",
+    "propertyType": {
+      "201": "Apartments",
+      "203": "Hostels",
+      "204": "Hotels",
+      "206": "Resorts",
+      "208": "B&Bs",
+      "213": "Villas",
+      "216": "Guest houses",
+      "219": "Aparthotels",
+      "220": "Holiday homes",
+      "222": "Homestays",
+      "other": "Other types"
+    },
+    "tightness": {
+      "tighter": "Tighter than usual",
+      "usual": "As usual",
+      "looser": "Looser than usual"
+    }
   }
 }

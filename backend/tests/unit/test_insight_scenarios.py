@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from app.insight.client import CompletionRequest, estimate_cost
-from app.insight.prompt import PROMPT_VERSION, SYSTEM_PROMPT, user_prompt
+from app.insight.prompt import BANNED_VI_TERMS, PROMPT_VERSION, SYSTEM_PROMPT, user_prompt
 from app.insight.schema import INSIGHT_JSON_SCHEMA
 from app.insight.validation import validate_output
 
@@ -61,7 +61,17 @@ def test_request_body_uses_structured_outputs_and_fixed_system_prompt() -> None:
     assert (
         fmt["json_schema"]["strict"] is True and fmt["json_schema"]["schema"] == INSIGHT_JSON_SCHEMA
     )
-    assert PROMPT_VERSION == "3"
+    assert PROMPT_VERSION == "4"
+
+
+def test_prompt_v4_asks_for_plain_morning_brief() -> None:
+    """L6: tóm tắt ≤3 câu, "đêm nào → làm gì → vì sao", từ cấm, miễn trừ về data_quality_note."""
+    assert "tối đa 3 câu" in SYSTEM_PROMPT
+    assert "đêm nào → làm gì → vì sao" in SYSTEM_PROMPT
+    assert "chỉ ghi trong `data_quality_note`" in SYSTEM_PROMPT
+    for term in BANNED_VI_TERMS:
+        assert f'"{term}"' in SYSTEM_PROMPT, term
+    assert "Không bịa ref." in SYSTEM_PROMPT  # giữ quy tắc bằng chứng
 
 
 def test_cost_estimate_matches_research_pricing() -> None:

@@ -1,28 +1,37 @@
-"""Thị trường toàn thành phố: khu vực theo dõi (CRUD, quét ngay), số liệu cả chợ một đêm, bảng khách
-sạn của khu vực để chọn đối thủ. Khu vực thuộc tenant; khách sạn dùng chung toàn hệ thống."""
+"""Thị trường khu vực: khu vực theo dõi (CRUD, quét ngay), số liệu cả chợ một đêm (thang phòng
+trống, khách sạn của bạn cạnh thị trường), xu hướng nhiều đêm, bảng khách sạn của khu vực để chọn
+đối thủ. Khu vực thuộc tenant; khách sạn dùng chung toàn hệ thống."""
 
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import Principal
 from app.api.deps import SessionDep, SettingsDep, TenantDep, WriterDep
 from app.api.market_city_schemas import (
+    BookingHistogramOut,
     CityAreaOut,
     CityDetailOut,
     CityHotelOut,
     CityHotelsOut,
     CityListOut,
     DestinationOut,
+    LadderRungOut,
+    MarketAreaConfig,
     MarketAreaCreate,
     MarketAreaOut,
     MarketAreaUpdate,
     MarketCityOut,
+    MarketTrendNightOut,
+    MarketTrendOut,
     PriceBucketOut,
     ScanNowOut,
+    SelfLocationOut,
+    SelfMarketOut,
 )
 from app.collector.budget import RedisRequestBudget
 from app.collector.proxy import StaticProxyProvider
@@ -31,11 +40,19 @@ from app.db.models import Tenant
 from app.logging import get_logger
 from app.market.pace_report import tenant_today
 from app.marketscan import city as C
+from app.marketscan.city import COVERAGE_TARGET
 from app.marketscan.destinations import BookingDestinationSearch, DestinationSearch
+from app.marketscan.ladder import (
+    median_or_none,
+    rooms_floor,
+    rung_counts,
+    sold_out_share,
+    tightness,
+)
 from app.marketscan.limits import SearchThrottle, clamp_config
-from app.marketscan.models import MarketArea, MarketAreaHotel
+from app.marketscan.models import MarketArea, MarketAreaHotel, MarketListScan
 from app.marketscan.rounds import ListQueue, market_pause_key, start_round
-from app.marketscan.slices import COVERAGE_TARGET
+from app.marketscan.service import class_counts
 from app.marketscan.stats import price_stats
 from app.scheduler.channel_pause import ChannelPauses, RedisChannelPauses
 
@@ -44,6 +61,7 @@ router = APIRouter(prefix="/market", tags=["market-city"])
 
 SCAN_NOW_DEDUP = timedelta(minutes=10)
 RUNNING_GRACE = timedelta(minutes=30)  # vòng đang chạy (có tiến triển gần đây): không mở vòng mới
+CLEARABLE = frozenset({"radius_m", "segment_nflt"})  # PATCH null = xoá
 
 
 def _redis(request: Request) -> Any | None:
@@ -128,6 +146,15 @@ async def search_destinations(
     return [DestinationOut.model_validate(d) for d in found]
 
 
+@router.get("/areas/self-location", response_model=SelfLocationOut)
+async def self_location(tenant_id: TenantDep, session: SessionDep) -> SelfLocationOut:
+    """Toạ độ khách sạn "của bạn": tâm cho khu vực bán kính ("quanh khách sạn của bạn")."""
+    me = await C.self_hotel(session, tenant_id)
+    if me is None or me.lat is None or me.lng is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no self hotel with coordinates")
+    return SelfLocationOut(hotel_id=me.hotel_id, name=me.name, lat=me.lat, lng=me.lng)
+
+
 @router.get("/areas", response_model=list[MarketAreaOut])
 async def list_areas(tenant_id: TenantDep, session: SessionDep) -> list[MarketAreaOut]:
     areas = list(
@@ -151,6 +178,21 @@ async def list_areas(tenant_id: TenantDep, session: SessionDep) -> list[MarketAr
     ]
 
 
+# Tham số vận hành của quét thị trường (audit C3): chỉ operator đổi. Tenant gửi lại đúng giá trị
+# đang lưu (hoặc mặc định khi tạo) vẫn được, để form cũ gửi đủ trường không bị chặn.
+TECHNICAL_FIELDS = ("list_nights", "detail_horizon_days", "detail_max_hotels", "max_pages")
+
+
+def _guard_technical(principal: Principal, sent: dict[str, Any], current: dict[str, Any]) -> None:
+    if principal.is_operator:
+        return
+    changed = [k for k in TECHNICAL_FIELDS if sent.get(k) is not None and sent[k] != current.get(k)]
+    if changed:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, f"only the operator can change {', '.join(changed)}"
+        )
+
+
 @router.post("/areas", response_model=MarketAreaOut, status_code=status.HTTP_201_CREATED)
 async def create_area(
     body: MarketAreaCreate,
@@ -159,6 +201,8 @@ async def create_area(
     session: SessionDep,
     settings: SettingsDep,
 ) -> MarketAreaOut:
+    defaults = {k: MarketAreaConfig.model_fields[k].default for k in TECHNICAL_FIELDS}
+    _guard_technical(principal, body.model_dump(exclude_unset=True), defaults)
     count = (
         await session.execute(
             select(func.count()).select_from(MarketArea).where(MarketArea.tenant_id == tenant_id)
@@ -182,14 +226,23 @@ async def update_area(
     area_id: int,
     body: MarketAreaUpdate,
     tenant_id: TenantDep,
-    _: WriterDep,
+    principal: WriterDep,
     session: SessionDep,
     settings: SettingsDep,
 ) -> MarketAreaOut:
     area = await _area(session, tenant_id, area_id)
-    for key, value in clamp_config(body.model_dump(exclude_unset=True), settings).items():
-        if value is not None:
+    sent = body.model_dump(exclude_unset=True)
+    _guard_technical(principal, sent, {k: getattr(area, k) for k in TECHNICAL_FIELDS})
+    scope = C.area_scope(area)
+    for key, value in clamp_config(sent, settings).items():
+        if value is not None or key in CLEARABLE:
             setattr(area, key, value)
+    if area.dest_type == "latlong" and area.radius_m is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "latlong area needs radius_m")
+    if C.area_scope(area) != scope:
+        # Đổi phân khúc/bán kính: danh sách khách sạn của khu vực dựng lại từ lượt quét sau (khách
+        # sạn ngoài phạm vi mới không còn hiện là "hết phòng"); lượt quét cũ tự ẩn theo `nflt`.
+        await session.execute(delete(MarketAreaHotel).where(MarketAreaHotel.area_id == area.id))
     await session.commit()
     await session.refresh(area)
     return await _out(session, area)
@@ -267,7 +320,7 @@ async def market_city(
     area = await _area(session, tenant_id, area_id)
     stay = await _night(session, tenant_id, night)
     now = datetime.now(tz=UTC)
-    scan = await C.latest_list_scan(session, area.id, stay)
+    scan = await C.latest_list_scan(session, area, stay)
     currency = settings.scan_currency
     prices = (
         [
@@ -281,6 +334,16 @@ async def market_city(
     stats = price_stats(prices)
     coverage = C.list_coverage(scan)
     detail = await C.detail_summary(session, area, stay, now)
+    counts = rung_counts(scan.properties_found, scan.ladder) if scan is not None else {}
+    base = await C.segment_base(session, area, now)
+    today = await _night(session, tenant_id, None)
+    round_scans = await C.latest_scans(session, area, today, area.list_nights)
+    tight = [
+        t
+        for sc in round_scans.values()
+        if (t := tightness(rung_counts(sc.properties_found, sc.ladder))) is not None
+    ]
+    me = await C.self_market(session, tenant_id, area, stay, scan, currency, now)
     return MarketCityOut(
         stay_date=stay,
         channel=area.channel,
@@ -310,9 +373,103 @@ async def market_city(
             min=stats.min,
             max=stats.max,
             histogram=[PriceBucketOut(lo=b.lo, hi=b.hi, count=b.count) for b in stats.histogram],
+            **_market_fields(scan, counts, base, tight),
         ),
         detail=CityDetailOut(**detail.__dict__),
+        self_hotel=SelfMarketOut(**me.__dict__) if me is not None else None,
     )
+
+
+def _classes(scan: MarketListScan) -> dict[str, int]:
+    """Còn phòng theo hạng sao của phân khúc; khu vực sắp kín (Booking nới thêm ngoài khu vực) thì
+    facet có thể đếm cả phần nới thêm → bỏ."""
+    return class_counts(scan.facets or {}) if not scan.autoextended else {}
+
+
+def _ladder_out(scan: MarketListScan, counts: dict[int, int]) -> list[LadderRungOut]:
+    by_rung: dict[str, Any] = scan.ladder or {}
+    return [
+        LadderRungOut(
+            rooms=n,
+            available=c,
+            by_class=_classes(scan)
+            if n == 1
+            else dict((by_rung.get(str(n)) or {}).get("class") or {}),
+        )
+        for n, c in counts.items()
+    ]
+
+
+def _market_fields(
+    scan: MarketListScan | None, counts: dict[int, int], base: int | None, tight: list[float]
+) -> dict[str, Any]:
+    """Phần thị trường/thang của `CityListOut` từ lượt quét của đêm."""
+    if scan is None:
+        return {"tightness_median": median_or_none(tight)}
+    ht = {
+        uid.split("=", 1)[1]: n
+        for uid, n in (scan.market_facets or {}).items()
+        if uid.startswith("ht_id=")
+    }
+    return {
+        "source": scan.source,
+        "autoextended": scan.autoextended,
+        "low_availability": scan.low_availability,
+        "unavailability_pct": scan.unavailability_pct,
+        "market_available": scan.market_available,
+        "segment_base": base,
+        "sold_out_share": sold_out_share(scan.properties_found, base),
+        "ladder": _ladder_out(scan, counts),
+        "rooms_left_floor": rooms_floor(counts) if len(counts) > 1 else None,
+        "tightness": tightness(counts),
+        "tightness_median": median_or_none(tight),
+        "booking_histogram": BookingHistogramOut(**scan.price_histogram)
+        if scan.price_histogram
+        else None,
+        "composition": ht,
+        "classes": _classes(scan),
+        "enumerated": scan.enumerated,
+    }
+
+
+@router.get("/city/trend", response_model=MarketTrendOut)
+async def market_city_trend(
+    tenant_id: TenantDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    start: Annotated[date | None, Query(description="Đêm đầu (mặc định hôm nay)")] = None,
+    nights: Annotated[int, Query(ge=1, le=30)] = 14,
+    area_id: int | None = None,
+) -> MarketTrendOut:
+    """Mỗi đêm của một dải: số còn phòng, tỉ lệ hết phòng, thang, mức căng, sàn phòng còn, trung vị
+    giá — từ lượt quét tốt nhất của từng đêm."""
+    area = await _area(session, tenant_id, area_id)
+    first = await _night(session, tenant_id, start)
+    scans = await C.latest_scans(session, area, first, nights)
+    base = await C.segment_base(session, area, datetime.now(tz=UTC))
+    medians = await C.median_prices(
+        session, [sc.id for sc in scans.values()], settings.scan_currency
+    )
+    out: list[MarketTrendNightOut] = []
+    for i in range(nights):
+        night = first + timedelta(days=i)
+        scan = scans.get(night)
+        counts = rung_counts(scan.properties_found, scan.ladder) if scan is not None else {}
+        out.append(
+            MarketTrendNightOut(
+                stay_date=night,
+                scanned_at=scan.scanned_at if scan else None,
+                status=scan.status if scan else None,
+                properties_found=scan.properties_found if scan else None,
+                sold_out_share=sold_out_share(scan.properties_found, base) if scan else None,
+                unavailability_pct=scan.unavailability_pct if scan else None,
+                ladder={str(n): c for n, c in counts.items()},
+                tightness=tightness(counts),
+                rooms_left_floor=rooms_floor(counts) if len(counts) > 1 else None,
+                median_price=medians.get(scan.id) if scan else None,
+            )
+        )
+    return MarketTrendOut(area_id=area.id, segment_base=base, nights=out)
 
 
 @router.get("/city/hotels", response_model=CityHotelsOut)

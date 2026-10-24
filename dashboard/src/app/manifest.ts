@@ -13,7 +13,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     short_name: "OTARadar",
     description: t("manifestDescription"),
     lang: locale,
-    start_url: "/dashboard",
+    start_url: "/today",
     scope: "/",
     display: "standalone",
     background_color: "#f5f6fa",

@@ -117,5 +117,11 @@
     "email": "Email",
     "zalo": "Zalo",
     "webhook": "Webhook"
+  },
+  "place": {
+    "hcmc": "Ho Chi Minh City",
+    "hanoi": "Hanoi",
+    "danang": "Da Nang",
+    "district": "District {n}"
   }
 }

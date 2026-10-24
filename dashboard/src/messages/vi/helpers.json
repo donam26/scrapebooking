@@ -3,9 +3,9 @@
     "rankCheapest": "vị trí giá 1/{total} (rẻ nhất)",
     "rankPriciest": "vị trí giá {total}/{total} (đắt nhất)",
     "rank": "vị trí giá {rank}/{total} (1 = rẻ nhất)",
-    "vsMedianLevel": "ngang trung vị",
-    "vsMedianBelow": "thấp hơn trung vị {pct}%",
-    "vsMedianAbove": "cao hơn trung vị {pct}%",
+    "vsMedianLevel": "ngang giá giữa của đối thủ",
+    "vsMedianBelow": "thấp hơn giá giữa của đối thủ {pct}%",
+    "vsMedianAbove": "cao hơn giá giữa của đối thủ {pct}%",
     "soldOut": "{soldOut}/{observed} đối thủ đã hết phòng",
     "yourPrice": "giá bạn {vs}",
     "yourPriceRank": "giá bạn {vs}, {rank}",
@@ -20,10 +20,10 @@
       "high": "Cao"
     },
     "position": {
-      "level": "Ngang trung vị",
-      "below": "Dưới trung vị",
+      "level": "Ngang giá giữa đối thủ",
+      "below": "Thấp hơn giá giữa đối thủ",
       "belowTight": "Rẻ hơn khi thị trường căng — cơ hội tăng giá",
-      "above": "Trên trung vị"
+      "above": "Cao hơn giá giữa đối thủ"
     },
     "smallSample": "mẫu nhỏ",
     "smallSampleTitle": "Dưới {min} đối thủ quan sát được: chỉ hiện số đếm, không tính phần trăm hay mức"
@@ -35,7 +35,8 @@
     "suggestion": {
       "raise": "Có thể tăng giá",
       "hold": "Giữ giá",
-      "lower": "Xem lại giá"
+      "lower": "Có thể giảm giá",
+      "belowUsual": "Giá thấp hơn mức thường"
     },
     "noChange": "Giữ nguyên",
     "soldOut": "Hết phòng",
@@ -58,5 +59,32 @@
     "unknownConditions": "gói chưa rõ điều kiện",
     "anyRate": "giá thấp nhất mọi gói",
     "sameRate": "cùng gói {conditions}"
+  },
+  "marketArea": {
+    "segment": {
+      "all": "Mọi loại chỗ ở",
+      "hotels": "Khách sạn",
+      "hotelsPlus": "Khách sạn + resort + căn hộ khách sạn",
+      "custom": "Bộ lọc riêng ({nflt})"
+    },
+    "radius": "{km} km",
+    "propertyType": {
+      "201": "Căn hộ",
+      "203": "Hostel",
+      "204": "Khách sạn",
+      "206": "Resort",
+      "208": "B&B",
+      "213": "Biệt thự",
+      "216": "Nhà khách",
+      "219": "Căn hộ khách sạn",
+      "220": "Nhà nghỉ dưỡng",
+      "222": "Homestay",
+      "other": "Loại khác"
+    },
+    "tightness": {
+      "tighter": "Căng hơn thường lệ",
+      "usual": "Như thường lệ",
+      "looser": "Thoáng hơn thường lệ"
+    }
   }
 }

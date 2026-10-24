@@ -12,6 +12,7 @@ import { IconPin, IconStar } from "@/components/icons";
  * Đối thủ › Uy tín và vị trí hiển thị (roadmap 7.1, 7.2): điểm/số review theo thời gian, mốc điểm kế
  * tiếp của Booking, bản đồ giá–điểm (tương quan, không phải nhân quả) và thứ hạng trên trang kết quả
  * của khu vực (tách thẻ quảng cáo). Đọc từ trang kết quả đã quét, không tốn thêm lượt quét.
+ * Cột mà mọi khách sạn đều trống hoặc bằng 0 thì ẩn (không có gì để so).
  */
 
 const REPUTATION_DAYS = 90;
@@ -26,12 +27,12 @@ function useNames() {
   return (h: Named) => h.name ?? t("hotelFallback", { id: h.hotel_id });
 }
 
-/** Mã huy hiệu đã biết → nhãn; chuỗi khác (tên deal) giữ nguyên. */
+/** Mã huy hiệu đã biết → nhãn; chuỗi khác là tên deal của Booking: giữ tên, thêm "KM:". */
 function useBadgeLabel() {
   const t = useTranslations("reputation.badge");
   return (code: string) => {
     const key = code.toLowerCase();
-    return key === "ad" || key === "preferred" || key === "preferred_plus" || key === "genius" || key === "free_cancellation" ? t(key) : code;
+    return key === "ad" || key === "preferred" || key === "preferred_plus" || key === "genius" || key === "free_cancellation" ? t(key) : t("deal", { name: code });
   };
 }
 
@@ -75,7 +76,9 @@ function ScoreChip({ score }: { score: number }) {
   );
 }
 
-function ReputationRow({ h, days }: { h: ReputationHotelOut; days: number }) {
+type RepCols = { change: boolean; perMonth: boolean; badges: boolean };
+
+function ReputationRow({ h, days, cols }: { h: ReputationHotelOut; days: number; cols: RepCols }) {
   const t = useTranslations("reputation.reputation");
   const { fmtInt, fmtNum } = useFmt();
   const score = num(h.review_score);
@@ -89,12 +92,14 @@ function ReputationRow({ h, days }: { h: ReputationHotelOut; days: number }) {
         <HotelCell h={h} />
       </Td>
       <Td right>{score === null ? <span className="text-faint">—</span> : <ScoreChip score={score} />}</Td>
-      <Td right className="whitespace-nowrap" title={t("changeTitle", { days })}>
-        {change === null ? <span className="text-faint">—</span> : <span className={change === 0 ? "text-muted" : "font-semibold text-ink"}>{change > 0 ? `+${fmtNum(change, 1)}` : change < 0 ? `−${fmtNum(-change, 1)}` : fmtNum(0, 1)}</span>}
-      </Td>
-      <Td right>{h.reviews_per_month === null ? <span className="text-faint">—</span> : fmtNum(h.reviews_per_month, 1)}</Td>
+      {cols.change && (
+        <Td right className="whitespace-nowrap" title={t("changeTitle", { days })}>
+          {change === null ? <span className="text-faint">—</span> : <span className={change === 0 ? "text-muted" : "font-semibold text-ink"}>{change > 0 ? `+${fmtNum(change, 1)}` : change < 0 ? `−${fmtNum(-change, 1)}` : fmtNum(0, 1)}</span>}
+        </Td>
+      )}
+      {cols.perMonth && <Td right>{h.reviews_per_month === null ? <span className="text-faint">—</span> : fmtNum(h.reviews_per_month, 1)}</Td>}
       <Td right>{fmtInt(h.review_count)}</Td>
-      <Td className="whitespace-nowrap text-sm" title={thKey ? t(`threshold.${thKey}`) : undefined}>
+      <Td className={cx("whitespace-nowrap text-sm", !cols.badges && "pr-5")} title={thKey ? t(`threshold.${thKey}`) : undefined}>
         {next !== null && gap !== null ? (
           <span className="text-body">{t("gap", { gap: fmtNum(gap, 1), threshold: fmtNum(next, 1) })}</span>
         ) : score !== null && score >= 9 ? (
@@ -103,9 +108,11 @@ function ReputationRow({ h, days }: { h: ReputationHotelOut; days: number }) {
           <span className="text-faint">—</span>
         )}
       </Td>
-      <Td className="pr-5">
-        <Badges items={h.badges} />
-      </Td>
+      {cols.badges && (
+        <Td className="pr-5">
+          <Badges items={h.badges} />
+        </Td>
+      )}
     </tr>
   );
 }
@@ -178,6 +185,11 @@ export function ReputationCard() {
   const hotels = q.data ? [...q.data.hotels].sort((a, b) => Number(b.role === "self") - Number(a.role === "self") || (num(b.review_score) ?? 0) - (num(a.review_score) ?? 0)) : [];
   const anyScore = hotels.some((h) => h.review_score !== null);
   const days = q.data?.days ?? REPUTATION_DAYS;
+  const cols: RepCols = {
+    change: hotels.some((h) => (num(h.score_change) ?? 0) !== 0),
+    perMonth: hotels.some((h) => (num(h.reviews_per_month) ?? 0) > 0),
+    badges: hotels.some((h) => h.badges.length > 0),
+  };
   return (
     <>
       <Card title={t("title")} description={t("description", { days })} info={t("info")} icon={<IconStar size={15} />} padded={false}>
@@ -196,16 +208,16 @@ export function ReputationCard() {
               <tr>
                 <Th className="pl-5">{t("col.hotel")}</Th>
                 <Th right>{t("col.score")}</Th>
-                <Th right>{t("col.change")}</Th>
-                <Th right>{t("col.perMonth")}</Th>
+                {cols.change && <Th right>{t("col.change")}</Th>}
+                {cols.perMonth && <Th right>{t("col.perMonth")}</Th>}
                 <Th right>{t("col.count")}</Th>
-                <Th>{t("col.next")}</Th>
-                <Th className="pr-5">{t("col.badges")}</Th>
+                <Th className={cols.badges ? undefined : "pr-5"}>{t("col.next")}</Th>
+                {cols.badges && <Th className="pr-5">{t("col.badges")}</Th>}
               </tr>
             </thead>
             <tbody>
               {hotels.map((h) => (
-                <ReputationRow key={h.hotel_id} h={h} days={days} />
+                <ReputationRow key={h.hotel_id} h={h} days={days} cols={cols} />
               ))}
             </tbody>
           </Table>
@@ -223,7 +235,9 @@ export function ReputationCard() {
 
 // ---- Vị trí hiển thị ----
 
-function VisibilityRow({ h }: { h: VisibilityHotelOut }) {
+type VisCols = { ads: boolean; badges: boolean };
+
+function VisibilityRow({ h, cols }: { h: VisibilityHotelOut; cols: VisCols }) {
   const t = useTranslations("reputation.visibility");
   const { fmtInt, fmtNum, fmtShare } = useFmt();
   const seen = h.scans > 0;
@@ -239,13 +253,15 @@ function VisibilityRow({ h }: { h: VisibilityHotelOut }) {
             {h.avg_rank !== null && h.avg_rank !== h.avg_organic_rank && <span className="ml-1 text-xs text-muted">{t("shown", { rank: fmtNum(h.avg_rank, 1) })}</span>}
           </Td>
           <Td right>{fmtInt(h.best_rank)}</Td>
-          <Td right>{h.sponsored_share === null ? "—" : fmtShare(h.sponsored_share)}</Td>
-          <Td>
-            <Badges items={h.badges} />
-          </Td>
+          {cols.ads && <Td right>{h.sponsored_share === null ? "—" : fmtShare(h.sponsored_share)}</Td>}
+          {cols.badges && (
+            <Td>
+              <Badges items={h.badges} />
+            </Td>
+          )}
         </>
       ) : (
-        <Td colSpan={4} className="text-sm text-faint">
+        <Td colSpan={2 + Number(cols.ads) + Number(cols.badges)} className="text-sm text-faint">
           {t("notSeen")}
         </Td>
       )}
@@ -261,6 +277,10 @@ export function VisibilityCard() {
   const q = useApi(`visibility:${VISIBILITY_DAYS}`, () => api.market.visibility({ days: VISIBILITY_DAYS }));
   const hotels = q.data ? [...q.data.hotels].sort((a, b) => Number(b.role === "self") - Number(a.role === "self") || (num(a.avg_organic_rank) ?? 999) - (num(b.avg_organic_rank) ?? 999)) : [];
   const anySeen = hotels.some((h) => h.scans > 0);
+  const cols: VisCols = {
+    ads: hotels.some((h) => (num(h.sponsored_share) ?? 0) > 0),
+    badges: hotels.some((h) => h.badges.length > 0),
+  };
   return (
     <Card title={t("title")} description={t("description", { days: q.data?.days ?? VISIBILITY_DAYS })} info={t("info")} icon={<IconPin size={15} />} padded={false}>
       <ErrorBox error={q.error} className="m-5" />
@@ -288,8 +308,8 @@ export function VisibilityCard() {
               <Th className="pl-5">{t("col.hotel")}</Th>
               <Th right>{t("col.organic")}</Th>
               <Th right>{t("col.best")}</Th>
-              <Th right>{t("col.ads")}</Th>
-              <Th>{t("col.badges")}</Th>
+              {cols.ads && <Th right>{t("col.ads")}</Th>}
+              {cols.badges && <Th>{t("col.badges")}</Th>}
               <Th right className="pr-5">
                 {t("col.scans")}
               </Th>
@@ -297,7 +317,7 @@ export function VisibilityCard() {
           </thead>
           <tbody>
             {hotels.map((h) => (
-              <VisibilityRow key={h.hotel_id} h={h} />
+              <VisibilityRow key={h.hotel_id} h={h} cols={cols} />
             ))}
           </tbody>
         </Table>

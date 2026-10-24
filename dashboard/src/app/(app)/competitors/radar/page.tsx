@@ -13,22 +13,27 @@ import {
   type PromoRunOut,
 } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
+import { useDataFreshness } from "@/lib/freshness";
 import { num, useFmt } from "@/lib/format";
 import { ButtonLink, Card, EmptyState, ErrorBox, ROW_CLASS, Skeleton, SkeletonBlock, Table, Td, Th, cx } from "@/components/ui";
 import { PageStrip } from "@/components/page-strip";
 import { DateRangePicker, useDateRange } from "@/components/date-range";
+import { DataUpdated } from "@/components/freshness";
 import { COMPETITOR_TABS, SubTabs } from "@/components/sub-tabs";
 import { IconPin, IconTag } from "@/components/icons";
 
 /**
- * Đối thủ › Radar cạnh tranh (roadmap Phase 4): khuyến mãi, hạn chế bán, chính sách huỷ của từng
+ * Đối thủ › Khuyến mãi & hạn chế (Radar cũ): khuyến mãi, hạn chế bán, chính sách huỷ của từng
  * đối thủ trên Booking.com, và mức khan phòng của cả khu vực — đọc từ dữ liệu đã quét.
+ * Khuyến mãi của bạn tách riêng dưới đường kẻ, không lẫn vào đối thủ.
  */
 
 const DEFAULT_DAYS = 30;
 /** Giảm từ chừng này % so tuần trước thì coi là khu vực đang kín dần nhanh. */
 const DROP_PCT = -10;
 const RESTRICTION_PREVIEW = 6;
+/** Nhãn chung của Booking ("47% off"): mức giảm đã hiện bên cạnh, nên đọc thành "Giảm giá". */
+const GENERIC_DEAL_RE = /^\d+\s*%\s*off$/i;
 
 type RadarHotel = { hotel_id: number; name: string | null; role: string };
 
@@ -52,19 +57,21 @@ function YourTag() {
 function PromoStrip({ nights }: { nights: PromoNightOut[] }) {
   const t = useTranslations("radar.promos");
   const { fmtDateShort, fmtNight } = useFmt();
-  if (nights.length === 0) return null;
+  // Mọi đêm cùng một tỷ lệ thì biểu đồ không nói thêm gì (E4): ẩn.
+  const shares = new Set(nights.map((n) => (n.observed ? (n.running / n.observed).toFixed(3) : "-")));
+  if (nights.length === 0 || shares.size <= 1) return null;
   return (
     <div className="mb-4 rounded-lg bg-subtle px-4 pb-2 pt-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-sm font-semibold text-ink">{t("stripLabel")}</span>
         <span className="text-xs text-muted">{t("stripHint")}</span>
       </div>
-      <div role="img" aria-label={t("stripLabel")} className="mt-2 flex h-14 items-end gap-px">
+      <div role="img" aria-label={t("stripLabel")} className="mt-2 flex h-14 min-w-0 items-end gap-px overflow-hidden">
         {nights.map((n) => {
           const share = n.observed ? n.running / n.observed : null;
           const title = share === null ? t("nightNoData", { night: fmtNight(n.stay_date) }) : t("nightTitle", { night: fmtNight(n.stay_date), running: n.running, observed: n.observed });
           return (
-            <span key={n.stay_date} title={title} className="flex h-full min-w-[3px] flex-1 items-end">
+            <span key={n.stay_date} title={title} className="flex h-full min-w-0 flex-1 items-end">
               {share === null ? (
                 <span className="h-1 w-full rounded-sm bg-line" />
               ) : (
@@ -97,9 +104,9 @@ function PromoLine({ p }: { p: PromoRunOut }) {
         : null;
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1 text-sm">
-      <span className="inline-flex items-center gap-1 font-semibold text-ink">
+      <span className="inline-flex items-center gap-1 font-semibold text-ink" title={p.label}>
         <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#db2777]" />
-        {p.label}
+        {GENERIC_DEAL_RE.test(p.label.trim()) ? t("genericDeal") : p.label}
       </span>
       {depth !== null && depth > 0 && <span className="rounded bg-[#fce7f3] px-1.5 font-bold text-[#9d174d] tabular">{fmtPct(-depth, { digits: 0 })}</span>}
       <span className="text-muted tabular">· {t("nights", { count: nights.length })}</span>
@@ -122,12 +129,36 @@ function PromoLine({ p }: { p: PromoRunOut }) {
   );
 }
 
-function PromotionsCard({ start, end }: { start: string; end: string }) {
+function PromoHotel({ h }: { h: HotelPromosOut }) {
   const t = useTranslations("radar.promos");
   const name = useHotelName();
+  return (
+    <li className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(160px,220px)_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <span className="truncate font-semibold text-ink" title={name(h)}>
+          {name(h)}
+        </span>
+        {h.role === "self" && <YourTag />}
+      </div>
+      {h.promos.length === 0 ? (
+        <span className="py-1 text-sm text-faint">{t("none")}</span>
+      ) : (
+        <ul className="min-w-0">
+          {h.promos.map((p) => (
+            <PromoLine key={p.label} p={p} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function PromotionsCard({ start, end }: { start: string; end: string }) {
+  const t = useTranslations("radar.promos");
   const q = useApi(`radar:promos:${start}:${end}`, () => api.market.radar.promotions({ start, end }));
   const d = q.data;
-  const hotels: HotelPromosOut[] = d ? competitorsFirst(d.hotels) : [];
+  const hotels: HotelPromosOut[] = d ? d.hotels.filter((h) => h.role !== "self") : [];
+  const own: HotelPromosOut[] = d ? d.hotels.filter((h) => h.role === "self") : [];
   const any = hotels.some((h) => h.promos.length > 0);
   return (
     <Card title={t("title")} info={t("info")} icon={<IconTag size={15} />}>
@@ -143,25 +174,19 @@ function PromotionsCard({ start, end }: { start: string; end: string }) {
           ) : (
             <ul className="divide-y divide-line">
               {hotels.map((h) => (
-                <li key={h.hotel_id} className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(160px,220px)_minmax(0,1fr)]">
-                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                    <span className="truncate font-semibold text-ink" title={name(h)}>
-                      {name(h)}
-                    </span>
-                    {h.role === "self" && <YourTag />}
-                  </div>
-                  {h.promos.length === 0 ? (
-                    <span className="py-1 text-sm text-faint">{t("none")}</span>
-                  ) : (
-                    <ul>
-                      {h.promos.map((p) => (
-                        <PromoLine key={p.label} p={p} />
-                      ))}
-                    </ul>
-                  )}
-                </li>
+                <PromoHotel key={h.hotel_id} h={h} />
               ))}
             </ul>
+          )}
+          {own.length > 0 && (
+            <div className="mt-4 border-t-2 border-line pt-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.05em] text-muted">{t("yours")}</div>
+              <ul className="divide-y divide-line">
+                {own.map((h) => (
+                  <PromoHotel key={h.hotel_id} h={h} />
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}
@@ -287,9 +312,8 @@ function CancellationCard({ start, end }: { start: string; end: string }) {
                   {h.nights_priced > 0 && <span className="ml-1 text-xs text-muted">{t("nightsPriced", { count: h.nights_priced })}</span>}
                 </Td>
                 <Td right>{h.nights_priced > 0 ? fmtInt(h.nonrefundable_nights) : "—"}</Td>
-                <Td right className="whitespace-nowrap pr-5">
+                <Td right className="whitespace-nowrap pr-5" title={h.pairs > 0 ? t("pairsTitle", { count: h.pairs }) : undefined}>
                   <span className="font-semibold text-ink">{h.nr_discount_pct === null ? "—" : fmtPct(h.nr_discount_pct, { digits: 0 })}</span>
-                  {h.pairs > 0 && <span className="ml-1 text-xs text-muted">{t("pairs", { count: h.pairs })}</span>}
                 </Td>
               </tr>
             ))}
@@ -349,7 +373,7 @@ function ScarcityCard({ start, end }: { start: string; end: string }) {
       )}
       {d && scanned && (
         <div className={cx("transition-opacity", q.loading && "opacity-60")}>
-          <div role="img" aria-label={t("title")} className="flex h-28 items-end gap-px">
+          <div role="img" aria-label={t("title")} className="flex h-28 min-w-0 items-end gap-px overflow-hidden">
             {nights.map((n) => {
               const pct = num(n.change_pct);
               const drop = pct !== null && pct <= DROP_PCT;
@@ -358,7 +382,7 @@ function ScarcityCard({ start, end }: { start: string; end: string }) {
                   ? t("nightNoData", { night: fmtNight(n.stay_date) })
                   : `${t("nightTitle", { night: fmtNight(n.stay_date), count: n.properties })}${pct !== null && n.week_ago !== null ? ` · ${t("nightChange", { pct: fmtPct(pct, { signed: true, digits: 0 }), before: fmtInt(n.week_ago) })}` : ""}`;
               return (
-                <span key={n.stay_date} title={title} className="flex h-full min-w-[3px] flex-1 items-end">
+                <span key={n.stay_date} title={title} className="flex h-full min-w-0 flex-1 items-end">
                   {n.properties === null ? (
                     <span className="h-1 w-full rounded-sm bg-line" />
                   ) : (
@@ -411,6 +435,7 @@ function RadarView() {
   const t = useTranslations("radar.page");
   const { fmtNight } = useFmt();
   const { start, end, days, ready } = useDateRange(DEFAULT_DAYS);
+  const fresh = useDataFreshness();
 
   return (
     <>
@@ -418,19 +443,19 @@ function RadarView() {
       <PageStrip
         title={t("title")}
         meta={<span>{t("nights", { count: days, start: fmtNight(start) })}</span>}
-        aside={<span>{t("source")}</span>}
+        aside={fresh.loaded && <DataUpdated f={fresh} />}
         actions={<DateRangePicker defaultDays={DEFAULT_DAYS} />}
       />
       {!ready ? (
         <SkeletonBlock className="h-[420px] w-full rounded-[10px]" />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
-          <div className="xl:col-span-2">
+          <div className="min-w-0 xl:col-span-2">
             <PromotionsCard start={start} end={end} />
           </div>
           <RestrictionsCard start={start} end={end} />
           <ScarcityCard start={start} end={end} />
-          <div className="xl:col-span-2">
+          <div className="min-w-0 xl:col-span-2">
             <CancellationCard start={start} end={end} />
           </div>
         </div>

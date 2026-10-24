@@ -1,0 +1,61 @@
+{
+  "pmsLock": {
+    "title": "Nhập PMS để mở: doanh thu 14 ngày, phòng đã đặt, kết quả gợi ý",
+    "body": "Các số này chỉ lấy từ PMS của bạn. Hệ thống không ước tính doanh thu hay phòng đã đặt từ giá niêm yết trên Booking.com.",
+    "action": "Nhập PMS",
+    "viewer": "Nhờ quản trị viên khách sạn nhập PMS ở Cài đặt › Nhập PMS."
+  },
+  "revenue": {
+    "title": "Doanh thu 14 ngày tới (PMS)",
+    "info": "Doanh thu đã đặt theo đêm từ PMS bạn nhập. Đêm thiếu doanh thu thì lấy số phòng đã bán × ADR (giá bán trung bình một phòng, từ PMS).",
+    "caption": "doanh thu đã đặt · {known}/14 đêm có số",
+    "barNoData": "chưa có số PMS"
+  },
+  "outcomes": {
+    "title": "Kết quả gợi ý",
+    "subtitle": "Gợi ý giá bạn đã ghi “Tôi đã đổi giá” hoặc “Bỏ qua”, và kết quả sau đêm lưu trú.",
+    "card": {
+      "title": "Gợi ý đã ghi → kết quả",
+      "description": "{days} ngày gần nhất. Công suất và ADR là số PMS thật sau đêm lưu trú.",
+      "info": "Đúng hướng: tăng giá mà công suất vẫn từ 85%, hoặc giảm giá mà đạt từ 70%. Cần xem lại: tăng giá mà công suất dưới 60%, hoặc giảm giá mà dưới 50%. Kiểm tra lại: chạy lại cách gợi ý trên giá đối thủ {lead} ngày trước mỗi đêm đã qua.",
+      "applyRate": "Tỷ lệ đã đổi giá",
+      "applyRateHint": "{applied}/{decided} gợi ý đã ghi",
+      "good": "Đúng hướng",
+      "goodHint": "Trong {count} đêm đã có số PMS",
+      "review": "Cần xem lại",
+      "reviewHint": "Tăng mà phòng ế, hoặc giảm mà vẫn ế",
+      "backtest": "Kiểm tra lại {days} ngày",
+      "backtestHint": "Đúng hướng {good}/{scored} đêm (tăng {raise}, giảm {lower})",
+      "backtestNone": "Chưa đủ đêm có số PMS",
+      "emptyTitle": "Chưa có kết quả",
+      "emptyBody": "Kết quả có sau đêm lưu trú khi bạn đã nhập PMS cho đêm đó và đã ghi “Tôi đã đổi giá” hoặc “Bỏ qua” cho gợi ý ở Hôm nay.",
+      "recent": "Đêm gần đây",
+      "showAll": "Xem cả {count} đêm",
+      "showLess": "Thu gọn",
+      "adrTitle": "ADR: giá bán trung bình một phòng đã bán, từ PMS",
+      "col": {
+        "night": "Đêm",
+        "suggestion": "Gợi ý",
+        "decision": "Quyết định",
+        "price": "Giá trước → đã đặt",
+        "occ": "Công suất (PMS)",
+        "adr": "ADR (PMS)",
+        "verdict": "Kết quả"
+      },
+      "decision": {
+        "applied": "Đã đổi giá",
+        "dismissed": "Đã bỏ qua"
+      },
+      "verdict": {
+        "good": "Đúng hướng",
+        "review": "Cần xem lại",
+        "neutral": "Trung tính",
+        "pending": "Chờ số PMS"
+      },
+      "upcoming": "Đêm sắp tới",
+      "upcomingHint": "ghi nhầm thì bấm Hoàn tác; gợi ý sẽ trở lại ở Hôm nay",
+      "past": "Đêm đã qua",
+      "undo": "Hoàn tác"
+    }
+  }
+}

@@ -2,15 +2,21 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { api, type NotificationKind, type NotificationLogOut, type NotificationRuleOut, type RecipientOut } from "@/lib/api";
+import { useState, type ReactNode } from "react";
+import { api, type NotificationKind, type NotificationLogOut, type NotificationRuleOut, type NotificationSettingsOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { useFmt } from "@/lib/format";
 import { NOTIFICATION_STATUS_TONE, useLabel } from "@/lib/labels";
-import { Badge, Button, Card, EmptyState, ErrorBox, Input, Note, ROW_CLASS, Skeleton, Switch, Table, Td, Th, cx } from "@/components/ui";
-import { IconAlert, IconBell, IconCheck, IconMail, IconPlus, IconTrash } from "@/components/icons";
-import { ChannelChip, ChannelStatus, Engagement, Subscriptions } from "./notification-subscriptions";
+import { Badge, Button, Card, EmptyState, ErrorBox, Note, ROW_CLASS, Segmented, Skeleton, Switch, Table, Td, Th, cx } from "@/components/ui";
+import { IconBell, IconCheck } from "@/components/icons";
+import { ChannelChip, ChannelStatus, Engagement, Recipients } from "./notification-subscriptions";
+
+/**
+ * Cài đặt › Cảnh báo (UX Phase 3, C2): "Ai nhận gì" (một bảng người nhận), "Cảnh báo tức thì báo gì"
+ * (ba mức sẵn Ít / Vừa / Nhiều, "Tuỳ chỉnh" mở từng quy tắc) và "Đã gửi gần đây". Kênh chưa bật bị ẩn
+ * với khách sạn; trạng thái kỹ thuật của kênh và hiệu quả tin gửi chỉ operator thấy.
+ */
 
 /** Miền giá trị của tham số, khớp `PARAM_BOUNDS` ở backend (notify/kinds.py). */
 const BOUNDS: Record<string, [number, number]> = {
@@ -19,6 +25,7 @@ const BOUNDS: Record<string, [number, number]> = {
   min_pct: [3, 90],
   min_share_pct: [25, 100],
   max_gap_pct: [3, 50],
+  min_vnd: [0, 50_000_000],
 };
 
 type ParamInput = (key: string, suffix?: string) => ReactNode;
@@ -38,176 +45,178 @@ const RULE_SPECS: Record<NotificationKind, Describe> = {
   competitor_price_drop: (t, num) => t.rich("rules.competitor_price_drop.describe", { pct: () => num("min_pct", "%"), days: () => num("within_days") }),
   competitor_price_rise: (t, num) => t.rich("rules.competitor_price_rise.describe", { pct: () => num("min_pct", "%"), days: () => num("within_days") }),
   competitor_promo: (t, num) => t.rich("rules.competitor_promo.describe", { pct: () => num("min_pct", "%"), days: () => num("within_days") }),
+  competitor_below_median: (t, num) => t.rich("rules.competitor_below_median.describe", { pct: () => num("min_pct", "%"), vnd: () => num("min_vnd", "₫"), days: () => num("within_days") }),
+  competitor_above_median: (t, num) => t.rich("rules.competitor_above_median.describe", { pct: () => num("min_pct", "%"), vnd: () => num("min_vnd", "₫"), days: () => num("within_days") }),
   own_closed: (t, num) => t.rich("rules.own_closed.describe", { days: () => num("within_days") }),
   own_position_drift: (t, num) => t.rich("rules.own_position_drift.describe", { pct: () => num("max_gap_pct", "%"), days: () => num("within_days") }),
 };
 
 /** Nhóm và thứ tự hiển thị: việc cần làm với đối thủ/thị trường, khách sạn của bạn, rồi bản tin. */
 const RULE_GROUPS: Array<{ key: "competitors" | "own" | "briefs"; kinds: NotificationKind[] }> = [
-  { key: "competitors", kinds: ["market_tight", "competitor_sold_out", "competitor_low_stock", "competitor_price_drop", "competitor_price_rise", "competitor_promo"] },
+  {
+    key: "competitors",
+    kinds: ["market_tight", "competitor_sold_out", "competitor_low_stock", "competitor_price_drop", "competitor_price_rise", "competitor_below_median", "competitor_above_median", "competitor_promo"],
+  },
   { key: "own", kinds: ["own_closed", "own_position_drift"] },
   { key: "briefs", kinds: ["daily_insight", "weekly_report", "data_stale"] },
 ];
 
-/** Tên ô số trong câu (cho trình đọc màn hình): cùng khoá `min_pct` mang nghĩa khác nhau theo loại. */
-function paramLabel(kind: NotificationKind, key: string): "param.minDrop" | "param.minRise" | "param.minDepth" | "param.minSoldOut" | "param.minShare" | "param.maxGap" | "param.withinDays" {
-  if (key === "min_pct") {
-    if (kind === "competitor_price_rise") return "param.minRise";
-    if (kind === "competitor_promo") return "param.minDepth";
-    return "param.minDrop";
-  }
-  if (key === "min_sold_out") return "param.minSoldOut";
-  if (key === "min_share_pct") return "param.minShare";
-  if (key === "max_gap_pct") return "param.maxGap";
-  return "param.withinDays";
+// ---- Mức sẵn (Ít / Vừa / Nhiều) ----
+
+type Level = "low" | "medium" | "high";
+const LEVELS: readonly Level[] = ["low", "medium", "high"];
+/** Loại do mức sẵn quyết định (bản tin sáng và báo cáo tuần bật/tắt theo từng người ở "Ai nhận gì"). */
+const PRESET_KINDS: readonly NotificationKind[] = [
+  "competitor_sold_out",
+  "own_closed",
+  "data_stale",
+  "competitor_price_drop",
+  "market_tight",
+  "competitor_low_stock",
+  "competitor_price_rise",
+  "competitor_promo",
+  "competitor_below_median",
+  "competitor_above_median",
+  "own_position_drift",
+];
+type Preset = Partial<Record<NotificationKind, Record<string, number> | true>>;
+/** Loại bật ở mỗi mức (kèm tham số khi mức đó đặt riêng); loại khác tắt. "Vừa" = mặc định backend. */
+const PRESETS: Record<Level, Preset> = {
+  low: { competitor_sold_out: { within_days: 7, min_sold_out: 1 }, own_closed: true, data_stale: true },
+  medium: {
+    competitor_sold_out: { within_days: 14, min_sold_out: 1 },
+    own_closed: true,
+    data_stale: true,
+    competitor_price_drop: { within_days: 14, min_pct: 10 },
+    market_tight: { within_days: 14, min_share_pct: 50 },
+  },
+  high: Object.fromEntries(PRESET_KINDS.map((k) => [k, true])),
+};
+
+function sameParams(a: Record<string, number>, b: Record<string, number>): boolean {
+  return Object.entries(b).every(([k, v]) => a[k] === v);
+}
+
+/** Mức sẵn khớp với quy tắc đang lưu; null = "Tuỳ chỉnh". */
+function currentLevel(rules: NotificationRuleOut[]): Level | null {
+  const byKind = new Map(rules.map((r) => [r.kind, r]));
+  return (
+    LEVELS.find((level) =>
+      PRESET_KINDS.every((k) => {
+        const rule = byKind.get(k);
+        const want = PRESETS[level][k];
+        if (!rule) return true;
+        if (!want) return !rule.active;
+        return rule.active && (want === true || sameParams(rule.params, want));
+      }),
+    ) ?? null
+  );
 }
 
 export function NotificationsTab() {
   const { canWrite, isOperator } = useSession();
   const settings = useApi("notifications:settings", () => api.notifications.settings());
   const log = useApi("notifications:log", () => api.notifications.log(30));
-  const tenant = useApi("settings", () => api.settings.get());
   const data = settings.data;
   const t = useTranslations("settings.notifications");
+  // Q6: không còn kênh nào gửi được tới người (email, Zalo) thì nói một câu, không thuật ngữ.
+  const noChannel = data && !data.email_configured && !data.zalo_configured;
 
   return (
     <div className="space-y-5">
       <ErrorBox error={settings.error} />
-      {data && !data.email_configured && (
-        <Note tone="warn" icon={<IconAlert size={16} />}>
-          {t("emailOff")}{" "}
-          {isOperator ? t("emailOffOperator") : t("emailOffTenant")}
-        </Note>
-      )}
       {!data && !settings.error && <Skeleton rows={6} />}
       {data && (
         <>
-          <ChannelStatus data={data} />
-          <Subscriptions channels={data.channels} zaloConfigured={data.zalo_configured} />
-          <Recipients recipients={data.recipients} canWrite={canWrite} configured={data.email_configured} onChanged={() => { settings.reload(); log.reload(); }} />
-          <Card title={t("rulesTitle")} description={t("rulesDescription")}>
-            <div className="-my-1 space-y-4">
-              {RULE_GROUPS.map((g) => {
-                const rules = g.kinds.flatMap((k) => data.rules.filter((x) => x.kind === k));
-                if (rules.length === 0) return null;
-                return (
-                  <section key={g.key}>
-                    <h3 className="border-b border-line pb-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-muted">{t(`groups.${g.key}`)}</h3>
-                    <ul className="divide-y divide-line">
-                      {rules.map((rule) => (
-                        <RuleRow key={rule.kind} kind={rule.kind as NotificationKind} rule={rule} canWrite={canWrite} insightHour={tenant.data?.insight_hour ?? null} onSaved={settings.reload} />
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
-            </div>
-          </Card>
+          {isOperator ? (
+            <ChannelStatus data={data} />
+          ) : (
+            noChannel && (
+              <Note tone="info" icon={<IconBell size={16} />}>
+                {t("noChannel")}
+              </Note>
+            )
+          )}
+          <Recipients settings={data} onSent={log.reload} />
+          <RulesCard data={data} canWrite={canWrite} onSaved={settings.reload} />
         </>
       )}
-      <Engagement />
       <SentLog log={log.data} error={log.error} isOperator={isOperator} onChanged={log.reload} />
+      {isOperator && <Engagement />}
     </div>
   );
 }
 
-function Recipients({ recipients, canWrite, configured, onChanged }: { recipients: RecipientOut[]; canWrite: boolean; configured: boolean; onChanged: () => void }) {
-  const [email, setEmail] = useState("");
-  const [result, setResult] = useState<NotificationLogOut | null>(null);
-  const t = useTranslations("settings.notifications.recipients");
-  const tc = useTranslations("common.actions");
-  const add = useMutation(async () => {
-    await api.notifications.addRecipient(email.trim());
-    setEmail("");
-    onChanged();
+function RulesCard({ data, canWrite, onSaved }: { data: NotificationSettingsOut; canWrite: boolean; onSaved: () => void }) {
+  const t = useTranslations("settings.notifications");
+  const tenant = useApi("settings", () => api.settings.get());
+  const level = currentLevel(data.rules);
+  const [open, setOpen] = useState(false);
+  const apply = useMutation(async (next: Level) => {
+    const byKind = new Map(data.rules.map((r) => [r.kind, r]));
+    await Promise.all(
+      PRESET_KINDS.map((k) => {
+        const want = PRESETS[next][k];
+        const params = want && want !== true ? want : (byKind.get(k)?.params ?? {});
+        return api.notifications.updateRule(k, { active: Boolean(want), params });
+      }),
+    );
+    onSaved();
   });
-  const remove = useMutation(async (id: number) => {
-    await api.notifications.removeRecipient(id);
-    onChanged();
-  });
-  const test = useMutation(async () => {
-    setResult(await api.notifications.test());
-    onChanged();
-  });
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    void add.run();
-  }
-
   return (
-    <Card
-      title={t("title")}
-      description={t("description")}
-      actions={
-        canWrite && (
-          <Button size="sm" icon={<IconMail size={15} />} busy={test.busy} disabled={recipients.length === 0} onClick={() => { setResult(null); void test.run(); }}>
-            {t("test")}
-          </Button>
-        )
-      }
-    >
-      {canWrite && (
-        <form onSubmit={submit} className="mb-4 flex flex-wrap items-start gap-2">
-          <Input
-            type="email"
-            required
-            aria-label={t("emailAria")}
-            placeholder={t("emailPlaceholder")}
-            autoComplete="off"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full max-w-sm"
-          />
-          <Button type="submit" variant="primary" busy={add.busy} icon={<IconPlus size={16} />}>
-            {t("add")}
-          </Button>
-        </form>
-      )}
-      <ErrorBox error={add.error ?? remove.error ?? test.error} className="mb-3" title={t("errorTitle")} />
-      {result && <TestResult row={result} configured={configured} />}
-      {recipients.length === 0 ? (
-        <EmptyState icon={<IconMail />} title={t("emptyTitle")} compact>
-          {t("emptyBody")}
-        </EmptyState>
-      ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line">
-          {recipients.map((r) => (
-            <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
-              <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand-hover">
-                {r.email.slice(0, 1).toUpperCase()}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink" title={r.email}>
-                {r.email}
-              </span>
-              {canWrite && (
-                <Button size="sm" variant="ghost" icon={<IconTrash size={15} />} aria-label={t("removeAria", { email: r.email })} busy={remove.busy} onClick={() => void remove.run(r.id)}>
-                  <span className="max-sm:sr-only">{tc("delete")}</span>
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+    <Card title={t("rulesTitle")} description={t("rulesDescription")}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmented
+          label={t("level.label")}
+          value={level ?? ("custom" as const)}
+          disabled={!canWrite || apply.busy}
+          onChange={(v) => v !== "custom" && v !== level && void apply.run(v)}
+          items={[...LEVELS.map((l) => ({ value: l as Level | "custom", label: t(`level.${l}`) })), ...(level === null ? [{ value: "custom" as const, label: t("level.custom") }] : [])]}
+        />
+        {apply.busy && <span className="text-sm text-muted">{t("level.saving")}</span>}
+      </div>
+      <p className="mt-2 text-sm text-body">{t(`level.${level ?? "custom"}Hint`)}</p>
+      <ErrorBox error={apply.error} className="mt-2" />
+      <div className="mt-4 border-t border-line pt-3">
+        <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="text-sm font-semibold text-brand hover:underline">
+          {open ? t("level.hideCustom") : t("level.showCustom")}
+        </button>
+        {open && (
+          <div className="mt-3 space-y-4">
+            {RULE_GROUPS.map((g) => {
+              const rules = g.kinds.flatMap((k) => data.rules.filter((x) => x.kind === k));
+              if (rules.length === 0) return null;
+              return (
+                <section key={g.key}>
+                  <h3 className="border-b border-line pb-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-muted">{t(`groups.${g.key}`)}</h3>
+                  <ul className="divide-y divide-line">
+                    {rules.map((rule) => (
+                      <RuleRow key={`${rule.kind}:${rule.active}:${JSON.stringify(rule.params)}`} kind={rule.kind as NotificationKind} rule={rule} canWrite={canWrite} insightHour={tenant.data?.insight_hour ?? null} onSaved={onSaved} />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
 
-function TestResult({ row, configured }: { row: NotificationLogOut; configured: boolean }) {
-  const t = useTranslations("settings.notifications.test");
-  const label = useLabel();
-  if (row.status === "sent") {
-    return (
-      <p role="status" className="mb-3 flex items-center gap-1.5 text-sm text-yours-deep">
-        <IconCheck size={16} /> {t("sent", { count: row.recipients.length })}
-      </p>
-    );
+/** Tên ô số trong câu (cho trình đọc màn hình): cùng khoá `min_pct` mang nghĩa khác nhau theo loại. */
+function paramLabel(kind: NotificationKind, key: string): "param.minDrop" | "param.minRise" | "param.minDepth" | "param.minGap" | "param.minVnd" | "param.minSoldOut" | "param.minShare" | "param.maxGap" | "param.withinDays" {
+  if (key === "min_pct") {
+    if (kind === "competitor_price_rise") return "param.minRise";
+    if (kind === "competitor_promo") return "param.minDepth";
+    if (kind === "competitor_below_median" || kind === "competitor_above_median") return "param.minGap";
+    return "param.minDrop";
   }
-  const reason = row.reason ? label("notificationReason", row.reason) : t("notSent");
-  return (
-    <p role="status" className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-warning-deep">
-      <IconAlert size={16} /> {configured ? reason : t("notSentUnconfigured", { reason })}
-    </p>
-  );
+  if (key === "min_vnd") return "param.minVnd";
+  if (key === "min_sold_out") return "param.minSoldOut";
+  if (key === "min_share_pct") return "param.minShare";
+  if (key === "max_gap_pct") return "param.maxGap";
+  return "param.withinDays";
 }
 
 function RuleRow({
@@ -245,6 +254,7 @@ function RuleRow({
         aria-label={t("param.aria", { rule: title, param: t(paramLabel(kind, key)) })}
         min={BOUNDS[key]?.[0]}
         max={BOUNDS[key]?.[1]}
+        step={key === "min_vnd" ? 50_000 : undefined}
         disabled={!canWrite || !rule.active}
         value={params[key] ?? ""}
         onChange={(e) => {
@@ -252,7 +262,8 @@ function RuleRow({
           setParams((p) => ({ ...p, [key]: e.target.value }));
         }}
         className={cx(
-          "mx-0.5 h-7 w-14 rounded-md border bg-surface px-1.5 text-center text-sm font-semibold text-ink tabular [appearance:textfield] transition-[border-color,box-shadow] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/15 disabled:bg-subtle disabled:text-faint",
+          "mx-0.5 h-7 rounded-md border bg-surface px-1.5 text-center text-sm font-semibold text-ink tabular [appearance:textfield] transition-[border-color,box-shadow] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/15 disabled:bg-subtle disabled:text-faint",
+          key === "min_vnd" ? "w-24" : "w-14",
           inBounds(key, params[key] ?? "") ? "border-line-strong" : "border-danger ring-3 ring-danger/15",
         )}
       />
@@ -400,3 +411,4 @@ function SentLog({ log, error, isOperator, onChanged }: { log: NotificationLogOu
     </Card>
   );
 }
+

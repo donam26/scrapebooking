@@ -10,12 +10,10 @@ import components from "./components.json";
 import helpers from "./helpers.json";
 import landing from "./landing.json";
 import auth from "./auth.json";
-import dashboard from "./dashboard.json";
 import today from "./today.json";
 import overview from "./overview.json";
-import terminal from "./terminal.json";
-import availability from "./availability.json";
-import rates from "./rates.json";
+import marketTab from "./marketTab.json";
+import calendar from "./calendar.json";
 import pace from "./pace.json";
 import competitors from "./competitors.json";
 import market from "./market.json";
@@ -29,6 +27,8 @@ import radar from "./radar.json";
 import otb from "./otb.json";
 import rms from "./rms.json";
 import reputation from "./reputation.json";
+import setup from "./setup.json";
+import reports from "./reports.json";
 
 const messages: Messages = {
   common,
@@ -40,12 +40,10 @@ const messages: Messages = {
   helpers,
   landing,
   auth,
-  dashboard,
   today,
   overview,
-  terminal,
-  availability,
-  rates,
+  marketTab,
+  calendar,
   pace,
   competitors,
   market,
@@ -59,6 +57,8 @@ const messages: Messages = {
   otb,
   rms,
   reputation,
+  setup,
+  reports,
 };
 
 export default messages;

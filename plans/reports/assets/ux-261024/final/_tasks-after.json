@@ -1,0 +1,39 @@
+{
+ "T1": {
+  "clicks_to_record": 2,
+  "first_action_in_first_screen": true,
+  "recorded": true,
+  "undo_inline": true,
+  "automation_s": 5.5
+ },
+ "T9_check": {
+  "clicks": 2,
+  "url": "/reports/outcomes"
+ },
+ "T2": {
+  "clicks": 2,
+  "url": "/hotels/4/dates/2026-10-24",
+  "same_night_card_top_px": 306
+ },
+ "T2_holiday": {
+  "note": "Lịch → chọn ngày 20/12 trong ô ngày (1 thao tác) → ô 24/12",
+  "cell_present": true,
+  "clicks": 3
+ },
+ "T3": {
+  "clicks": 1,
+  "seven_day_lines": 6
+ },
+ "T4": {
+  "clicks": 1,
+  "strip_top_px": 220
+ },
+ "T8": {
+  "clicks": 1,
+  "panel": true
+ },
+ "T1_mobile": {
+  "first_action_y": 408,
+  "viewport_h": 812
+ }
+}

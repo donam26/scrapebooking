@@ -17,3 +17,11 @@ coverage/
 
 # Ảnh chụp review thiết kế (impeccable), không cần commit
 .impeccable/review/
+
+# Ảnh chụp toàn bộ màn của audit UX 24/10 (~54MB, chỉ lưu máy local); commit ảnh bằng chứng
+# ev-*/task-*/extra-* và các file số đo _*.json
+plans/reports/assets/ux-261024/**/vi-*.jpg
+plans/reports/assets/ux-261024/**/en-*.jpg
+plans/reports/assets/ux-261024/vi-*.jpg
+plans/reports/assets/ux-261024/en-*.jpg
+plans/reports/assets/ux-261024/t7-*.jpg

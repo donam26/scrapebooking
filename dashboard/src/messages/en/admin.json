@@ -85,7 +85,8 @@
       "tenant": "Tenant",
       "role": "Role",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "lastLogin": "Last sign-in"
     }
   },
   "health": {

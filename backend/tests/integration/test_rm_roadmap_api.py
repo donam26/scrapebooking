@@ -20,7 +20,7 @@ from app.db.models import (
     Listing,
     Notification,
     NotificationDelivery,
-    NotificationRecipient,
+    NotificationSubscription,
     Probe,
     ScanRun,
     Tenant,
@@ -281,7 +281,14 @@ async def test_subscriptions_zalo_fanout_tracking_and_engagement(
     client: AsyncClient, db: AsyncSession, settings: Settings
 ) -> None:
     ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t"], email="gm@rex.vn", active=True))
+    db.add(
+        NotificationSubscription(
+            tenant_id=ids["t"],
+            channel="email",
+            target="gm@rex.vn",
+            kinds=["alerts", "daily_insight", "weekly_report", "data_stale"],
+        )
+    )
     await db.commit()
     await _login(client, "view@rex.vn", "view-pass-1")
     sub = await client.post(

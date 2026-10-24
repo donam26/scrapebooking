@@ -9,7 +9,8 @@
       "medianInYours": "Competitor median (in your strip)",
       "hint": "Hover or Tab onto a night to compare the whole stack; click a cell to open night details.",
       "perNight": "{price} per night",
-      "hintSingle": "Hover or Tab onto a night to see figures; click a cell to open night details."
+      "hintSingle": "Hover or Tab onto a night to see figures; click a cell to open night details.",
+      "howToRead": "How to read the cells"
     },
     "axis": {
       "month": "{month, select, 1 {Jan} 2 {Feb} 3 {Mar} 4 {Apr} 5 {May} 6 {Jun} 7 {Jul} 8 {Aug} 9 {Sep} 10 {Oct} 11 {Nov} 12 {Dec} other {{month}}}"

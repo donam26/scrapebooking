@@ -121,6 +121,16 @@ export function bookablePrice(c: DateCell | undefined): number | null {
   return num(c.min_price);
 }
 
+/**
+ * Giá cuối cùng đọc được của một ô còn bán, kể cả khi quan sát đã cũ hơn 48 giờ (`stale`): màn hình
+ * hiện số cũ kèm dấu "cũ" thay vì "—", để cùng một số không lúc có lúc không giữa các màn.
+ */
+export function lastPrice(c: DateCell | undefined): { value: number; stale: boolean } | null {
+  if (!c || cellState(c) !== "available") return null;
+  const v = num(c.min_price);
+  return v === null ? null : { value: v, stale: !!c.stale };
+}
+
 /** Ô quan sát được trạng thái (còn bán, hết phòng, hạn chế) và không cũ. */
 function observed(c: DateCell | undefined): c is DateCell {
   const s = cellState(c);

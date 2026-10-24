@@ -12,6 +12,9 @@
   "userNotFound": "User not found",
   "selfLock": "You can't lock or change the role of the account you're signed in with",
   "lastOperator": "You can't lock or demote the last active operator",
+  "inviteInvalid": "This password link is wrong or has already been used. Ask your hotel admin to send the invitation again.",
+  "inviteExpired": "This password link has expired (it works for 72 hours). Ask your hotel admin to send the invitation again.",
+  "inviteAccepted": "This person has already set a password, so there's nothing to resend",
   "tenantNotFound": "Tenant not found",
   "unknownTimezone": "Invalid time zone: {value} (example: Asia/Ho_Chi_Minh)",
   "badTime": "Invalid time: {value} (format HH:MM)",
@@ -77,6 +80,9 @@
   "suggestionGone": "This night's suggestion no longer exists, reload the page",
   "eventNotFound": "Event not found",
   "marketAreaNotFound": "Market area not found",
+  "selfNoCoordinates": "Your hotel has no coordinates yet",
+  "latlongNeedsRadius": "An area around a point needs a radius of 1, 3 or 5 km",
+  "destIdRequired": "The Booking.com area ID is missing",
   "eventTooLong": "An event can last at most {max} days",
   "recipientsMax": "At most {max} recipients",
   "recipientExists": "This recipient is already on the list",
@@ -149,6 +155,8 @@
     "applied_price": "Price set",
     "as_of_date": "As-of date",
     "rooms_otb": "Rooms on the books",
-    "source_markets": "Source markets"
+    "source_markets": "Source markets",
+    "radius_m": "Radius",
+    "segment_nflt": "Segment"
   }
 }

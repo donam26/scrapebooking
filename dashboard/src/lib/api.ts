@@ -14,6 +14,9 @@ export type TenantUpdate = Schemas["TenantUpdate"];
 export type TenantCreate = Schemas["TenantCreate"];
 export type UserCreate = Schemas["UserCreate"];
 export type UserUpdate = Schemas["UserUpdate"];
+/** Mời người dùng: họ tự đặt mật khẩu qua link (email hoặc quản trị gửi tay). */
+export type UserInvite = Schemas["UserInvite"];
+export type InviteOut = Schemas["InviteOut"];
 export type WatchItemOut = Schemas["WatchItemOut"];
 export type WatchItemCreate = Schemas["WatchItemCreate"];
 export type WatchItemUpdate = Schemas["WatchItemUpdate"];
@@ -28,6 +31,7 @@ export type RoomSnapshotOut = Schemas["RoomSnapshotOut"];
 export type RoomTypeOut = Schemas["RoomTypeOut"];
 export type HotelDateSnapshotOut = Schemas["HotelDateSnapshotOut"];
 export type EventOut = Schemas["EventOut"];
+export type HotelEventsSummaryOut = Schemas["HotelEventsSummaryOut"];
 export type ScanRunOut = Schemas["ScanRunOut"];
 export type InsightOut = Schemas["InsightOut"];
 export type InsightDetailOut = Schemas["InsightDetailOut"];
@@ -41,7 +45,6 @@ export type ValidationErrorItem = Schemas["ValidationError"];
 export type NotificationSettingsOut = Schemas["NotificationSettingsOut"];
 export type NotificationRuleOut = Schemas["NotificationRuleOut"];
 export type NotificationLogOut = Schemas["NotificationLogOut"];
-export type RecipientOut = Schemas["RecipientOut"];
 export type MarketPaceOut = Schemas["MarketPaceOut"];
 export type PaceNightOut = Schemas["PaceNightOut"];
 export type SuggestionOut = Schemas["SuggestionOut"];
@@ -61,11 +64,27 @@ export type MarketAreaOut = Schemas["MarketAreaOut"];
 export type MarketAreaCreate = Schemas["MarketAreaCreate"];
 export type MarketAreaUpdate = Schemas["MarketAreaUpdate"];
 export type MarketCityOut = Schemas["MarketCityOut"];
+export type CityListOut = Schemas["CityListOut"];
 export type CityHotelOut = Schemas["CityHotelOut"];
 export type CityHotelsOut = Schemas["CityHotelsOut"];
+/** Nấc thang: số khách sạn còn bán được ≥ `rooms` phòng cùng lúc một đêm (nấc 1 = danh sách). */
+export type LadderRungOut = Schemas["LadderRungOut"];
+/** Biểu đồ ngân sách của Booking: `bars` cột đều từ min tới max (VND/đêm), chiều cao tương đối. */
+export type BookingHistogramOut = Schemas["BookingHistogramOut"];
+/** Khách sạn "của bạn" đặt cạnh thị trường một đêm. */
+export type SelfMarketOut = Schemas["SelfMarketOut"];
+/** Toạ độ khách sạn "của bạn" (tâm của khu vực bán kính). */
+export type SelfLocationOut = Schemas["SelfLocationOut"];
+export type MarketTrendOut = Schemas["MarketTrendOut"];
+export type MarketTrendNightOut = Schemas["MarketTrendNightOut"];
 export type DataStatusOut = Schemas["DataStatusOut"];
 export type CompsetReviewOut = Schemas["CompsetReviewOut"];
 export type CalibrationOut = Schemas["CalibrationOut"];
+/** Thẻ "Thiết lập 5 bước" (Hôm nay) và nhóm đối thủ có cân về giá không (14 đêm tới). */
+export type SetupOut = Schemas["SetupOut"];
+export type CompsetBalanceOut = Schemas["CompsetBalanceOut"];
+/** Loại tệp PMS: công suất theo ngày | phòng đã đặt theo ngày | danh sách đặt phòng. */
+export type PmsFileKind = PreviewOut["kind"];
 export type LeadCalibrationOut = Schemas["LeadCalibrationOut"];
 // ---- Phase 3: thông báo qua email/Zalo/webhook, đăng ký theo người, đo lượt nhấn/"Đã xử lý" ----
 export type NotificationKind = Schemas["NotificationKind"];
@@ -319,6 +338,9 @@ export const api = {
       request<UserOut>("POST", "/auth/login", { body, noAuthRedirect: true }),
     logout: () => request<void>("POST", "/auth/logout", { noAuthRedirect: true }),
     me: () => request<UserOut>("GET", "/auth/me", { noAuthRedirect: true }),
+    /** Công khai: người được mời đặt mật khẩu bằng token trong link (400 sai/đã dùng, 410 hết hạn). */
+    setPassword: (body: Schemas["SetPasswordRequest"]) =>
+      request<void>("POST", "/auth/set-password", { body, noAuthRedirect: true }),
   },
   tenants: {
     list: () => request<TenantOut[]>("GET", "/tenants"),
@@ -329,11 +351,19 @@ export const api = {
   settings: {
     get: () => request<TenantOut>("GET", "/settings"),
     update: (body: TenantUpdate) => request<TenantOut>("PATCH", "/settings", { body }),
+    /** Thẻ "Thiết lập 5 bước": bước đã xong, đã ẩn chưa, nhóm đối thủ có cân về giá không. */
+    setup: () => request<SetupOut>("GET", "/settings/setup"),
+    /** "Ẩn" (dismissed = true) hoặc hiện lại thẻ thiết lập; chỉ người được ghi. */
+    setSetupDismissed: (dismissed: boolean) => request<SetupOut>("PUT", "/settings/setup", { body: { dismissed } }),
   },
   users: {
     list: () => request<UserOut[]>("GET", "/users"),
     create: (body: UserCreate) => request<UserOut>("POST", "/users", { body }),
     update: (id: number, body: UserUpdate) => request<UserOut>("PATCH", `/users/${id}`, { body }),
+    /** Thêm người bằng lời mời (link đặt mật khẩu 72 giờ); luôn trả `invite_url`. */
+    invite: (body: UserInvite) => request<InviteOut>("POST", "/users/invite", { body }),
+    /** Gửi lại lời mời cho người chưa đặt mật khẩu; link cũ mất hiệu lực. */
+    resendInvite: (id: number) => request<InviteOut>("POST", `/users/${id}/invite`),
   },
   watchlist: {
     list: (includeInactive = false) =>
@@ -379,6 +409,9 @@ export const api = {
     limit?: number;
     offset?: number;
   }) => request<EventOut[]>("GET", "/events", { query }),
+  /** Tóm tắt "N ngày qua" (mặc định 7) theo từng khách sạn đang theo dõi; đếm theo đêm. */
+  eventsSummary: (query: { days?: number; hotel_id?: number | null } = {}) =>
+    request<HotelEventsSummaryOut[]>("GET", "/events/summary", { query }),
   runs: (limit = 10) => request<ScanRunOut[]>("GET", "/runs", { query: { limit } }),
   /** Từng khách sạn của tenant trong một lượt quét. */
   runJobs: (runId: number) => request<RunJobOut[]>("GET", `/runs/${runId}/jobs`),
@@ -391,10 +424,11 @@ export const api = {
     template: () => request<string>("GET", "/pms/template", { text: true }),
     getMapping: (adapter = "csv") => request<MappingOut>("GET", "/pms/mapping", { query: { adapter } }),
     putMapping: (body: Schemas["MappingIn"]) => request<MappingOut>("PUT", "/pms/mapping", { body }),
-    preview: (file: File, adapter = "csv") => {
+    preview: (file: File, adapter = "csv", kind?: PmsFileKind | null) => {
       const form = new FormData();
       form.append("file", file);
       form.append("adapter", adapter);
+      if (kind) form.append("kind", kind);
       return request<PreviewOut>("POST", "/pms/preview", { form });
     },
     import: (file: File, hotelId: number, adapter = "csv") => {
@@ -427,6 +461,9 @@ export const api = {
     /** Nhịp và chỉ báo lấp đầy trên Booking.com cho một khách sạn của bạn. */
     pace: (query: { start?: string; end?: string; own_hotel_id?: number | null }) =>
       request<MarketPaceOut>("GET", "/market/pace", { query }),
+    /** Xem trước gợi ý với chiến lược nháp (không lưu), tối đa 14 đêm từ `start` (mặc định hôm nay). */
+    pacePreview: (body: StrategyIn, query: { start?: string; end?: string; own_hotel_id?: number | null } = {}) =>
+      request<MarketPaceOut>("POST", "/market/pace/preview", { body, query }),
     /**
      * Ghi nhận đã áp dụng/bỏ qua gợi ý. `appliedPrice`: giá thật sự đã đặt (khi khác giá mục tiêu),
      * để đo kết quả sau đêm lưu trú; bỏ trống thì backend lấy giá mục tiêu.
@@ -475,9 +512,14 @@ export const api = {
     /** Công suất ước tính mới nhất của từng khách sạn theo đêm (≤ 60 đêm). */
     occupancy: (query: { start?: string; end?: string }) =>
       request<MarketOccupancyOut>("GET", "/market/occupancy", { query }),
-    /** Khu vực thị trường (toàn thành phố/quận) quét danh sách mọi khách sạn trên Booking. */
+    /**
+     * Khu vực thị trường trên Booking: thành phố/quận/vùng/địa danh hoặc bán kính quanh khách sạn của
+     * bạn (`latlong`), lọc theo phân khúc (`segment_nflt`).
+     */
     areas: {
       search: (q: string) => request<DestinationOut[]>("GET", "/market/areas/search", { query: { q } }),
+      /** Toạ độ khách sạn "của bạn" cho khu vực "quanh khách sạn của bạn"; 404 khi chưa có toạ độ. */
+      selfLocation: () => request<SelfLocationOut>("GET", "/market/areas/self-location"),
       list: () => request<MarketAreaOut[]>("GET", "/market/areas"),
       create: (body: MarketAreaCreate) => request<MarketAreaOut>("POST", "/market/areas", { body }),
       update: (id: number, body: MarketAreaUpdate) => request<MarketAreaOut>("PATCH", `/market/areas/${id}`, { body }),
@@ -486,6 +528,9 @@ export const api = {
     },
     /** Chỉ báo thị trường cả khu vực cho một đêm (404 khi tenant chưa có khu vực). */
     city: (query: { date?: string; area_id?: number } = {}) => request<MarketCityOut>("GET", "/market/city", { query }),
+    /** Mỗi đêm của một dải (≤ 30, mặc định 14): còn phòng, tỉ lệ hết phòng, thang, mức căng; 404 khi chưa có khu vực. */
+    cityTrend: (query: { area_id?: number; start?: string; nights?: number } = {}) =>
+      request<MarketTrendOut>("GET", "/market/city/trend", { query }),
     cityHotels: (query: { date?: string; area_id?: number; sort?: string; q?: string; limit?: number; offset?: number }) =>
       request<CityHotelsOut>("GET", "/market/city/hotels", { query }),
     events: {
@@ -497,8 +542,6 @@ export const api = {
   },
   notifications: {
     settings: () => request<NotificationSettingsOut>("GET", "/notifications/settings"),
-    addRecipient: (email: string) => request<RecipientOut>("POST", "/notifications/recipients", { body: { email } }),
-    removeRecipient: (id: number) => request<void>("DELETE", `/notifications/recipients/${id}`),
     updateRule: (kind: string, body: { active: boolean; params: Record<string, number> }) =>
       request<NotificationRuleOut>("PUT", `/notifications/rules/${kind}`, { body }),
     /** Gửi email thử tới mọi người nhận (tối đa 1 lần/phút). */
@@ -514,6 +557,8 @@ export const api = {
       create: (body: SubscriptionIn) => request<SubscriptionOut>("POST", "/notifications/subscriptions", { body }),
       update: (id: number, body: SubscriptionIn) => request<SubscriptionOut>("PUT", `/notifications/subscriptions/${id}`, { body }),
       remove: (id: number) => request<void>("DELETE", `/notifications/subscriptions/${id}`),
+      /** "Gửi thử" một hàng của "Ai nhận gì" (tối đa 1 tin thử/phút cho cả tenant). */
+      test: (id: number) => request<NotificationLogOut>("POST", `/notifications/subscriptions/${id}/test`),
     },
   },
   /** Liên kết tải tệp (thẻ <a>): đi qua proxy `/api`, kèm `tenant_id` cho operator. */

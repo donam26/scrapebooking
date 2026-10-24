@@ -1,0 +1,61 @@
+{
+  "pmsLock": {
+    "title": "Import PMS data to unlock: 14-day revenue, rooms booked, suggestion results",
+    "body": "These figures only come from your PMS. Revenue and rooms booked are never estimated from Booking.com advertised rates.",
+    "action": "Import PMS data",
+    "viewer": "Ask your hotel admin to import PMS data in Settings › PMS import."
+  },
+  "revenue": {
+    "title": "Revenue, next 14 days (PMS)",
+    "info": "Revenue on the books per night from the PMS data you import. Nights without revenue use rooms sold × ADR (average rate per room sold, from your PMS).",
+    "caption": "revenue on the books · {known}/14 nights with data",
+    "barNoData": "no PMS data"
+  },
+  "outcomes": {
+    "title": "Suggestion results",
+    "subtitle": "Price suggestions you marked “I changed the price” or “Dismiss”, and what happened after the stay.",
+    "card": {
+      "title": "Recorded suggestions → results",
+      "description": "Last {days} days. Occupancy and ADR are real PMS figures after the stay.",
+      "info": "Right direction: raised and occupancy still reached 85%, or lowered and reached 70%. Needs review: raised and occupancy stayed under 60%, or lowered and stayed under 50%. Re-check: re-runs the suggestion on competitor rates {lead} days before each past night.",
+      "applyRate": "Price-change rate",
+      "applyRateHint": "{applied}/{decided} suggestions recorded",
+      "good": "Right direction",
+      "goodHint": "Out of {count, plural, one {# night} other {# nights}} with PMS figures",
+      "review": "Needs review",
+      "reviewHint": "Raised and rooms went unsold, or lowered and still unsold",
+      "backtest": "Re-check, {days} days",
+      "backtestHint": "Right direction {good}/{scored} nights (raise {raise}, lower {lower})",
+      "backtestNone": "Not enough nights with PMS figures yet",
+      "emptyTitle": "No results yet",
+      "emptyBody": "Results appear after the stay once you have imported PMS data for that night and marked the suggestion “I changed the price” or “Dismiss” on Today.",
+      "recent": "Recent nights",
+      "showAll": "Show all {count} nights",
+      "showLess": "Show less",
+      "adrTitle": "ADR: average rate per room sold, from your PMS",
+      "col": {
+        "night": "Night",
+        "suggestion": "Suggestion",
+        "decision": "Decision",
+        "price": "Price before → set",
+        "occ": "Occupancy (PMS)",
+        "adr": "ADR (PMS)",
+        "verdict": "Result"
+      },
+      "decision": {
+        "applied": "Price changed",
+        "dismissed": "Dismissed"
+      },
+      "verdict": {
+        "good": "Right direction",
+        "review": "Needs review",
+        "neutral": "Neutral",
+        "pending": "Waiting for PMS figures"
+      },
+      "upcoming": "Upcoming nights",
+      "upcomingHint": "recorded by mistake? Press Undo; the suggestion returns on Today",
+      "past": "Past nights",
+      "undo": "Undo"
+    }
+  }
+}

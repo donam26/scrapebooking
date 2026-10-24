@@ -7,7 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.service import AnalyticsService
 from app.config import Settings
-from app.db.models import Insight, Notification, NotificationRecipient, Tenant, TenantHotel
+from app.db.models import (
+    Insight,
+    Notification,
+    NotificationSubscription,
+    Tenant,
+    TenantHotel,
+)
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus
 from app.notify.alert_rules import AlertItem
 from app.notify.kinds import NotificationKind
@@ -18,6 +24,16 @@ from tests.integration.seed import scan_run
 from tests.integration.test_api import _login, _offer, _seed
 
 STAY = date(2026, 10, 5)
+ALL_KINDS = ["alerts", "daily_insight", "weekly_report", "data_stale"]
+
+
+def _recipient(tenant_id: int, email: str) -> NotificationSubscription:
+    """Người nhận email mọi loại tin (như người nhận cũ đã gộp vào đăng ký, migration 0019)."""
+    return NotificationSubscription(
+        tenant_id=tenant_id, user_id=None, channel="email", target=email, kinds=ALL_KINDS
+    )
+
+
 NOW = datetime(2026, 10, 1, 2, 0, tzinfo=UTC)  # 09:00 giờ Việt Nam, đêm 05/10 trong 14 đêm tới
 
 
@@ -62,7 +78,7 @@ async def _competitor_sells_out(
     return run_id
 
 
-async def test_settings_recipients_rules_and_permissions(
+async def test_settings_rules_and_one_recipient_model(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     await _seed(db)
@@ -71,20 +87,32 @@ async def test_settings_recipients_rules_and_permissions(
     r = await client.get("/notifications/settings")
     assert r.status_code == 200
     body = r.json()
-    assert body["email_configured"] is True and body["recipients"] == []
+    assert body["email_configured"] is True and "recipients" not in body
     assert {x["kind"] for x in body["rules"]} >= {"daily_insight", "competitor_sold_out"}
-    # Mọi loại bật mặc định, trừ "lệch định vị" (cần đặt mục tiêu trong chiến lược giá trước).
-    assert all(x["active"] for x in body["rules"] if x["kind"] != "own_position_drift")
-    assert not next(x for x in body["rules"] if x["kind"] == "own_position_drift")["active"]
-
-    r = await client.post("/notifications/recipients", json={"email": "Owner@Rex.vn"})
-    assert r.status_code == 201, r.text
-    rid = r.json()["id"]
-    dup = await client.post("/notifications/recipients", json={"email": "owner@rex.vn"})
-    assert dup.status_code == 409
+    # Mặc định = mức "Vừa": hết phòng, giảm giá, đêm căng, bạn hết phòng, dữ liệu cũ, bản tin.
+    on = {x["kind"] for x in body["rules"] if x["active"]}
+    assert on == {
+        "daily_insight",
+        "weekly_report",
+        "data_stale",
+        "competitor_sold_out",
+        "competitor_price_drop",
+        "market_tight",
+        "own_closed",
+    }
+    # Bảng người nhận cũ đã gộp vào "Ai nhận gì": không còn endpoint riêng.
     assert (
-        await client.post("/notifications/recipients", json={"email": "nope"})
-    ).status_code == 422
+        await client.post("/notifications/recipients", json={"email": "x@y.vn"})
+    ).status_code in (404, 405)
+    r = await client.post(
+        "/notifications/subscriptions",
+        json={"channel": "email", "target": "Owner@Rex.vn", "kinds": ["alerts"]},
+    )
+    assert r.status_code == 201, r.text
+    dup = await client.post(
+        "/notifications/subscriptions", json={"channel": "email", "target": "owner@rex.vn"}
+    )
+    assert dup.status_code == 409
 
     r = await client.put(
         "/notifications/rules/competitor_price_drop",
@@ -99,19 +127,20 @@ async def test_settings_recipients_rules_and_permissions(
     assert (
         await client.put("/notifications/rules/unknown", json={"active": True})
     ).status_code == 422
+    r = await client.put(
+        "/notifications/rules/competitor_below_median",
+        json={"active": True, "params": {"min_pct": 10, "min_vnd": 300000}},
+    )
+    assert r.json()["params"] == {"within_days": 14, "min_pct": 10, "min_vnd": 300000}
     rules = {x["kind"]: x for x in (await client.get("/notifications/settings")).json()["rules"]}
     assert rules["competitor_price_drop"]["params"]["min_pct"] == 20
+    assert rules["competitor_below_median"]["active"] is True
 
     await _login(client, "view@a.com", "view-pass-1")
     assert (await client.get("/notifications/settings")).status_code == 200
     assert (
-        await client.post("/notifications/recipients", json={"email": "x@y.vn"})
+        await client.put("/notifications/rules/competitor_sold_out", json={"active": False})
     ).status_code == 403
-    assert (await client.delete(f"/notifications/recipients/{rid}")).status_code == 403
-
-    await _login(client, "admin@a.com", "admin-pass-1")
-    assert (await client.delete(f"/notifications/recipients/{rid}")).status_code == 204
-    assert (await client.delete(f"/notifications/recipients/{rid}")).status_code == 404
 
 
 async def test_send_test_email_rate_limited_and_logged(
@@ -123,7 +152,9 @@ async def test_send_test_email_rate_limited_and_logged(
     assert r.status_code == 200 and r.json()["status"] == "skipped"
     assert r.json()["reason"] == "no_recipients"
 
-    await client.post("/notifications/recipients", json={"email": "owner@rex.vn"})
+    sub = await client.post(
+        "/notifications/subscriptions", json={"channel": "email", "target": "owner@rex.vn"}
+    )
     # Lần thử trước đã chiếm khoá của phút này: phải đợi sang phút sau.
     assert (await client.post("/notifications/test")).status_code == 429
     await db.execute(Notification.__table__.delete())
@@ -135,11 +166,23 @@ async def test_send_test_email_rate_limited_and_logged(
     assert log[0]["kind"] == "test" and log[0]["recipients"] == ["owner@rex.vn"]
     assert log[0]["detail"] is None
 
+    # "Gửi thử" một hàng: chỉ người nhận đó; chung giới hạn một tin thử mỗi phút.
+    other = await client.post(
+        "/notifications/subscriptions", json={"channel": "email", "target": "gm@rex.vn"}
+    )
+    sid = other.json()["id"]
+    assert (await client.post(f"/notifications/subscriptions/{sid}/test")).status_code == 429
+    await db.execute(Notification.__table__.delete())
+    await db.commit()
+    r = await client.post(f"/notifications/subscriptions/{sid}/test")
+    assert r.status_code == 200 and r.json()["recipients"] == ["gm@rex.vn"], r.text
+    assert [to for to, _ in email_sender.sent][-1] == "gm@rex.vn" and sub.status_code == 201
+
 
 async def test_dispatch_alerts_once_and_retry_failed(db: AsyncSession, settings: Settings) -> None:
     ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="gm@rex.vn", active=True))
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
+    db.add(_recipient(ids["t1"], "gm@rex.vn"))
     await db.commit()
     run_id = await _competitor_sells_out(db, ids)
 
@@ -180,7 +223,7 @@ async def test_dispatch_without_smtp_is_logged_not_sent(
     client: AsyncClient, db: AsyncSession, settings: Settings
 ) -> None:
     ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
     await db.commit()
     run_id = await _competitor_sells_out(db, ids)
 
@@ -199,7 +242,7 @@ async def test_dispatch_without_smtp_is_logged_not_sent(
 
 async def test_disabled_rule_sends_nothing(db: AsyncSession, settings: Settings) -> None:
     ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
     await db.commit()
     run_id = await _competitor_sells_out(db, ids)
     sender = FakeEmailSender()
@@ -221,7 +264,7 @@ async def test_disabled_rule_sends_nothing(db: AsyncSession, settings: Settings)
 
 async def test_daily_insight_email_sent_once(db: AsyncSession, settings: Settings) -> None:
     ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
     insight = Insight(
         tenant_id=ids["t1"],
         period_start=date(2026, 10, 1),
@@ -258,9 +301,48 @@ async def test_daily_insight_email_sent_once(db: AsyncSession, settings: Setting
     ]
 
 
+async def test_placeholder_brief_never_emailed_nor_listed_for_tenant(
+    client: AsyncClient, db: AsyncSession, settings: Settings
+) -> None:
+    ids = await _seed(db)
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
+    fake = Insight(
+        tenant_id=ids["t1"],
+        period_start=date(2026, 10, 1),
+        period_end=date(2026, 10, 30),
+        generated_at=NOW - timedelta(hours=1),
+        trigger="daily",
+        status="completed",
+        model="placeholder",
+        prompt_version="v",
+        input_json={},
+        output_json={"summary": "OPENROUTER_API_KEY chưa cấu hình; đây là đầu ra giả."},
+    )
+    db.add(fake)
+    await db.commit()
+    sender = FakeEmailSender()
+    assert (await NotificationService(db, sender, settings).dispatch_due(NOW)).insights == 0
+    assert not sender.sent
+    # Dòng cũ (gửi trước khi có bộ lọc) cũng không hiện với khách sạn; operator vẫn thấy.
+    db.add(
+        Notification(
+            tenant_id=ids["t1"],
+            kind="daily_insight",
+            dedupe_key=f"insight:{fake.id}",
+            status="sent",
+            subject="Bản tin sáng 01/10: OPENROUTER_API_KEY chưa cấu hình",
+            insight_id=fake.id,
+            recipients=["owner@rex.vn"],
+        )
+    )
+    await db.commit()
+    await _login(client, "admin@a.com", "admin-pass-1")
+    assert (await client.get("/notifications/log")).json() == []
+
+
 async def test_weekly_report_monday_morning_once(db: AsyncSession, settings: Settings) -> None:
     ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
     await db.commit()
     await _competitor_sells_out(db, ids)
 
@@ -281,7 +363,7 @@ async def test_retry_backoff_atomic_claim_and_tests_not_retried(
     db: AsyncSession, settings: Settings
 ) -> None:
     ids = await _seed(db)
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
     await db.commit()
     run_id = await _competitor_sells_out(db, ids)
     sender = FakeEmailSender()
@@ -319,8 +401,8 @@ async def test_one_failing_tenant_does_not_block_others(
     ids = await _seed(db)
     # Tenant 2 theo dõi cùng đối thủ để lượt quét có hai tenant.
     db.add(TenantHotel(tenant_id=ids["t2"], hotel_id=ids["comp"], role="competitor", active=True))
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="a@rex.vn", active=True))
-    db.add(NotificationRecipient(tenant_id=ids["t2"], email="b@other.vn", active=True))
+    db.add(_recipient(ids["t1"], "a@rex.vn"))
+    db.add(_recipient(ids["t2"], "b@other.vn"))
     await db.commit()
     await _competitor_sells_out(db, ids)
     svc = NotificationService(db, FakeEmailSender(), settings)
@@ -348,7 +430,7 @@ async def test_hotel_name_with_newline_still_sends(db: AsyncSession, settings: S
         )
     ).scalar_one()
     link.label = "Comp\r\nBcc: x@evil.vn " + "A" * 90
-    db.add(NotificationRecipient(tenant_id=ids["t1"], email="owner@rex.vn", active=True))
+    db.add(_recipient(ids["t1"], "owner@rex.vn"))
     await db.commit()
     await _competitor_sells_out(db, ids)
     sender = FakeEmailSender()

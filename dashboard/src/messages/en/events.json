@@ -1,6 +1,6 @@
 {
-  "title": "Changes",
-  "subtitle": "Every change on Booking.com between two consecutive scans: sold out, back in stock, rooms left, rates, restrictions and promotions",
+  "title": "Change log",
+  "subtitle": "Changes on Booking.com between two consecutive scans: sold out, back in stock, rooms left, rates, restrictions and promotions",
   "downloadCsv": "Download CSV",
   "since": {
     "h24": "24 hours",
@@ -12,7 +12,8 @@
   "filters": {
     "hotel": "Hotel",
     "allHotels": "All hotels",
-    "yours": "(yours)",
+    "yourHotels": "Your hotels",
+    "competitors": "Competitors",
     "inactive": "(paused)",
     "observedWithin": "Observed within",
     "stayNight": "Stay date",
@@ -24,11 +25,16 @@
     "group": {
       "rooms": "Rooms",
       "price": "Price",
-      "restrictions": "Restrictions & promos"
-    }
+      "restrictions": "Restrictions",
+      "promos": "Promotions"
+    },
+    "groupTitle": "Click to filter the whole group: {types}",
+    "more": "More filters",
+    "less": "Fewer filters",
+    "small": "Show small changes too (±1 room)"
   },
   "highlight": {
-    "text": "Highlighting change #{id} linked from the brief (if it is on this page).",
+    "text": "Highlighting the change linked from the brief (if it is on this page).",
     "clear": "Remove highlight"
   },
   "list": {
@@ -36,10 +42,14 @@
     "countMore": "{count}+ changes",
     "filtered": "Matching the current filters",
     "newestFirst": "Newest first",
+    "smallHidden": "{count, plural, one {# ±1-room change} other {# ±1-room changes}} hidden on this page",
     "prev": "Previous",
     "next": "Next",
     "page": "Page {page}",
     "emptyFiltered": "No changes match these filters. Try a wider time window or fewer change types.",
-    "empty": "No changes yet. Changes appear when two consecutive scans differ."
+    "empty": "No changes yet. Changes appear when two consecutive scans differ.",
+    "emptyNoScan": "No scan has run since {when}, so there are no new changes.",
+    "emptyNeverScanned": "No scan has run yet, so there are no changes.",
+    "emptyRuns": "See scan status"
   }
 }

@@ -30,7 +30,7 @@
   "notFound": {
     "title": "Page not found",
     "body": "The link is wrong or the page has moved.",
-    "toDashboard": "Go to Dashboard",
+    "toDashboard": "Go to Today",
     "toHome": "Home page"
   },
   "errorPage": {
@@ -38,6 +38,6 @@
     "body": "Try again. If it keeps happening, send your OTARadar provider the error code below.",
     "code": "Error code: {digest}",
     "retry": "Try again",
-    "toDashboard": "Go to Dashboard"
+    "toDashboard": "Go to Today"
   }
 }

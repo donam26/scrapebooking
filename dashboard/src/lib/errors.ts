@@ -37,6 +37,10 @@ const RULES: Rule[] = [
   [/^user not found$/, "userNotFound"],
   [/^cannot lock or change the role of your own account$/, "selfLock"],
   [/^cannot remove the last active operator$/, "lastOperator"],
+  // lời mời đặt mật khẩu
+  [/^invalid invite token$/, "inviteInvalid"],
+  [/^invite token expired$/, "inviteExpired"],
+  [/^user already has a password$/, "inviteAccepted"],
   // tenant, lịch quét
   [/^tenant not found$/, "tenantNotFound"],
   [/^unknown timezone '(.+)'.*$/, "unknownTimezone", (m) => ({ value: m[1] })],
@@ -76,6 +80,9 @@ const RULES: Rule[] = [
   [/^no such suggestion for this night anymore$/, "suggestionGone"],
   [/^event not found$/, "eventNotFound"],
   [/^market area not found$/, "marketAreaNotFound"],
+  [/^no self hotel with coordinates$/, "selfNoCoordinates"],
+  [/^(?:Value error, )?latlong area needs.*$/, "latlongNeedsRadius"],
+  [/^(?:Value error, )?dest_id is required$/, "destIdRequired"],
   [/^(?:Value error, )?end_date before start_date$/, "endBeforeStart"],
   [/^(?:Value error, )?event longer than (\d+) days$/, "eventTooLong", (m) => ({ max: m[1] })],
   // thông báo email

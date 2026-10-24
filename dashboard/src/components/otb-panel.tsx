@@ -4,18 +4,18 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { api, type KpiOut, type OtbNightOut, type OtbOut } from "@/lib/api";
-import { useApi } from "@/lib/hooks";
+import { useApi, type ApiState } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { addDays, isWeekend, num, useFmt } from "@/lib/format";
 import { ButtonLink, Card, EmptyState, ErrorBox, Note, ROW_CLASS, SkeletonBlock, StatStrip, Table, Td, Th, cx } from "./ui";
 import { IconArrowRight, IconBuilding, IconUpload } from "./icons";
 
 /**
- * OTB của khách sạn của bạn (roadmap Phase 5) — nửa còn lại của quyết định giá:
- * - KPI thật từ PMS 30 đêm qua (Công suất, ADR, RevPAR) — chỉ ở đây mới dùng các tên này.
- * - Theo đêm: OTB, pickup 1/7 ngày, so 4 tuần trước (cùng thứ, cùng lead), cùng kỳ năm trước
- *   (STLY), dự báo cộng pickup lịch sử.
- * `OtbPanel`: bản đầy đủ (Nhịp đặt phòng / Terminal+); `OtbCompact`: bản gọn (Hôm nay).
+ * Phòng đã đặt (OTB, từ PMS) của khách sạn của bạn — nửa còn lại của quyết định giá:
+ * - KPI thật từ PMS 30 đêm qua (Công suất, ADR, RevPAR) — chỉ số PMS mới dùng các tên này.
+ * - Theo đêm: phòng đã đặt, đặt thêm 1/7 ngày, so 4 tuần trước (cùng thứ, cùng số ngày trước khi
+ *   đến), cùng kỳ năm trước, dự báo cộng phần thường đặt thêm.
+ * `OtbPanel`: bản đầy đủ (Báo cáo › Nhịp đặt phòng); `OtbCompact`: bản gọn (Hôm nay).
  */
 
 const FIRST_ROWS = 14;
@@ -33,7 +33,7 @@ function deltaClass(n: number | null | undefined): string {
   return n > 0 ? "font-semibold text-yours-deep" : n < 0 ? "font-semibold text-warning-deep" : "text-body";
 }
 
-function hasOtb(o: OtbOut): boolean {
+export function hasOtb(o: OtbOut): boolean {
   return o.as_of_date !== null && o.nights.some((n) => n.rooms_otb !== null);
 }
 
@@ -42,7 +42,7 @@ function windowOcc(k: KpiOut): number | null {
   return num(k.occupancy_pct) ?? (k.rooms_available ? (k.rooms_sold / k.rooms_available) * 100 : null);
 }
 
-function useOtb(start: string, end: string, ownHotelId: number | null | undefined) {
+export function useOtb(start: string, end: string, ownHotelId: number | null | undefined) {
   return useApi(`otb:${start}:${end}:${ownHotelId ?? ""}`, () => api.market.otb({ start, end, own_hotel_id: ownHotelId }));
 }
 
@@ -149,13 +149,16 @@ function NightRow({ n }: { n: OtbNightOut }) {
   );
 }
 
-/** OTB đầy đủ: KPI PMS 30 ngày, OTB kỳ, chỉ số giá niêm yết và bảng từng đêm. */
-export function OtbPanel({ start, end, ownHotelId }: { start: string; end: string; ownHotelId: number | null }) {
+/**
+ * Bản đầy đủ: KPI PMS 30 ngày, phòng đã đặt của kỳ, giá niêm yết so với đối thủ và bảng từng đêm.
+ * `state`: kết quả `useOtb` của trang (trang dùng cùng số để biết đã có PMS chưa, không tải hai lần).
+ */
+export function OtbPanel({ state }: { state: ApiState<OtbOut> }) {
   const t = useTranslations("otb.panel");
   const { canWrite } = useSession();
   const { fmtDate } = useFmt();
   const [all, setAll] = useState(false);
-  const { data: o, error, loading } = useOtb(start, end, ownHotelId);
+  const { data: o, error, loading } = state;
   const nights = o ? o.nights : [];
   const shown = all ? nights : nights.slice(0, FIRST_ROWS);
 
@@ -240,7 +243,7 @@ export function OtbPanel({ start, end, ownHotelId }: { start: string; end: strin
   );
 }
 
-/** OTB gọn cho Hôm nay: KPI PMS 30 ngày và 7 đêm tới (OTB, pickup 7 ngày, so năm trước, dự báo). */
+/** Bản gọn cho Hôm nay: KPI PMS 30 ngày và 7 đêm tới (đã đặt, đặt thêm 7 ngày, so năm trước, dự báo). */
 export function OtbCompact({ today, ownHotelId = null }: { today: string; ownHotelId?: number | null }) {
   const t = useTranslations("otb.compact");
   const tp = useTranslations("otb.panel");
@@ -277,7 +280,7 @@ export function OtbCompact({ today, ownHotelId = null }: { today: string; ownHot
       title={t("title")}
       info={tp("info")}
       actions={
-        <Link href="/pace" className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+        <Link href="/reports/pace" className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
           {t("details")} <IconArrowRight size={14} />
         </Link>
       }

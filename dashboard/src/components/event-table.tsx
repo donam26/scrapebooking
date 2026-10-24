@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { promoLabels, type EventOut } from "@/lib/api";
 import { num, useFmt, type Fmt } from "@/lib/format";
 import { EVENT_TYPE_TONE, useLabel, type LabelFn } from "@/lib/labels";
@@ -11,7 +11,7 @@ import { MarkSwatch, useMarks } from "./marks";
 import { IconArrowDown, IconArrowUp, IconPulse } from "./icons";
 import { Badge, EmptyState, cx } from "./ui";
 
-type EventTableTranslator = ReturnType<typeof useTranslations<"components.eventTable">>;
+export type EventTableTranslator = ReturnType<typeof useTranslations<"components.eventTable">>;
 
 export function EventTypeBadge({ type }: { type: string }) {
   const label = useLabel();
@@ -42,7 +42,7 @@ function roomsText(r: ReturnType<typeof roomsValue>, floor: boolean, t: EventTab
 }
 
 /** Thay đổi đọc thành chữ: "7 → 6 phòng", "Còn phòng → Hết", "4,55 Tr → 4,29 Tr". */
-function changeText(e: EventOut, t: EventTableTranslator, fmt: Fmt, label: LabelFn): { main: string; delta: string | null; dir: "up" | "down" | null } {
+export function changeText(e: EventOut, t: EventTableTranslator, fmt: Fmt, label: LabelFn): { main: string; delta: string | null; dir: "up" | "down" | null } {
   const type = e.event_type;
   const floor = e.confidence === "capped";
   if (type === "sold_out") return { main: t("soldOut"), delta: null, dir: null };
@@ -110,7 +110,7 @@ function changeText(e: EventOut, t: EventTableTranslator, fmt: Fmt, label: Label
  * Dòng phụ giải thích: điều kiện gói của đổi giá ("cùng gói hoàn huỷ, không bữa sáng"), lý do đổi cơ
  * cấu giá thấp nhất, hạn chế không phải hết phòng.
  */
-function noteText(e: EventOut, t: EventTableTranslator, rt: RateText): string | null {
+export function noteText(e: EventOut, t: EventTableTranslator, rt: RateText): string | null {
   const type = e.event_type;
   if (PRICE_EVENTS.has(type)) return e.reason && RATE_KEY_RE.test(e.reason) ? rt.rateKeyText(e.reason) : null;
   if (type === "lowest_rate_shift") return t(`shift.${e.reason && SHIFT_REASONS.has(e.reason) ? (e.reason as "mix") : "mix"}`);
@@ -229,7 +229,7 @@ export function EventTable({
   events: EventOut[];
   highlightId?: number | null;
   showHotel?: boolean;
-  emptyText?: string;
+  emptyText?: ReactNode;
   /** Nhãn ngắn của khách sạn trong watchlist (thay cho tên đầy đủ trên Booking.com). */
   labelOf?: (hotelId: number) => string | undefined;
 }) {

@@ -2,6 +2,7 @@
   "detail": {
     "fallbackTitle": "Hotel",
     "crumb": "Competitors",
+    "crumbSelf": "Your hotel",
     "stars": "{stars}-star",
     "cols": {
       "rooms": "Rooms left",
@@ -32,15 +33,15 @@
       "soldOut": "Sold-out nights",
       "nights": "{count, plural, one {# night} other {# nights}}",
       "soldOutHint": "Out of {count, plural, one {# night} other {# nights}} in view",
-      "tight": "Nights with ≤ 3 rooms",
-      "tightHint": "Certainly ≤ 3 rooms left (\"≥N\" not counted)",
+      "tight": "Nights with 1–3 rooms",
+      "tightHint": "Only nights with a known room count",
       "priceRange": "Lowest rate per night",
       "lastObserved": "Last observed",
       "lastObservedHint": "{count, plural, one {Latest change below} other {# latest changes below}}",
       "restricted": "{count, plural, one {# night} other {# nights}} restricted (not sold out)",
       "capacity": "Hotel rooms",
       "roomsTotal": "{count, plural, one {# room} other {# rooms}}",
-      "bookingMax": "Booking has offered ≥{count, number}/night",
+      "bookingMax": "Booking has offered at least {count, number} rooms/night",
       "sourced": "sourced",
       "unsourced": "no source yet",
       "enterRooms": "Enter it in Settings › Watchlist"
@@ -49,26 +50,27 @@
       "title": "By night",
       "description": "Click a night to see each room type and its scan history",
       "night": "Night"
-    },
-    "events": {
-      "title": "Recent changes",
-      "description": "{count, plural, one {Latest change for this hotel} other {# latest changes for this hotel}}",
-      "empty": "No changes recorded for this hotel yet."
     }
   },
   "day": {
     "fallbackTitle": "Hotel",
     "crumb": "Competitors",
+    "crumbOwn": "Your hotel",
     "nightCrumb": "Night of {night}",
     "invalidDate": "Invalid date",
     "title": "{weekday}, {date}",
     "lastScan": "Last scanned {when}",
-    "market": "Comp set this night:",
+    "staleChip": "Figures from {date} · {ago}",
+    "staleTitle": "The last reading for this night is older than 48 hours: rates and rooms may have changed.",
+    "suggestionTitle": "Price suggestion for this night",
+    "market": "Competitors this night:",
     "roomTypeFallback": "Room type #{id}",
     "rates": {
       "refundable": "Refundable",
       "nonRefundable": "Non-refundable",
-      "breakfast": "Breakfast"
+      "breakfast": "Breakfast",
+      "roomOnly": "Room only",
+      "unknown": "Conditions unknown"
     },
     "shortMark": {
       "exact": "{count, plural, one {# room left} other {# rooms left}}",
@@ -96,12 +98,12 @@
     },
     "sameNight": {
       "title": "Same night on Booking.com",
-      "summary": "{soldOut}/{observed} competitors sold out · median {median}",
+      "summary": "{soldOut}/{observed} competitors sold out · middle rate {median}",
       "noCompetitors": "No competitor has data for this night yet",
       "yours": "· yours",
       "soldOut": "{soldOut}/{observed} competitors sold out",
       "restricted": "{count} restricted (not sold out)",
-      "median": "Median {median}"
+      "median": "Competitor middle rate {median}"
     },
     "nightRate": {
       "title": "Booking.com rate for this night",
@@ -137,7 +139,6 @@
       "status": "Status",
       "exactRooms": "Exact rooms counted",
       "roomTypesOpenSold": "Room types open / sold out",
-      "run": "Run",
       "refundablePrice": "Refundable rate"
     },
     "history": {
@@ -150,7 +151,8 @@
       "roomsEmpty": "No countable rooms in this period",
       "priceChart": "Lowest rate per scan",
       "priceChartCurrency": "Lowest rate per scan ({currency})",
-      "priceEmpty": "No rates in this period"
+      "priceEmpty": "No rates in this period",
+      "single": "Only 1 scan so far for this night ({when}), not enough to chart changes."
     },
     "observations": {
       "title": "Scans of this night",

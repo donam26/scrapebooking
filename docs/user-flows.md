@@ -27,8 +27,8 @@ thể khoá/hạ vai trò operator đang hoạt động cuối cùng.
 | 1 | Cài đặt → Watchlist → thêm URL Booking | `POST /watchlist` | Chấp nhận URL có tham số, hậu tố ngôn ngữ (`.vi.html`); URL không phải trang khách sạn → 422 hiện đúng thông báo. Khách sạn đã tồn tại (tenant khác theo dõi) thì dùng chung, chỉ tạo liên kết. |
 | 2 | Sửa nhãn / vai trò; Ngừng quét / Quét lại | `PATCH`, `DELETE /watchlist/{id}` | "Ngừng" = `active=false`, giữ lịch sử; sự kiện cũ vẫn xem được ở `/events`. |
 | 3 | **[mới]** "Quét ngay" | `POST /watchlist/scan-now` | Tạo đợt quét thủ công cho watchlist của tenant, đẩy job cho worker; gọi lại trong 10 phút trả về đợt đang chạy. Watchlist rỗng → 422. |
-| 4 | Lịch quét | `PATCH /settings` | Giờ quét (1–8 mốc), horizon 1–90, giờ bản tin, ngôn ngữ, múi giờ (**[sửa]** kiểm tra hợp lệ). Tenant không tự tắt được (`active` bị bỏ qua). Thay đổi có hiệu lực từ mốc giờ kế tiếp. |
-| 5 | Người dùng | `GET/POST/PATCH /users` | Tạo `tenant_admin`/`viewer`, khoá/mở, đặt lại mật khẩu. **[sửa]** Tài khoản bị khoá mất quyền ngay ở request kế tiếp (không đợi token hết hạn); đổi vai trò cũng áp dụng ngay. |
+| 4 | Lịch quét (**[24/10]** Cài đặt › Nâng cao) | `PATCH /settings` | Giờ quét (1–8 mốc), horizon 1–90, giờ bản tin, ngôn ngữ, múi giờ (**[sửa]** kiểm tra hợp lệ). Tenant không tự tắt được (`active` bị bỏ qua). Thay đổi có hiệu lực từ mốc giờ kế tiếp. |
+| 5 | Người dùng | `GET/POST/PATCH /users` | Tạo `tenant_admin`/`viewer`, khoá/mở, đặt lại mật khẩu. **[sửa]** Tài khoản bị khoá mất quyền ngay ở request kế tiếp (không đợi token hết hạn); đổi vai trò cũng áp dụng ngay. **[24/10, migration 0021]** "Gửi lời mời" (`POST /users/invite`, gửi lại `POST /users/{id}/invite`): người nhận đặt mật khẩu ở `/set-password` (`POST /auth/set-password`), link dùng một lần, hết hạn sau 72 giờ, luôn trả `invite_url` để sao chép khi email chưa bật. Vai trò mặc định Chỉ xem. Có cột "Lần đăng nhập cuối" (`users.last_login_at`). |
 | 6 | Viewer | | Mọi nút ghi bị ẩn ở giao diện và bị 403 ở API; `/admin/*` chuyển về `/overview`. |
 
 ## C. Xem hằng ngày
@@ -54,9 +54,9 @@ thể khoá/hạ vai trò operator đang hoạt động cuối cùng.
 | Bước | Màn hình | API | Ghi chú |
 |---|---|---|---|
 | 1 | Cài đặt → Nhập PMS → "Tải template CSV" | `GET /pms/template` | 7 cột chuẩn; chỉ `stay_date` bắt buộc. |
-| 2 | Chọn tệp → xem trước | `POST /pms/preview` | Nhận CSV (tự dò `,` `;` `\t`, nhiều encoding) và `.xlsx`. Gợi ý ánh xạ theo tên cột tiếng Việt/Anh thường gặp. **[sửa]** Ánh xạ đã lưu chỉ áp dụng cho cột có trong tệp, cột thiếu lấy theo gợi ý (trước đây tệp có tên cột khác bị "missing mapping"). **[sửa]** `.xls` cũ báo rõ "lưu lại thành .xlsx". |
+| 2 | Chọn tệp → xem trước (**[24/10]** một ô thả tệp cho cả công suất, OTB theo ngày và file đặt phòng; tự nhận loại từ cột, đổi được) | `POST /pms/preview` (`kind` tuỳ chọn → `kind`, `detected_kind`, `missing`) | Nhận CSV (tự dò `,` `;` `\t`, nhiều encoding) và `.xlsx`. Gợi ý ánh xạ theo tên cột tiếng Việt/Anh thường gặp. **[sửa]** Ánh xạ đã lưu chỉ áp dụng cho cột có trong tệp, cột thiếu lấy theo gợi ý (trước đây tệp có tên cột khác bị "missing mapping"). **[sửa]** `.xls` cũ báo rõ "lưu lại thành .xlsx". |
 | 3 | Sửa ánh xạ → "Lưu ánh xạ và nhập dữ liệu" | `PUT /pms/mapping`, `POST /pms/import` | Chỉ khách sạn vai trò "Khách sạn của bạn". Kết quả: số dòng OK/tổng, bảng lỗi từng dòng (ngày sai, trùng ngày, bán > tổng, công suất ngoài 0–100). Upsert theo ngày nên nhập lại không nhân đôi. |
-| 4 | Lịch sử nhập, bảng occupancy | `GET /pms/imports`, `GET /pms/daily` | Occupancy PMS xuất hiện ở dải compset và trong đầu vào bản tin. |
+| 4 | Lịch sử nhập (**[24/10]** cột "Người nhập": `pms_imports.created_by` → `created_by_email`), bảng occupancy | `GET /pms/imports`, `GET /pms/daily` | Occupancy PMS xuất hiện ở dải compset và trong đầu vào bản tin. |
 
 ## F. Vận hành scraper (backend)
 
@@ -86,8 +86,8 @@ thể khoá/hạ vai trò operator đang hoạt động cuối cùng.
 
 | Bước | Màn hình | API / job | Ghi chú |
 |---|---|---|---|
-| 1 | Cài đặt › Thông báo | `GET /notifications/settings` | Ghi chú cảnh báo khi máy chủ email chưa cấu hình (operator thấy tên biến cần đặt). |
-| 2 | Thêm/xoá người nhận | `POST`, `DELETE /notifications/recipients` | Email trùng (không phân biệt hoa thường) → 409; tối đa 20; viewer 403. |
+| 1 | Cài đặt › Cảnh báo | `GET /notifications/settings` | **[24/10]** Kênh chưa cấu hình ẩn với tenant. Không còn kênh nào thì hiện một câu "Đơn vị vận hành chưa bật gửi tin; bạn vẫn xem mọi cảnh báo trong chuông". Operator vẫn thấy trạng thái kỹ thuật. Quy tắc có 3 mức sẵn Ít / Vừa (mặc định) / Nhiều và "Tuỳ chỉnh". |
+| 2 | Thêm/xoá người nhận | `POST`, `PUT`, `DELETE /notifications/subscriptions`, `POST /notifications/subscriptions/{id}/test` | **[24/10, migration 0019]** Bỏ bảng `notification_recipients`. Người nhận cũ thành đăng ký email nhận đủ 4 loại tin. Chỉ còn một bảng "Ai nhận gì": mỗi người một hàng, công tắc Cảnh báo tức thì · Bản tin sáng · Báo cáo tuần · Dữ liệu cũ, giờ im lặng, Gửi thử. |
 | 3 | Bật/tắt và sửa ngưỡng từng loại | `PUT /notifications/rules/{kind}` | Tham số ngoài miền → 422 (số đêm 1–90, mức giảm 3–90%, số đối thủ 1–50). Chưa lưu = mặc định bật. |
 | 4 | "Gửi thử" | `POST /notifications/test` | Tối đa 1 lần/phút (429). Kết quả hiện ngay dưới tiêu đề thẻ. |
 | 5 | Sau mỗi lượt quét / bản tin / thứ Hai 08:00 | cron `dispatch_notifications` (5 phút) | Một email gom mỗi lượt quét; không gửi trùng khi chạy lại; lỗi SMTP thử lại tối đa 3 lần. |
@@ -128,17 +128,20 @@ Ràng buộc: listing dùng chung giữa tenant (tạm dừng ảnh hưởng m�
 | 5 | Cài đặt › Sự kiện | `GET/POST/PUT/DELETE /market/events` | Lễ hội, MICE, thể thao, mùa, khác; % tăng cầu dự kiến (người dùng nhập). Hiện trên lịch Terminal+; loại "Mùa" thành chip đầu trang. Viewer 403. |
 | 6 | Terminal+ › Thời tiết / ngày lễ | `GET /market/weather`, `GET /market/holidays` | OpenWeather theo toạ độ khách sạn của bạn (cần `OPENWEATHER_API_KEY`, cache 30 phút, lỗi nhớ 2 phút, không ghi URL có key vào log). |
 
-## K. Thị trường cả khu vực (02/10)
+## K. Thị trường khu vực: quận/bán kính + thang phòng trống (02/10, bản quận/bán kính 16/10)
 
 | Bước | Màn hình | API / job | Ghi chú |
 |---|---|---|---|
-| 1 | Cài đặt › Thị trường → tìm thành phố/quận | `GET /market/areas/search?q=` → `POST /market/areas` | Autocomplete Booking (thành phố/quận/vùng, kèm số chỗ ở). Cấu hình: số đêm danh sách, số KS quét chi tiết, số đêm chi tiết (≤90), trần request khám phá. |
-| 2 | 03:00 giờ tenant (hoặc "Quét danh sách ngay") | job `scan_market_list` (hàng đợi booking, mỗi job một đêm, nối đuôi) | Mỗi đêm 1 request đọc "N properties found" + giá trang 1. Một đêm mỗi lượt là đêm khám phá: ghép trang 1 của các "lát cắt" (lọc hạng sao/loại hình/điểm/quận × kiểu sắp xếp) tới khi thấy ≥98% hoặc hết trần request. Booking bỏ qua `offset` nên không phân trang được. Bị chặn: thử lại một lần với phiên mới rồi dừng. |
-| 3 | 05:00 | run `market:<area>:<ngày>` | Quét chi tiết top N khách sạn theo số đánh giá bằng pipeline probe sẵn có (phòng còn, công suất ước tính); tối đa 4 job thị trường chờ cùng lúc để không chặn run của tenant; hạn chót 20 giờ. Không lẫn vào tổng quan/compset của tenant. |
-| 4 | Terminal+ › Thị trường <khu vực> | `GET /market/city?date=` | Công suất ≈ từ KS quét chi tiết, phòng còn/tồn kho ≈, số KS còn phòng (Booking báo), giá TB, phân bố giá (ghi "mẫu N/M" khi chưa phủ ≥98%). Chưa có khu vực → chỉ báo compset. |
-| 5 | Đối thủ › Khám phá thị trường | `GET /market/city/hotels?sort&q&limit&offset` → `POST /watchlist` | Điểm/số đánh giá, hạng sao, quận, khoảng cách tới KS của bạn, giá đêm nay, còn/hết; "Theo dõi" thêm vào compset. |
+| 1 | Cài đặt › Thị trường → "Tìm theo tên" (thành phố/quận/địa danh) hoặc "Quanh khách sạn của bạn" | `GET /market/areas/search?q=` / `GET /market/areas/self-location` → `POST /market/areas` | Bán kính Không/1/3/5 km (bắt buộc khi quanh khách sạn), phân khúc (mọi loại / khách sạn / khách sạn + resort + căn hộ khách sạn, mặc định). Sửa bán kính/phân khúc ngay trên hàng khu vực; áp dụng từ lượt quét sau. Cấu hình: số đêm danh sách, số KS quét chi tiết (0 = tắt), số đêm chi tiết, trần request mỗi đêm. |
+| 2 | 03:00 giờ tenant (hoặc "Quét danh sách ngay") | job `scan_market_list` (hàng đợi booking, mỗi job một đêm, nối đuôi) | GraphQL `FullSearch`: thị trường (không lọc phân khúc) → danh sách đủ (100/request, tới 1.000) → thang ≥3/5/10/20/30 phòng; 14 đêm đầu liệt kê đủ id ở mọi nấc (khoảng phòng còn từng KS). Khách sạn Booking nới thêm ngoài khu vực không tính. Bị chặn: thử lại một lần với phiên mới rồi dừng, tạm dừng quét danh sách. GraphQL đổi schema: dự phòng trang SSR đầu. |
+| 3 | 05:00 | run `market:<area>:<ngày>` | Tuỳ chọn (số KS quét chi tiết > 0): quét chi tiết top N khách sạn theo số đánh giá bằng pipeline probe sẵn có; tối đa 4 job thị trường chờ cùng lúc; hạn chót 20 giờ. Không lẫn vào tổng quan/compset của tenant. |
+| 4 | Terminal+ › Thị trường <khu vực> (+ chọn khu vực khi có ≥2) | `GET /market/city?date=` | % khách sạn của phân khúc hết phòng (cận dưới) + "Booking: N% đã kín" (khi không lọc bán kính), thang ≥1/5/10/20/30 phòng (rê chuột: theo hạng sao), so với thường lệ, phòng còn bán (sàn), giá trung vị, thành phần loại chỗ ở, phân bố giá Booking, dòng "Khách sạn của bạn" (phòng còn, phân vị giá, vị trí trên Booking). |
+| 4b | Terminal+ › Mức căng thị trường 14 đêm tới | `GET /market/city/trend?start&nights` | Mỗi đêm: % hết phòng (thang màu) và số KS còn ≥10 phòng so với thường lệ; đêm chưa quét "—". |
+| 5 | Đối thủ › Khám phá thị trường | `GET /market/city/hotels?sort&q&limit&offset` → `POST /watchlist` | Điểm/số đánh giá, hạng sao, quận, khoảng cách tới KS của bạn, giá đêm nay, "Phòng còn" (1–2, 5–9, ≥30…), "Còn N ở giá này", còn/hết; "Theo dõi" thêm vào compset. |
 
 Kết quả chạy thật 02/10 (quận Trung tâm TP.HCM, 1 đêm): Booking báo 370 KS còn phòng; một lượt khám phá 25 request ghép được 234 (63%). Trước đó phân trang bằng `offset` chỉ được 25.
+
+Kết quả chạy thật 16/10 (proxy mới, GraphQL, tenant Rex): Quận 1 phân khúc khách sạn + resort + căn hộ khách sạn, đêm 16/10: 428/428 KS còn phòng (100%), Booking 46% đã kín, ≥10 phòng 227, ≥30 phòng 85; ~30–40 request, ~80–100 giây mỗi đêm. Đối chiếu thang tìm kiếm với thang lịch trên 5 KS compset × 3 đêm: khớp 15/15.
 
 ## L. Chuẩn nghề revenue (09/10, plan `plans/261009-1106-rm-standards-roadmap/`)
 
@@ -155,6 +158,22 @@ Kết quả chạy thật 02/10 (quận Trung tâm TP.HCM, 1 đêm): Booking bá
 | 9 | Chiến lược giá, gợi ý | `GET/PUT /market/strategy`, `GET /market/pace`, `PUT /market/suggestions/{d}/{kind}`, `/market/suggestions/{outcomes,backtest}` | Giá mục tiêu VND có giải thích, sàn/trần, định vị, gợi ý hạn chế; ghi giá đã áp dụng; đo kết quả. |
 | 10 | Đối thủ › Uy tín, Hiển thị; Danh sách theo dõi | `GET /market/reputation`, `/market/visibility`, `/watchlist/compset-review`, `PATCH /watchlist/{id}`, `POST /watchlist/{id}/rooms-suggestion/confirm` | Điểm/review theo thời gian, mốc 7,0/7,5/8,0/9,0, giá–chất lượng; thứ hạng tự nhiên vs quảng cáo, Preferred/deal; compset chính/phụ, tổng phòng kèm nguồn (**[16/10]** URL nguồn + thời điểm nhập; "Booking từng mở bán ≥N phòng/đêm"; cảnh báo khi số nhập nhỏ hơn mức Booking từng mở bán; khi chưa có số: gợi ý "Booking bán tối đa N phòng/đêm" đo trên các đêm xa + nút "Dùng N"; "≥N" (chạm trần 100 hoặc chỉ là cận dưới) và khách sạn bán giường dorm thì chỉ hiện số kèm lời nhắc nhập số công bố; số dùng từ gợi ý ghi "đo trên Booking", tenant khác thay được), cảnh báo quy tắc CoStar. |
 | 11 | Tải về | `GET /export/rate-shop.xlsx`, `/export/monthly-report.html` | Excel rate shop (khách sạn × đêm, compset, thay đổi); báo cáo tháng in PDF cho chủ đầu tư. |
+
+## M. Tái cấu trúc UX cho tenant_admin (24/10, plan `plans/261024-0007-tenant-admin-ux-overhaul/`)
+
+Nguồn: audit `plans/reports/ux-audit-261024-0007-tenant-admin.md`. Quyết định Q1–Q9 nằm trong plan.
+
+| Bước | Màn hình | API | Ghi chú |
+|---|---|---|---|
+| 1 | Điều hướng 5 tab: Hôm nay `/today` · Lịch giá & phòng `/calendar` · Đối thủ · Thị trường `/market` · Báo cáo `/insights` | | URL cũ chuyển hướng: `/dashboard` → `/today`; `/availability`, `/overview`, `/rates` → `/calendar`; `/terminal` → `/market`; `/pace` → `/reports/pace`. Cài đặt là nút ⚙. Mobile dùng thanh đáy. |
+| 2 | Pill độ mới dữ liệu trên thanh trên → bảng "Tình trạng dữ liệu" | `GET /data-status`, `GET /runs` | Mở được từ mọi màn. Gồm câu trạng thái, 7 ngày, cách đọc số và link `/runs` bản rút gọn (tenant không thấy mã lượt hay cột kỹ thuật). |
+| 3 | Hôm nay › Việc cần làm | `GET /market/pace`, `PUT/DELETE /market/suggestions/{d}/{kind}` | Dữ liệu `stale` thì không đưa gợi ý. Nút "Tôi đã đổi giá"/"Bỏ qua" nằm ngay trên thẻ; đã ghi thì thu một dòng có Hoàn tác. |
+| 4 | Gợi ý giá | `price_suggest.suggest` | Chưa đặt chiến lược thì tăng giá cần tín hiệu cầu, giống giảm giá. Chỉ lệch ≥10 điểm dưới mức thường thì tăng với tin cậy thấp (`below_usual`), lệch ít hơn thì giữ (`no_raise_without_demand`). Giảm vì giá cao hơn mức thường thì nói rõ (`above_usual`, `own_occ_low_*`). Lý do viết bằng lời, tiền định dạng theo ngôn ngữ. |
+| 5 | Đối thủ › "7 ngày qua"; Hôm nay › Thay đổi 24 giờ | `GET /events/summary?days=&hotel_id=` | Đếm theo đêm, không theo sự kiện. Một biến động 4→1 chỉ tính một lần. |
+| 6 | Cài đặt › Chiến lược giá | `GET /market/strategy` (`typical_index`), `POST /market/pace/preview` | Chọn vị trí giá bằng 4 thẻ, xem trước 7 đêm, không lưu. |
+| 7 | Hôm nay › Thiết lập 5 bước | `GET/PUT /settings/setup`, `GET /watchlist/compset-review` (`balance`, cảnh báo `pricier_compset`) | Ẩn khi xong bước 1–4 hoặc khi bấm "Ẩn". Nhóm đối thủ đắt hơn ≥1,6 lần giá của bạn thì gợi ý thêm khách sạn cùng tầm giá. |
+| 8 | Cài đặt › Nâng cao › Khu vực thị trường | `PATCH /market/areas/{id}` | Tenant đổi các trường kỹ thuật (`list_nights`, `detail_horizon_days`, `detail_max_hotels`, `max_pages`) thì bị 403; giao diện chỉ operator thấy các trường này. |
+| 9 | Bản tin AI | `GET /insights` | Tenant không thấy bản lỗi hay bản giả (`model = "placeholder"`). Prompt phiên bản 4 viết bằng lời thường. Email sáng có tối đa 5 việc cần làm và bỏ bản giả. |
 
 ## Điều còn để ngỏ
 

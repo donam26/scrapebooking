@@ -152,6 +152,9 @@ class PriceStrategy(Base):
     ceiling_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     # Chỉ số giá niêm yết mục tiêu: 100 = ngang trung vị compset, 105 = cao hơn 5%.
     target_index: Mapped[Decimal] = mapped_column(Numeric(5, 1), default=100, server_default="100")
+    # "Giữ như hiện nay": vị trí giá đi theo mức thường của khách sạn (tính lại mỗi ngày) thay cho
+    # target_index cố định; gợi ý tăng/giảm vẫn cần tín hiệu cầu như khi chưa lưu chiến lược.
+    follow_typical: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     round_to: Mapped[int] = mapped_column(Integer, default=10000, server_default="10000")
     max_daily_change_pct: Mapped[int] = mapped_column(Integer, default=15, server_default="15")
     # Điều chỉnh % theo thứ của đêm (0 = thứ Hai … 6 = Chủ nhật), VD {"4": 5, "5": 10}.

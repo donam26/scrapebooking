@@ -1,5 +1,6 @@
-"""Cài đặt thông báo của tenant: người nhận email, đăng ký theo người (email/Zalo/webhook), loại
-thông báo, gửi thử, nhật ký đã gửi, theo dõi lượt nhấn và "Đã xử lý" (roadmap Phase 3)."""
+"""Cài đặt thông báo của tenant: một bảng "Ai nhận gì" (đăng ký theo người: email/Zalo/webhook ×
+loại tin × giờ im lặng; bảng người nhận email cũ đã gộp vào, migration 0019), loại cảnh báo, gửi
+thử, nhật ký đã gửi, theo dõi lượt nhấn và "Đã xử lý" (roadmap Phase 3, UX Phase 3)."""
 
 import re
 from datetime import UTC, datetime, timedelta
@@ -8,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy import and_, delete, func, not_, select
+from sqlalchemy import and_, func, not_, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import PrincipalDep, SessionDep, SettingsDep, TenantDep, WriterDep
@@ -19,19 +20,18 @@ from app.api.schemas import (
     NotificationRuleOut,
     NotificationRuleUpdate,
     NotificationSettingsOut,
-    RecipientCreate,
-    RecipientOut,
     SubscriptionIn,
     SubscriptionOut,
 )
 from app.config import Settings
 from app.db.models import (
+    Insight,
     Notification,
     NotificationDelivery,
-    NotificationRecipient,
     NotificationSubscription,
     Tenant,
 )
+from app.insight.service import placeholder_clause
 from app.notify.channels import normalize_vn_phone
 from app.notify.email_sender import EmailSender, SmtpEmailSender
 from app.notify.kinds import InvalidParams, NotificationKind, normalize_params
@@ -43,8 +43,6 @@ from app.notify.service import (
 )
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
-
-MAX_RECIPIENTS = 20
 
 
 def get_email_sender(request: Request, settings: SettingsDep) -> EmailSender:
@@ -64,65 +62,15 @@ def _service(session: SessionDep, sender: EmailSender, settings: Settings) -> No
 async def get_settings_(
     tenant_id: TenantDep, session: SessionDep, sender: SenderDep, settings: SettingsDep
 ) -> NotificationSettingsOut:
-    svc = _service(session, sender, settings)
-    recipients = (
-        await session.execute(
-            select(NotificationRecipient)
-            .where(NotificationRecipient.tenant_id == tenant_id)
-            .order_by(NotificationRecipient.id)
-        )
-    ).scalars()
-    rules = await svc.rules(tenant_id)
+    rules = await _service(session, sender, settings).rules(tenant_id)
     return NotificationSettingsOut(
         zalo_configured=settings.zalo_zns_configured,
         email_configured=sender.configured,
-        recipients=[RecipientOut.model_validate(r) for r in recipients],
         rules=[
             NotificationRuleOut(kind=str(k), active=r.active, params=r.params)
             for k, r in rules.items()
         ],
     )
-
-
-@router.post("/recipients", response_model=RecipientOut, status_code=status.HTTP_201_CREATED)
-async def add_recipient(
-    body: RecipientCreate, tenant_id: TenantDep, _: WriterDep, session: SessionDep
-) -> RecipientOut:
-    if await session.get(Tenant, tenant_id) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "tenant not found")
-    count = (
-        await session.execute(
-            select(func.count()).where(NotificationRecipient.tenant_id == tenant_id)
-        )
-    ).scalar_one()
-    if count >= MAX_RECIPIENTS:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, f"at most {MAX_RECIPIENTS} recipients"
-        )
-    row = NotificationRecipient(tenant_id=tenant_id, email=str(body.email).strip(), active=True)
-    session.add(row)
-    try:
-        await session.commit()
-    except IntegrityError as exc:
-        await session.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "recipient already exists") from exc
-    await session.refresh(row)
-    return RecipientOut.model_validate(row)
-
-
-@router.delete("/recipients/{recipient_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_recipient(
-    recipient_id: int, tenant_id: TenantDep, _: WriterDep, session: SessionDep
-) -> None:
-    result = await session.execute(
-        delete(NotificationRecipient).where(
-            NotificationRecipient.id == recipient_id,
-            NotificationRecipient.tenant_id == tenant_id,
-        )
-    )
-    if result.rowcount == 0:  # type: ignore[attr-defined]
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "recipient not found")
-    await session.commit()
 
 
 @router.put("/rules/{kind}", response_model=NotificationRuleOut)
@@ -194,20 +142,24 @@ async def notification_log(
     limit: int = Query(50, ge=1, le=200),
 ) -> list[NotificationLogOut]:
     # Dòng "không có gì để báo" và "loại thông báo đang tắt" chỉ để chống tính lại, không hiện.
+    stmt = select(Notification).where(
+        Notification.tenant_id == tenant_id,
+        not_(
+            and_(
+                Notification.status == "skipped",
+                Notification.detail.in_([SKIP_NO_MATCHES, SKIP_DISABLED]),
+            )
+        ),
+    )
+    if not principal.is_operator:
+        # Bản tin giả (thiếu khoá AI) không hiện với khách sạn, kể cả dòng đã gửi trước đây.
+        fake = select(Insight.id).where(placeholder_clause())
+        stmt = stmt.where(
+            or_(Notification.insight_id.is_(None), Notification.insight_id.not_in(fake))
+        )
     rows = (
         await session.execute(
-            select(Notification)
-            .where(
-                Notification.tenant_id == tenant_id,
-                not_(
-                    and_(
-                        Notification.status == "skipped",
-                        Notification.detail.in_([SKIP_NO_MATCHES, SKIP_DISABLED]),
-                    )
-                ),
-            )
-            .order_by(Notification.created_at.desc(), Notification.id.desc())
-            .limit(limit)
+            stmt.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(limit)
         )
     ).scalars()
     return [_log_out(r, principal.is_operator) for r in rows]
@@ -329,6 +281,29 @@ async def update_subscription(
         raise HTTPException(status.HTTP_409_CONFLICT, "subscription already exists") from exc
     await session.refresh(row)
     return _sub_out(row)
+
+
+@router.post("/subscriptions/{sub_id}/test", response_model=NotificationLogOut)
+async def test_subscription(
+    sub_id: int,
+    tenant_id: TenantDep,
+    principal: PrincipalDep,
+    session: SessionDep,
+    sender: SenderDep,
+    settings: SettingsDep,
+) -> NotificationLogOut:
+    """ "Gửi thử" một hàng của "Ai nhận gì": chỉ tới người nhận đó, đúng kênh của hàng."""
+    row = await _own_sub(session, tenant_id, sub_id, principal)
+    tenant = await session.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "tenant not found")
+    try:
+        log_row = await _service(session, sender, settings).send_test_to(tenant, row)
+    except TestTooSoon as exc:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, "test email sent less than a minute ago"
+        ) from exc
+    return _log_out(log_row, principal.is_operator)
 
 
 @router.delete("/subscriptions/{sub_id}", status_code=status.HTTP_204_NO_CONTENT)

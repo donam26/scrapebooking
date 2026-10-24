@@ -99,7 +99,7 @@ export default async function LandingPage() {
   const signedIn = cookieStore.has("sb_session");
   const startISO = todayInVietnam();
   const channels = contactChannels(tc);
-  const loginHref = signedIn ? "/dashboard" : "/login";
+  const loginHref = signedIn ? "/today" : "/login";
   const loginLabel = signedIn ? t("toDashboard") : t("login");
   const nav = NAV.map((n) => ({ href: n.href, label: t(`nav.${n.key}`) }));
 

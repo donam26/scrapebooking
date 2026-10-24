@@ -2,6 +2,7 @@
   "detail": {
     "fallbackTitle": "Khách sạn",
     "crumb": "Đối thủ",
+    "crumbSelf": "Khách sạn của bạn",
     "stars": "{stars} sao",
     "cols": {
       "rooms": "Phòng còn",
@@ -32,15 +33,15 @@
       "soldOut": "Đêm hết phòng",
       "nights": "{count} đêm",
       "soldOutHint": "Trong {count} đêm đang xem",
-      "tight": "Đêm còn ≤ 3 phòng",
-      "tightHint": "Chắc chắn còn ≤ 3 phòng (không tính \"≥N\")",
+      "tight": "Đêm còn 1–3 phòng",
+      "tightHint": "Chỉ tính đêm biết chắc số phòng",
       "priceRange": "Giá thấp nhất mỗi đêm",
       "lastObserved": "Quan sát gần nhất",
       "lastObservedHint": "{count} thay đổi gần nhất bên dưới",
       "restricted": "{count} đêm bị hạn chế (không tính là hết)",
       "capacity": "Số phòng khách sạn",
       "roomsTotal": "{count, number} phòng",
-      "bookingMax": "Booking từng mở bán ≥{count, number}/đêm",
+      "bookingMax": "Booking từng mở bán ít nhất {count, number} phòng/đêm",
       "sourced": "có nguồn",
       "unsourced": "chưa ghi nguồn",
       "enterRooms": "Nhập ở Cài đặt › Theo dõi"
@@ -49,26 +50,27 @@
       "title": "Theo từng đêm",
       "description": "Bấm một đêm để xem từng loại phòng và lịch sử quét",
       "night": "Đêm"
-    },
-    "events": {
-      "title": "Thay đổi gần đây",
-      "description": "{count} thay đổi gần nhất của khách sạn này",
-      "empty": "Chưa có biến động nào được ghi nhận cho khách sạn này."
     }
   },
   "day": {
     "fallbackTitle": "Khách sạn",
     "crumb": "Đối thủ",
+    "crumbOwn": "Khách sạn của bạn",
     "nightCrumb": "Đêm {night}",
     "invalidDate": "Ngày không hợp lệ",
     "title": "{weekday}, {date}",
     "lastScan": "Quét gần nhất {when}",
-    "market": "Compset đêm này:",
+    "staleChip": "Số từ {date} · {ago}",
+    "staleTitle": "Lần đọc cuối của đêm này cũ hơn 48 giờ: giá và số phòng có thể đã đổi.",
+    "suggestionTitle": "Gợi ý giá đêm này",
+    "market": "Nhóm đối thủ đêm này:",
     "roomTypeFallback": "Loại phòng #{id}",
     "rates": {
       "refundable": "Hoàn huỷ",
-      "nonRefundable": "Không hoàn",
-      "breakfast": "Bữa sáng"
+      "nonRefundable": "Không hoàn huỷ",
+      "breakfast": "Bữa sáng",
+      "roomOnly": "Chỉ phòng",
+      "unknown": "Chưa rõ điều kiện"
     },
     "shortMark": {
       "exact": "Còn {count} phòng",
@@ -96,12 +98,12 @@
     },
     "sameNight": {
       "title": "Cùng đêm trên Booking.com",
-      "summary": "{soldOut}/{observed} đối thủ hết phòng · trung vị {median}",
+      "summary": "{soldOut}/{observed} đối thủ hết phòng · giá giữa {median}",
       "noCompetitors": "Chưa có đối thủ nào có dữ liệu cho đêm này",
       "yours": "· của bạn",
       "soldOut": "{soldOut}/{observed} đối thủ hết phòng",
       "restricted": "{count} bị hạn chế (không tính là hết)",
-      "median": "Trung vị {median}"
+      "median": "Giá giữa của đối thủ {median}"
     },
     "nightRate": {
       "title": "Giá Booking.com đêm này",
@@ -137,7 +139,6 @@
       "status": "Tình trạng",
       "exactRooms": "Phòng đếm chính xác",
       "roomTypesOpenSold": "Loại phòng còn / hết",
-      "run": "Lượt",
       "refundablePrice": "Giá hoàn huỷ"
     },
     "history": {
@@ -150,7 +151,8 @@
       "roomsEmpty": "Chưa có số phòng đếm được trong khoảng này",
       "priceChart": "Giá thấp nhất theo lượt quét",
       "priceChartCurrency": "Giá thấp nhất theo lượt quét ({currency})",
-      "priceEmpty": "Chưa có giá trong khoảng này"
+      "priceEmpty": "Chưa có giá trong khoảng này",
+      "single": "Mới có 1 lượt quét cho đêm này ({when}), chưa đủ để vẽ diễn biến."
     },
     "observations": {
       "title": "Các lượt quét đêm này",

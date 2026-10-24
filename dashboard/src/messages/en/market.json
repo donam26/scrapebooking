@@ -1,6 +1,6 @@
 {
   "page": {
-    "title": "Market explorer",
+    "title": "Find hotels to track",
     "knownHotels": "{count, plural, one {# known hotel} other {# known hotels}}",
     "availableTonight": "<b>{count, number}</b> available tonight",
     "listScanned": "List scanned {when}",
@@ -18,7 +18,9 @@
     },
     "noMatch": "No matching hotels.",
     "prev": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "listStaleTitle": "Area list scanned {when} ({ago}): rates and rooms may have changed since",
+    "followTitle": "Track {name}"
   },
   "table": {
     "hotel": "Hotel",
@@ -33,7 +35,13 @@
     "km": "{km} km",
     "unknown": "Unknown",
     "available": "Available",
-    "soldOut": "Sold out"
+    "soldOut": "Sold out",
+    "rooms": "Rooms left",
+    "roomsTitle": "Booking.com can still sell {range} rooms at once tonight (the area's search ladder)",
+    "onlyLeft": "{count} left at this price",
+    "nightRate": "Rate {night}",
+    "night": "Night {night}",
+    "staleChip": "old"
   },
   "follow": {
     "yours": "Yours",

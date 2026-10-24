@@ -1,48 +1,49 @@
 {
   "title": "Today",
-  "hotelFallback": "Hotel #{id}",
-  "status": {
-    "noData": "No data yet",
-    "soldOut": "Sold out",
-    "unknown": "Could not read",
-    "available": "Available",
-    "roomsLeft": "{count, plural, one {# room} other {# rooms}} left",
-    "roomsLeftText": "{rooms} rooms left",
-    "restricted": "Restricted (not sold out)",
-    "minStay": "Sold only for {count}+ nights",
-    "noPrice": "No price"
-  },
   "empty": {
     "title": "No hotels tracked yet",
     "add": "Add hotels",
     "body": "Add your hotel and your competitors; the next scan will fill this screen."
   },
-  "tonight": {
-    "aria": "Tonight",
-    "hotelTonight": "{name} · tonight",
-    "lowestRate": "Lowest rate",
-    "noSelf": "Your hotel is not on the watchlist yet, so there is nothing to compare with competitors."
+  "strip": {
+    "title": "Next 14 nights: you vs competitors",
+    "info": "One column per night: the coloured box is your rooms left on Booking.com, then your rate, your rate against the competitors' middle rate (half of them cheaper, half dearer), and how many competitors are sold out. Purple dot: a rate suggestion is waiting. Tap a column to open that night.",
+    "tonight": "Tonight",
+    "deltaTitle": "Your rate vs competitors' middle rate",
+    "soldOutTitle": "Competitors sold out / competitors read",
+    "hasSuggestion": "Has a rate suggestion",
+    "legend": "Box: your rooms left · %: your rate vs competitors' middle rate · x/N: competitors sold out · ● rate suggestion",
+    "staleTitle": "Last rate read (older than 48 hours)"
   },
-  "suggestions": {
-    "title": "Rate suggestions",
-    "description": "{count, plural, one {# night} other {# nights}} in the next {days} nights"
-  },
-  "nights": {
-    "title": "Next {days} nights",
-    "compSoldOut": "{soldOut}/{observed} competitors sold out",
-    "noComp": "No competitor data yet",
-    "vsMedian": "vs median {pct}",
-    "compRestricted": "{count} restricted"
+  "yourHotel": {
+    "title": "Your hotel tonight",
+    "info": "Your lowest rate on Booking.com against the competitors' middle rate for the same night (half of them cheaper, half dearer). Occupancy only shows once you import PMS data or the estimate is reliable.",
+    "empty": "Your hotel is not on the watchlist yet. <link>Add it in Settings</link>",
+    "deltaCaption": "your rate vs competitors' middle rate",
+    "noCompare": "not enough competitors priced to compare",
+    "yourRate": "Your rate",
+    "marketRate": "Competitors' middle rate",
+    "roomsLeft": "Rooms left",
+    "rooms": "{rooms} rooms left",
+    "soldOut": "Sold out",
+    "hidden": "Not shown",
+    "rank": "Price rank",
+    "occPms": "Occupancy (PMS)",
+    "occEstimate": "Fill indicator ≈",
+    "staleTitle": "Last rate read, older than 48 hours",
+    "staleShort": "(old)"
   },
   "changes": {
     "title": "Changes in the past 24 hours",
     "allEvents": "All changes",
-    "empty": "No changes in the past 24 hours."
+    "empty": "No changes in the past 24 hours.",
+    "emptyStale": "No new scan yet, so no new changes."
   },
   "brief": {
     "title": "Latest AI brief",
     "read": "Read brief",
-    "noSummary": "This brief has no summary."
+    "noSummary": "This brief has no summary.",
+    "dated": "Brief from {when}"
   },
   "resolvedNotice": "Noted: marked as handled. Thank you!"
 }

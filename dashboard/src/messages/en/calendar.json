@@ -1,0 +1,90 @@
+{
+  "page": {
+    "title": "Rate calendar",
+    "nights": "{count, plural, one {# night} other {# nights}} from {start}",
+    "emptyTitle": "No hotels tracked yet",
+    "emptyBody": "Add hotels in <link>Settings › Hotels</link>.",
+    "view": "View",
+    "views": {
+      "rooms": "Rooms left",
+      "rates": "Rates",
+      "gap": "Gap to you"
+    },
+    "clickHint": "Click a cell to open that night",
+    "staleAll": "Figures from {date}",
+    "staleAllTitle": "The latest reading of the cells shown is from {when}, older than 48 hours. Cells keep their colour and get a striped corner.",
+    "stalePart": "{count, plural, one {# cell} other {# cells}} from {date}",
+    "stalePartTitle": "Cells with a striped corner were read more than 48 hours ago (oldest {when}).",
+    "trendsTitle": "Rate trends",
+    "fillTitle": "Fill indicator ≈ (experimental)"
+  },
+  "head": {
+    "hotel": "Hotel",
+    "today": "Today",
+    "pending": "Price suggestion waiting for you"
+  },
+  "rooms": {
+    "roomNights": "{count, plural, one {# night} other {# nights}} total",
+    "roomNightsSub": "at least",
+    "roomNightsTitle": "Room-nights left over {count, plural, one {# night} other {# nights}}. Cells that only show “at least N” add N, so this is a minimum.",
+    "marketTotal": "Rooms left (at least)",
+    "marketTotalTitle": "Sum of every hotel in the table, including yours. Cells that only show “at least N” add N, so the total is a minimum.",
+    "occ": "Fill ≈ %",
+    "occTitle": "Competitor fill indicator ≈, estimated from rooms left on Booking.com (experimental, not occupancy). Colour: orange from 75, blue from 50.",
+    "occHidden": "hidden",
+    "pms": "Your occupancy (PMS)",
+    "pmsTitle": "Actual occupancy from the PMS data you imported, not a Booking.com figure.",
+    "cellTitle": "{hotel} · {weekday} {date}: {status}",
+    "cellAria": "{hotel} {date}: {status}",
+    "sumPartial": "{known, plural, one {# cell} other {# cells}} exact, {missing} only “at least N”, hidden or not scanned: the total is a minimum",
+    "sumFull": "{known, plural, one {# cell} other {# cells}}, all counted"
+  },
+  "legend": {
+    "title": "Legend:",
+    "soldOut": "Sold out",
+    "veryFew": "Very few (≤3)",
+    "few": "Few (4–10)",
+    "plenty": "Plenty (>10)",
+    "hidden": "Available, count hidden",
+    "howToRead": "How to read a cell",
+    "notScanned": "Not scanned",
+    "trend": "▼ rooms left down · ▲ rooms left up (24 hours)",
+    "holiday": "Dot under the date: public holiday",
+    "pending": "Purple dot above a column: price suggestion waiting for that night"
+  },
+  "rates": {
+    "soldOutShort": "Full",
+    "minStayShort": "≥{count}n",
+    "median": "Competitor middle rate",
+    "medianTitle": "Half of competitors are cheaper, half more expensive. Based on {priced}/{total} competitors with a rate read in the last 48 hours.",
+    "note": "k = thousand dong, M = million dong. The darker the cell, the higher the rate versus the competitor middle rate that night (lightest: 15%+ below; middle: within ±5%; darkest: 15%+ above). Yellow ring “≥2n”: sold only for 2+ nights (restricted, not sold out). Striped corner: figure older than 48 hours. Pink dot: promotion running."
+  },
+  "gap": {
+    "note": "Each cell: the competitor's rate versus yours on the same night. Red: the competitor is 10%+ cheaper than you. Your row shows your rate. Striped corner: figure older than 48 hours.",
+    "cellTitle": "{hotel}: {price}, {diff} versus your rate ({own})",
+    "noOwnPrice": "No rate of yours to compare this night",
+    "rank": "Your price position",
+    "rankTitle": "1 = cheapest among hotels with a rate that night. Cheaper is not automatically better.",
+    "noOwn": "Your hotel is not on the watchlist yet, so there is nothing to compare against. Add it in <link>Settings › Hotels</link>."
+  },
+  "trends": {
+    "info": "Lowest advertised rate per night for each hotel on Booking.com. The dashed line is the competitor middle rate.",
+    "market": "Competitor middle rate",
+    "empty": "No rates for these nights yet",
+    "all": "All",
+    "none": "None"
+  },
+  "fill": {
+    "info": "Estimated from rooms left on Booking.com (≈): the share of rooms Booking.com sells that are no longer on sale, not hotel occupancy. Only nights with a reliable estimate are plotted. The black dashed line is the competitor middle; the blue dashed line is your actual occupancy from PMS once imported.",
+    "compMedian": "Competitor middle ≈",
+    "hotelSeries": "{name} ≈",
+    "pms": "Yours (PMS)",
+    "avg": "Average competitor fill ≈, {count, plural, one {# night} other {# nights}}",
+    "peakOn": "Highest: {night}",
+    "lowOn": "Lowest: {night}",
+    "hiddenNights": "{count, plural, one {# night} other {# nights}} hidden: error vs PMS above the limit for that lead-time bucket",
+    "source": "On Booking.com, same data as the rooms-left grid",
+    "notEnough": "Not enough figures to estimate fill for most competitors: Booking.com only shows “at least N” rooms. {count}/{total} hotels have an estimate so far.",
+    "noOverlap": "not enough nights overlapping your PMS data to calibrate yet"
+  }
+}

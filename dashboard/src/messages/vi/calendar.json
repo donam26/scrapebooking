@@ -1,0 +1,90 @@
+{
+  "page": {
+    "title": "Lịch giá & phòng",
+    "nights": "{count} đêm từ {start}",
+    "emptyTitle": "Chưa theo dõi khách sạn nào",
+    "emptyBody": "Thêm khách sạn ở <link>Cài đặt › Khách sạn</link>.",
+    "view": "Cách xem",
+    "views": {
+      "rooms": "Phòng còn",
+      "rates": "Giá",
+      "gap": "Chênh với bạn"
+    },
+    "clickHint": "Bấm một ô để mở chi tiết đêm đó",
+    "staleAll": "Số từ {date}",
+    "staleAllTitle": "Lần đọc mới nhất của các ô đang xem là {when}, cũ hơn 48 giờ. Ô vẫn giữ màu, có sọc ở góc.",
+    "stalePart": "{count} ô có số từ {date}",
+    "stalePartTitle": "Các ô có sọc ở góc là số đọc cách đây hơn 48 giờ (cũ nhất {when}).",
+    "trendsTitle": "Xu hướng giá",
+    "fillTitle": "Chỉ báo lấp đầy ≈ (thử nghiệm)"
+  },
+  "head": {
+    "hotel": "Khách sạn",
+    "today": "Hôm nay",
+    "pending": "Có gợi ý giá chưa xử lý"
+  },
+  "rooms": {
+    "roomNights": "Cộng {count} đêm",
+    "roomNightsSub": "ít nhất",
+    "roomNightsTitle": "Tổng phòng-đêm còn trong {count} đêm. Ô chỉ biết “còn ít nhất N” góp N, nên đây là mức ít nhất.",
+    "marketTotal": "Tổng phòng còn (ít nhất)",
+    "marketTotalTitle": "Cộng mọi khách sạn trong bảng, gồm cả khách sạn của bạn. Ô chỉ biết “còn ít nhất N” góp N, nên tổng là mức ít nhất.",
+    "occ": "Lấp đầy ≈ %",
+    "occTitle": "Chỉ báo lấp đầy ≈ của nhóm đối thủ, ước tính từ số phòng còn trên Booking.com (thử nghiệm, không phải công suất). Màu: cam từ 75, xanh dương từ 50.",
+    "occHidden": "ẩn",
+    "pms": "Công suất của bạn (PMS)",
+    "pmsTitle": "Công suất thật từ PMS bạn đã nhập, không phải số Booking.com.",
+    "cellTitle": "{hotel} · {weekday} {date}: {status}",
+    "cellAria": "{hotel} {date}: {status}",
+    "sumPartial": "{known} ô có số chính xác, {missing} ô chỉ biết “còn ít nhất N”, không lộ số hoặc chưa quét: tổng là mức ít nhất",
+    "sumFull": "{known} ô, đủ số"
+  },
+  "legend": {
+    "title": "Chú giải:",
+    "soldOut": "Hết phòng",
+    "veryFew": "Rất ít (≤3)",
+    "few": "Ít (4–10)",
+    "plenty": "Còn nhiều (>10)",
+    "hidden": "Còn, không lộ số",
+    "howToRead": "Cách đọc ô",
+    "notScanned": "Chưa quét",
+    "trend": "▼ phòng còn giảm · ▲ phòng còn tăng (24 giờ)",
+    "holiday": "Chấm dưới ngày: ngày lễ",
+    "pending": "Chấm tím trên đầu cột: đêm có gợi ý giá chưa xử lý"
+  },
+  "rates": {
+    "soldOutShort": "Hết",
+    "minStayShort": "≥{count}đ",
+    "median": "Giá giữa của đối thủ",
+    "medianTitle": "Một nửa đối thủ rẻ hơn, một nửa đắt hơn. Tính trên {priced}/{total} đối thủ có giá đọc trong 48 giờ qua.",
+    "note": "k = nghìn đồng, tr = triệu đồng. Ô càng đậm, giá càng cao so với giá giữa của đối thủ đêm đó (nhạt nhất: rẻ hơn từ 15%; giữa: trong ±5%; đậm nhất: đắt hơn từ 15%). Viền vàng “≥2đ”: chỉ bán từ 2 đêm (hạn chế, không phải hết phòng). Sọc ở góc: số cũ hơn 48 giờ. Chấm hồng: đang khuyến mãi."
+  },
+  "gap": {
+    "note": "Số trong ô: giá của đối thủ so với giá của bạn cùng đêm. Đỏ: đối thủ rẻ hơn bạn từ 10%. Hàng của bạn ghi giá của bạn. Sọc ở góc: số cũ hơn 48 giờ.",
+    "cellTitle": "{hotel}: {price}, {diff} so với giá của bạn ({own})",
+    "noOwnPrice": "Đêm này chưa có giá của bạn để so",
+    "rank": "Vị trí giá của bạn",
+    "rankTitle": "1 = rẻ nhất trong các khách sạn có giá đêm đó. Rẻ hơn không mặc nhiên là tốt.",
+    "noOwn": "Chưa có khách sạn của bạn trong danh sách theo dõi nên chưa so được chênh lệch. Thêm ở <link>Cài đặt › Khách sạn</link>."
+  },
+  "trends": {
+    "info": "Giá niêm yết thấp nhất mỗi đêm của từng khách sạn trên Booking.com. Nét đứt là giá giữa của đối thủ.",
+    "market": "Giá giữa của đối thủ",
+    "empty": "Chưa có giá cho các đêm này",
+    "all": "Tất cả",
+    "none": "Không"
+  },
+  "fill": {
+    "info": "Ước tính từ số phòng còn trên Booking.com (≈): phần phòng Booking.com mở bán đã không còn bán, không phải công suất khách sạn. Chỉ vẽ đêm có ước tính đủ tin cậy. Nét đứt đen là mức giữa của nhóm đối thủ; nét đứt xanh dương là công suất thật từ PMS khi bạn đã nhập.",
+    "compMedian": "Mức giữa nhóm đối thủ ≈",
+    "hotelSeries": "{name} ≈",
+    "pms": "Của bạn (PMS)",
+    "avg": "Lấp đầy ≈ trung bình của nhóm đối thủ, {count} đêm",
+    "peakOn": "Cao nhất: {night}",
+    "lowOn": "Thấp nhất: {night}",
+    "hiddenNights": "{count} đêm bị ẩn vì sai số so PMS quá ngưỡng ở nhóm lead time đó",
+    "source": "Trên Booking.com, cùng dữ liệu với lưới phòng còn",
+    "notEnough": "Chưa đủ số để ước tính lấp đầy cho đa số đối thủ: Booking.com chỉ lộ “còn ít nhất N” phòng. Mới có {count}/{total} khách sạn có ước tính.",
+    "noOverlap": "chưa đủ đêm trùng với PMS để hiệu chỉnh"
+  }
+}

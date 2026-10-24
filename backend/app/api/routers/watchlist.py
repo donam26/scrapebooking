@@ -32,6 +32,7 @@ from app.api.schemas import (
     WatchItemOut,
     WatchItemUpdate,
 )
+from app.api.setup_state import own_balance
 from app.channels.registry import (
     BOOKING,
     ListingUrl,
@@ -39,7 +40,7 @@ from app.channels.registry import (
     channels,
     parse_listing_url,
 )
-from app.db.models import Hotel, Listing, ScanRun, TenantHotel
+from app.db.models import Hotel, Listing, ScanRun, Tenant, TenantHotel
 from app.logging import get_logger
 
 log = get_logger(__name__)
@@ -129,7 +130,8 @@ async def list_watchlist(
 async def compset_review(
     tenant_id: TenantDep, session: SessionDep, own_hotel_id: int | None = None
 ) -> CompsetReviewOut:
-    """Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (7.3)."""
+    """Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (7.3), kèm "nhóm đối thủ
+    có cân về giá không" (Q4: giá giữa đối thủ ≥1,6 lần giá bạn → `pricier_compset`)."""
     w = await load_compset(session, tenant_id, own_hotel_id)
     own = own_hotel_id if own_hotel_id in w.own else (w.own[0] if w.own else None)
     ids = w.competitors
@@ -147,15 +149,19 @@ async def compset_review(
         )
     ).scalar_one()
     r = review_compset(ids, rooms, last, datetime.now(tz=UTC))
+    tenant = await session.get(Tenant, tenant_id)
+    balance = await own_balance(session, tenant, own) if tenant and ids else None
+    warnings = r.warnings + (["pricier_compset"] if balance and balance.pricier else [])
     return CompsetReviewOut(
         own_hotel_id=own,
         primary=len(ids),
         secondary=len(w.secondary),
         rooms_known=r.rooms_known,
-        warnings=r.warnings,
+        warnings=warnings,
         dominant_hotel_id=r.dominant_hotel_id,
         dominant_share=r.dominant_share,
         last_change_at=last,
+        balance=balance,
     )
 
 

@@ -6,33 +6,34 @@
       "holiday": "Ngày lễ",
       "yours": "{price} của bạn",
       "thatHotel": "{price} của khách sạn đó",
-      "medianInYours": "Trung vị đối thủ (trong dải của bạn)",
+      "medianInYours": "Giá giữa của đối thủ (trong dải của bạn)",
       "hint": "Rê chuột hoặc Tab vào một đêm để so cả chồng; bấm ô để mở chi tiết đêm.",
       "perNight": "{price} mỗi đêm",
-      "hintSingle": "Rê chuột hoặc Tab vào một đêm để xem số liệu; bấm ô để mở chi tiết đêm."
+      "hintSingle": "Rê chuột hoặc Tab vào một đêm để xem số liệu; bấm ô để mở chi tiết đêm.",
+      "howToRead": "Cách đọc màu ô"
     },
     "axis": {
       "month": "Th {month}"
     },
     "market": {
-      "aria": "Compset",
-      "title": "Compset",
+      "aria": "Nhóm đối thủ",
+      "title": "Nhóm đối thủ",
       "observed": "{count} đối thủ có dữ liệu trên Booking.com",
       "noneObserved": "Chưa có đối thủ nào có dữ liệu trên Booking.com",
       "yourRate": "Giá của bạn",
-      "median": "Trung vị đối thủ",
+      "median": "Giá giữa của đối thủ",
       "lowest": "Thấp nhất đối thủ",
       "soldOutPerNight": "Đối thủ hết phòng mỗi đêm",
       "noneSoldOut": "chưa đối thủ nào hết phòng trong {count} đêm này",
       "perNight": "{price} mỗi đêm",
       "observedOf": "{count}/{total} đối thủ có dữ liệu trên Booking.com",
       "restrictedNote": "· chấm vàng: có đối thủ bị hạn chế (không tính là hết)",
-      "restrictedTitle": "{count} đối thủ bị hạn chế (min-stay, đóng ngày đến), không tính là hết phòng"
+      "restrictedTitle": "{count} đối thủ bị hạn chế (chỉ bán khi ở từ vài đêm, hoặc không nhận khách đến), không tính là hết phòng"
     },
     "vsMedian": {
-      "title": "Giá bạn so trung vị đối thủ (%)",
+      "title": "Giá bạn so giá giữa của đối thủ (%)",
       "typical": "mức thường của bạn <num>{typical}</num>; đêm lệch từ {threshold} điểm in nâu",
-      "listAria": "Giá bạn so trung vị đối thủ theo đêm",
+      "listAria": "Giá bạn so giá giữa của đối thủ theo đêm",
       "item": "{night}: giá bạn {vs}{outlier, select, yes {, khác mức thường} other {}}",
       "itemNoData": "{night}: chưa so được"
     },
@@ -67,8 +68,8 @@
     },
     "readout": {
       "soldOut": "Đối thủ hết phòng",
-      "median": "Trung vị đối thủ",
-      "vsMedian": "Giá bạn so trung vị",
+      "median": "Giá giữa của đối thủ",
+      "vsMedian": "Giá bạn so giá giữa",
       "rank": "Vị trí giá của bạn",
       "pmsOcc": "Công suất PMS",
       "roomsLeft": "còn {rooms}",

@@ -1,0 +1,22 @@
+{
+  "title": "Set up in 5 steps",
+  "progress": "{done}/{total} required steps done. Each step opens the right place in Settings.",
+  "own": "Your hotel",
+  "ownHint": "Paste your hotel's Booking.com link.",
+  "competitors": "At least {needed} competitors",
+  "competitorsCount": "{count} primary competitors so far (at least {needed} needed).",
+  "strategy": "Price position",
+  "strategyHint": "Cheaper than, level with or above competitors; preview the next 7 nights.",
+  "alerts": "Who gets alerts",
+  "alertsHint": "Email or Zalo of whoever needs to know when competitors sell out.",
+  "pms": "Import PMS data (optional)",
+  "pmsHint": "To see your real occupancy next to competitors.",
+  "doneAria": "{step}: done",
+  "autoHide": "The card hides itself once the first 4 steps are done.",
+  "dismiss": "Hide",
+  "balance": {
+    "title": "Your competitors are much pricier than you (≈{ratio}×).",
+    "body": "Competitors' middle price {comp}, your price {own} (next {nights} nights). Consider adding 2–3 hotels in your price range.",
+    "link": "See hotels in your price range"
+  }
+}

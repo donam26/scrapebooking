@@ -85,7 +85,8 @@
       "tenant": "Tenant",
       "role": "Vai trò",
       "status": "Trạng thái",
-      "actions": "Thao tác"
+      "actions": "Thao tác",
+      "lastLogin": "Lần đăng nhập cuối"
     }
   },
   "health": {

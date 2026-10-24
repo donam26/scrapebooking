@@ -130,7 +130,6 @@ export function createFmt(locale: Locale, t: FormatTranslator) {
   const tag = INTL_LOCALE[locale];
   const numberFmt = new Intl.NumberFormat(tag, { maximumFractionDigits: 2 });
   const intFmt = new Intl.NumberFormat(tag, { maximumFractionDigits: 0 });
-  const compactFmt = new Intl.NumberFormat(tag, { notation: "compact", maximumFractionDigits: 1 });
   const dateFmt = new Intl.DateTimeFormat(tag, { day: "2-digit", month: "2-digit", year: "numeric" });
   const weekdayFmt = new Intl.DateTimeFormat(tag, { weekday: "short" });
   const dateTimeFmt = new Intl.DateTimeFormat(tag, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -177,10 +176,17 @@ export function createFmt(locale: Locale, t: FormatTranslator) {
     return value === null || value === undefined ? "—" : intFmt.format(value);
   }
 
-  /** Số rút gọn cho ô hẹp: 1250000 -> "1,3 Tr" / "1.3M". */
+  /**
+   * Số rút gọn cho ô hẹp, cùng kiểu với `fmtPriceShort` để cả app chỉ có một cách viết:
+   * 1250000 -> "1,3tr" / "1.3M", 850000 -> "850k", 950 -> "950".
+   */
   function fmtCompact(value: string | number | null | undefined): string {
     const n = num(value);
-    return n === null ? "—" : compactFmt.format(n);
+    if (n === null) return "—";
+    const abs = Math.abs(n);
+    if (abs >= 1_000_000) return t("priceMillion", { value: digitsFmt(abs >= 10_000_000 ? 0 : 1).format(n / 1_000_000) });
+    if (abs >= 1000) return t("priceThousand", { value: intFmt.format(Math.round(n / 1000)) });
+    return intFmt.format(n);
   }
 
   function fmtMoney(value: string | number | null | undefined, currency: string | null | undefined): string {

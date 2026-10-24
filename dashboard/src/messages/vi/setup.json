@@ -1,0 +1,22 @@
+{
+  "title": "Thiết lập 5 bước",
+  "progress": "Xong {done}/{total} bước bắt buộc. Mỗi bước mở đúng chỗ trong Cài đặt.",
+  "own": "Khách sạn của bạn",
+  "ownHint": "Dán đường dẫn Booking.com của khách sạn bạn.",
+  "competitors": "Ít nhất {needed} đối thủ",
+  "competitorsCount": "Đang có {count} đối thủ chính (cần ít nhất {needed}).",
+  "strategy": "Vị trí giá",
+  "strategyHint": "Rẻ hơn, ngang hay cao hơn đối thủ; xem trước 7 đêm tới.",
+  "alerts": "Ai nhận cảnh báo",
+  "alertsHint": "Email hoặc Zalo của người cần biết khi đối thủ hết phòng.",
+  "pms": "Nhập dữ liệu PMS (tuỳ chọn)",
+  "pmsHint": "Để thấy công suất thật cạnh đối thủ.",
+  "doneAria": "{step}: đã xong",
+  "autoHide": "Thẻ tự ẩn khi xong 4 bước đầu.",
+  "dismiss": "Ẩn",
+  "balance": {
+    "title": "Nhóm đối thủ đắt hơn bạn nhiều (≈{ratio} lần).",
+    "body": "Giá giữa của đối thủ {comp}, giá bạn {own} ({nights} đêm tới). Gợi ý thêm 2–3 khách sạn cùng tầm giá.",
+    "link": "Xem khách sạn cùng tầm giá"
+  }
+}

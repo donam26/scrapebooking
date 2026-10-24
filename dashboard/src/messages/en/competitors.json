@@ -1,7 +1,7 @@
 {
   "page": {
     "title": "Competitors",
-    "count": "{count, plural, one {# competitor} other {# competitors}} in the comp set",
+    "count": "{count, plural, one {# competitor} other {# competitors}} tracked",
     "addHotel": "Add hotel",
     "emptyTitle": "No hotels tracked yet",
     "emptyBody": "Add your hotel and competitors using the hotel page link on Booking.com.",
@@ -24,8 +24,8 @@
     "distance": "{km} km from you",
     "roomsTotal": "{count, plural, one {# room} other {# rooms}}",
     "roomsTotalNoSource": "Entered by hand, no source yet",
-    "bookingMax": "Booking has offered ≥{count, number} rooms/night",
-    "bookingMaxTitle": "Most rooms left ever seen on Booking.com for one night: a lower bound of the Booking allotment",
+    "bookingMax": "Booking has offered at least {count, number} rooms/night",
+    "bookingMaxTitle": "Most rooms left ever seen on Booking.com for one night: the hotel gives Booking at least this many rooms",
     "tonightRate": "Rate tonight",
     "nightRate": "Rate {night}",
     "vsYours": "Vs your rate",
@@ -36,6 +36,8 @@
     "minStayPrice": "rate for {count}+ night stays",
     "promo": "Promo: {promos}",
     "stale": "Stale data · {ago}",
-    "staleTitle": "Observation older than 48 hours: excluded from the comp set median"
+    "staleTitle": "Last reading is older than 48 hours: left out of the competitors' middle rate",
+    "staleValueTitle": "Last rate read, older than 48 hours",
+    "staleShort": "(old)"
   }
 }

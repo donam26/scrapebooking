@@ -55,7 +55,9 @@ PHASE3 = (
 
 
 def rules(**overrides: tuple[bool, dict[str, int]]) -> dict[K, object]:
-    stored = {k: (False, {}) for k in PHASE3}
+    stored: dict[str, tuple[bool, dict[str, int]]] = {k: (False, {}) for k in PHASE3}
+    # Sắp hết phòng mặc định tắt từ UX Phase 3 (mức "Vừa"); các test loại cũ bật nó.
+    stored["competitor_low_stock"] = (True, {})
     stored.update(overrides)
     return effective_rules(stored)  # type: ignore[return-value]
 
@@ -82,6 +84,20 @@ def test_effective_rules_default_on_and_bad_stored_params_fall_back() -> None:
     assert r[K.COMPETITOR_SOLD_OUT].active is False
     assert r[K.COMPETITOR_LOW_STOCK].params == {"within_days": 7}
     assert r[K.DAILY_INSIGHT].active is True
+
+
+def test_default_rules_are_the_medium_preset() -> None:
+    """Chưa lưu luật nào = mức "Vừa" của Cài đặt › Cảnh báo (UX Phase 3)."""
+    on = {k for k, r in effective_rules({}).items() if r.active}
+    assert on == {
+        K.DAILY_INSIGHT,
+        K.WEEKLY_REPORT,
+        K.DATA_STALE,
+        K.COMPETITOR_SOLD_OUT,
+        K.COMPETITOR_PRICE_DROP,
+        K.MARKET_TIGHT,
+        K.OWN_CLOSED,
+    }
 
 
 def test_sold_out_respects_window_level_and_min_sold_out() -> None:

@@ -56,7 +56,7 @@ def test_build_weekly_report_counts_tight_nights_and_price_position() -> None:
     assert sections[0][1][0] == "Đối thủ hết phòng 1 lần, sắp hết phòng 1 lần, giảm giá 1 lần."
     email = render_weekly("Rex", r, "http://x")
     assert email.subject == "Báo cáo tuần 05/10: 2 đêm tới quá nửa đối thủ hết phòng"
-    assert "http://x/overview?days=14" in email.html
+    assert "http://x/calendar?days=14" in email.html
 
 
 def test_weekly_report_empty_without_events_or_data() -> None:

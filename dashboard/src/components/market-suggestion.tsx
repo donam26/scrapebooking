@@ -3,10 +3,10 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { api, type PaceNightOut } from "@/lib/api";
+import { api, type PaceNightOut, type ReasonOut } from "@/lib/api";
 import { useMutation } from "@/lib/hooks";
 import { num, useFmt } from "@/lib/format";
-import { SUGGESTION_TONE, adjustmentText, suggestionTarget, useMarketText } from "@/lib/market";
+import { SUGGESTION_TONE, adjustmentText, mainReason, suggestionTarget, useMarketText } from "@/lib/market";
 import { Badge, Button, cx } from "./ui";
 import { IconAlert, IconCheck, IconClose } from "./icons";
 
@@ -18,11 +18,18 @@ function signedPct(pct: number): string {
   return pct > 0 ? `+${pct}%` : `−${-pct}%`;
 }
 
+/** Chỉ giữ chữ số: "3.700.000" / "3,700,000" -> "3700000". */
+function digits(raw: string): string {
+  return raw.replace(/\D/g, "");
+}
+
 /**
- * Một gợi ý giá (RMS-lite, roadmap 6.2–6.4): đêm, loại, GIÁ MỤC TIÊU bằng tiền (backend đã tính theo
- * chiến lược giá), giá tham chiếu, từng điều chỉnh có số và % cộng dồn, gợi ý hạn chế, ghi chú khi
- * bị chặn sàn/trần/mức đổi tối đa, và thao tác ghi nhận kèm giá thật sự đã đặt.
- * Không tự đẩy giá: "Đã áp dụng" chỉ ghi lại để đo được gợi ý nào có ích.
+ * Một gợi ý giá: đêm, loại, GIÁ MỤC TIÊU bằng tiền (backend đã tính theo chiến lược giá), lý do
+ * bằng lời, và thao tác ghi nhận kèm giá thật sự đã đặt. Không tự đẩy giá: "Tôi đã đổi giá" chỉ ghi
+ * lại để đo được gợi ý nào có ích. Đã ghi thì thẻ thu lại một dòng, còn nút "Hoàn tác" tại chỗ.
+ *
+ * `brief`: chỉ một câu lý do chính (Việc cần làm hôm nay); cách tính đầy đủ nằm trong "Cách tính".
+ * `staleSince`: dữ liệu Booking.com đã cũ (ISO lần đọc cuối) thì làm mờ và khoá thao tác.
  */
 export function SuggestionCard({
   night,
@@ -30,16 +37,23 @@ export function SuggestionCard({
   canWrite,
   onChanged,
   compact,
+  brief,
+  staleSince,
+  title,
 }: {
   night: PaceNightOut;
   ownHotelId: number | null;
   canWrite: boolean;
   onChanged: () => void;
   compact?: boolean;
+  brief?: boolean;
+  staleSince?: string | null;
+  /** Thay tiêu đề đêm (VD "Đêm nay"). */
+  title?: string;
 }) {
   const t = useTranslations("components.marketSuggestion");
-  const { fmtDateShort, fmtMoney, fmtWeekday } = useFmt();
-  const { suggestionLabel, fmtChange } = useMarketText();
+  const { fmtDateShort, fmtMoney, fmtWeekday, fmtWhen, fmtInt } = useFmt();
+  const { fmtChange, suggestionBadge } = useMarketText();
   const s = night.suggestion!;
   const target = suggestionTarget(night);
   const [applying, setApplying] = useState(false);
@@ -54,58 +68,80 @@ export function SuggestionCard({
     await api.market.undo(night.stay_date, s.kind);
     onChanged();
   });
-  const title = `${fmtWeekday(night.stay_date)} ${fmtDateShort(night.stay_date)}`;
+  const heading = title ?? `${fmtWeekday(night.stay_date)} ${fmtDateShort(night.stay_date)}`;
   const reference = num(s.reference_price);
   const clamp = CLAMPS.includes(s.clamped as Clamp) ? (s.clamped as Clamp) : null;
-  // Điều chỉnh có % trước (đó là phần làm giá đổi), dòng thông tin sau; bản gọn lấy 3 dòng đầu.
-  const adjustments = [...s.adjustments].filter((r) => !r.key.startsWith("clamp_") && r.key !== "no_lower_tight").sort((a, b) => Number(a.pct === null) - Number(b.pct === null));
-  const shown = compact ? adjustments.slice(0, 3) : adjustments;
-  const legacy = adjustments.length === 0 ? (compact ? s.reasons.slice(0, 2) : s.reasons) : [];
-  const confidence = s.confidence === "high" ? t("confidenceHigh") : s.confidence === "low" ? t("confidenceLow") : t("confidenceMedium");
+  // Điều chỉnh có % trước (đó là phần làm giá đổi), dòng thông tin sau.
+  const adjustments = [...s.adjustments]
+    .filter((r) => !r.key.startsWith("clamp_") && r.key !== "no_lower_tight")
+    .sort((a, b) => Number(a.pct === null) - Number(b.pct === null));
+  const shown: ReasonOut[] = brief ? [] : compact ? adjustments.slice(0, 3) : adjustments;
+  const legacy = adjustments.length === 0 ? (compact || brief ? s.reasons.slice(0, brief ? 1 : 2) : s.reasons) : [];
+  const main = brief ? mainReason(s) : null;
+  const stale = !!staleSince;
+  const lowConfidence = s.confidence === "low";
 
   function startApply() {
-    setPrice(target !== null ? String(Math.round(target)) : "");
+    setPrice(target !== null ? fmtInt(Math.round(target)) : "");
     setPriceError(false);
     setApplying(true);
   }
 
   function confirmApply(e: FormEvent) {
     e.preventDefault();
-    const raw = price.trim().replace(/[.,\s]/g, "");
+    const raw = digits(price);
     if (raw === "") return void decide.run("applied", null);
     const n = Number(raw);
     if (!Number.isFinite(n) || n <= 0) return setPriceError(true);
     void decide.run("applied", n);
   }
 
+  // Đã ghi quyết định: một dòng gọn, vẫn hoàn tác được tại chỗ.
+  if (s.decision) {
+    return (
+      <article className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line bg-subtle px-4 py-2.5">
+        <span className="text-sm font-bold text-ink">{heading}</span>
+        <span role="status" className={cx("inline-flex items-center gap-1 text-sm font-semibold", s.decision === "applied" ? "text-yours-deep" : "text-muted")}>
+          {s.decision === "applied" ? (
+            <>
+              <IconCheck size={15} /> {t("applied")}
+            </>
+          ) : (
+            t("dismissed")
+          )}
+        </span>
+        {canWrite && (
+          <Button size="sm" variant="quiet" busy={undo.busy} onClick={() => void undo.run()} className="ml-auto">
+            {t("undo")}
+          </Button>
+        )}
+        {undo.error && <p role="alert" className="w-full text-sm text-danger">{undo.error}</p>}
+      </article>
+    );
+  }
+
   return (
-    <article className={cx("rounded-xl border border-line bg-surface p-4", s.decision && "bg-subtle")}>
+    <article className={cx("rounded-xl border border-line bg-surface p-4", stale && "border-dashed opacity-70")}>
       <header className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
         {ownHotelId ? (
           <Link href={`/hotels/${ownHotelId}/dates/${night.stay_date}`} className="text-md font-bold text-ink hover:text-brand hover:underline">
-            {title}
+            {heading}
           </Link>
         ) : (
-          <span className="text-md font-bold text-ink">{title}</span>
+          <span className="text-md font-bold text-ink">{heading}</span>
         )}
-        <Badge tone={SUGGESTION_TONE[s.kind]}>{suggestionLabel(s.kind)}</Badge>
+        <Badge tone={SUGGESTION_TONE[s.kind]}>{suggestionBadge(s)}</Badge>
         {s.change_pct !== 0 && <span className="rounded-md bg-sunken px-1.5 py-0.5 text-sm font-bold text-ink tabular">{fmtChange(s.change_pct)}</span>}
-        <span className={cx("text-xs", s.confidence === "low" ? "font-semibold text-warning-deep" : "text-muted")}>{confidence}</span>
+        {lowConfidence && <span className="text-xs font-semibold text-warning-deep">{t("confidenceLow")}</span>}
       </header>
       {target !== null && (
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-sm text-muted">{s.kind === "hold" ? t("holdAt") : t("target")}</span>
           <span className="text-lg font-bold text-ink tabular">{fmtMoney(target, night.currency)}</span>
-          <span className="text-sm text-muted tabular">
-            {t("basis", { price: fmtMoney(night.own_price, night.currency) })}
-          </span>
-          {reference !== null && (
-            <span className="text-sm text-muted tabular" title={t("referenceTitle")}>
-              · {t("reference", { price: fmtMoney(reference, night.currency) })}
-            </span>
-          )}
+          <span className="text-sm text-muted tabular">{t("basis", { price: fmtMoney(night.own_price, night.currency) })}</span>
         </div>
       )}
+      {main && <p className="mt-1.5 text-sm text-body">{main}</p>}
       {(shown.length > 0 || legacy.length > 0) && (
         <ul className="mt-2 space-y-0.5 text-sm text-body">
           {shown.map((r, i) => (
@@ -128,7 +164,7 @@ export function SuggestionCard({
           <IconAlert size={13} className="mt-px shrink-0" /> {t(`clamp.${clamp}`)}
         </p>
       )}
-      {s.restrictions.length > 0 && (
+      {s.restrictions.length > 0 && !brief && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-semibold text-muted">{t("restrictions")}:</span>
           {s.restrictions.map((r, i) => (
@@ -138,25 +174,27 @@ export function SuggestionCard({
           ))}
         </div>
       )}
-      {(decide.error || undo.error) && <p role="alert" className="mt-2 text-sm text-danger">{decide.error ?? undo.error}</p>}
+      {brief && (adjustments.length > 0 || reference !== null) && (
+        <details className="mt-1.5 text-sm">
+          <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-ink">{t("howComputed")}</summary>
+          <ul className="mt-1.5 space-y-0.5 text-body">
+            {reference !== null && (
+              <li className="text-muted tabular">{t("reference", { price: fmtMoney(reference, night.currency) })}</li>
+            )}
+            {adjustments.map((r, i) => (
+              <li key={`${r.key}${i}`} className="flex items-start gap-2">
+                <span className={cx("min-w-0 flex-1", r.pct === null && "text-muted")}>{adjustmentText(r)}</span>
+                {r.pct !== null && r.pct !== 0 && <span className="shrink-0 text-xs font-bold text-ink tabular">{signedPct(r.pct)}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {stale && <p className="mt-2 text-xs font-semibold text-warning-deep">{t("staleNote", { when: fmtWhen(staleSince) })}</p>}
+      {decide.error && <p role="alert" className="mt-2 text-sm text-danger">{decide.error}</p>}
       {canWrite && (
         <footer className="mt-3">
-          {s.decision ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span role="status" className="inline-flex items-center gap-1 text-sm font-semibold text-yours-deep">
-                {s.decision === "applied" ? (
-                  <>
-                    <IconCheck size={15} /> {t("applied")}
-                  </>
-                ) : (
-                  <span className="text-muted">{t("dismissed")}</span>
-                )}
-              </span>
-              <Button size="sm" variant="quiet" busy={undo.busy} onClick={() => void undo.run()}>
-                {t("undo")}
-              </Button>
-            </div>
-          ) : applying ? (
+          {applying ? (
             <form onSubmit={confirmApply} noValidate className="flex flex-wrap items-end gap-2 rounded-lg bg-subtle p-2.5">
               <label className="flex min-w-0 flex-col gap-1">
                 <span className="text-xs font-semibold text-body">{t("applyPrice")}</span>
@@ -166,7 +204,8 @@ export function SuggestionCard({
                   autoFocus
                   value={price}
                   onChange={(e) => {
-                    setPrice(e.target.value);
+                    const d = digits(e.target.value);
+                    setPrice(d === "" ? "" : fmtInt(Number(d)));
                     setPriceError(false);
                   }}
                   aria-invalid={priceError || undefined}
@@ -186,10 +225,10 @@ export function SuggestionCard({
             </form>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" icon={<IconCheck size={15} />} busy={decide.busy} onClick={startApply}>
+              <Button size="sm" icon={<IconCheck size={15} />} busy={decide.busy} disabled={stale} title={stale ? t("staleDisabled") : undefined} onClick={startApply}>
                 {t("markApplied")}
               </Button>
-              <Button size="sm" variant="ghost" icon={<IconClose size={15} />} disabled={decide.busy} onClick={() => void decide.run("dismissed")}>
+              <Button size="sm" variant="ghost" icon={<IconClose size={15} />} disabled={decide.busy || stale} onClick={() => void decide.run("dismissed")}>
                 {t("dismiss")}
               </Button>
             </div>

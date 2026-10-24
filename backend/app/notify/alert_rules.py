@@ -8,7 +8,7 @@ tính từ hôm nay giờ địa phương. Mỗi mục là một câu đọc đ�
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from app.channels.registry import BOOKING, channel_name
@@ -44,6 +44,7 @@ class NightMarket:
     price_index: Decimal | None = None
     sample: str = "insufficient"
     priced: int = 0
+    median: Decimal | None = None  # giá giữa (trung vị) giá niêm yết của đối thủ đêm đó
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,8 @@ _KIND_ORDER = {
     NotificationKind.COMPETITOR_PRICE_RISE: 5,
     NotificationKind.COMPETITOR_PROMO: 6,
     NotificationKind.OWN_POSITION_DRIFT: 7,
+    NotificationKind.COMPETITOR_BELOW_MEDIAN: 8,
+    NotificationKind.COMPETITOR_ABOVE_MEDIAN: 9,
 }
 # Sự kiện đối thủ làm thay đổi mức căng của đêm (đêm chỉ được xét "căng" khi lượt này có biến động).
 _TIGHTENING = ("sold_out", "low_stock_enter", "rooms_decrease", "lowest_rate_shift")
@@ -203,6 +206,7 @@ def evaluate_alerts(
             )
 
     items += _actionable_alerts(rules, events, market, today, locale, target_index)
+    items += _median_gap_alerts(rules, events, market, today, locale)
     items.sort(key=lambda it: (it.stay_date, _KIND_ORDER[it.kind], it.hotel_name))
     return items
 
@@ -389,6 +393,86 @@ def _actionable_alerts(
                     e.event_id,
                     t(locale, key, hotel=e.hotel_name, channel=here, night=night_of(e.stay_date)),
                     detail,
+                )
+            )
+    return items
+
+
+def _price(value: str | None) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        p = Decimal(value)
+    except (InvalidOperation, ValueError):
+        return None
+    return p if p > 0 else None
+
+
+def _beyond(price: Decimal, med: Decimal, sign: int, min_pct: int, min_vnd: int) -> bool:
+    """Giá lệch khỏi giá giữa về phía `sign` (−1 rẻ hơn, +1 đắt hơn) ≥ min_pct% hoặc ≥ min_vnd."""
+    gap = (price - med) * sign
+    return gap > 0 and (gap * 100 >= min_pct * med or (min_vnd > 0 and gap >= min_vnd))
+
+
+def _median_gap_alerts(
+    rules: dict[NotificationKind, RuleConfig],
+    events: list[EventFact],
+    market: dict[date, NightMarket],
+    today: date,
+    locale: str,
+) -> list[AlertItem]:
+    """Đối thủ vừa đổi giá (cả khách sạn) tới mức rẻ hơn / đắt hơn giá giữa nhóm ≥ `min_pct`% hoặc
+    ≥ `min_vnd` VND (khi > 0). Chỉ báo khi vừa vượt ngưỡng (giá cũ còn trong ngưỡng), một lần mỗi
+    (khách sạn, đêm); cần giá giữa đủ mẫu."""
+    items: list[AlertItem] = []
+    for kind, sign, key in (
+        (NotificationKind.COMPETITOR_BELOW_MEDIAN, -1, "below"),
+        (NotificationKind.COMPETITOR_ABOVE_MEDIAN, 1, "above"),
+    ):
+        rule = rules.get(kind)
+        if not (rule and rule.active):
+            continue
+        min_pct, min_vnd = rule.params["min_pct"], rule.params.get("min_vnd", 0)
+        seen: set[tuple[int, date]] = set()
+        for e in events:
+            if e.event_type not in ("price_up", "price_down") or e.room_type_name is not None:
+                continue
+            if e.role != "competitor" or (e.hotel_id, e.stay_date) in seen:
+                continue
+            if not _in_window(e.stay_date, today, rule.params["within_days"]):
+                continue
+            m = market.get(e.stay_date)
+            med = m.median if m is not None and m.sample != "insufficient" else None
+            new, old = _price(e.to_value), _price(e.from_value)
+            if med is None or med <= 0 or new is None:
+                continue
+            if not _beyond(new, med, sign, min_pct, min_vnd) or (
+                old is not None and _beyond(old, med, sign, min_pct, min_vnd)
+            ):
+                continue
+            seen.add((e.hotel_id, e.stay_date))
+            pct = abs(new - med) / med * 100
+            items.append(
+                AlertItem(
+                    kind,
+                    e.hotel_id,
+                    e.hotel_name,
+                    e.stay_date,
+                    e.event_id,
+                    t(
+                        locale,
+                        f"alert.vs_median.{key}",
+                        hotel=e.hotel_name,
+                        pct=fmt_pct(pct),
+                        night=fmt_night(e.stay_date, locale),
+                    ),
+                    t(
+                        locale,
+                        "alert.vs_median.detail",
+                        price=fmt_money(e.to_value, e.currency, locale),
+                        median=fmt_money(med, e.currency, locale),
+                        priced=m.priced if m is not None else 0,
+                    ),
                 )
             )
     return items

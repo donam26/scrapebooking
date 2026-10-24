@@ -8,7 +8,7 @@ import { useSession } from "@/lib/session";
 import { useFmt } from "@/lib/format";
 import { INSIGHT_STATUS_TONE, useLabel } from "@/lib/labels";
 import { Badge, ErrorBox, Note, PageHeader, SkeletonBlock, Spinner, cx } from "@/components/ui";
-import { InsightView, parseDropped, parseInsightOutput } from "../insight-view";
+import { BriefAge, InsightView, hiddenFromTenant, parseDropped, parseInsightOutput } from "../insight-view";
 
 export default function InsightDetailPage() {
   const t = useTranslations("insights.detail");
@@ -29,7 +29,9 @@ export default function InsightDetailPage() {
   useInterval(insight.reload, pending ? 5000 : 0);
 
   const d = insight.data;
-  const out = d ? parseInsightOutput(d.output_json) : null;
+  // Bản tin lỗi / đầu ra giả: tenant chỉ thấy một câu, không thấy nội dung hay lỗi kỹ thuật (L2).
+  const hidden = !!d && !isOperator && hiddenFromTenant(d);
+  const out = d && !hidden ? parseInsightOutput(d.output_json) : null;
   const dropped = d ? parseDropped(d.dropped_highlights) : [];
   const toc = out
     ? [
@@ -53,7 +55,8 @@ export default function InsightDetailPage() {
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="tabular">{t("dataNights", { period: fmtPeriod(d.period_start, d.period_end) })}</span>
               <span>{label("insightTrigger", d.trigger)}</span>
-              {d.status !== "completed" && <Badge tone={INSIGHT_STATUS_TONE[d.status] ?? "gray"}>{label("insightStatus", d.status)}</Badge>}
+              <BriefAge at={d.generated_at} />
+              {d.status !== "completed" && !hidden && <Badge tone={INSIGHT_STATUS_TONE[d.status] ?? "gray"}>{label("insightStatus", d.status)}</Badge>}
             </span>
           )
         }
@@ -75,8 +78,14 @@ export default function InsightDetailPage() {
                 {t("pending")}
               </Note>
             )}
-            {d.status === "failed" && d.error && <ErrorBox error={d.error} className="mb-5" title={t("failedTitle")} />}
-            <InsightView insight={d} hotels={hotels.data ?? []} eventOf={eventOf} />
+            {hidden ? (
+              <Note tone="neutral">{t("unavailable")}</Note>
+            ) : (
+              <>
+                {d.status === "failed" && d.error && <ErrorBox error={d.error} className="mb-5" title={t("failedTitle")} />}
+                <InsightView insight={d} hotels={hotels.data ?? []} eventOf={eventOf} />
+              </>
+            )}
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-8">

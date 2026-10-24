@@ -12,7 +12,7 @@ export default async function NotFound() {
         <h1 className="mt-5 text-2xl font-bold text-ink">{t("title")}</h1>
         <p className="mt-2 text-base text-muted">{t("body")}</p>
         <div className="mt-6 flex justify-center gap-3">
-          <ButtonLink href="/dashboard" variant="primary">
+          <ButtonLink href="/today" variant="primary">
             {t("toDashboard")}
           </ButtonLink>
           <ButtonLink href="/">{t("toHome")}</ButtonLink>

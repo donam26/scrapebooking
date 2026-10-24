@@ -59,24 +59,35 @@ export function Board({ data, market = true, priceLabel: priceLabelProp }: { dat
 
   const ctx: StripCtx = { dates, n, active: active?.idx ?? null, activate, fits, horizonEnd: data.horizon_end, holidays };
 
+  const legend = (
+    <MarksLegend>
+      {data.end > data.horizon_end && (
+        <li className="flex items-center gap-2">
+          <MarkSwatch mark={beyondMark} size={18} />
+          {t("legend.beyond", { night: fmtNight(data.horizon_end) })}
+        </li>
+      )}
+      {holidays.size > 0 && (
+        <li className="flex items-center gap-2">
+          <span aria-hidden className="grid h-[18px] w-[18px] place-items-center">
+            <HolidayDot />
+          </span>
+          {t("legend.holiday")}
+        </li>
+      )}
+    </MarksLegend>
+  );
+
   return (
     <div onMouseLeave={() => setActive(null)} className="relative">
-      <MarksLegend className="mb-3">
-        {data.end > data.horizon_end && (
-          <li className="flex items-center gap-2">
-            <MarkSwatch mark={beyondMark} size={18} />
-            {t("legend.beyond", { night: fmtNight(data.horizon_end) })}
-          </li>
-        )}
-        {holidays.size > 0 && (
-          <li className="flex items-center gap-2">
-            <span aria-hidden className="grid h-[18px] w-[18px] place-items-center">
-              <HolidayDot />
-            </span>
-            {t("legend.holiday")}
-          </li>
-        )}
-      </MarksLegend>
+      {/* Chú giải dài 6–8 mục: mobile thu vào "Cách đọc màu ô" để dải đêm lên sát đầu. */}
+      <div className="mb-3 max-sm:hidden">{legend}</div>
+      <details className="group mb-3 sm:hidden">
+        <summary className="cursor-pointer list-none text-xs font-semibold text-brand [&::-webkit-details-marker]:hidden">
+          {t("legend.howToRead")} <span aria-hidden className="inline-block transition-transform group-open:rotate-90">›</span>
+        </summary>
+        <div className="mt-2">{legend}</div>
+      </details>
       <div ref={outerRef} className={cx(!fits && "sb-scroll -mx-4 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0")}>
         <div className="space-y-3" style={fits ? undefined : { width: required }}>
           <Axis ctx={ctx} sticky={fits} />

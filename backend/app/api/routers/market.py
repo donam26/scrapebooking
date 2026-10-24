@@ -1,6 +1,5 @@
 """Nhịp đặt phòng và gợi ý giá (đợt 2). Schema nằm trong file này để module tự đứng riêng."""
 
-from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Literal
@@ -25,6 +24,7 @@ from app.market.pace_report import (
     NightReport,
     PaceReport,
     build_pace_report,
+    effective_strategy,
     latest_observations,
     strategy_from,
     tenant_today,
@@ -45,6 +45,7 @@ log = get_logger(__name__)
 
 MAX_RANGE_DAYS = 60
 DEFAULT_DAYS = 30
+PREVIEW_MAX_DAYS = 14  # xem trước chiến lược nháp
 MAX_HOLIDAY_DAYS = 400
 
 
@@ -71,6 +72,8 @@ class ReasonOut(BaseModel):
     key: str
     text: str
     pct: int | None  # đóng góp % vào giá mục tiêu (null = thông tin/chặn)
+    # Tham số thô của lý do (tiền là số VND nguyên: median, price; gap = điểm dưới mức thường).
+    params: dict[str, int | str] = {}
 
 
 class SuggestionOut(BaseModel):
@@ -230,6 +233,9 @@ class StrategyIn(BaseModel):
     floor_price: Decimal | None = Field(default=None, gt=0)
     ceiling_price: Decimal | None = Field(default=None, gt=0)
     target_index: Decimal = Field(default=Decimal(100), ge=50, le=200)
+    # "Giữ như hiện nay": vị trí đi theo mức giá thường của khách sạn (target_index chỉ là số dự
+    # phòng khi chưa tính được mức thường).
+    follow_typical: bool = False
     round_to: int = Field(default=10000, ge=0, le=1000000)
     max_daily_change_pct: int = Field(default=15, ge=1, le=50)
     weekday_adj: dict[int, int] = Field(default_factory=dict)
@@ -250,6 +256,9 @@ class StrategyIn(BaseModel):
 class StrategyOut(StrategyIn):
     hotel_id: int
     configured: bool
+    # Chưa lưu chiến lược: mức giá thường của bạn (giá bạn / giá giữa đối thủ × 100, trung vị 30
+    # đêm tới) mà gợi ý đang dùng thay cho target_index; null khi đã lưu hoặc chưa đủ dữ liệu.
+    typical_index: int | None = None
 
 
 class OutcomeNightOut(BaseModel):
@@ -303,7 +312,8 @@ def _suggestion(s: Suggestion, decision: str | None, locale: str) -> SuggestionO
         target_price=s.target_price,
         reference_price=s.reference_price,
         adjustments=[
-            ReasonOut(key=r.key, text=reason_text(r, locale), pct=r.pct) for r in s.reasons
+            ReasonOut(key=r.key, text=reason_text(r, locale), pct=r.pct, params=r.params)
+            for r in s.reasons
         ],
         restrictions=[reason_text(r, locale) for r in s.restrictions],
         clamped=s.clamped,
@@ -395,6 +405,34 @@ async def get_pace(
         )
     report = await build_pace_report(
         session, tenant_id, s, e, today, locale, own_hotel_id=own_hotel_id
+    )
+    return _out(report, locale)
+
+
+@router.post("/pace/preview", response_model=MarketPaceOut)
+async def preview_pace(
+    body: StrategyIn,
+    tenant_id: TenantDep,
+    session: SessionDep,
+    locale: LocaleDep,
+    start: date | None = None,
+    end: date | None = None,
+    own_hotel_id: int | None = None,
+) -> MarketPaceOut:
+    """Xem trước gợi ý giá với chiến lược nháp `body` (không lưu), tối đa 14 đêm từ `start`
+    (mặc định hôm nay). Gợi ý tính như khi chiến lược đã lưu."""
+    tenant = await _tenant(session, tenant_id)
+    today = tenant_today(tenant)
+    s = start or today
+    e = end or s + timedelta(days=PREVIEW_MAX_DAYS - 1)
+    if abs((s - today).days) > 730 or e < s or (e - s).days >= PREVIEW_MAX_DAYS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"range must be 1–{PREVIEW_MAX_DAYS} nights"
+        )
+    values = body.model_dump()
+    draft = strategy_from(PriceStrategy(**values))  # đối tượng tạm, không thêm vào session
+    report = await build_pace_report(
+        session, tenant_id, s, e, today, locale, own_hotel_id=own_hotel_id, strategy_override=draft
     )
     return _out(report, locale)
 
@@ -681,7 +719,8 @@ def _strategy_out(hid: int, row: PriceStrategy | None) -> StrategyOut:
         base_price=st.base_price,
         floor_price=st.floor,
         ceiling_price=st.ceiling,
-        target_index=st.target_index,
+        target_index=row.target_index if row is not None else st.target_index,
+        follow_typical=bool(row is not None and row.follow_typical),
         round_to=st.round_to,
         max_daily_change_pct=st.max_daily_change_pct,
         weekday_adj=st.weekday_adj,
@@ -695,9 +734,20 @@ def _strategy_out(hid: int, row: PriceStrategy | None) -> StrategyOut:
 async def get_strategy(
     tenant_id: TenantDep, session: SessionDep, own_hotel_id: int | None = None
 ) -> StrategyOut:
-    """Chiến lược giá của khách sạn của bạn (6.1); chưa đặt thì trả mặc định (định vị 100)."""
+    """Chiến lược giá của khách sạn của bạn (6.1). Chưa đặt thì trả mặc định (định vị 100) kèm
+    `typical_index`: mức giá thường của bạn mà gợi ý đang dùng (cùng cách tính với /pace); đã lưu
+    "giữ như hiện nay" (`follow_typical`) cũng trả mức thường hôm nay."""
     hid = await _own_hotel(session, tenant_id, own_hotel_id)
-    return _strategy_out(hid, await session.get(PriceStrategy, (tenant_id, hid)))
+    row = await session.get(PriceStrategy, (tenant_id, hid))
+    out = _strategy_out(hid, row)
+    if row is None or row.follow_typical:
+        tenant = await _tenant(session, tenant_id)
+        w = await load_compset(session, tenant_id, hid)
+        typical = await typical_index(
+            session, hid, w.competitors, tenant_channel(), tenant_today(tenant)
+        )
+        out.typical_index = int(typical) if typical is not None else None
+    return out
 
 
 @router.put("/strategy", response_model=StrategyOut)
@@ -854,11 +904,7 @@ async def suggestion_backtest(
     actual = await _actuals(session, tenant_id, hid, start, today - timedelta(days=1))
     channel = tenant_channel()
     strat_row = await session.get(PriceStrategy, (tenant_id, hid))
-    strategy = strategy_from(strat_row)
-    if strat_row is None:
-        typical = await typical_index(session, hid, w.competitors, channel, today)
-        if typical is not None:
-            strategy = replace(strategy, target_index=typical, target_source="typical")
+    strategy = await effective_strategy(session, strat_row, hid, w.competitors, channel, today)
     ids = [hid, *w.competitors]
     snaps: dict[tuple[int, date], list[HotelDateSnapshot]] = {}
     if actual:

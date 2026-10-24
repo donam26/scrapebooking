@@ -18,9 +18,14 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+# Mật khẩu "không dùng được" của người được mời: không phải chuỗi argon2 nên mọi lần kiểm tra
+# mật khẩu đều sai (đăng nhập bị từ chối) cho tới khi họ tự đặt qua link mời.
+UNUSABLE_PASSWORD_PREFIX = "!"
 
 
 class Base(DeclarativeBase):
@@ -48,6 +53,10 @@ class Tenant(Base):
     )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Thẻ "Thiết lập 5 bước" trên Hôm nay (migration 0019): {"dismissed_at": ISO} khi bấm "Ẩn".
+    setup_state: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
 
 
 class Hotel(Base):
@@ -386,6 +395,15 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(16))  # operator | tenant_admin | viewer
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Lời mời (migration 0021): chỉ lưu sha256 của phần bí mật trong link, dùng một lần.
+    invite_token_hash: Mapped[str | None] = mapped_column(String(64))
+    invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @property
+    def invite_pending(self) -> bool:
+        """Được mời nhưng chưa tự đặt mật khẩu (mật khẩu không dùng được để đăng nhập)."""
+        return self.password_hash.startswith(UNUSABLE_PASSWORD_PREFIX)
 
 
 # ---------------------------------------------------------------------------
@@ -451,6 +469,7 @@ class PmsImport(Base):
     errors: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(16))  # completed | failed | partial
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
 
 class PmsColumnMapping(Base):
@@ -465,24 +484,6 @@ class PmsColumnMapping(Base):
 # ---------------------------------------------------------------------------
 # Thông báo email (đợt 1 sau nghiên cứu đối thủ)
 # ---------------------------------------------------------------------------
-
-
-class NotificationRecipient(Base):
-    __tablename__ = "notification_recipients"
-    __table_args__ = (
-        Index(
-            "uq_notification_recipients_tenant_email",
-            "tenant_id",
-            func.lower("email"),
-            unique=True,
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"))
-    email: Mapped[str] = mapped_column(String(254))
-    active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class NotificationRule(Base):

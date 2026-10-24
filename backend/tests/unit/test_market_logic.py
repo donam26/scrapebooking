@@ -93,19 +93,19 @@ def test_rms_lite_raise_on_tight_night_is_explained_and_capped() -> None:
     # so với giá hiện tại 800.000 → 920.000.
     assert s is not None and s.kind == "raise" and s.change_pct == 15
     assert (s.reference_price, s.target_price, s.clamped) == (D(1000000), D(920000), "max_change")
-    assert [r.key for r in s.reasons] == ["position", "comp_tight", "clamp_max_change"]
+    assert [r.key for r in s.reasons] == ["position_default", "comp_tight", "clamp_max_change"]
     assert s.reasons[1].pct == 10 and s.confidence == "medium"
-    assert reason_text(s.reasons[1], "vi") == "3/4 đối thủ hết hoặc còn ≤3 phòng (+10%)"
+    assert reason_text(s.reasons[1], "vi") == "3/4 đối thủ đã hết hoặc chỉ còn ≤3 phòng (+10%)"
 
 
 def test_rms_lite_positioning_floor_ceiling_and_rounding() -> None:
-    st = Strategy(target_index=D(105), ceiling=D(1030000), round_to=10000)
+    st = Strategy(target_index=D(105), ceiling=D(1030000), round_to=10000, target_source="strategy")
     s = suggest(night(own_price=D("1000000")), st)
     assert s is not None and s.target_price == D(1030000) and s.clamped == "ceiling"
     st2 = Strategy(target_index=D(90), floor=D(950000), target_source="strategy")
     low = suggest(night(own_price=D("1000000")), st2)
     assert low is not None and low.target_price == D(950000) and low.kind == "lower"
-    weekend = Strategy(weekday_adj={5: 10})
+    weekend = Strategy(weekday_adj={5: 10}, target_source="strategy")
     sat = suggest(night(stay_date=date(2026, 10, 17), own_price=D("1000000")), weekend)
     assert sat is not None and sat.target_price == D(1100000)
     assert any(r.key == "weekday" and r.pct == 10 for r in sat.reasons)
@@ -155,6 +155,55 @@ def test_rms_lite_otb_pace_and_min_stay_restriction() -> None:
     assert backtest_verdict("hold", D("0.2")) == "neutral"
 
 
+def test_rms_lite_raise_without_strategy_needs_demand_or_large_gap() -> None:
+    """Q2: chưa đặt chiến lược thì tăng giá cần tín hiệu cầu, giống giảm giá."""
+    typical = Strategy(target_index=D(60), target_source="typical")
+    # Tham chiếu 600.000 vs giá 520.000 (+15%), nhưng chỉ lệch mức thường 8 điểm, không có cầu.
+    small = suggest(night(own_price=D("520000"), own_index=D(52)), typical)
+    assert small is not None and small.kind == "hold" and small.change_pct == 0
+    assert small.target_price == D(520000) and small.clamped == "no_raise_without_demand"
+    assert small.reasons[-1].key == "no_raise_without_demand"
+    assert reason_text(small.reasons[-1], "vi").startswith("chưa tăng: thị trường chưa có")
+    # Lệch ≥10 điểm: vẫn gợi ý tăng nhưng tin cậy thấp, nói rõ "thấp hơn mức thường".
+    gap = suggest(night(own_price=D("480000"), own_index=D(48)), typical)
+    assert gap is not None and gap.kind == "raise" and gap.confidence == "low"
+    below = next(r for r in gap.reasons if r.key == "below_usual")
+    assert below.params == {"gap": 12} and below.pct is None
+    assert reason_text(below, "en") == (
+        "this night is priced 12 points below your usual level; no demand signal in the market yet"
+    )
+    # Thứ trong tuần hay sát ngày không phải tín hiệu cầu; không biết chỉ số giá thì giữ giá.
+    unknown = suggest(night(own_price=D("480000")), typical)
+    assert unknown is not None and unknown.kind == "hold"
+    # Có tín hiệu cầu (đối thủ căng): tăng như cũ, không thêm lý do mới.
+    tight = suggest(night(own_price=D("520000"), own_index=D(52), comp_sold_out=3), typical)
+    assert tight is not None and tight.kind == "raise" and tight.confidence == "medium"
+    keys = [r.key for r in tight.reasons]
+    assert "below_usual" not in keys and "no_raise_without_demand" not in keys
+    # Chiến lược đã lưu: hành vi không đổi (định vị tự đặt là đủ để tăng).
+    saved = Strategy(target_index=D(60), target_source="strategy")
+    own = suggest(night(own_price=D("520000"), own_index=D(52)), saved)
+    assert own is not None and own.kind == "raise" and own.confidence == "medium"
+    assert own.reasons[0].key == "position"
+
+
+def test_reason_money_params_are_raw_and_formatted_per_locale() -> None:
+    s = suggest(night(), Strategy(target_source="strategy"))
+    assert s is not None and s.reasons[0].params["median"] == 1000000
+    assert reason_text(s.reasons[0], "vi").startswith("đối thủ bán đêm này khoảng 1.000.000 ₫")
+    assert reason_text(s.reasons[0], "en").startswith(
+        "competitors sell this night at about ₫1,000,000"
+    )
+    floor = suggest(
+        night(own_price=D("1000000")),
+        Strategy(target_index=D(80), floor=D(950000), target_source="strategy"),
+    )
+    assert (
+        floor is not None
+        and reason_text(floor.reasons[-1], "en") == "not below your floor rate ₫950,000"
+    )
+
+
 def test_estimate_rejects_available_without_rooms_and_wide_ranges() -> None:
     # "Còn phòng" nhưng không đọc được loại phòng nào: không suy ra 100%.
     assert estimate("available", [], {1: 6, 2: 10}) is None
@@ -177,3 +226,43 @@ def test_published_rooms_not_on_booking_are_unknown_not_sold() -> None:
     # Không nhập tổng phòng: mẫu số là phần Booking từng mở bán, biết chắc hết → 0% lấp đầy.
     own = estimate("available", rooms, inv)
     assert own is not None and own.coverage == 1 and own.occ_mid == 0
+
+
+def test_rms_lite_lower_on_position_only_explains_why() -> None:
+    """Giảm giá vì giá đêm này cao hơn mức thường (có PMS làm bằng chứng): lý do nói rõ công suất
+    thấp và mức lệch, không chỉ câu giá đối thủ."""
+    typical = Strategy(target_index=D(50), target_source="typical")
+    s = suggest(
+        night(own_price=D("650000"), own_index=D(65), own_occ=D("0.4"), own_occ_source="pms"),
+        typical,
+    )
+    assert s is not None and s.kind == "lower"
+    keys = [r.key for r in s.reasons]
+    assert "own_occ_low_pms" in keys and "above_usual" in keys
+    above = next(r for r in s.reasons if r.key == "above_usual")
+    assert above.params == {"gap": 15}
+    assert reason_text(above, "vi") == "giá đêm này cao hơn mức thường của bạn 15 điểm"
+
+
+def test_saved_keep_as_is_strategy_still_needs_demand_to_raise() -> None:
+    """Lưu "giữ như hiện nay" (follow_typical) thì gợi ý vẫn như khi chưa lưu: tăng giá cần tín
+    hiệu cầu; vị trí cố định (90/100/110) thì không."""
+    from app.market.models import PriceStrategy
+    from app.market.pace_report import strategy_from
+
+    defaults = dict(
+        round_to=10000,
+        max_daily_change_pct=15,
+        weekday_adj={},
+        holiday_uplift_pct=10,
+        last_minute_days=3,
+        last_minute_adj_pct=-5,
+    )
+    keep = strategy_from(PriceStrategy(target_index=D(60), follow_typical=True, **defaults))
+    assert keep.target_source == "typical"
+    held = suggest(night(own_price=D("520000"), own_index=D(52)), keep)
+    assert held is not None and held.kind == "hold" and held.clamped == "no_raise_without_demand"
+    fixed = strategy_from(PriceStrategy(target_index=D(60), follow_typical=False, **defaults))
+    assert fixed.target_source == "strategy"
+    raised = suggest(night(own_price=D("520000"), own_index=D(52)), fixed)
+    assert raised is not None and raised.kind == "raise"

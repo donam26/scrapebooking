@@ -10,7 +10,7 @@ import { cx } from "./ui";
  * viền đứt = còn phòng nhưng không lộ số, đỏ đậm = hết phòng.
  * Năm trạng thái một ô (roadmap 2.7): còn bán / hết phòng / bị hạn chế (hổ phách, KHÔNG đỏ: bán
  * được ở số đêm khác hoặc đóng ngày đến) / không có giá (xám) / lỗi (sọc). Thêm: chưa quét, ngoài
- * phạm vi; ô có quan sát cũ hơn 48 giờ thì làm xám (`sb-stale`).
+ * phạm vi; ô có quan sát cũ hơn 48 giờ thì giữ màu, thêm sọc chéo ở góc (`sb-stale`).
  */
 
 export type MarkKind = "exact" | "capped" | "hidden" | "sold_out" | "restricted" | "no_price" | "error" | "unknown" | "nodata";
@@ -192,10 +192,13 @@ export function MarkChip({ mark, className }: { mark: Mark; className?: string }
   );
 }
 
-/** Chấm khuyến mãi ở góc ô (đặt trong phần tử `relative`); tooltip liệt kê nhãn và độ sâu. */
+/**
+ * Chấm khuyến mãi ở góc dưới phải ô (đặt trong phần tử `relative`; góc trên phải dành cho sọc "số cũ");
+ * tooltip liệt kê nhãn và độ sâu.
+ */
 export function PromoDot({ promo, className }: { promo: string | null | undefined; className?: string }) {
   if (!promo) return null;
-  return <span aria-hidden title={promo} className={cx("pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-[#db2777] ring-1 ring-white", className)} />;
+  return <span aria-hidden title={promo} className={cx("pointer-events-none absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-[#db2777] ring-1 ring-white", className)} />;
 }
 
 /** `key`: khoá trong components.marks.legend. Chữ "HẾT" trong ô hết phòng điền lúc render. */

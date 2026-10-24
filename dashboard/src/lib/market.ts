@@ -37,9 +37,14 @@ export function createMarketText(t: MarketTextTranslator) {
     return pts > 0 ? t("paceUp", { pts }) : t("paceDown", { pts: -pts });
   }
 
-  /** Có thể tăng giá / Giữ giá / Xem lại giá. */
+  /** Có thể tăng giá / Giữ giá / Có thể giảm giá. */
   function suggestionLabel(kind: SuggestionOut["kind"]): string {
     return t(`suggestion.${kind}`);
+  }
+
+  /** Nhãn thẻ gợi ý: "Giá thấp hơn mức thường" khi chỉ lệch vị trí thường ngày, không có tín hiệu cầu. */
+  function suggestionBadge(s: Pick<SuggestionOut, "kind" | "adjustments">): string {
+    return s.adjustments.some((r) => r.key === "below_usual") ? t("suggestion.belowUsual") : t(`suggestion.${s.kind}`);
   }
 
   function fmtChange(pct: number): string {
@@ -56,7 +61,7 @@ export function createMarketText(t: MarketTextTranslator) {
     return { text: n.own_occ ? t("notEnoughData") : "—", source: null };
   }
 
-  return { fmtPace, suggestionLabel, fmtChange, ownOccText };
+  return { fmtPace, suggestionLabel, suggestionBadge, fmtChange, ownOccText };
 }
 
 export type MarketText = ReturnType<typeof createMarketText>;
@@ -99,4 +104,26 @@ export function actionableSuggestions(nights: PaceNightOut[]): PaceNightOut[] {
 export function adjustmentText(r: Pick<ReasonOut, "text" | "pct">): string {
   const text = r.pct !== null ? r.text.replace(/\s*\([+\-−]?\d+%\)$/, "") : r.text;
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Khoá điều chỉnh là tín hiệu cầu thật (không phải thứ trong tuần hay sát ngày). */
+const DEMAND_KEYS = ["comp_tight", "comp_occ", "comp_pace", "own_occ_high", "own_rooms_few", "own_pace_ahead", "holiday", "event"];
+
+/**
+ * Một câu lý do chính của gợi ý: điều chỉnh cùng chiều có % lớn nhất (ưu tiên tín hiệu cầu), không
+ * có thì lý do "thấp hơn mức thường", cuối cùng là câu đầu tiên backend trả về.
+ */
+export function mainReason(s: Pick<SuggestionOut, "kind" | "adjustments" | "reasons">): string | null {
+  const sign = s.kind === "lower" ? -1 : 1;
+  const same = s.adjustments.filter((r) => (r.pct ?? 0) * sign > 0);
+  const demand = same.filter((r) => DEMAND_KEYS.some((k) => r.key.startsWith(k)));
+  const pick = (demand.length ? demand : same).sort((a, b) => (b.pct ?? 0) * sign - (a.pct ?? 0) * sign)[0];
+  // Không có điều chỉnh cùng chiều: câu "vì sao" là lệch mức thường của chính bạn hoặc công suất thấp.
+  const why = ["below_usual", "own_occ_low_pms", "own_occ_low_otb", "above_usual"];
+  const r =
+    pick ??
+    why.map((k) => s.adjustments.find((x) => x.key === k)).find(Boolean) ??
+    s.adjustments.find((x) => x.pct === null && !x.key.startsWith("clamp_") && !x.key.startsWith("position"));
+  if (r) return adjustmentText(r);
+  return s.reasons[0] ? s.reasons[0].charAt(0).toUpperCase() + s.reasons[0].slice(1) : null;
 }

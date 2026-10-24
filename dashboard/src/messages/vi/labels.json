@@ -117,5 +117,11 @@
     "email": "Email",
     "zalo": "Zalo",
     "webhook": "Webhook"
+  },
+  "place": {
+    "hcmc": "TP. Hồ Chí Minh",
+    "hanoi": "Hà Nội",
+    "danang": "Đà Nẵng",
+    "district": "Quận {n}"
   }
 }

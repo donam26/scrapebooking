@@ -3,8 +3,24 @@
   "meta": "{count, number} lượt quét Booking.com gần nhất",
   "trigger": {
     "manual": "Quét ngay",
-    "catchup": "Bù lịch",
-    "scheduled": "Theo lịch"
+    "catchup": "Quét bù",
+    "scheduled": "Theo lịch",
+    "market": "Quét khu vực"
+  },
+  "status": {
+    "ok": "Đang quét đều: lần đọc cuối {when}{pct, select, none {} other {, 7 ngày qua đọc thành công {pct}%}}.",
+    "stale": "Không có lượt quét nào có số mới từ {when} ({ago}). Mọi con số trên app là số cũ; gợi ý giá tạm dừng tới khi có lượt quét mới.",
+    "staleEmpty": "Các lượt quét từ {when} ({ago}) không đọc được số mới. Mọi con số trên app là số cũ; gợi ý giá tạm dừng tới khi đọc lại được.",
+    "latestEmpty": "Lượt quét gần nhất không đọc được số. Số đang hiện là của lần đọc {when}.",
+    "overdue": "Lượt quét theo lịch chưa chạy. Số đang hiện có từ {ago}.",
+    "never": "Chưa có lần đọc Booking.com nào thành công.",
+    "last7Days": "7 ngày qua",
+    "legend": "Xanh: có số mới · Đỏ: có quét nhưng không đọc được · Xám: không có lượt quét",
+    "day": {
+      "ok": "Có số mới",
+      "empty": "Có quét nhưng không đọc được",
+      "none": "Không có lượt quét"
+    }
   },
   "kpi": {
     "runs24h": "Lượt quét 24 giờ",
@@ -21,7 +37,11 @@
   "table": {
     "title": "Các lượt quét",
     "info": "Bấm vào một lượt để xem từng khách sạn: trạng thái, số trang đọc được, bị chặn, lỗi.",
+    "tenantInfo": "Mỗi lượt quét đọc giá và phòng còn của các khách sạn bạn theo dõi trên Booking.com.",
     "run": "Lượt",
+    "time": "Thời gian",
+    "kind": "Loại",
+    "result": "Kết quả",
     "trigger": "Kích hoạt",
     "started": "Bắt đầu",
     "duration": "Thời lượng",
@@ -33,7 +53,16 @@
     "errors": "Lỗi",
     "ratio": "Tỷ lệ",
     "expand": "Xem từng khách sạn của lượt #{id}",
-    "noData": "Không có dữ liệu"
+    "noData": "Không có dữ liệu",
+    "showMore": "Xem thêm {count} lượt",
+    "shown": "Đang hiện {shown}/{total} lượt"
+  },
+  "result": {
+    "full": "Có dữ liệu cho {count} khách sạn",
+    "partial": "Có dữ liệu, một số trang chưa đọc được",
+    "none": "Không đọc được",
+    "running": "Đang quét…",
+    "queued": "Chờ quét"
   },
   "empty": {
     "title": "Chưa có lượt quét",

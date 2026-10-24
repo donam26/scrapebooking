@@ -11,7 +11,10 @@ import { num, useFmt } from "@/lib/format";
 import { useLabel } from "@/lib/labels";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, Note, Segmented, Select, Skeleton, cx } from "@/components/ui";
 import { ChipAction, ListingChip } from "@/components/listing-chip";
-import { IconAlert, IconBuilding, IconCheck, IconClock, IconLink, IconPause, IconPencil, IconPlay, IconPlus, IconRefresh, IconStar } from "@/components/icons";
+import { PopoverMenu } from "@/components/popover-menu";
+import { BalanceNote } from "@/components/setup-checklist";
+import type { Tone } from "@/lib/labels";
+import { IconAlert, IconBuilding, IconCheck, IconChevronDown, IconLink, IconPause, IconPlay, IconPlus, IconRefresh, IconStar } from "@/components/icons";
 
 type Role = "self" | "competitor";
 
@@ -22,7 +25,18 @@ type WatchlistT = ReturnType<typeof useTranslations<"settings.watchlist">>;
 /** Nhịp tải lại khi đang có đường dẫn chờ kiểm tra. */
 const POLL_MS = 5_000;
 
-/** Kiểm tra sơ bộ phía trình duyệt: đường dẫn hợp lệ và là trang Booking.com. */
+/** Đường dẫn trang khách sạn của Booking.com: /hotel/<nước>/<tên>(.<ngôn ngữ>).html (khớp backend). */
+const HOTEL_PATH = /^\/hotel\/[a-z]{2}\/[a-z0-9-]+?(?:\.[a-z]{2}(?:-[a-z]{2})?)?\.html$/i;
+
+function isHotelPage(raw: string): boolean {
+  try {
+    return HOTEL_PATH.test(new URL(raw.trim()).pathname);
+  } catch {
+    return false;
+  }
+}
+
+/** Kiểm tra sơ bộ phía trình duyệt: đường dẫn hợp lệ và là trang khách sạn trên Booking.com. */
 function urlProblem(raw: string, channels: ChannelOut[], t: WatchlistT): string | null {
   const v = raw.trim();
   if (!v) return t("url.empty");
@@ -33,10 +47,11 @@ function urlProblem(raw: string, channels: ChannelOut[], t: WatchlistT): string 
   }
   if (channels.length === 0) return null; // chưa tải được danh sách tên miền: để server kiểm tra
   if (!isBookingUrl(v, channels)) return t("url.notBooking");
+  if (!isHotelPage(v)) return t("url.notHotelPage");
   return null;
 }
 
-/** Ô nhập URL, có nhãn "Booking.com" ở mép phải khi nhận ra đường dẫn Booking.com. */
+/** Ô nhập URL; nhãn xanh "✓ Booking.com" ở mép phải chỉ khi đường dẫn là trang khách sạn hợp lệ (C6). */
 function UrlInput({
   id,
   value,
@@ -54,7 +69,7 @@ function UrlInput({
   placeholder: string;
   autoFocus?: boolean;
 }) {
-  const detected = value.trim() !== "" && isBookingUrl(value, channels);
+  const detected = value.trim() !== "" && isBookingUrl(value, channels) && isHotelPage(value);
   return (
     <div className="relative">
       <IconLink size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -479,8 +494,9 @@ function CompsetControls({ item, ownHotels, canWrite, onChanged }: { item: Watch
 }
 
 /**
- * Rà soát compset theo quy tắc CoStar STR: ≥4 đối thủ compset chính, không khách sạn nào quá 50% số
- * phòng compset, rà soát ít nhất 2 lần/năm. Một thẻ cho mỗi khách sạn của bạn (khi có từ hai).
+ * "Nhóm đối thủ có cân không?": ≥4 đối thủ chính, không khách sạn nào quá 50% số phòng của nhóm, rà
+ * soát ít nhất 2 lần/năm, và giá giữa của nhóm không đắt hơn bạn quá nhiều (≥1,6 lần, Q4). Một thẻ cho
+ * mỗi khách sạn của bạn (khi có từ hai).
  */
 function CompsetReview({ ownHotel, items, version }: { ownHotel: OwnHotelOption | null; items: WatchItemOut[]; version: number }) {
   const t = useTranslations("settings.watchlist.review");
@@ -508,6 +524,7 @@ function CompsetReview({ ownHotel, items, version }: { ownHotel: OwnHotelOption 
         return code;
     }
   }
+  const listed = (r?.warnings ?? []).filter((w) => w !== "pricier_compset");
   return (
     <section className="mx-5 mb-2 mt-3 rounded-lg border border-line bg-subtle px-4 py-3" aria-label={t("aria")}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -516,23 +533,95 @@ function CompsetReview({ ownHotel, items, version }: { ownHotel: OwnHotelOption 
       </div>
       {q.error && <ErrorBox error={q.error} className="mt-2" />}
       {!r && !q.error && <Skeleton rows={1} className="mt-2" />}
+      {r?.balance?.pricier && (
+        <div className="mt-2">
+          <BalanceNote balance={r.balance} />
+        </div>
+      )}
       {r &&
         (r.warnings.length === 0 ? (
           <p className="mt-1.5 flex items-center gap-1.5 text-sm text-yours-deep">
             <IconCheck size={14} className="shrink-0" /> {t("ok")}
           </p>
         ) : (
-          <ul className="mt-1.5 space-y-1">
-            {r.warnings.map((w) => (
-              <li key={w} className="flex items-start gap-1.5 text-sm text-warning-deep">
-                <IconAlert size={14} className="mt-0.5 shrink-0" />
-                <span>{warning(w)}</span>
-              </li>
-            ))}
-          </ul>
+          listed.length > 0 && (
+            <ul className="mt-1.5 space-y-1">
+              {listed.map((w) => (
+                <li key={w} className="flex items-start gap-1.5 text-sm text-warning-deep">
+                  <IconAlert size={14} className="mt-0.5 shrink-0" />
+                  <span>{warning(w)}</span>
+                </li>
+              ))}
+            </ul>
+          )
         ))}
       <p className="mt-1.5 text-xs text-muted">{t("rules")}</p>
     </section>
+  );
+}
+
+type StatusKey = "scanning" | "checking" | "broken" | "paused" | "noUrl" | "removed";
+const STATUS_TONE: Record<StatusKey, Tone> = { scanning: "green", checking: "blue", broken: "red", paused: "gray", noUrl: "amber", removed: "gray" };
+
+function rowStatus(item: WatchItemOut, listing: ListingOut | null): StatusKey {
+  if (!item.active) return "removed";
+  if (!listing) return "noUrl";
+  if (listing.status === "broken") return "broken";
+  if (listing.status === "paused") return "paused";
+  if (listing.status === "unverified" || (!listing.verified_at && !item.hotel.name)) return "checking";
+  return "scanning";
+}
+
+/** Menu ⋯ của một hàng: Sửa · Đổi URL · Tạm dừng/Tiếp tục (hoặc Kiểm tra lại) · Xoá khỏi nhóm/Thêm lại. */
+function RowMenu({
+  name,
+  item,
+  listing,
+  onEdit,
+  onReplace,
+  onListing,
+  onRemove,
+}: {
+  name: string;
+  item: WatchItemOut;
+  listing: ListingOut | null;
+  onEdit: () => void;
+  onReplace: () => void;
+  onListing: (action: ListingAction) => void;
+  onRemove: () => void;
+}) {
+  const t = useTranslations("settings.watchlist.menu");
+  const entry = (label: string, run: () => void, close: () => void, danger?: boolean) => (
+    <button
+      type="button"
+      onClick={() => {
+        close();
+        run();
+      }}
+      className={cx("block w-full px-3.5 py-2 text-left text-sm font-medium hover:bg-subtle focus-visible:bg-subtle focus-visible:outline-none", danger ? "text-danger-deep" : "text-ink")}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <PopoverMenu
+      label={t("aria", { name })}
+      width={220}
+      buttonClassName="grid h-8 w-8 place-items-center rounded-lg text-lg font-bold leading-none text-muted transition-colors hover:bg-sunken hover:text-ink"
+      button={<span aria-hidden>⋯</span>}
+    >
+      {(close) => (
+        <div className="py-1">
+          {entry(t("edit"), onEdit, close)}
+          {item.active && entry(listing ? t("replaceUrl") : t("addUrl"), onReplace, close)}
+          {item.active && listing?.status === "broken" && entry(t("retry"), () => onListing("retry"), close)}
+          {item.active && listing?.status === "paused" && entry(t("resume"), () => onListing("resume"), close)}
+          {item.active && listing && (listing.status === "active" || listing.status === "unverified") && entry(t("pause"), () => onListing("pause"), close)}
+          <div className="my-1 border-t border-line" />
+          {item.active ? entry(t("remove"), onRemove, close, true) : entry(t("restore"), onRemove, close)}
+        </div>
+      )}
+    </PopoverMenu>
   );
 }
 
@@ -553,30 +642,39 @@ function Row({
 }) {
   const [editing, setEditing] = useState(false);
   const [replacing, setReplacing] = useState(false);
+  const [details, setDetails] = useState(false);
   const [label, setLabel] = useState(item.label ?? "");
   const [role, setRole] = useState<string>(item.role);
   const t = useTranslations("settings.watchlist.row");
   const tc = useTranslations("common.actions");
   const labelOf = useLabel();
   const { fmtDate } = useFmt();
+  const name = hotelTitle(item.hotel, item.label);
+  const listings = item.hotel.listings;
+  const listing = listings.find((l) => l.channel === "booking") ?? listings[0] ?? null;
+  const status = rowStatus(item, listing);
   const save = useMutation(async () => {
     await api.watchlist.update(item.hotel.id, { label: label.trim() || null, role });
     setEditing(false);
     onChanged();
   });
   const toggle = useMutation(async () => {
-    if (item.active) await api.watchlist.remove(item.hotel.id);
-    else await api.watchlist.update(item.hotel.id, { active: true });
+    if (item.active) {
+      if (!window.confirm(t("removeConfirm", { name }))) return;
+      await api.watchlist.remove(item.hotel.id);
+    } else await api.watchlist.update(item.hotel.id, { active: true });
     onChanged();
   });
-  const name = hotelTitle(item.hotel, item.label);
-  const fullName = item.hotel.name && item.hotel.name !== name ? item.hotel.name : null;
-  const listings = item.hotel.listings;
-  const pending = item.active && !listings.some((l) => l.verified_at) && !item.hotel.name;
+  const act = useMutation(async (action: ListingAction) => {
+    if (!listing) return;
+    await api.watchlist.listingAction(item.hotel.id, listing.id, action);
+    onChanged();
+  });
+  const roleLabel = item.role === "self" ? t("roleSelf") : item.tier === "secondary" ? t("roleSecondary") : t("rolePrimary");
 
   return (
-    <li className={cx("px-5 py-3.5", !item.active && "bg-subtle/60")}>
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+    <li className={cx("px-5 py-3", !item.active && "bg-subtle/60")}>
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <Link
@@ -586,85 +684,61 @@ function Row({
             >
               {name}
             </Link>
-            {!item.active && <Badge tone="gray">{t("stopped")}</Badge>}
+            <Badge tone={item.role === "self" ? "green" : item.tier === "secondary" ? "gray" : "blue"} dot={false}>
+              {roleLabel}
+            </Badge>
+            <Badge tone={STATUS_TONE[status]} title={isOperator && listing?.last_error ? listing.last_error : undefined}>
+              {t(`status.${status}`)}
+            </Badge>
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
-            {fullName && <span className="max-w-full truncate">{fullName}</span>}
-            {fullName && item.hotel.city && <span aria-hidden>·</span>}
             {item.hotel.city && <span>{item.hotel.city}</span>}
-            {(fullName || item.hotel.city) && <span aria-hidden>·</span>}
+            {item.hotel.city && <span aria-hidden>·</span>}
             <span className="tabular">{t("addedOn", { date: fmtDate(item.added_at) })}</span>
-            {pending && (
-              <span className="inline-flex items-center gap-1 text-warning-deep">
-                · <IconClock size={12} /> {t("pendingFirst")}
-              </span>
-            )}
+            <span aria-hidden>·</span>
+            <button type="button" aria-expanded={details} onClick={() => setDetails((v) => !v)} className="inline-flex items-center gap-0.5 font-semibold text-brand hover:underline">
+              {t("details")}
+              <IconChevronDown size={13} className={cx("transition-transform", details && "rotate-180")} />
+            </button>
           </div>
-          {item.active && <CompsetControls item={item} ownHotels={ownHotels} canWrite={canWrite} onChanged={onChanged} />}
-          {editing && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Input aria-label={t("labelAria")} value={label} maxLength={120} placeholder={t("labelPlaceholder")} onChange={(e) => setLabel(e.target.value)} className="w-56 max-w-full" />
-              <Select aria-label={t("roleAria")} value={role} onChange={(e) => setRole(e.target.value)} className="w-48">
-                <option value="competitor">{labelOf("watchRole", "competitor")}</option>
-                <option value="self">{labelOf("watchRole", "self")}</option>
-              </Select>
-            </div>
-          )}
         </div>
         {canWrite && (
-          <div className="flex shrink-0 justify-end gap-1">
-            {editing ? (
-              <>
-                <Button size="sm" variant="primary" busy={save.busy} onClick={() => void save.run()}>
-                  {tc("save")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditing(false);
-                    setLabel(item.label ?? "");
-                    setRole(item.role);
-                    save.clearError();
-                  }}
-                >
-                  {tc("cancel")}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button size="sm" variant="ghost" icon={<IconPencil size={15} />} onClick={() => setEditing(true)} aria-label={t("editAria", { name })}>
-                  <span className="hidden sm:inline">{tc("edit")}</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant={item.active ? "ghost" : "quiet"}
-                  busy={toggle.busy}
-                  icon={item.active ? <IconPause size={15} /> : <IconPlay size={15} />}
-                  onClick={() => void toggle.run()}
-                  title={item.active ? t("stopTitle") : t("resumeTitle")}
-                  aria-label={item.active ? t("stopAria", { name }) : t("resumeAria", { name })}
-                >
-                  <span className="hidden sm:inline">{item.active ? t("stop") : t("resume")}</span>
-                </Button>
-              </>
-            )}
-          </div>
+          <RowMenu
+            name={name}
+            item={item}
+            listing={listing}
+            onEdit={() => setEditing(true)}
+            onReplace={() => setReplacing(true)}
+            onListing={(a) => void act.run(a)}
+            onRemove={() => void toggle.run()}
+          />
         )}
       </div>
 
-      <ul aria-label={t("listingAria", { name })} className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        {listings.map((l) => (
-          <ListingControl key={l.id} hotelId={item.hotel.id} listing={l} canWrite={canWrite && item.active} isOperator={isOperator} onChanged={onChanged} />
-        ))}
-        {canWrite && item.active && !replacing && (
-          <li>
-            <Button size="sm" variant="quiet" icon={listings.length ? <IconLink size={15} /> : <IconPlus size={15} />} onClick={() => setReplacing(true)} className="h-8" title={t("replaceUrlTitle")}>
-              {listings.length ? t("replaceUrl") : t("addUrl")}
-            </Button>
-          </li>
-        )}
-      </ul>
+      {editing && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Input aria-label={t("labelAria")} value={label} maxLength={120} placeholder={t("labelPlaceholder")} onChange={(e) => setLabel(e.target.value)} className="w-56 max-w-full" />
+          <Select aria-label={t("roleAria")} value={role} onChange={(e) => setRole(e.target.value)} className="w-48">
+            <option value="competitor">{labelOf("watchRole", "competitor")}</option>
+            <option value="self">{labelOf("watchRole", "self")}</option>
+          </Select>
+          <Button size="sm" variant="primary" busy={save.busy} onClick={() => void save.run()}>
+            {tc("save")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setEditing(false);
+              setLabel(item.label ?? "");
+              setRole(item.role);
+              save.clearError();
+            }}
+          >
+            {tc("cancel")}
+          </Button>
+        </div>
+      )}
       {replacing && (
         <ReplaceUrlForm
           hotelId={item.hotel.id}
@@ -676,7 +750,18 @@ function Row({
           }}
         />
       )}
-      {(save.error || toggle.error) && <ErrorBox error={save.error ?? toggle.error} className="mt-2" />}
+      {details && (
+        <div className="mt-2 rounded-lg border border-line px-3.5 py-2.5">
+          {item.hotel.name && item.hotel.name !== name && <p className="text-xs text-muted">{item.hotel.name}</p>}
+          <ul aria-label={t("listingAria", { name })} className="flex flex-wrap items-center gap-1.5">
+            {listings.map((l) => (
+              <ListingControl key={l.id} hotelId={item.hotel.id} listing={l} canWrite={canWrite && item.active} isOperator={isOperator} onChanged={onChanged} />
+            ))}
+          </ul>
+          {item.active && <CompsetControls item={item} ownHotels={ownHotels} canWrite={canWrite} onChanged={onChanged} />}
+        </div>
+      )}
+      {(save.error || toggle.error || act.error) && <ErrorBox error={save.error ?? toggle.error ?? act.error} className="mt-2" />}
     </li>
   );
 }

@@ -1,17 +1,16 @@
 {
   "page": {
-    "title": "Radar cạnh tranh",
+    "title": "Khuyến mãi & hạn chế",
     "nights": "{count} đêm từ {start}",
-    "source": "Từ dữ liệu đã quét, không tốn thêm lượt quét",
     "hotelFallback": "Khách sạn #{id}",
     "yourHotel": "Khách sạn của bạn"
   },
   "promos": {
-    "title": "Khuyến mãi đối thủ",
-    "info": "Nhãn khuyến mãi trên Booking.com và độ sâu so với giá gạch, gộp theo nhãn. “Booking.com áp” là Genius, giá chỉ trên app hay mã giảm giá do Booking.com áp; “KS bật” là deal khách sạn tự bật (Late Escape, Early Bird…).",
+    "title": "Khuyến mãi",
+    "info": "Nhãn khuyến mãi trên Booking.com và mức giảm so với giá gạch, gộp theo nhãn. “Booking tự áp” là Genius, giá chỉ trên app hay mã giảm giá do Booking.com áp; “khách sạn tự bật” là deal khách sạn tự chạy (Late Escape, Early Bird…).",
     "stripLabel": "Tỷ lệ đối thủ đang khuyến mãi theo đêm",
-    "stripHint": "Cột càng cao, càng nhiều đối thủ đang chạy KM đêm đó.",
-    "nightTitle": "{night}: {running}/{observed} đối thủ đang KM",
+    "stripHint": "Cột càng cao, càng nhiều đối thủ đang chạy khuyến mãi đêm đó.",
+    "nightTitle": "{night}: {running}/{observed} đối thủ đang khuyến mãi",
     "nightNoData": "{night}: chưa có dữ liệu",
     "nights": "{count} đêm",
     "since": "từ {date}",
@@ -19,19 +18,21 @@
     "rangeOne": "đêm {first}",
     "sinceTitle": "Thấy lần đầu lúc {time}",
     "origin": {
-      "channel": "Booking.com áp",
+      "channel": "Booking tự áp",
       "channelTitle": "Booking.com tự áp (Genius, giá chỉ trên app, mã giảm giá): giá khách thấy thấp hơn nhưng không phải deal khách sạn tự bật",
-      "hotel": "KS bật",
+      "hotel": "khách sạn tự bật",
       "hotelTitle": "Khách sạn tự bật khuyến mãi trên Booking.com (Early Bird, Last-minute, Late Escape…)"
     },
     "none": "Không có KM trong kỳ",
     "emptyTitle": "Chưa thấy khuyến mãi nào",
-    "emptyBody": "Trong kỳ này chưa có đối thủ nào chạy khuyến mãi trên Booking.com."
+    "emptyBody": "Trong kỳ này chưa có đối thủ nào chạy khuyến mãi trên Booking.com.",
+    "yours": "Khuyến mãi của bạn",
+    "genericDeal": "Giảm giá"
   },
   "restrictions": {
     "title": "Hạn chế bán",
     "info": "Đêm đối thủ vẫn bán trên Booking.com nhưng có điều kiện: ở tối thiểu N đêm hoặc không nhận khách đến ngày đó. Đây không phải hết phòng.",
-    "minStay": "≥{count} đêm",
+    "minStay": "từ {count} đêm",
     "minStayTitle": "Chỉ bán khi ở từ {count} đêm",
     "cta": "không nhận khách",
     "ctaTitle": "Không nhận khách đến ngày này",
@@ -43,17 +44,17 @@
   },
   "cancellation": {
     "title": "Chính sách huỷ",
-    "info": "Mỗi đêm có giá: có gói huỷ miễn phí không, và gói không hoàn huỷ rẻ hơn gói linh hoạt cùng bữa sáng bao nhiêu (trung vị các cặp cùng đêm). Mức phổ biến là 10–20%.",
+    "info": "Mỗi đêm có giá: có gói huỷ miễn phí không, và gói không hoàn huỷ thường rẻ hơn gói huỷ miễn phí (cùng bữa sáng, cùng đêm) bao nhiêu. Mức thường gặp là 10–20%.",
     "col": {
       "hotel": "Khách sạn",
       "refundable": "% đêm có gói huỷ miễn phí",
       "nrNights": "Đêm có gói không hoàn huỷ",
-      "nrDiscount": "Gói không hoàn huỷ rẻ hơn (trung vị)"
+      "nrDiscount": "Gói không hoàn huỷ thường rẻ hơn"
     },
     "nightsPriced": "/{count} đêm có giá",
-    "pairs": "{count} cặp",
     "emptyTitle": "Chưa có dữ liệu giá",
-    "emptyBody": "Chưa có đêm nào có giá trên Booking.com trong kỳ này."
+    "emptyBody": "Chưa có đêm nào có giá trên Booking.com trong kỳ này.",
+    "pairsTitle": "Mức giữa của {count} lần so cùng đêm: một nửa chênh ít hơn, một nửa chênh nhiều hơn"
   },
   "scarcity": {
     "title": "Khan phòng khu vực",
@@ -66,7 +67,7 @@
     "tightening": "Đêm kín dần nhanh nhất",
     "change": "{pct} so tuần trước",
     "noTightening": "Chưa có đêm nào giảm so với tuần trước (cần ít nhất 7 ngày dữ liệu quét).",
-    "legendDrop": "giảm ≥10% so tuần trước",
+    "legendDrop": "giảm từ 10% trở lên so tuần trước",
     "legendOther": "còn lại",
     "noAreaTitle": "Chưa có khu vực thị trường",
     "noAreaBody": "Thêm khu vực (thành phố hoặc quận) ở Cài đặt › Thị trường để theo dõi số chỗ ở còn trống của cả khu vực.",

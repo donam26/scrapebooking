@@ -20,7 +20,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
           <Button variant="primary" onClick={reset}>
             {t("retry")}
           </Button>
-          <ButtonLink href="/dashboard">{t("toDashboard")}</ButtonLink>
+          <ButtonLink href="/today">{t("toDashboard")}</ButtonLink>
         </div>
       </div>
     </main>

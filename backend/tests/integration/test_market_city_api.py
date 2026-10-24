@@ -151,6 +151,13 @@ async def _seed(db: AsyncSession) -> dict[str, int]:
                 role="tenant_admin",
                 active=True,
             ),
+            User(
+                tenant_id=None,
+                email="op@ops.vn",
+                password_hash=hash_password("op-pass-123"),
+                role="operator",
+                active=True,
+            ),
         ]
     )
     await db.commit()
@@ -170,7 +177,7 @@ async def test_area_crud_search_scan_now_and_permissions(
     mc: tuple[AsyncClient, MarketQueue, FakeSearch], db: AsyncSession
 ) -> None:
     client, queue, search = mc
-    await _seed(db)
+    ids = await _seed(db)
     await _login(client, "view@rex.vn", "view-pass-1")
     assert (await client.get("/market/areas")).json() == []
     assert (
@@ -186,6 +193,8 @@ async def test_area_crud_search_scan_now_and_permissions(
         ("-3730078", "city"),
         ("2088", "district"),
         ("6750", "district"),
+        ("234878", "landmark"),
+        ("900061383", "landmark"),
     ]
     assert r.json()[0]["nr_hotels"] == 6890 and search.queries == [("Ho Chi Minh", "vn")]
 
@@ -207,8 +216,19 @@ async def test_area_crud_search_scan_now_and_permissions(
     bad = {**body, "dest_id": "2088", "dest_type": "district", "detail_horizon_days": 91}
     assert (await client.post("/market/areas", json=bad)).status_code == 422
 
-    r = await client.patch(f"/market/areas/{area['id']}", json={"detail_max_hotels": 50})
+    # C3: tham số vận hành chỉ operator đổi; tenant gửi lại đúng giá trị đang lưu vẫn được.
+    path = f"/market/areas/{area['id']}"
+    r = await client.patch(path, json={"detail_max_hotels": 50})
+    assert r.status_code == 403 and "detail_max_hotels" in r.json()["detail"]
+    same = {"list_nights": 14, "detail_horizon_days": 30, "detail_max_hotels": 300, "max_pages": 60}
+    r = await client.patch(path, json={**same, "radius_m": 3000, "segment_nflt": "ht_id=204"})
+    assert r.status_code == 200 and r.json()["radius_m"] == 3000, r.text
+    tech = {**body, "dest_id": "6750", "dest_type": "district", "max_pages": 10}
+    assert (await client.post("/market/areas", json=tech)).status_code == 403
+    await _login(client, "op@ops.vn", "op-pass-123")
+    r = await client.patch(path, params={"tenant_id": ids["a"]}, json={"detail_max_hotels": 50})
     assert r.status_code == 200 and r.json()["detail_max_hotels"] == 50
+    await _login(client, "admin@rex.vn", "admin-pass-1")
 
     r = await client.post(f"/market/areas/{area['id']}/scan-now")
     assert r.status_code == 202 and r.json()["enqueued"] is True
@@ -485,18 +505,22 @@ async def test_scan_now_guards_and_load_ceilings(
     mc: tuple[AsyncClient, MarketQueue, FakeSearch], db: AsyncSession
 ) -> None:
     client, queue, _ = mc
-    await _seed(db)
-    await _login(client, "admin@rex.vn", "admin-pass-1")
+    ids = await _seed(db)
     body = {"name": "HCMC", "dest_id": "-3730078", "dest_type": "city"}
-    # Kẹp cấu hình theo trần hệ thống; list_nights tối đa 30.
+    # Kẹp cấu hình theo trần hệ thống (operator đổi tham số vận hành); list_nights tối đa 30.
+    await _login(client, "op@ops.vn", "op-pass-123")
+    op = {"tenant_id": ids["a"]}
     r = await client.post(
-        "/market/areas", json={**body, "detail_max_hotels": 5000, "max_pages": 100}
+        "/market/areas", params=op, json={**body, "detail_max_hotels": 5000, "max_pages": 100}
     )
     assert r.status_code == 201, r.text
     area = r.json()
     assert (area["detail_max_hotels"], area["max_pages"]) == (500, 100)
-    r = await client.patch(f"/market/areas/{area['id']}", json={"detail_max_hotels": 900})
+    r = await client.patch(
+        f"/market/areas/{area['id']}", params=op, json={"detail_max_hotels": 900}
+    )
     assert r.json()["detail_max_hotels"] == 500
+    await _login(client, "admin@rex.vn", "admin-pass-1")
     bad = {**body, "dest_id": "1", "list_nights": 31}
     assert (await client.post("/market/areas", json=bad)).status_code == 422
     for dest in ("2088", "6750"):
@@ -557,3 +581,286 @@ async def test_destination_search_is_throttled_per_tenant(
     # Tenant khác có hạn mức riêng.
     await _login(client, "admin@other.vn", "admin-pass-2")
     assert (await client.get("/market/areas/search", params={"q": "Hanoi"})).status_code == 200
+
+
+async def test_area_modes_ladder_trend_and_self_hotel(
+    mc: tuple[AsyncClient, MarketQueue, FakeSearch], db: AsyncSession
+) -> None:
+    client, _, _ = mc
+    ids = await _seed(db)
+    await _login(client, "admin@rex.vn", "admin-pass-1")
+
+    r = await client.get("/market/areas/self-location")
+    assert r.status_code == 200, r.text
+    assert r.json() == {
+        "hotel_id": ids["own"],
+        "name": "Rex Hotel",
+        "lat": 10.7769,
+        "lng": 106.7009,
+    }
+
+    around = {"name": "3 km quanh Rex", "dest_type": "latlong", "lat": 10.7769, "lng": 106.7009}
+    assert (await client.post("/market/areas", json=around)).status_code == 422  # thiếu bán kính
+    bad_segment = {**around, "radius_m": 3000, "segment_nflt": "ht_id=abc"}
+    assert (await client.post("/market/areas", json=bad_segment)).status_code == 422
+    assert (
+        await client.post("/market/areas", json={**around, "radius_m": 2000})
+    ).status_code == 422
+    r = await client.post(
+        "/market/areas", json={**around, "radius_m": 3000, "segment_nflt": "ht_id=204;ht_id=206"}
+    )
+    assert r.status_code == 201, r.text
+    area = r.json()
+    assert (area["dest_id"], area["radius_m"], area["segment_nflt"]) == (
+        "10.77690,106.70090",
+        3000,
+        "ht_id=204;ht_id=206",
+    )
+    r = await client.post(
+        "/market/areas",
+        json={"name": "Bãi Sau", "dest_type": "landmark", "dest_id": "258614", "radius_m": 1000},
+    )
+    assert r.status_code == 201 and r.json()["lat"] is None
+    landmark = r.json()["id"]
+    assert (
+        await client.post("/market/areas", json={"name": "x", "dest_type": "district"})
+    ).status_code == 422
+    r = await client.patch(
+        f"/market/areas/{landmark}", json={"radius_m": None, "segment_nflt": "ht_id=204"}
+    )
+    assert (r.json()["radius_m"], r.json()["segment_nflt"]) == (None, "ht_id=204")
+    assert (
+        await client.patch(f"/market/areas/{area['id']}", json={"radius_m": None})
+    ).status_code == 422
+
+    ladder = {
+        "2": {"available": 90, "autoextended": 0, "class": {"4": 28}},
+        "5": {"available": 70, "autoextended": 0, "class": {"4": 22}},
+        "10": {"available": 50, "autoextended": 0, "class": {"4": 15}},
+        "20": {"available": 20, "autoextended": 0, "class": {"4": 6}},
+        "30": {"available": 8, "autoextended": 0, "class": {"4": 2}},
+    }
+    scan = MarketListScan(
+        area_id=area["id"],
+        stay_date=NIGHT,
+        scanned_at=NOW - timedelta(hours=1),
+        finished_at=NOW - timedelta(minutes=50),
+        properties_found=100,
+        pages=12,
+        hotels_seen=3,
+        priced=3,
+        status="completed",
+        source="graphql",
+        nflt="ht_id=204;ht_id=206;distance=3000",
+        autoextended=0,
+        low_availability=False,
+        unavailability_pct=None,
+        market_available=300,
+        market_facets={"ht_id=204": 100, "ht_id=201": 180, "class=4": 50},
+        facets={"class=3": 40, "class=4": 30, "distance=1000": 12},
+        price_histogram={"min": 100000, "max": 4000000, "bars": [0, 50, 100] + [0] * 47},
+        ladder=ladder,
+        enumerated=True,
+    )
+    other = MarketListScan(
+        area_id=area["id"],
+        stay_date=NIGHT + timedelta(days=1),
+        scanned_at=NOW - timedelta(hours=1),
+        properties_found=125,
+        pages=7,
+        hotels_seen=0,
+        priced=0,
+        status="completed",
+        source="graphql",
+        nflt="ht_id=204;ht_id=206;distance=3000",
+        ladder={"10": {"available": 100, "autoextended": 0, "class": {}}},
+    )
+    # Lượt quét với phạm vi cũ (trước khi đổi phân khúc): không tính vào mẫu số.
+    old_scope = MarketListScan(
+        area_id=area["id"],
+        stay_date=NIGHT + timedelta(days=10),
+        scanned_at=NOW - timedelta(days=2),
+        properties_found=999,
+        pages=1,
+        hotels_seen=0,
+        priced=0,
+        status="completed",
+        source="graphql",
+        nflt="distance=3000",
+    )
+    db.add_all([scan, other, old_scope])
+    await db.flush()
+    for key, rank, price, rooms in (
+        ("own", 3, "1500000", 10),
+        ("m1", 1, "1200000", 30),
+        ("m2", 2, "2500000", 1),
+    ):
+        db.add(
+            MarketListPrice(
+                scan_id=scan.id,
+                hotel_id=ids[key],
+                rank=rank,
+                price=Decimal(price),
+                currency="VND",
+                rooms_min=rooms,
+            )
+        )
+        db.add(
+            MarketAreaHotel(
+                area_id=area["id"],
+                hotel_id=ids[key],
+                first_seen_at=NOW - timedelta(days=1),
+                last_seen_at=NOW - timedelta(hours=1),
+                best_rank=rank,
+            )
+        )
+    run = ScanRun(
+        trigger_key="t", channel="booking", scheduled_at=NOW, started_at=NOW, status="completed"
+    )
+    db.add(run)
+    await db.flush()
+    db.add(
+        HotelDateMetric(
+            hotel_id=ids["own"],
+            channel="booking",
+            stay_date=NIGHT,
+            as_of_scan_run_id=run.id,
+            days_to_arrival=5,
+            availability_status="available",
+            rooms_left_min=12,
+            rooms_left_max=15,
+            min_price=Decimal("1500000"),
+            currency="VND",
+            last_observed_at=NOW - timedelta(hours=1),
+        )
+    )
+    await db.commit()
+
+    r = await client.get("/market/city", params={"area_id": area["id"], "date": NIGHT.isoformat()})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    lst = body["list_scan"]
+    assert (lst["source"], lst["market_available"], lst["unavailability_pct"]) == (
+        "graphql",
+        300,
+        None,
+    )
+    assert [(x["rooms"], x["available"]) for x in lst["ladder"]] == [
+        (1, 100),
+        (2, 90),
+        (5, 70),
+        (10, 50),
+        (20, 20),
+        (30, 8),
+    ]
+    assert lst["ladder"][0]["by_class"] == {"3": 40, "4": 30} and lst["ladder"][3]["by_class"] == {
+        "4": 15
+    }
+    # (100−90)·1 + (90−70)·2 + (70−50)·5 + (50−20)·10 + (20−8)·20 + 8·30
+    assert lst["rooms_left_floor"] == 10 + 40 + 100 + 300 + 240 + 240
+    assert lst["tightness"] == 0.5 and lst["tightness_median"] == 0.65  # trung vị 0.5 và 0.8
+    assert (lst["segment_base"], lst["sold_out_share"]) == (125, 0.2)
+    assert lst["composition"] == {"204": 100, "201": 180} and lst["classes"] == {"3": 40, "4": 30}
+    assert lst["booking_histogram"]["bars"][:3] == [0, 50, 100] and lst["enumerated"] is True
+    me = body["self_hotel"]
+    assert (me["hotel_id"], me["in_area"], me["rank"], me["price"]) == (
+        ids["own"],
+        True,
+        3,
+        "1500000.00",
+    )
+    assert (me["rooms_min"], me["rooms_max"], me["rooms_left_min"], me["rooms_left_max"]) == (
+        10,
+        19,
+        12,
+        15,
+    )
+    assert (me["price_percentile"], me["rooms_percentile"]) == (50, 50)
+
+    r = await client.get(
+        "/market/city/trend",
+        params={"area_id": area["id"], "start": NIGHT.isoformat(), "nights": 3},
+    )
+    assert r.status_code == 200, r.text
+    trend = r.json()
+    assert trend["segment_base"] == 125 and len(trend["nights"]) == 3
+    n0, n1, n2 = trend["nights"]
+    assert (n0["properties_found"], n0["tightness"], n0["median_price"]) == (100, 0.5, "1500000")
+    assert n0["ladder"]["30"] == 8 and n0["sold_out_share"] == 0.2
+    assert (n1["properties_found"], n1["tightness"], n1["ladder"]) == (
+        125,
+        0.8,
+        {"1": 125, "10": 100},
+    )
+    assert n2["status"] is None and n2["ladder"] == {}
+
+    r = await client.get(
+        "/market/city/hotels",
+        params={"area_id": area["id"], "date": NIGHT.isoformat(), "sort": "rank"},
+    )
+    rows = {x["hotel_id"]: x for x in r.json()["items"]}
+    assert (rows[ids["m1"]]["rooms_min"], rows[ids["m1"]]["rooms_max"]) == (30, None)
+    # Khoảng theo các nấc chính lượt quét đã hỏi (có nấc 2), không theo cấu hình hiện tại.
+    assert (rows[ids["m2"]]["rooms_min"], rows[ids["m2"]]["rooms_max"]) == (1, 1)
+
+    # Đổi phân khúc: danh sách khách sạn của khu vực dựng lại, lượt quét phạm vi cũ ẩn đi.
+    r = await client.patch(f"/market/areas/{area['id']}", json={"segment_nflt": "ht_id=204"})
+    assert r.status_code == 200 and r.json()["hotels_total"] == 0
+    r = await client.get("/market/city", params={"area_id": area["id"], "date": NIGHT.isoformat()})
+    assert r.json()["list_scan"]["scan_id"] is None and r.json()["list_scan"]["ladder"] == []
+    bad = await client.patch(f"/market/areas/{area['id']}", json={"segment_nflt": "distance=1000"})
+    assert bad.status_code == 422  # bán kính có trường riêng
+
+
+async def test_graphql_scan_with_ladder_wins_over_older_style_scan_same_night(
+    mc: tuple[AsyncClient, MarketQueue, FakeSearch], db: AsyncSession
+) -> None:
+    client, _, _ = mc
+    ids = await _seed(db)
+    await _login(client, "admin@rex.vn", "admin-pass-1")
+    area = MarketArea(
+        tenant_id=ids["a"],
+        channel="booking",
+        name="HCMC",
+        dest_id="-3730078",
+        dest_type="city",
+        country_code="vn",
+        list_nights=14,
+        detail_horizon_days=30,
+        detail_max_hotels=0,
+        max_pages=60,
+        active=True,
+    )
+    db.add(area)
+    await db.flush()
+    # Lượt kiểu cũ (trước 0018: không nguồn, không thang) mới hơn, lượt GraphQL có thang cũ hơn.
+    db.add_all(
+        [
+            MarketListScan(
+                area_id=area.id,
+                stay_date=NIGHT,
+                scanned_at=NOW - timedelta(minutes=30),
+                properties_found=500,
+                pages=1,
+                hotels_seen=25,
+                priced=25,
+                status="completed",
+            ),
+            MarketListScan(
+                area_id=area.id,
+                stay_date=NIGHT,
+                scanned_at=NOW - timedelta(hours=2),
+                properties_found=420,
+                pages=30,
+                hotels_seen=420,
+                priced=420,
+                status="completed",
+                source="graphql",
+                ladder={"10": {"available": 200, "autoextended": 0, "class": {}}},
+            ),
+        ]
+    )
+    await db.commit()
+    r = await client.get("/market/city", params={"area_id": area.id, "date": NIGHT.isoformat()})
+    lst = r.json()["list_scan"]
+    assert (lst["source"], lst["properties_found"], lst["tightness"]) == ("graphql", 420, 0.4762)

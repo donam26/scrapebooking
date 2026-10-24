@@ -1,17 +1,26 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, type DragEvent, type ReactNode } from "react";
-import { api, type PmsImportOut, type PreviewOut } from "@/lib/api";
+import Link from "next/link";
+import { useState, type DragEvent } from "react";
+import { api, type PmsFileKind, type PreviewOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { useErrorMessage } from "@/lib/errors";
 import { hotelTitle } from "@/lib/hotels";
 import { useFmt, type Fmt } from "@/lib/format";
 import { CANONICAL_PMS_COLUMNS, IMPORT_STATUS_TONE, useLabel } from "@/lib/labels";
-import { Badge, Button, Card, EmptyState, ErrorBox, Field, ROW_CLASS, Select, Skeleton, Table, Td, Th, cx } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, ROW_CLASS, Select, Skeleton, Table, Td, Th, cx } from "@/components/ui";
 import { IconAlert, IconCheck, IconDownload, IconFile, IconUpload } from "@/components/icons";
-import { OtbImport } from "./otb-import";
+
+/**
+ * Cài đặt › Dữ liệu PMS (UX Phase 3, C4): một ô thả tệp. Hệ thống tự nhận loại tệp theo tên cột
+ * (báo cáo công suất theo ngày / phòng đã đặt theo ngày / danh sách đặt phòng), người dùng đổi được
+ * nếu nhận sai. Ánh xạ cột chỉ hiện khi thiếu cột bắt buộc (hoặc khi người dùng muốn sửa). Xem trước
+ * rồi nhập; kết quả có link tới Lịch giá & phòng (hàng PMS).
+ */
+
+const KINDS: readonly PmsFileKind[] = ["daily", "otb_report", "bookings"];
 
 type RowError = { row?: unknown; column?: unknown; message?: unknown };
 
@@ -25,6 +34,11 @@ function fmtBytes(n: number, fmtNum: Fmt["fmtNum"]): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${fmtNum(n / 1024, 0)} KB`;
   return `${fmtNum(n / (1024 * 1024), 1)} MB`;
+}
+
+/** Loại tệp của một lần nhập trong lịch sử (cột `adapter`: "csv" = công suất theo ngày). */
+function importKind(adapter: string): PmsFileKind {
+  return adapter === "otb_report" || adapter === "bookings" ? adapter : "daily";
 }
 
 export function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
@@ -61,29 +75,6 @@ export function ErrorRows({ errors }: { errors: Record<string, unknown>[] }) {
   );
 }
 
-function ImportResult({ result }: { result: PmsImportOut }) {
-  const t = useTranslations("settings.pms.result");
-  const label = useLabel();
-  return (
-    <div className="space-y-3 rounded-lg bg-subtle p-4">
-      <div className="flex flex-wrap items-center gap-3 text-base">
-        <Badge tone={IMPORT_STATUS_TONE[result.status] ?? "gray"}>{label("importStatus", result.status)}</Badge>
-        <span className="text-body">
-          {t.rich("imported", {
-            ok: result.ok_count,
-            total: result.row_count,
-            strong: (c) => <span className="font-bold text-ink tabular">{c}</span>,
-            num: (c) => <span className="tabular">{c}</span>,
-          })}
-        </span>
-        {result.errors.length > 0 && <span className="text-danger tabular">{t("failedRows", { count: result.errors.length })}</span>}
-      </div>
-      {result.status !== "failed" && <p className="text-sm text-muted">{t("note")}</p>}
-      <ErrorRows errors={result.errors} />
-    </div>
-  );
-}
-
 export function downloadText(filename: string, text: string) {
   const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -92,34 +83,6 @@ export function downloadText(filename: string, text: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-/** Bước trong quy trình nhập: số thứ tự có nghĩa vì phải làm lần lượt. */
-function Step({ n, title, hint, active, children }: { n: number; title: string; hint?: ReactNode; active: boolean; children?: ReactNode }) {
-  const t = useTranslations("settings.pms");
-  return (
-    <section className={cx("border-t border-line px-5 py-5 first:border-t-0", !active && "bg-subtle/60")}>
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden
-          className={cx(
-            "grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold tabular",
-            active ? "bg-brand text-white" : "bg-sunken text-faint",
-          )}
-        >
-          {n}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className={cx("text-base font-bold", active ? "text-ink" : "text-muted")}>
-            <span className="sr-only">{t("stepSr", { n })} </span>
-            {title}
-          </h3>
-          {hint && <div className="mt-0.5 text-sm text-muted">{hint}</div>}
-          {active && children && <div className="mt-4">{children}</div>}
-        </div>
-      </div>
-    </section>
-  );
 }
 
 export function Dropzone({ file, busy, onFile }: { file: File | null; busy: boolean; onFile: (f: File | null) => void }) {
@@ -177,177 +140,231 @@ export function Dropzone({ file, busy, onFile }: { file: File | null; busy: bool
   );
 }
 
-export function PmsTab() {
-  const { canWrite } = useSession();
+type Done = { kind: PmsFileKind; status: string; ok: number; total: number; from: string | null; to: string | null; errors: Record<string, unknown>[] };
+
+/** Kết quả nhập: số dòng, khoảng đêm đã có và link tới Lịch giá & phòng. */
+function ImportResult({ done }: { done: Done }) {
+  const t = useTranslations("settings.pms.result");
+  const label = useLabel();
+  const { fmtDateShort } = useFmt();
+  const range = done.from && done.to ? (done.from === done.to ? fmtDateShort(done.from) : `${fmtDateShort(done.from)}–${fmtDateShort(done.to)}`) : null;
+  const calendar = done.from ? `/calendar?view=rooms&start=${done.from}` : "/calendar?view=rooms";
+  return (
+    <div role="status" className="space-y-3 rounded-lg bg-subtle p-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-base">
+        <Badge tone={IMPORT_STATUS_TONE[done.status] ?? "gray"}>{label("importStatus", done.status)}</Badge>
+        <span className="text-body">
+          {t.rich("imported", {
+            ok: done.ok,
+            total: done.total,
+            strong: (c) => <span className="font-bold text-ink tabular">{c}</span>,
+            num: (c) => <span className="tabular">{c}</span>,
+          })}
+        </span>
+        {done.errors.length > 0 && <span className="text-danger tabular">{t("failedRows", { count: done.errors.length })}</span>}
+      </div>
+      {done.status !== "failed" && range && (
+        <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-yours-deep">
+          <IconCheck size={15} className="shrink-0" />
+          <span>
+            {t.rich(done.kind === "daily" ? "onCalendar" : "onCalendarOtb", {
+              range,
+              view: (c) => (
+                <Link href={calendar} className="font-semibold underline hover:no-underline">
+                  {c}
+                </Link>
+              ),
+              pace: (c) => (
+                <Link href="/reports/pace" className="font-semibold underline hover:no-underline">
+                  {c}
+                </Link>
+              ),
+            })}
+          </span>
+        </p>
+      )}
+      <ErrorRows errors={done.errors} />
+    </div>
+  );
+}
+
+function ImportCard({ hotels, onImported }: { hotels: Array<{ id: number; name: string }>; onImported: () => void }) {
   const t = useTranslations("settings.pms");
   const label = useLabel();
-  const { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct } = useFmt();
-  const watchlist = useApi("watchlist:active", () => api.watchlist.list(false));
-  const selfHotels = (watchlist.data ?? []).filter((w) => w.role === "self");
   const [hotelId, setHotelId] = useState<string>("");
-  const effectiveHotelId = hotelId ? Number(hotelId) : (selfHotels[0]?.hotel.id ?? null);
-
+  const effectiveHotelId = hotelId ? Number(hotelId) : (hotels[0]?.id ?? null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewOut | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<PmsImportOut | null>(null);
+  const [editMapping, setEditMapping] = useState(false);
+  const [asOf, setAsOf] = useState("");
+  const [rooms, setRooms] = useState("");
+  const [done, setDone] = useState<Done | null>(null);
+  const kind: PmsFileKind = preview?.kind ?? "daily";
 
-  const imports = useApi("pms:imports", () => api.pms.imports(20));
-  const daily = useApi(effectiveHotelId === null ? null : `pms:daily:${effectiveHotelId}`, () => api.pms.daily(effectiveHotelId, 120));
-
-  const template = useMutation(async () => downloadText("pms-template.csv", await api.pms.template()));
-  const doPreview = useMutation(async (f: File) => {
-    setResult(null);
-    const p = await api.pms.preview(f);
+  const template = useMutation(async () => {
+    if (kind === "daily") downloadText("pms-occupancy-template.csv", await api.pms.template());
+    else downloadText(kind === "bookings" ? "pms-bookings-template.csv" : "pms-otb-template.csv", await api.pms.otb.template(kind));
+  });
+  const doPreview = useMutation(async (f: File, force?: PmsFileKind) => {
+    setDone(null);
+    const p = await api.pms.preview(f, "csv", force ?? null);
     setPreview(p);
     setMapping(p.suggested_mapping);
   });
+  const roomsValue = rooms.trim() === "" ? null : Number(rooms);
+  const roomsInvalid = roomsValue !== null && !(Number.isInteger(roomsValue) && roomsValue > 0);
   const doImport = useMutation(async () => {
-    if (!file || effectiveHotelId === null) return;
-    // Backend đọc ánh xạ đã lưu khi import, nên lưu ánh xạ trước rồi mới nhập.
-    const clean = Object.fromEntries(Object.entries(mapping).filter(([, v]) => v));
-    await api.pms.putMapping({ adapter: "csv", mapping: clean });
-    const r = await api.pms.import(file, effectiveHotelId);
-    setResult(r);
-    imports.reload();
-    daily.reload();
+    if (!file || effectiveHotelId === null || !preview) return;
+    if (kind === "daily") {
+      // Backend đọc ánh xạ đã lưu khi nhập, nên lưu ánh xạ trước rồi mới nhập.
+      const clean = Object.fromEntries(Object.entries(mapping).filter(([, v]) => v));
+      await api.pms.putMapping({ adapter: "csv", mapping: clean });
+      const r = await api.pms.import(file, effectiveHotelId);
+      setDone({ kind, status: r.status, ok: r.ok_count, total: r.row_count, from: r.stay_from ?? null, to: r.stay_to ?? null, errors: r.errors });
+    } else {
+      const r = await api.pms.otb.import({ file, hotelId: effectiveHotelId, kind, asOfDate: kind === "otb_report" ? asOf || null : null, roomsAvailable: roomsValue });
+      setDone({ kind, status: r.status, ok: r.snapshots_written, total: r.rows_read, from: r.stay_from ?? null, to: r.stay_to ?? null, errors: r.errors });
+    }
+    onImported();
   });
 
   function onFile(f: File | null) {
     setFile(f);
     setPreview(null);
-    setResult(null);
+    setDone(null);
+    setEditMapping(false);
     doPreview.clearError();
     doImport.clearError();
     if (f) void doPreview.run(f);
   }
 
-  const hotelName = (id: number | null) => {
-    if (id === null) return "—";
-    const w = (watchlist.data ?? []).find((x) => x.hotel.id === id);
-    return w ? hotelTitle(w.hotel, w.label) : `#${id}`;
-  };
-
-  const hotelSelect = (
-    <Select
-      aria-label={t("hotelAria")}
-      value={effectiveHotelId ?? ""}
-      onChange={(e) => setHotelId(e.target.value)}
-      disabled={selfHotels.length === 0}
-      className="min-w-[220px]"
-    >
-      {selfHotels.length === 0 && <option value="">{t("noSelfOption")}</option>}
-      {selfHotels.map((w) => (
-        <option key={w.hotel.id} value={w.hotel.id}>
-          {hotelTitle(w.hotel, w.label)}
-        </option>
-      ))}
-    </Select>
-  );
-
-  const noSelf = watchlist.data && selfHotels.length === 0;
-  const mappedCount = CANONICAL_PMS_COLUMNS.filter((c) => mapping[c]).length;
+  const missing = preview?.missing ?? [];
+  const needsMapping = kind === "daily" && (!mapping.stay_date || editMapping);
+  const blocked = !preview || effectiveHotelId === null || (kind === "daily" ? !mapping.stay_date : missing.length > 0) || roomsInvalid;
+  const hotelName = hotels.find((h) => h.id === effectiveHotelId)?.name ?? "";
 
   return (
-    <div className="space-y-5">
-      {canWrite && (
-        <Card
-          padded={false}
-          title={t("import.title")}
-          description={t("import.description")}
-          actions={
-            <Button size="sm" busy={template.busy} icon={<IconDownload size={15} />} onClick={() => void template.run()}>
-              {t("import.template")}
-            </Button>
-          }
-        >
-          {template.error && <ErrorBox error={template.error} className="mx-5 mt-4" />}
-          <Step n={1} title={t("step1.title")} active>
-            {noSelf ? (
-              <div className="flex items-start gap-2.5 rounded-lg border border-[#fcd34d] bg-warning-soft px-3.5 py-2.5 text-sm text-warning-deep">
-                <IconAlert size={16} className="mt-px shrink-0" />
-                <span>
-                  {t.rich("step1.noSelf", {
-                    link: (c) => (
-                      <a href="/settings?tab=watchlist" className="font-semibold underline">
-                        {c}
-                      </a>
-                    ),
-                  })}
-                </span>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] md:items-start">
-                <Field label={t("step1.hotel")} hint={t("step1.hotelHint")}>
-                  {hotelSelect}
-                </Field>
-                <div className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-sm font-semibold text-body">{t("step1.file")}</span>
-                  <Dropzone file={file} busy={doPreview.busy} onFile={onFile} />
-                </div>
-              </div>
+    <Card
+      title={t("import.title")}
+      description={t("import.description")}
+      actions={
+        <Button size="sm" busy={template.busy} icon={<IconDownload size={15} />} onClick={() => void template.run()}>
+          {t(`import.template.${kind}`)}
+        </Button>
+      }
+    >
+      <ErrorBox error={template.error} className="mb-3" />
+      {hotels.length === 0 ? (
+        <div className="flex items-start gap-2.5 rounded-lg border border-[#fcd34d] bg-warning-soft px-3.5 py-2.5 text-sm text-warning-deep">
+          <IconAlert size={16} className="mt-px shrink-0" />
+          <span>
+            {t.rich("noSelf", {
+              link: (c) => (
+                <Link href="/settings?tab=watchlist" className="font-semibold underline">
+                  {c}
+                </Link>
+              ),
+            })}
+          </span>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className={cx("grid gap-4", hotels.length > 1 && "md:grid-cols-[minmax(200px,260px)_minmax(0,1fr)] md:items-start")}>
+            {hotels.length > 1 && (
+              <Field label={t("hotel")} hint={t("hotelHint")}>
+                <Select aria-label={t("hotelAria")} value={effectiveHotelId ?? ""} onChange={(e) => setHotelId(e.target.value)}>
+                  {hotels.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
             )}
-            <ErrorBox error={doPreview.error} className="mt-3" title={t("step1.previewError")} />
-            {doPreview.busy && <Skeleton rows={2} className="mt-4" />}
-          </Step>
+            <Dropzone file={file} busy={doPreview.busy} onFile={onFile} />
+          </div>
+          <ErrorBox error={doPreview.error} title={t("previewError")} />
+          {doPreview.busy && !preview && <Skeleton rows={2} />}
 
-          <Step
-            n={2}
-            title={t("step2.title")}
-            active={!!preview}
-            hint={preview ? t("step2.hint", { mapped: mappedCount, total: CANONICAL_PMS_COLUMNS.length }) : t("step2.hintEmpty")}
-          >
-            {preview && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {CANONICAL_PMS_COLUMNS.map((col) => {
-                  const required = col === "stay_date";
-                  const missing = required && !mapping[col];
-                  return (
-                    <Field
-                      key={col}
-                      label={
-                        <span className="flex items-center gap-1.5">
-                          {label("pmsColumn", col)}
-                          {required && <span className="rounded bg-brand-soft px-1.5 text-2xs font-bold text-brand-hover">{t("step2.required")}</span>}
-                        </span>
-                      }
-                    >
-                      <Select
-                        value={mapping[col] ?? ""}
-                        onChange={(e) => setMapping({ ...mapping, [col]: e.target.value })}
-                        aria-invalid={missing || undefined}
-                        className={cx(missing && "border-danger", !mapping[col] && "text-faint")}
-                      >
-                        <option value="">{t("step2.skip")}</option>
-                        {preview.columns.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </Select>
+          {preview && file && (
+            <>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line px-3.5 py-2.5">
+                <span className="text-sm text-muted">{t("detected")}</span>
+                <Select
+                  aria-label={t("kindAria")}
+                  value={kind}
+                  disabled={doPreview.busy}
+                  onChange={(e) => void doPreview.run(file, e.target.value as PmsFileKind)}
+                  className="!w-auto min-w-[240px] font-semibold"
+                >
+                  {KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {t(`kinds.${k}.label`)}
+                    </option>
+                  ))}
+                </Select>
+                <span className="text-sm text-muted">{preview.kind === preview.detected_kind ? t("detectedAuto") : t("detectedChanged", { kind: t(`kinds.${preview.detected_kind}.label`) })}</span>
+                <p className="basis-full text-sm text-body">{t(`kinds.${kind}.body`)}</p>
+              </div>
+
+              {kind !== "daily" && missing.length > 0 && (
+                <p role="alert" className="flex items-start gap-1.5 text-sm text-danger-deep">
+                  <IconAlert size={15} className="mt-0.5 shrink-0" />
+                  {t("missingColumns", { columns: missing.map((c) => t(`column.${c as "stay_date"}`)).join(", ") })}
+                </p>
+              )}
+
+              {needsMapping && (
+                <section aria-label={t("mapping.title")} className="rounded-lg border border-line p-3.5">
+                  <h3 className="text-sm font-bold text-ink">{t("mapping.title")}</h3>
+                  <p className="mt-0.5 text-sm text-muted">{t("mapping.hint")}</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {CANONICAL_PMS_COLUMNS.map((col) => {
+                      const required = col === "stay_date";
+                      const miss = required && !mapping[col];
+                      return (
+                        <Field
+                          key={col}
+                          label={
+                            <span className="flex items-center gap-1.5">
+                              {label("pmsColumn", col)}
+                              {required && <span className="rounded bg-brand-soft px-1.5 text-2xs font-bold text-brand-hover">{t("mapping.required")}</span>}
+                            </span>
+                          }
+                        >
+                          <Select value={mapping[col] ?? ""} onChange={(e) => setMapping({ ...mapping, [col]: e.target.value })} aria-invalid={miss || undefined} className={cx(miss && "border-danger", !mapping[col] && "text-faint")}>
+                            <option value="">{t("mapping.skip")}</option>
+                            {preview.columns.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {kind !== "daily" && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:max-w-[560px]">
+                  {kind === "otb_report" && (
+                    <Field label={t("asOf")} hint={t("asOfHint")}>
+                      <Input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} className="tabular" />
                     </Field>
-                  );
-                })}
-              </div>
-            )}
-          </Step>
+                  )}
+                  <Field label={t("rooms")} hint={roomsInvalid ? <span className="text-danger">{t("invalidRooms")}</span> : t("roomsHint")}>
+                    <Input type="number" inputMode="numeric" min={1} value={rooms} onChange={(e) => setRooms(e.target.value)} aria-invalid={roomsInvalid || undefined} className="tabular" />
+                  </Field>
+                </div>
+              )}
 
-          <Step
-            n={3}
-            title={t("step3.title")}
-            active={!!preview}
-            hint={
-              preview
-                ? t.rich("step3.hint", {
-                    count: preview.sample.length,
-                    parsed: preview.parsed_ok,
-                    b: (c) => <span className="font-semibold text-ink tabular">{c}</span>,
-                  })
-                : t("step3.hintEmpty")
-            }
-          >
-            {preview && (
-              <div className="space-y-4">
+              <div>
+                <p className="mb-2 text-sm text-muted">
+                  {t.rich("previewHint", { count: preview.sample.length, parsed: preview.parsed_ok, b: (c) => <span className="font-semibold text-ink tabular">{c}</span> })}
+                </p>
                 <div className="overflow-hidden rounded-lg border border-line">
                   <Table dense>
                     <thead>
@@ -370,43 +387,72 @@ export function PmsTab() {
                     </tbody>
                   </Table>
                 </div>
-                {preview.errors.length > 0 && (
-                  <details className="group rounded-lg border border-line">
-                    <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-semibold text-danger [&::-webkit-details-marker]:hidden">
-                      <span className="inline-flex items-center gap-1.5">
-                        <IconAlert size={15} /> {t("step3.previewErrors", { count: preview.errors.length })}
-                        <span className="font-normal text-muted group-open:hidden">{t("step3.clickToView")}</span>
-                      </span>
-                    </summary>
-                    <div className="border-t border-line p-3">
-                      <ErrorRows errors={preview.errors} />
-                    </div>
-                  </details>
-                )}
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    variant="primary"
-                    busy={doImport.busy}
-                    icon={<IconUpload size={16} />}
-                    disabled={!mapping.stay_date || effectiveHotelId === null}
-                    onClick={() => void doImport.run()}
-                  >
-                    {t("step3.submit")}
-                  </Button>
-                  {!mapping.stay_date && <span className="text-sm text-danger">{t("step3.needStayDate", { column: label("pmsColumn", "stay_date") })}</span>}
-                  {effectiveHotelId !== null && mapping.stay_date && (
-                    <span className="text-sm text-muted">{t("step3.importInto", { hotel: hotelName(effectiveHotelId) })}</span>
-                  )}
-                </div>
-                <ErrorBox error={doImport.error} title={t("step3.importError")} />
-                {result && <ImportResult result={result} />}
               </div>
-            )}
-          </Step>
-        </Card>
+              {preview.errors.length > 0 && (
+                <details className="group rounded-lg border border-line">
+                  <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-semibold text-danger [&::-webkit-details-marker]:hidden">
+                    <span className="inline-flex items-center gap-1.5">
+                      <IconAlert size={15} /> {t("previewErrors", { count: preview.errors.length })}
+                      <span className="font-normal text-muted group-open:hidden">{t("clickToView")}</span>
+                    </span>
+                  </summary>
+                  <div className="border-t border-line p-3">
+                    <ErrorRows errors={preview.errors} />
+                  </div>
+                </details>
+              )}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="primary" busy={doImport.busy} icon={<IconUpload size={16} />} disabled={blocked || doPreview.busy} onClick={() => void doImport.run()}>
+                  {t("submit", { count: preview.parsed_ok })}
+                </Button>
+                {hotelName && <span className="text-sm text-muted">{t("importInto", { hotel: hotelName })}</span>}
+                {kind === "daily" && mapping.stay_date && !editMapping && (
+                  <button type="button" onClick={() => setEditMapping(true)} className="text-sm font-semibold text-brand hover:underline">
+                    {t("mapping.edit")}
+                  </button>
+                )}
+              </div>
+              <ErrorBox error={doImport.error} title={t("importError")} />
+              {done && <ImportResult done={done} />}
+            </>
+          )}
+        </div>
       )}
+    </Card>
+  );
+}
 
-      {canWrite && watchlist.data && <OtbImport hotels={selfHotels.map((w) => ({ id: w.hotel.id, name: hotelTitle(w.hotel, w.label) }))} />}
+export function PmsTab() {
+  const { canWrite } = useSession();
+  const t = useTranslations("settings.pms");
+  const label = useLabel();
+  const { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct } = useFmt();
+  const watchlist = useApi("watchlist:active", () => api.watchlist.list(false));
+  const selfHotels = (watchlist.data ?? []).filter((w) => w.role === "self");
+  const hotels = selfHotels.map((w) => ({ id: w.hotel.id, name: hotelTitle(w.hotel, w.label) }));
+  const [dailyHotel, setDailyHotel] = useState<string>("");
+  const effectiveHotelId = dailyHotel ? Number(dailyHotel) : (selfHotels[0]?.hotel.id ?? null);
+
+  const imports = useApi("pms:imports", () => api.pms.imports(20));
+  const daily = useApi(effectiveHotelId === null ? null : `pms:daily:${effectiveHotelId}`, () => api.pms.daily(effectiveHotelId, 120));
+
+  const hotelName = (id: number | null) => {
+    if (id === null) return "—";
+    return hotels.find((h) => h.id === id)?.name ?? `#${id}`;
+  };
+
+  return (
+    <div className="space-y-5">
+      {canWrite && watchlist.data && (
+        <ImportCard
+          hotels={hotels}
+          onImported={() => {
+            imports.reload();
+            daily.reload();
+          }}
+        />
+      )}
+      {canWrite && !watchlist.data && !watchlist.error && <Skeleton rows={4} />}
 
       <Card padded={false} title={t("history.title")} description={imports.data && imports.data.length > 0 ? t("history.description", { count: imports.data.length }) : undefined}>
         <ErrorBox error={imports.error} className="m-5" />
@@ -422,19 +468,23 @@ export function PmsTab() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("history.time")}</Th>
+                <Th className="pl-5">{t("history.time")}</Th>
                 <Th>{t("history.file")}</Th>
+                <Th>{t("history.kind")}</Th>
                 <Th>{t("history.hotel")}</Th>
+                <Th>{t("history.importedBy")}</Th>
                 <Th>{t("history.status")}</Th>
                 <Th right>{t("history.okRows")}</Th>
-                <Th right>{t("history.errors")}</Th>
+                <Th right className="pr-5">
+                  {t("history.errors")}
+                </Th>
               </tr>
             </thead>
             <tbody>
               {imports.data.map((im) => (
                 <tr key={im.id} className={cx(ROW_CLASS, "align-top")}>
-                  <Td className="whitespace-nowrap text-muted tabular">{fmtDateTime(im.created_at)}</Td>
-                  <Td className="max-w-[260px]">
+                  <Td className="whitespace-nowrap pl-5 text-muted tabular">{fmtDateTime(im.created_at)}</Td>
+                  <Td className="max-w-[240px]">
                     <span className="flex min-w-0 items-center gap-2">
                       <IconFile size={15} className="shrink-0 text-faint" />
                       <span className="truncate font-medium text-ink" title={im.filename}>
@@ -442,14 +492,20 @@ export function PmsTab() {
                       </span>
                     </span>
                   </Td>
+                  <Td className="whitespace-nowrap text-body">{t(`kinds.${importKind(im.adapter)}.short`)}</Td>
                   <Td>{hotelName(im.hotel_id)}</Td>
+                  <Td className="max-w-[200px]">
+                    <span className="block truncate text-body" title={im.created_by_email ?? undefined}>
+                      {im.created_by_email ?? "—"}
+                    </span>
+                  </Td>
                   <Td>
                     <Badge tone={IMPORT_STATUS_TONE[im.status] ?? "gray"}>{label("importStatus", im.status)}</Badge>
                   </Td>
                   <Td right>
                     {fmtInt(im.ok_count)} / {fmtInt(im.row_count)}
                   </Td>
-                  <Td right>
+                  <Td right className="pr-5">
                     {im.errors.length > 0 ? (
                       <details className="text-left">
                         <summary className="cursor-pointer text-right font-semibold text-danger tabular">{im.errors.length}</summary>
@@ -474,7 +530,17 @@ export function PmsTab() {
         padded={false}
         title={t("daily.title")}
         description={daily.data && daily.data.length > 0 ? t("daily.description", { count: daily.data.length }) : undefined}
-        actions={!canWrite && selfHotels.length > 1 ? hotelSelect : undefined}
+        actions={
+          hotels.length > 1 ? (
+            <Select aria-label={t("hotelAria")} value={effectiveHotelId ?? ""} onChange={(e) => setDailyHotel(e.target.value)} className="min-w-[220px]">
+              {hotels.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                </option>
+              ))}
+            </Select>
+          ) : undefined
+        }
       >
         <ErrorBox error={daily.error} className="m-5" />
         {effectiveHotelId === null ? (
@@ -495,15 +561,14 @@ export function PmsTab() {
           <Table dense>
             <thead>
               <tr>
-                <Th>{t("daily.stayDate")}</Th>
+                <Th className="pl-5">{t("daily.stayDate")}</Th>
                 <Th right>{t("daily.roomsTotal")}</Th>
                 <Th right>{t("daily.roomsSold")}</Th>
                 <Th right>{t("daily.roomsLeft")}</Th>
                 <Th right>{t("daily.occupancy")}</Th>
                 <Th right>{t("daily.adr")}</Th>
                 <Th right>{t("daily.revenue")}</Th>
-                <Th>{t("daily.source")}</Th>
-                <Th>{t("daily.importedAt")}</Th>
+                <Th className="pr-5">{t("daily.importedAt")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -512,7 +577,7 @@ export function PmsTab() {
                 const dec = (v: unknown) => (typeof v === "string" || typeof v === "number" ? v : null);
                 return (
                   <tr key={`${d.hotel_id}-${stay}`} className={ROW_CLASS}>
-                    <Td className="whitespace-nowrap font-medium text-ink tabular">{fmtDate(stay)}</Td>
+                    <Td className="whitespace-nowrap pl-5 font-medium text-ink tabular">{fmtDate(stay)}</Td>
                     <Td right>{fmtInt(d.rooms_total)}</Td>
                     <Td right>{fmtInt(d.rooms_sold)}</Td>
                     <Td right>{fmtInt(d.rooms_available)}</Td>
@@ -521,8 +586,7 @@ export function PmsTab() {
                     </Td>
                     <Td right>{fmtNum(dec(d.adr))}</Td>
                     <Td right>{fmtNum(dec(d.revenue))}</Td>
-                    <Td className="text-muted">{d.source}</Td>
-                    <Td className="whitespace-nowrap text-muted tabular">{fmtDateTime(d.imported_at)}</Td>
+                    <Td className="whitespace-nowrap pr-5 text-muted tabular">{fmtDateTime(d.imported_at)}</Td>
                   </tr>
                 );
               })}

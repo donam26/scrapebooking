@@ -1,6 +1,6 @@
 {
   "page": {
-    "title": "Khám phá thị trường",
+    "title": "Tìm khách sạn để theo dõi",
     "knownHotels": "{count, number} khách sạn đã biết",
     "availableTonight": "<b>{count, number}</b> còn phòng đêm nay",
     "listScanned": "Quét danh sách {when}",
@@ -18,7 +18,9 @@
     },
     "noMatch": "Không có khách sạn nào khớp.",
     "prev": "Trước",
-    "next": "Sau"
+    "next": "Sau",
+    "listStaleTitle": "Danh sách khu vực quét lúc {when} ({ago}): giá và phòng còn có thể đã khác",
+    "followTitle": "Theo dõi {name}"
   },
   "table": {
     "hotel": "Khách sạn",
@@ -33,7 +35,13 @@
     "km": "{km} km",
     "unknown": "Chưa rõ",
     "available": "Còn phòng",
-    "soldOut": "Hết phòng"
+    "soldOut": "Hết phòng",
+    "rooms": "Phòng còn",
+    "roomsTitle": "Booking.com còn bán được {range} phòng cùng lúc đêm này (thang tìm kiếm của khu vực)",
+    "onlyLeft": "Còn {count} ở giá này",
+    "nightRate": "Giá đêm {night}",
+    "night": "Đêm {night}",
+    "staleChip": "cũ"
   },
   "follow": {
     "yours": "Của bạn",

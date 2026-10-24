@@ -38,7 +38,10 @@
     "noSummary": "No summary.",
     "readFull": "Read in full",
     "operatorOnly": "Visible to operator accounts only",
-    "tech": "{model} · {version} · {tokensIn}/{tokensOut} tokens · {cost} USD"
+    "tech": "{model} · {version} · {tokensIn}/{tokensOut} tokens · {cost} USD",
+    "briefAge": "Brief from {date} · {ago}",
+    "briefAgeTitle": "The latest brief is more than a day old. A new brief needs a new scan.",
+    "generateFailed": "The brief could not be created this time. Try again in a few minutes."
   },
   "detail": {
     "crumb": "AI briefs",
@@ -52,7 +55,8 @@
     "basedOnRun": "Based on scan run",
     "model": "Model",
     "tokens": "Tokens in / out",
-    "cost": "Cost"
+    "cost": "Cost",
+    "unavailable": "This brief has no content to read. Pick another brief from the list."
   },
   "view": {
     "unknownHotel": "Hotel #{id}",

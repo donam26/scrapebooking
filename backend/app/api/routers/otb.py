@@ -46,6 +46,9 @@ class OtbImportOut(BaseModel):
     stay_dates: int
     errors: list[dict[str, object]]
     status: str
+    # Đêm đầu và cuối có số phòng đã đặt (để báo "đã có trên Lịch giá & phòng / Nhịp đặt phòng").
+    stay_from: date | None = None
+    stay_to: date | None = None
 
 
 class OtbNightOut(BaseModel):
@@ -114,7 +117,7 @@ async def otb_template(_: TenantDep, kind: OtbKind = "otb_report") -> str:
 @router.post("/pms/otb/import", response_model=OtbImportOut, status_code=status.HTTP_201_CREATED)
 async def import_otb(
     tenant_id: TenantDep,
-    _: WriterDep,
+    principal: WriterDep,
     session: SessionDep,
     file: Annotated[UploadFile, File()],
     hotel_id: Annotated[int, Form()],
@@ -195,6 +198,7 @@ async def import_otb(
             ok_count=summary.ok_count,
             errors=[e.__dict__ for e in errors[:200]],
             status=summary.status,
+            created_by=principal.user_id,
         )
     )
     await session.commit()
@@ -207,6 +211,8 @@ async def import_otb(
         stay_dates=len({r.stay_date for r in rows}),
         errors=[e.__dict__ for e in errors[:50]],
         status=summary.status,
+        stay_from=min((r.stay_date for r in rows), default=None),
+        stay_to=max((r.stay_date for r in rows), default=None),
     )
 
 

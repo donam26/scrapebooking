@@ -239,8 +239,13 @@ class OpenRouterInsightClient:
 class FakeInsightClient:
     """Client giả cho test: trả đầu ra kịch bản sẵn theo custom_id hoặc mặc định."""
 
-    def __init__(self, default_output: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, default_output: dict[str, Any] | None = None, placeholder: bool = False
+    ) -> None:
         self.default_output = default_output
+        # True khi thay cho OpenRouter vì thiếu OPENROUTER_API_KEY: bản tin ghi model "placeholder"
+        # và bị ẩn khỏi tenant (không phải bản tin thật).
+        self.placeholder = placeholder
         self.by_custom_id: dict[str, dict[str, Any]] = {}
         self.requests: list[CompletionRequest] = []
         self.batches: dict[str, list[CompletionRequest]] = {}

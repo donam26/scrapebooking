@@ -1,48 +1,49 @@
 {
   "title": "Hôm nay",
-  "hotelFallback": "Khách sạn #{id}",
-  "status": {
-    "noData": "Chưa có dữ liệu",
-    "soldOut": "Hết phòng",
-    "unknown": "Không đọc được",
-    "available": "Còn phòng",
-    "roomsLeft": "Còn {count} phòng",
-    "roomsLeftText": "Còn {rooms} phòng",
-    "restricted": "Bị hạn chế (không phải hết phòng)",
-    "minStay": "Chỉ bán từ {count} đêm",
-    "noPrice": "Không có giá"
-  },
   "empty": {
     "title": "Chưa theo dõi khách sạn nào",
     "add": "Thêm khách sạn",
     "body": "Thêm khách sạn của bạn và các đối thủ, lượt quét kế tiếp sẽ điền màn này."
   },
-  "tonight": {
-    "aria": "Đêm nay",
-    "hotelTonight": "{name} · đêm nay",
-    "lowestRate": "Giá thấp nhất",
-    "noSelf": "Chưa có khách sạn của bạn trong danh sách theo dõi nên chưa so được với đối thủ."
+  "strip": {
+    "title": "14 đêm tới: bạn so với đối thủ",
+    "info": "Mỗi cột một đêm: ô màu là số phòng còn của bạn trên Booking.com, rồi giá của bạn, giá bạn so với giá giữa của đối thủ (một nửa đối thủ rẻ hơn, một nửa đắt hơn), và số đối thủ đã hết phòng. Chấm tím: đêm có gợi ý giá chưa xử lý. Bấm cột để xem chi tiết đêm.",
+    "tonight": "Đêm nay",
+    "deltaTitle": "Giá bạn so với giá giữa của đối thủ",
+    "soldOutTitle": "Số đối thủ hết phòng / số đối thủ đọc được",
+    "hasSuggestion": "Có gợi ý giá",
+    "legend": "Ô màu: phòng còn của bạn · %: giá bạn so giá giữa đối thủ · x/N: đối thủ hết phòng · ● có gợi ý giá",
+    "staleTitle": "Giá đọc được lần cuối (cũ hơn 48 giờ)"
   },
-  "suggestions": {
-    "title": "Gợi ý giá",
-    "description": "{count} đêm trong {days} đêm tới"
-  },
-  "nights": {
-    "title": "{days} đêm tới",
-    "compSoldOut": "{soldOut}/{observed} đối thủ hết phòng",
-    "noComp": "Chưa có số đối thủ",
-    "vsMedian": "so trung vị {pct}",
-    "compRestricted": "{count} bị hạn chế"
+  "yourHotel": {
+    "title": "Khách sạn của bạn đêm nay",
+    "info": "Giá thấp nhất của bạn trên Booking.com so với giá giữa của đối thủ cùng đêm (một nửa đối thủ rẻ hơn, một nửa đắt hơn). Công suất chỉ hiện khi bạn đã nhập PMS hoặc ước tính đủ tin cậy.",
+    "empty": "Chưa có khách sạn của bạn trong danh sách theo dõi. <link>Thêm ở Cài đặt</link>",
+    "deltaCaption": "giá bạn so với giá giữa của đối thủ",
+    "noCompare": "chưa đủ đối thủ có giá để so",
+    "yourRate": "Giá của bạn",
+    "marketRate": "Giá giữa của đối thủ",
+    "roomsLeft": "Phòng còn",
+    "rooms": "Còn {rooms} phòng",
+    "soldOut": "Hết phòng",
+    "hidden": "Không lộ số",
+    "rank": "Đắt rẻ trong nhóm",
+    "occPms": "Công suất (PMS)",
+    "occEstimate": "Chỉ báo lấp đầy ≈",
+    "staleTitle": "Giá đọc được lần cuối, cũ hơn 48 giờ",
+    "staleShort": "(cũ)"
   },
   "changes": {
     "title": "Thay đổi 24 giờ qua",
     "allEvents": "Mọi thay đổi",
-    "empty": "Không có thay đổi nào trong 24 giờ qua."
+    "empty": "Không có thay đổi nào trong 24 giờ qua.",
+    "emptyStale": "Chưa có lượt quét mới nên chưa có thay đổi mới."
   },
   "brief": {
     "title": "Bản tin AI mới nhất",
     "read": "Đọc bản tin",
-    "noSummary": "Bản tin không có phần tóm tắt."
+    "noSummary": "Bản tin không có phần tóm tắt.",
+    "dated": "Bản tin lúc {when}"
   },
   "resolvedNotice": "Đã ghi nhận: đã xử lý. Cảm ơn bạn!"
 }

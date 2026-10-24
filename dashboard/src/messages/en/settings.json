@@ -1,25 +1,32 @@
 {
   "page": {
     "title": "Settings",
-    "subtitleWrite": "Tracked hotels, scan times, local events, email notifications, users and occupancy data from your PMS",
-    "subtitleRead": "View the tenant's tracked hotels, scan times, notifications, users and PMS data",
-    "readOnlyNote": "View-only account: you can see every setting but can't change anything, except your own message subscriptions on the Notifications tab. Contact your hotel admin if something needs editing.",
+    "subtitleWrite": "Hotels and competitors, who gets alerts, users, PMS data and price strategy",
+    "subtitleRead": "View tracked hotels, alerts, users and PMS data",
+    "readOnlyNote": "View-only account: you can see every setting but can't change anything, except which alerts you receive on the Alerts tab. Contact your hotel admin if something needs editing.",
     "tabs": {
-      "watchlist": "Hotels",
-      "market": "Market",
-      "schedule": "Scan schedule",
-      "events": "Events",
-      "notifications": "Notifications",
+      "watchlist": "Hotels & competitors",
+      "notifications": "Alerts",
       "users": "Users",
-      "pms": "PMS import",
-      "strategy": "Price strategy"
+      "pms": "PMS data",
+      "strategy": "Price strategy",
+      "advanced": "Advanced"
     }
+  },
+  "advanced": {
+    "schedule": "Scan schedule",
+    "scheduleHint": "When the system reads prices and availability on Booking.com each day.",
+    "market": "Market area",
+    "marketHint": "The area and segment used to measure how tight the whole market around you is.",
+    "events": "Local events",
+    "eventsHint": "Festivals, conferences and tournaments that lift demand, so price suggestions take them into account."
   },
   "watchlist": {
     "url": {
       "empty": "Paste the link to the hotel's page on Booking.com.",
       "malformed": "That link doesn't look right. Copy the full address from your browser's address bar, starting with https://",
-      "notBooking": "Only Booking.com hotel pages are supported (e.g. https://www.booking.com/hotel/vn/…)."
+      "notBooking": "Only Booking.com hotel pages are supported (e.g. https://www.booking.com/hotel/vn/…).",
+      "notHotelPage": "That isn't a hotel page yet. Open the hotel's page on Booking.com and copy its link (like https://www.booking.com/hotel/vn/hotel-name.html)."
     },
     "add": {
       "title": "Add hotel",
@@ -39,7 +46,7 @@
       "resumeTitle": "Resume scanning this hotel on Booking.com",
       "resume": "Resume",
       "pauseLabel": "Pause scanning on Booking.com",
-      "pauseTitle": "Pause scanning this Booking.com page (applies to every tenant tracking it)"
+      "pauseTitle": "Pause scanning this Booking.com page (applies to every hotel account tracking it)"
     },
     "replaceUrl": {
       "label": "New Booking.com link for this hotel",
@@ -63,7 +70,20 @@
       "listingAria": "Booking.com page of {name}",
       "replaceUrl": "Change URL",
       "addUrl": "Add URL",
-      "replaceUrlTitle": "Replace the hotel's Booking.com link (broken or pasted by mistake)"
+      "replaceUrlTitle": "Replace the hotel's Booking.com link (broken or pasted by mistake)",
+      "roleSelf": "Yours",
+      "rolePrimary": "Primary competitor",
+      "roleSecondary": "Secondary competitor",
+      "details": "Details",
+      "removeConfirm": "Remove {name} from the group? Its scanned price history is kept and you can add it back any time.",
+      "status": {
+        "scanning": "Scanning",
+        "checking": "Checking",
+        "broken": "URL error",
+        "paused": "Paused",
+        "noUrl": "No URL yet",
+        "removed": "Removed from group"
+      }
     },
     "list": {
       "emptyTitle": "No hotels tracked yet",
@@ -74,24 +94,24 @@
       "checking": "Checking new links…",
       "scanNowTitle": "Scan every tracked hotel now, without waiting for the next scheduled time",
       "scanNow": "Scan now",
-      "scanStarted": "Scanning started. Results appear on Availability in a few minutes.",
+      "scanStarted": "Scanning started. Results appear on the Rate calendar in a few minutes.",
       "scanErrorTitle": "Couldn't start the scan",
       "selfTitle": "Your hotel",
       "selfEmpty": "No hotel of your own yet. Add one with the role “Your hotel” to compare rates with competitors and import PMS data.",
       "compTitle": "Competitors",
       "compEmpty": "No competitors yet. Add the hotels in your segment that you usually compare rates with.",
-      "legend": "Green dot: scanning · blue: checking the link · red: broken link · grey: paused. Click “Booking.com” to open the hotel's page.",
+      "legend": "Click “Details” for the Booking.com page, room count and primary/secondary group; click ⋯ to change the URL, pause or remove from the group.",
       "noneReady": "No hotel is ready to scan yet."
     },
     "compset": {
       "tier": "Comp set",
-      "tierTitle": "Only the primary comp set enters the median, listed-rate index and price position; the secondary set (seasonal, aspirational) is still tracked",
+      "tierTitle": "Only primary competitors count towards the middle price, listed-price index and price position; secondary ones (seasonal, reference) are still tracked",
       "primary": "Primary",
-      "primaryTitle": "Primary comp set: counted in median, price index and price position",
+      "primaryTitle": "Primary competitor: counts towards the middle price, price index and price position",
       "secondary": "Secondary",
-      "secondaryTitle": "Secondary comp set: still tracked, not counted in median or price index",
-      "compsetOf": "Comp set of",
-      "compsetOfTitle": "Which of your hotels this competitor is compared with; “Shared” = comp set of all your hotels",
+      "secondaryTitle": "Secondary competitor: still tracked, not counted in the middle price or price index",
+      "compsetOf": "Competitor of",
+      "compsetOfTitle": "Which of your hotels it is compared with; “Shared” = competitor of all your hotels",
       "shared": "Shared",
       "rooms": "Rooms",
       "roomsTitle": "Published total room count, used for the fill indicator and the CoStar 50% rule",
@@ -102,7 +122,7 @@
       "sourcePlaceholder": "Room count source URL",
       "sourceAria": "Room count source for {name}",
       "bookingMax": "Booking has offered ≥{count, number} rooms in a night",
-      "bookingMaxTitle": "Most rooms left ever seen on Booking.com for one night: a lower bound of the hotel's Booking allotment, not its total rooms",
+      "bookingMaxTitle": "Most rooms ever seen left on Booking.com for one night: Booking sells at least that many of the hotel's rooms, not the hotel's total",
       "roomsBelowBooking": "The room count ({rooms, number}) is below what Booking has offered (≥{max, number}): please check (Booking may sell dorm beds).",
       "suggest": "Booking sells up to {count, plural, one {# room} other {# rooms}} a night",
       "suggestCapped": "Booking sells ≥{count, plural, one {# room} other {# rooms}} a night",
@@ -119,27 +139,40 @@
       "saving": "Saving…"
     },
     "review": {
-      "aria": "Comp set review",
-      "title": "Comp set review (CoStar STR standard)",
-      "titleFor": "Comp set review for {name}",
+      "aria": "Is your competitor group balanced?",
+      "title": "Is your competitor group balanced?",
+      "titleFor": "Is the competitor group of {name} balanced?",
       "counts": "{primary} primary · {secondary} secondary · {known}/{primary} with room counts",
-      "ok": "Comp set meets the standard: enough competitors, no single hotel dominates.",
+      "ok": "Balanced group: enough competitors, no hotel dominates, prices not far from yours.",
       "hotelFallback": "Hotel #{id}",
       "warn": {
-        "too_few": "The primary comp set has only {count, plural, one {# competitor} other {# competitors}}: at least 4 are needed for a meaningful median and price index.",
-        "dominant_hotel": "{name} holds {pct}% of comp set rooms (>50%): one hotel dominates the index.",
+        "too_few": "Only {count, plural, one {# primary competitor} other {# primary competitors}}: at least 4 are needed for a meaningful middle price and price index.",
+        "dominant_hotel": "{name} holds {pct}% of the group's rooms (>50%): one hotel dominates the index.",
         "rooms_unknown": "{count, plural, one {# competitor has} other {# competitors have}} no room count: enter it to check the 50% rule.",
-        "review_due": "Comp set last changed {date}; review it at least twice a year.",
-        "review_due_never": "The comp set has not been reviewed yet; review it at least twice a year."
+        "review_due": "The competitor group last changed {date}; review it at least twice a year.",
+        "review_due_never": "The competitor group hasn't been reviewed yet; review it at least twice a year."
       },
-      "rules": "Rules: at least 4 competitors in the primary set, no hotel above 50% of total comp set rooms, review at least twice a year (replace competitors that drift in stars, score or price)."
+      "rules": "Aim for at least 4 primary competitors in your range, no hotel above 50% of the group's rooms, and a review at least twice a year (replace competitors that drift in stars, score or price)."
+    },
+    "menu": {
+      "aria": "Actions for {name}",
+      "edit": "Rename or change role",
+      "replaceUrl": "Change URL",
+      "addUrl": "Add URL",
+      "retry": "Recheck URL",
+      "resume": "Resume scanning",
+      "pause": "Pause scanning",
+      "remove": "Remove from group",
+      "restore": "Add back to group"
     }
   },
   "market": {
     "destType": {
       "city": "City",
       "district": "District",
-      "region": "Province/region"
+      "region": "Province/region",
+      "landmark": "Landmark",
+      "latlong": "Around a point"
     },
     "listStatus": {
       "queued": "Queued",
@@ -159,27 +192,45 @@
     },
     "config": {
       "listNights": "Nights in list scan",
-      "listNightsHint": "One read of the first results page per night, counting hotels with rooms left",
+      "listNightsHint": "Upcoming nights scanned every day (up to 30)",
       "maxHotels": "Hotels in detail scan",
-      "maxHotelsHint": "Top by review count; reads rooms left for each night",
+      "maxHotelsHint": "Top by review count; reads rooms left for each night. 0 = off",
       "horizon": "Nights in detail scan",
       "horizonHint": "Up to 90, scanned in tiers like the comp set",
-      "maxPages": "Page read limit",
-      "maxPagesHint": "Maximum requests per discovery run (once a day)"
+      "maxPages": "Request limit per night",
+      "maxPagesHint": "Maximum requests per night (market, list, room ladder)"
+    },
+    "scope": {
+      "radius": "Radius",
+      "radiusNone": "None",
+      "radiusHint": "Only count properties within this distance of the area's centre (Booking's distance filter)",
+      "radiusRequiredHint": "Required for an area around a point",
+      "segment": "Segment",
+      "segmentHint": "Property types that are counted; the sold-out share and room ladder use this segment"
     },
     "add": {
       "title": "Add market area",
-      "info": "Search by city or district name on Booking.com. A central district (a few hundred hotels) gives more complete figures than a whole city (thousands of properties, including apartments and homestays).",
-      "searchLabel": "City / district",
-      "searchPlaceholder": "e.g. Ho Chi Minh City, District 1, Hanoi Old Quarter",
+      "info": "Find an area by name on Booking.com (city, district, landmark) or use a radius around your hotel. A central district or a 1–3 km radius is closer to your competition than a whole city (thousands of properties, including apartments and homestays); the segment limits which property types are counted.",
+      "mode": "How to pick the area",
+      "modeSearch": "Search by name",
+      "modeAround": "Around your hotel",
+      "searchLabel": "City / district / landmark",
+      "searchPlaceholder": "e.g. District 1, Vung Tau, Ben Thanh Market",
       "noResults": "No areas found. Try the English name as used on Booking.com.",
       "properties": "{count, plural, one {# property} other {# properties}}",
-      "bigArea": "This area has {count, plural, one {# property} other {# properties}}; Booking only shows part of them per scan, so the list is built up over several scans. Consider picking a central district.",
+      "bigArea": "This area has {count, plural, one {# property} other {# properties}}; Booking lists at most 1,000 per search. Add a radius or pick a central district for complete figures.",
+      "landmarkHint": "Use a radius with a landmark so only properties around it are counted.",
       "submit": "Add area",
-      "firstScanHint": "The first list scan runs at 03:00, or press “Scan list now” after adding."
+      "firstScanHint": "The first list scan runs at 03:00, or press “Scan list now” after adding.",
+      "aroundName": "{km} km around {name}",
+      "aroundHotelFallback": "your hotel",
+      "aroundCenter": "Centre: <b>{name}</b> ({lat}, {lng})",
+      "aroundNoCoords": "Your hotel has no coordinates yet. They are read when we scan the Booking.com page of the hotel marked “Yours” in the <link>watchlist</link>. Meanwhile, search for the area by name.",
+      "aroundExists": "There is already an area around your hotel (“{name}”). Change its radius or segment below."
     },
     "area": {
-      "description": "{type} · Booking.com · {count, plural, one {# known hotel} other {# known hotels}}",
+      "known": "{count, plural, one {# known hotel} other {# known hotels}}",
+      "radius": "{km} km radius",
       "scanning": "Scanning",
       "paused": "Paused",
       "lastListScan": "Last list scan",
@@ -191,11 +242,12 @@
       "queued": "Added to the queue",
       "alreadyRunning": "A list scan is already running",
       "delete": "Delete area",
-      "deleteConfirm": "Delete the area {name}? Its list scan history will be deleted; hotel data is kept."
+      "deleteConfirm": "Delete the area {name}? Its list scan history will be deleted; hotel data is kept.",
+      "scopeChanged": "The new radius and segment apply from the next scan; nights already scanned keep their figures."
     },
-    "intro": "Scan every hotel in an area on Booking.com: every day at 03:00 we read the results pages for each night (hotels with rooms left, rates, review scores), and at 05:00 we run a detail scan of the most-reviewed hotels to estimate rooms left and occupancy for the whole area. The data appears in Terminal+ and Competitors › Explore the market.",
+    "intro": "Reads every property of an area on Booking.com (city, district, landmark or a radius around your hotel), filtered by segment. Each day at 03:00 it counts properties with rooms left, prices, and how many can still sell at least N rooms per night: that is how tight the market is on Booking.com, not occupancy. See it in Market and Competitors › Explore market.",
     "emptyTitle": "No market areas yet",
-    "emptyBody": "Add the city or district where your hotel operates to get market indicators for the whole area."
+    "emptyBody": "Add a district, a landmark or a radius around your hotel to get market indicators for the whole area."
   },
   "schedule": {
     "tzVietnam": "Vietnam time (GMT+7)",
@@ -248,14 +300,14 @@
     "uplift": "{value} expected demand",
     "deleteAria": "Delete {name}",
     "addTitle": "Add event",
-    "addInfo": "Events appear on the Terminal+ calendar next to public holidays. The demand uplift is your own estimate, shared so the whole team sees it; the system doesn't measure it.",
+    "addInfo": "Events show on the Rate calendar and Market next to holidays. The demand uplift is your own estimate for the whole team to see; the system doesn't measure it.",
     "listTitle": "Local events",
     "listDescription": "Festivals, conferences, tournaments, travel seasons… that affect room demand around your hotel.",
     "emptyTitle": "No events yet",
     "emptyBody": "Add local events (e.g. F1, fireworks festival, trade fair, peak season) to see them next to market data on the calendar.",
     "sourceMarkets": {
       "title": "Guest source markets",
-      "description": "Pick the countries your guests usually come from. Their holidays (Lunar New Year, Golden Week, Chuseok…) appear on the Terminal+ and Dashboard calendars and in price suggestions, next to Vietnamese holidays.",
+      "description": "Pick the countries your guests often come from. Their holidays (Lunar New Year, Golden Week, Chuseok…) show on the Rate calendar and Today, and count in price suggestions and alerts next to Vietnamese holidays.",
       "info": "Long holidays in a source market usually lift demand for Vietnam a few days before and during the break. Only the countries you pick are shown.",
       "none": "No market selected: calendars show Vietnamese holidays only.",
       "selected": "{count} markets selected",
@@ -324,13 +376,21 @@
         "describe": "When a competitor launches a promotion of <pct></pct> or more off the strikethrough price, for nights within the next <days></days> nights."
       },
       "own_position_drift": {
-        "title": "Your rate drifted from your target position",
-        "describe": "When your listed-price index is more than <pct></pct> away from your target position, for nights within the next <days></days> nights.",
-        "needsStrategy": "Off by default. Set a target position in <link>Price strategy</link> before turning it on."
+        "title": "Your rate drifted from your price position",
+        "describe": "When your listed-price index is more than <pct></pct> away from the price position you chose, for nights within the next <days></days> nights.",
+        "needsStrategy": "Off by default. Choose a price position in <link>Price strategy</link> before turning it on."
       },
       "own_closed": {
         "title": "You are sold out or closed to arrival on Booking.com",
         "describe": "When your hotel is sold out or not accepting arrivals that day on Booking.com, for a night within the next <days></days> nights."
+      },
+      "competitor_below_median": {
+        "title": "Competitor below the middle price",
+        "describe": "When a competitor has just cut its rate to <pct></pct> or <vnd></vnd> (0 = percentage only) below the competitors' middle price, for nights within the next <days></days> nights."
+      },
+      "competitor_above_median": {
+        "title": "Competitor above the middle price",
+        "describe": "When a competitor has just raised its rate to <pct></pct> or <vnd></vnd> (0 = percentage only) above the competitors' middle price, for nights within the next <days></days> nights."
       }
     },
     "param": {
@@ -341,32 +401,14 @@
       "minRise": "minimum increase",
       "minDepth": "minimum promotion depth",
       "minShare": "minimum share of competitors",
-      "maxGap": "maximum gap"
+      "maxGap": "maximum gap",
+      "minGap": "minimum gap (%)",
+      "minVnd": "minimum gap (VND)"
     },
-    "emailOff": "The email server isn't configured, so OTARadar can't send emails yet. Notifications are still logged under “Recently sent” below.",
-    "emailOffOperator": "Set SMTP_HOST, SMTP_FROM (and SMTP_USERNAME, SMTP_PASSWORD) for the jobs worker, then recreate the container.",
-    "emailOffTenant": "Contact the OTARadar operations team to turn it on.",
-    "rulesTitle": "What to send",
-    "rulesDescription": "Alerts are bundled into one message after each scan, only when changes match the conditions below. Applies to every channel.",
+    "rulesTitle": "What instant alerts report",
+    "rulesDescription": "Alerts are bundled into one message after each scan, only when changes match the level you pick. Applies to everyone with “Instant alerts” on.",
     "invalid": "Enter a whole number from {min} to {max}.",
     "saved": "Saved",
-    "recipients": {
-      "title": "Email recipients",
-      "description": "Each recipient gets a separate email and can't see the other addresses.",
-      "test": "Send test",
-      "emailAria": "Recipient email",
-      "emailPlaceholder": "owner@yourhotel.com",
-      "add": "Add recipient",
-      "errorTitle": "Couldn't complete that",
-      "emptyTitle": "No recipients yet",
-      "emptyBody": "Add the email of the hotel owner or revenue manager to receive competitor alerts and the morning brief.",
-      "removeAria": "Remove {email}"
-    },
-    "test": {
-      "sent": "Test email sent to {count, plural, one {# address} other {# addresses}}. Check the spam folder if it hasn't arrived.",
-      "notSent": "Couldn't send",
-      "notSentUnconfigured": "{reason}; the test email wasn't sent."
-    },
     "log": {
       "title": "Recently sent",
       "description": "Latest {count, plural, one {# notification} other {# notifications}}",
@@ -390,13 +432,13 @@
     },
     "channels": {
       "title": "Delivery channels",
-      "description": "Messages go out through the channels that are ready. Each person picks channels under “Subscriptions”.",
+      "description": "Technical status of each channel (operator only). Channels that aren't set up are hidden from hotels.",
       "on": "Ready",
       "off": "Not configured",
       "email": {
         "name": "Email",
-        "on": "Sent to the recipient list below and to email subscriptions.",
-        "off": "The email server (SMTP) is not configured."
+        "on": "Sends to the email recipients in “Who gets what”.",
+        "off": "Email server (SMTP_HOST, SMTP_FROM) is not configured for the worker."
       },
       "zalo": {
         "name": "Zalo ZNS",
@@ -406,70 +448,6 @@
       "webhook": {
         "name": "Webhook",
         "on": "Posts JSON to each subscription's https URL (Slack, Google Chat, Discord…)."
-      }
-    },
-    "subscriptions": {
-      "title": "Subscriptions",
-      "descriptionAdmin": "Each person picks channels, message types, quiet hours and a daily cap. You see everyone's subscriptions in this hotel.",
-      "descriptionViewer": "Choose the channel, message types and quiet hours that suit you. Only you see your subscriptions.",
-      "add": "Add subscription",
-      "emptyTitle": "No subscriptions yet",
-      "emptyBody": "Add your Zalo or email to get the right alerts at the right time.",
-      "mine": "Yours",
-      "owner": "User #{id}",
-      "ownerUnknown": "Hotel",
-      "allKinds": "All message types",
-      "quiet": "Quiet {start}–{end}",
-      "maxPerDay": "Up to {count} messages/day",
-      "overLimit": "extra ones are bundled into the next",
-      "paused": "Paused",
-      "toggleAria": "Turn subscription {target} on/off",
-      "editAria": "Edit subscription {target}",
-      "removeAria": "Delete subscription {target}",
-      "zaloNotReady": "Zalo is not configured, so Zalo messages can't be sent yet; the subscription is still saved.",
-      "form": {
-        "titleNew": "New subscription",
-        "titleEdit": "Edit subscription",
-        "channel": "Channel",
-        "target": {
-          "email": "Email",
-          "zalo": "Zalo phone number",
-          "webhook": "Webhook URL"
-        },
-        "placeholder": {
-          "email": "you@hotel.com",
-          "zalo": "0912 345 678",
-          "webhook": "https://hooks.slack.com/…"
-        },
-        "hint": {
-          "email": "",
-          "zalo": "A number that uses Zalo; messages come from the OTARadar OA.",
-          "webhook": "https:// only. For Slack, Google Chat, Discord…"
-        },
-        "kinds": "Message types",
-        "kindsHint": "Pick none to receive every type.",
-        "quietStart": "Quiet from",
-        "quietEnd": "to",
-        "quietHint": "Messages during quiet hours are bundled into the next one. Leave empty for no quiet hours.",
-        "maxPerDay": "Max messages/day",
-        "maxPerDayHint": "1–50, empty = no limit.",
-        "active": "Receiving",
-        "save": "Save subscription",
-        "cancel": "Cancel"
-      },
-      "kind": {
-        "alerts": "Alerts",
-        "daily_insight": "Morning brief",
-        "weekly_report": "Weekly report",
-        "data_stale": "Stale data"
-      },
-      "invalid": {
-        "email": "That email doesn't look right, e.g. you@hotel.com.",
-        "phone": "That Vietnamese phone number doesn't look right, e.g. 0912 345 678 or +84 912 345 678.",
-        "webhook": "The webhook URL must start with https:// and be a valid address.",
-        "quiet": "Enter both quiet-hour start and end (HH:MM), or leave both empty.",
-        "quietSame": "Quiet-hour start and end must differ.",
-        "maxPerDay": "Max messages per day must be a whole number from 1 to 50."
       }
     },
     "engagement": {
@@ -489,6 +467,89 @@
       "rate": "{pct} of sent",
       "emptyTitle": "No data yet",
       "emptyBody": "Once the first message goes out by email, Zalo or webhook, weekly sends, clicks and handled counts appear here."
+    },
+    "noChannel": "Your operator hasn't turned on message delivery yet; you can still see every alert in the bell 🔔",
+    "level": {
+      "label": "Alert level",
+      "low": "Few",
+      "medium": "Medium (default)",
+      "high": "Many",
+      "custom": "Custom",
+      "lowHint": "Only when a competitor sells out within the next 7 nights, when you sell out on Booking.com, and when data is stale.",
+      "mediumHint": "Same as “Few”, plus competitor sell-outs within 14 nights, competitor price cuts of 10% or more, and tight nights.",
+      "highHint": "Everything: also competitors running low, price rises, deep promotions, cheaper/pricier than the middle price, and your rate drifting from your price position.",
+      "customHint": "You've adjusted individual rules. Pick a level to go back to a preset.",
+      "saving": "Saving…",
+      "showCustom": "Customize each rule",
+      "hideCustom": "Hide rules"
+    },
+    "who": {
+      "title": "Who gets what",
+      "descriptionAdmin": "One row per recipient; switch on just the messages they need. Nothing is sent during quiet hours.",
+      "descriptionViewer": "The messages you receive. You can add your own email or phone number.",
+      "add": "Add recipient",
+      "person": "Recipient",
+      "kind": {
+        "alerts": "Instant alerts",
+        "daily_insight": "Morning brief",
+        "weekly_report": "Weekly report",
+        "data_stale": "Stale data"
+      },
+      "quiet": "Quiet hours",
+      "quietRange": "{start}–{end}",
+      "quietNone": "None",
+      "actions": "Actions",
+      "paused": "Off",
+      "blocked": "Can't deliver on this channel yet",
+      "blockedOperator": "Channel not configured",
+      "toggleAria": "{kind} for {target}",
+      "editAria": "Edit {target}",
+      "removeAria": "Remove {target}",
+      "removeConfirm": "Remove {target} from the recipients?",
+      "test": "Send test",
+      "testAria": "Send a test message to {target}",
+      "testSent": "Test message sent. Check the inbox (or Zalo) in a few minutes.",
+      "testNotSent": "The test message wasn't sent.",
+      "emptyTitle": "Nobody gets alerts yet",
+      "emptyBody": "Add the email or Zalo number of whoever needs to know when competitors sell out or change prices. Every alert still shows in the bell 🔔.",
+      "legend": "Instant alerts: after each scan with changes. Morning brief: what to do over the next 14 nights, plus the brief. Weekly report: Monday morning. Stale data: when Booking.com data is older than one scan cycle.",
+      "form": {
+        "channel": "Channel",
+        "channelName": {
+          "email": "Email",
+          "zalo": "Zalo",
+          "webhook": "Webhook"
+        },
+        "target": {
+          "any": "Email, Zalo number or webhook URL",
+          "email": "Email",
+          "zalo": "Zalo phone number",
+          "webhook": "Webhook URL (Slack, Google Chat…)"
+        },
+        "placeholder": {
+          "any": "name@yourhotel.com or 0912 345 678",
+          "email": "name@yourhotel.com",
+          "zalo": "0912 345 678",
+          "webhook": "https://hooks.slack.com/…"
+        },
+        "hint": "New recipients get every message, quiet {start}–{end}. Change it right in the table.",
+        "quietStart": "Quiet from",
+        "quietEnd": "to",
+        "quietHint": "Hotel time; may cross midnight (22:00–06:00). Leave both empty to receive at any time.",
+        "maxPerDay": "Max messages/day",
+        "maxPerDayNone": "No limit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "invalid": {
+          "email": "That email doesn't look right.",
+          "phone": "That Vietnamese phone number doesn't look right (e.g. 0912 345 678).",
+          "webhook": "The webhook URL must start with https://",
+          "channel": "This channel isn't on. Pick another one.",
+          "quiet": "Enter both the start and end time (HH:MM).",
+          "quietSame": "Start and end times must differ.",
+          "maxPerDay": "Max messages/day is a whole number from 1 to 50."
+        }
+      }
     }
   },
   "users": {
@@ -507,7 +568,26 @@
       "pickTenant": "Choose a tenant…",
       "submit": "Create user",
       "errorTitle": "Couldn't create the user",
-      "created": "Account {email} created. Send the password to the user through a separate channel."
+      "created": "Account {email} created. Send the password to the user through a separate channel.",
+      "passwordAria": "Password for the new user",
+      "generate": "Generate",
+      "generateTitle": "Generate a 12-character password and copy it",
+      "passwordCopied": "Password generated and copied. Send it to the user through a separate channel.",
+      "mode": "How to add",
+      "modeInvite": "Send invitation",
+      "modePassword": "Set password now",
+      "inviteHint": "They get a link to set their own password. It works for 72 hours.",
+      "submitInvite": "Send invitation"
+    },
+    "invite": {
+      "sent": "Invitation sent to {email}. The link works for 72 hours.",
+      "resent": "Invitation sent again to {email}. The previous link no longer works.",
+      "notConfigured": "The email couldn't be sent (your operator hasn't turned on email yet). Copy this link and send it to the user:",
+      "failed": "The email to {email} couldn't be sent. Copy this link and send it to the user:",
+      "linkAria": "Password link for {email}",
+      "copy": "Copy",
+      "copied": "Copied",
+      "expires": "Works once, until {when}."
     },
     "row": {
       "you": "(you)",
@@ -521,7 +601,13 @@
       "lockAccount": "Lock account",
       "unlockAccount": "Unlock account",
       "lock": "Lock",
-      "unlock": "Unlock"
+      "unlock": "Unlock",
+      "pending": "Invitation pending",
+      "pendingTitle": "Hasn't set a password yet. The link works until {when}.",
+      "pendingExpired": "The link has expired. Use Resend invitation.",
+      "resendInvite": "Resend invitation",
+      "lastLogin": "Signed in {when}",
+      "neverLoggedIn": "Never signed in"
     },
     "done": {
       "roleChanged": "Role changed",
@@ -539,6 +625,7 @@
     "colEmail": "Email",
     "colRole": "Role",
     "colStatus": "Status",
+    "colLastLogin": "Last sign-in",
     "colActions": "Actions"
   },
   "pms": {
@@ -548,62 +635,42 @@
       "error": "Error"
     },
     "result": {
-      "imported": "<strong>{ok, number}</strong> of <num>{total, number}</num> rows imported",
-      "failedRows": "{count, plural, one {# row} other {# rows}} with errors",
-      "note": "Imported occupancy now shows on Availability, in your hotel's row."
+      "imported": "<strong>{ok, number}</strong>/<num>{total, number}</num> rows.",
+      "failedRows": "{count, plural, one {# row} other {# rows}} failed",
+      "onCalendar": "Occupancy for {range} is now on the Rate calendar. <view>View</view>",
+      "onCalendarOtb": "Rooms booked (PMS) for {range} are now on the <view>Rate calendar</view> and in <pace>Booking pace</pace>."
     },
-    "stepSr": "Step {n}:",
     "dropzone": {
       "reading": "Reading file…",
       "change": "Click or drop another file to replace it",
       "dropHere": "Drop the file here",
       "pick": "Drag and drop or choose a CSV/Excel file",
-      "hint": "Daily occupancy export from your PMS: CSV, XLSX or XLS"
+      "hint": "Occupancy report, rooms booked per night or a booking list: CSV, XLSX, XLS"
     },
     "hotelAria": "Your hotel",
     "noSelfOption": "No hotel of your own yet",
     "import": {
-      "title": "Import occupancy from your PMS",
-      "description": "Upload an export from your PMS (ezCloud, Newway…) to put your actual occupancy next to competitors' rooms left on the Availability tab.",
-      "template": "Download CSV template"
-    },
-    "step1": {
-      "title": "Choose hotel and file",
-      "noSelf": "Add your own hotel (role “Your hotel”) in the <link>Hotels</link> tab before importing PMS data.",
-      "hotel": "Your hotel",
-      "hotelHint": "Imported data is linked to this hotel",
-      "file": "Data file",
-      "previewError": "Couldn't read the file"
-    },
-    "step2": {
-      "title": "Map columns",
-      "hint": "Pick the column in your file that matches each standard column ({mapped}/{total} mapped). The mapping is saved and reused for future imports.",
-      "hintEmpty": "Choose a file and we'll suggest the matching columns.",
-      "required": "Required",
-      "skip": "Skip"
-    },
-    "step3": {
-      "title": "Preview and import",
-      "hint": "First {count, plural, one {# row} other {# rows}} of the file · <b>{parsed, number}</b> rows readable with the saved mapping",
-      "hintEmpty": "Check the first few rows before importing.",
-      "previewErrors": "{count, plural, one {# error} other {# errors}} in a test read with the saved mapping",
-      "clickToView": "· click to view",
-      "submit": "Save mapping and import data",
-      "needStayDate": "Choose a column for {column}.",
-      "importInto": "Importing into {hotel}",
-      "importError": "Couldn't import"
+      "title": "Import PMS data",
+      "description": "Drop a file exported from your PMS (ezCloud, Newway…). The file type is detected from its column names; a few rows are read first, then you import.",
+      "template": {
+        "daily": "Download template",
+        "otb_report": "Download template",
+        "bookings": "Download template"
+      }
     },
     "history": {
       "title": "Import history",
       "description": "Last {count, plural, one {# import} other {# imports}}",
       "emptyTitle": "No files imported yet",
-      "emptyBody": "Import occupancy from your PMS so Availability shows your actual occupancy right below the rooms-left strip, next to competitors.",
+      "emptyBody": "Import a file from your PMS so the Rate calendar shows your real occupancy next to competitors.",
       "time": "Time",
       "file": "File",
       "hotel": "Hotel",
+      "importedBy": "Imported by",
       "status": "Status",
       "okRows": "Rows imported",
-      "errors": "Errors"
+      "errors": "Errors",
+      "kind": "Type"
     },
     "daily": {
       "title": "Imported occupancy",
@@ -611,7 +678,7 @@
       "noSelfTitle": "No hotel of your own yet",
       "noSelfBody": "Once you have a hotel with the role “Your hotel” and a PMS file has been imported, occupancy for each night shows here.",
       "noDataTitle": "No data for {hotel} yet",
-      "noDataWrite": "Import a file above; each row is one night with total rooms, rooms sold and revenue.",
+      "noDataWrite": "Drop a file above; each row is a night with total rooms, rooms sold and revenue.",
       "noDataRead": "Your admin hasn't imported PMS data for this hotel yet.",
       "stayDate": "Stay date",
       "roomsTotal": "Total rooms",
@@ -620,8 +687,58 @@
       "occupancy": "Occupancy",
       "adr": "ADR",
       "revenue": "Revenue",
-      "source": "Source",
       "importedAt": "Imported"
-    }
+    },
+    "noSelf": "Add your own hotel (role “Your hotel”) on the <link>Hotels & competitors</link> tab before importing PMS data.",
+    "hotel": "Your hotel",
+    "hotelHint": "Imported data is attached to this hotel",
+    "previewError": "Couldn't read the file",
+    "detected": "File type:",
+    "kindAria": "File type",
+    "detectedAuto": "detected from the column names; change it if wrong.",
+    "detectedChanged": "Detected as “{kind}”; you changed it.",
+    "kinds": {
+      "daily": {
+        "label": "Daily occupancy report",
+        "short": "Occupancy",
+        "body": "One row per night: total rooms, rooms sold, occupancy or revenue. Puts your real occupancy next to competitors on the Rate calendar."
+      },
+      "otb_report": {
+        "label": "Rooms booked per night",
+        "short": "Rooms booked",
+        "body": "One row per upcoming night: rooms booked, revenue, rooms available. Import once a day to see new bookings and booking pace."
+      },
+      "bookings": {
+        "label": "Booking list",
+        "short": "Bookings",
+        "body": "One row per booking: booking date, arrival, departure, rooms, revenue, status. Rooms booked are rebuilt for the past too."
+      }
+    },
+    "column": {
+      "stay_date": "stay date",
+      "rooms_otb": "rooms booked",
+      "arrival": "arrival",
+      "departure": "departure",
+      "booking_date": "booking date"
+    },
+    "missingColumns": "The file is missing: {columns}. Rename the columns as in the template, or pick another file type.",
+    "mapping": {
+      "title": "Column mapping",
+      "hint": "Pick the file column for each field. The mapping is saved and reused next time.",
+      "required": "Required",
+      "skip": "Skip",
+      "edit": "Edit column mapping"
+    },
+    "asOf": "Snapshot date",
+    "asOfHint": "Empty = today. Use it when re-importing an older day's report.",
+    "rooms": "Rooms available",
+    "roomsHint": "Optional: when the file has no rooms-available column.",
+    "invalidRooms": "Rooms available must be a whole number above 0.",
+    "previewHint": "First {count} rows of the file · <b>{parsed, number}</b> rows readable",
+    "previewErrors": "{count, plural, one {# row} other {# rows}} couldn't be read",
+    "clickToView": "· click to view",
+    "submit": "Import {count, plural, one {# row} other {# rows}}",
+    "importInto": "into {hotel}",
+    "importError": "Couldn't import"
   }
 }

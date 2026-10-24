@@ -2,15 +2,16 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Suspense } from "react";
-import { api, cellState, type HotelRow, type OverviewOut } from "@/lib/api";
+import { Suspense, useState } from "react";
+import { api, cellState, type HotelEventsSummaryOut, type HotelRow, type OverviewOut } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { dateRange, num, useFmt } from "@/lib/format";
 import { useDataFreshness } from "@/lib/freshness";
-import { HOTEL_LINE_COLORS, OWN_LINE_COLOR, bookablePrice, cellOn, distanceKm, rowName, selfRow } from "@/lib/market-metrics";
+import { HOTEL_LINE_COLORS, OWN_LINE_COLOR, cellOn, distanceKm, lastPrice, rowName, selfRow } from "@/lib/market-metrics";
+import { usePlaceName } from "@/lib/place-names";
 import { roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
-import { ButtonLink, EmptyState, ErrorBox, SkeletonBlock, cx } from "@/components/ui";
+import { Button, EmptyState, ErrorBox, SkeletonBlock, cx } from "@/components/ui";
 import { PageStrip } from "@/components/page-strip";
 import { DateRangePicker, useDateRange } from "@/components/date-range";
 import { DataUpdated } from "@/components/freshness";
@@ -19,6 +20,8 @@ import { ListingChips } from "@/components/listing-chip";
 import { roomsShade, useMarks } from "@/components/marks";
 import { Sparkline } from "@/components/trend-chart";
 import { ScanHotelButton } from "@/components/scan-hotel-button";
+import { ChangeSummaryLine } from "@/components/change-summary";
+import { AddHotelDialog } from "@/components/add-hotel-dialog";
 import { COMPETITOR_TABS, SubTabs } from "@/components/sub-tabs";
 import { IconBuilding, IconChevronRight, IconPlus, IconStar } from "@/components/icons";
 import { ReputationCard, VisibilityCard } from "./reputation-cards";
@@ -30,6 +33,23 @@ import { ReputationCard, VisibilityCard } from "./reputation-cards";
  */
 
 const DEFAULT_DAYS = 14;
+/** Cửa sổ dòng "7 ngày qua" trên mỗi thẻ. */
+const SUMMARY_DAYS = 7;
+
+type Last = { value: number; stale: boolean } | null;
+
+/** Giá cuối đọc được: số cũ (>48 giờ) chữ nhạt kèm "(cũ)", không thay bằng "—". */
+function LastValue({ text, stale, className }: { text: string; stale: boolean; className?: string }) {
+  const t = useTranslations("competitors.card");
+  return (
+    <>
+      <dd className={cx("mt-0.5 text-base font-bold tabular", stale ? "text-muted" : className)} title={stale ? t("staleValueTitle") : undefined}>
+        {text}
+      </dd>
+      {stale && <dd className="text-2xs font-semibold text-muted">{t("staleShort")}</dd>}
+    </>
+  );
+}
 
 function RoomsBadge({ row, date }: { row: HotelRow; date: string }) {
   const t = useTranslations("competitors.rooms");
@@ -56,21 +76,42 @@ function RoomsBadge({ row, date }: { row: HotelRow; date: string }) {
   );
 }
 
-function HotelCard({ row, o, color, ownPrice, km, isToday }: { row: HotelRow; o: OverviewOut; color: string; ownPrice: number | null; km: number | null; isToday: boolean }) {
+function HotelCard({
+  row,
+  o,
+  color,
+  own,
+  km,
+  isToday,
+  summary,
+  stale,
+}: {
+  row: HotelRow;
+  o: OverviewOut;
+  color: string;
+  own: Last;
+  km: number | null;
+  isToday: boolean;
+  summary: HotelEventsSummaryOut | undefined;
+  stale: boolean;
+}) {
   const t = useTranslations("competitors.card");
   const { fmtAgo, fmtMoney, fmtNight, fmtNum, fmtPct } = useFmt();
   const { promoText } = useMarks();
+  const place = usePlaceName();
   const self = row.role === "self";
   const c = cellOn(row, o.start);
-  const price = bookablePrice(c);
+  const last = lastPrice(c);
   // Đêm hạn chế số đêm vẫn có giá (giá/đêm khi ở từ N đêm): hiện kèm ghi chú, không so với giá 1 đêm.
-  const restrictedPrice = price === null && cellState(c) === "restricted" ? num(c?.min_price) : null;
+  const restrictedPrice = last === null && cellState(c) === "restricted" ? num(c?.min_price) : null;
   const promo = promoText(c);
-  const vsOwn = !self && price !== null && ownPrice ? ((price - ownPrice) / ownPrice) * 100 : null;
+  const vsOwn = !self && last && own && own.value > 0 ? ((last.value - own.value) / own.value) * 100 : null;
+  const vsStale = !!(last?.stale || own?.stale);
   const change7 = num(c?.price_change_7d_pct);
   const stars = num(row.hotel.star_rating);
   const nights = dateRange(o.start, o.end);
-  const spark = nights.map((d) => bookablePrice(cellOn(row, d)));
+  const spark = nights.map((d) => lastPrice(cellOn(row, d))?.value ?? null);
+  const city = place(row.hotel.city);
   return (
     <article className={cx("flex min-w-0 flex-col rounded-[10px] border bg-surface p-5 shadow-card", self ? "border-brand/40 ring-1 ring-brand/20" : "border-line")}>
       <header className="flex items-start justify-between gap-3">
@@ -91,7 +132,7 @@ function HotelCard({ row, o, color, ownPrice, km, isToday }: { row: HotelRow; o:
               </span>
             )}
             {km !== null && <span className="font-medium text-body">{t("distance", { km: fmtNum(km, 1) })}</span>}
-            {row.hotel.city && <span className="truncate">{row.hotel.city}</span>}
+            {city && <span className="truncate">{city}</span>}
           </div>
           {(row.hotel.rooms_total || row.hotel.booking_rooms_max_seen) && (
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
@@ -107,18 +148,20 @@ function HotelCard({ row, o, color, ownPrice, km, isToday }: { row: HotelRow; o:
       <dl className="mt-4 grid grid-cols-3 gap-3 border-y border-line py-3 text-center">
         <div>
           <dt className="text-[11px] font-semibold uppercase tracking-[0.04em] text-faint">{isToday ? t("tonightRate") : t("nightRate", { night: fmtNight(o.start) })}</dt>
-          <dd className={cx("mt-0.5 text-base font-bold tabular", self ? "text-brand" : "text-ink")}>
-            {price !== null ? fmtMoney(price, c?.currency) : restrictedPrice !== null ? fmtMoney(restrictedPrice, c?.currency) : "—"}
-          </dd>
+          {last ? (
+            <LastValue text={fmtMoney(last.value, c?.currency)} stale={last.stale} className={self ? "text-brand" : "text-ink"} />
+          ) : (
+            <dd className={cx("mt-0.5 text-base font-bold tabular", self ? "text-brand" : "text-ink", restrictedPrice === null && "text-faint")}>
+              {restrictedPrice !== null ? fmtMoney(restrictedPrice, c?.currency) : "—"}
+            </dd>
+          )}
           {restrictedPrice !== null && <dd className="text-2xs text-warning-deep">{t("minStayPrice", { count: c?.min_stay ?? 2 })}</dd>}
         </div>
         <div>
           <dt className="text-[11px] font-semibold uppercase tracking-[0.04em] text-faint" title={t("vsYoursTitle")}>
             {t("vsYours")}
           </dt>
-          <dd className={cx("mt-0.5 text-base font-bold tabular", vsOwn === null ? "text-faint" : "text-ink")}>
-            {vsOwn === null ? "—" : fmtPct(vsOwn, { signed: true, digits: 0 })}
-          </dd>
+          {vsOwn === null ? <dd className="mt-0.5 text-base font-bold text-faint">—</dd> : <LastValue text={fmtPct(vsOwn, { signed: true, digits: 0 })} stale={vsStale} className="text-ink" />}
         </div>
         <div>
           <dt className="text-[11px] font-semibold uppercase tracking-[0.04em] text-faint">{t("change7d")}</dt>
@@ -142,6 +185,7 @@ function HotelCard({ row, o, color, ownPrice, km, isToday }: { row: HotelRow; o:
           )}
         </div>
       )}
+      <ChangeSummaryLine summary={summary} days={SUMMARY_DAYS} stale={stale} className="mt-3 text-[13px] leading-snug" />
       <div className="mt-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-faint">{t("nextNights", { count: nights.length })}</div>
         <Sparkline values={spark} color={color} />
@@ -161,11 +205,14 @@ function CompetitorsView() {
   const { start, end, today, ready } = useDateRange(DEFAULT_DAYS);
   const { canWrite } = useSession();
   const t = useTranslations("competitors.page");
+  const [adding, setAdding] = useState(false);
   const overview = useApi(ready ? `comp:${start}:${end}` : null, () => api.overview({ start, end }));
+  const summaries = useApi(`events:summary:${SUMMARY_DAYS}`, () => api.eventsSummary({ days: SUMMARY_DAYS }));
+  const summaryOf = new Map((summaries.data ?? []).map((s) => [s.hotel_id, s]));
   const o = overview.data;
   const fresh = useDataFreshness();
   const rows = o ? [...o.hotels].sort((a, b) => (a.role === "self" ? -1 : b.role === "self" ? 1 : 0)) : [];
-  const ownPrice = o ? bookablePrice(cellOn(selfRow(o), o.start)) : null;
+  const own = o ? lastPrice(cellOn(selfRow(o), o.start)) : null;
   const selfHotel = o ? (selfRow(o)?.hotel ?? null) : null;
   // Màu cố định theo thứ tự, khớp với biểu đồ ở tab Giá.
   const colors = rows.map((r, i) => (r.role === "self" ? OWN_LINE_COLOR : HOTEL_LINE_COLORS[(rows[0]?.role === "self" ? i - 1 : i) % HOTEL_LINE_COLORS.length]));
@@ -188,13 +235,14 @@ function CompetitorsView() {
           <>
             <DateRangePicker defaultDays={DEFAULT_DAYS} />
             {canWrite && (
-              <ButtonLink href="/settings?tab=watchlist" variant="primary" size="sm" icon={<IconPlus size={15} />}>
+              <Button variant="primary" size="sm" icon={<IconPlus size={15} />} onClick={() => setAdding(true)}>
                 {t("addHotel")}
-              </ButtonLink>
+              </Button>
             )}
           </>
         }
       />
+      {canWrite && <AddHotelDialog open={adding} onClose={() => setAdding(false)} onAdded={() => { overview.reload(); summaries.reload(); }} hasSelf={!o || !!selfHotel} />}
       <ErrorBox error={overview.error} className="mb-4" />
       {!o && !overview.error && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -204,7 +252,18 @@ function CompetitorsView() {
         </div>
       )}
       {o && o.hotels.length === 0 && (
-        <EmptyState icon={<IconBuilding />} title={t("emptyTitle")} className="border border-line bg-surface">
+        <EmptyState
+          icon={<IconBuilding />}
+          title={t("emptyTitle")}
+          className="border border-line bg-surface"
+          action={
+            canWrite ? (
+              <Button variant="primary" size="sm" icon={<IconPlus size={15} />} onClick={() => setAdding(true)}>
+                {t("addHotel")}
+              </Button>
+            ) : undefined
+          }
+        >
           {t("emptyBody")}
         </EmptyState>
       )}
@@ -212,7 +271,17 @@ function CompetitorsView() {
         <>
           <div className={cx("grid gap-4 transition-opacity md:grid-cols-2 xl:grid-cols-3", overview.loading && "opacity-60")}>
             {rows.map((r, i) => (
-              <HotelCard key={r.hotel.id} row={r} o={o} ownPrice={ownPrice} color={colors[i]} isToday={o.start === today} km={r.role === "self" || !selfHotel ? null : distanceKm(selfHotel, r.hotel)} />
+              <HotelCard
+                key={r.hotel.id}
+                row={r}
+                o={o}
+                own={own}
+                color={colors[i]}
+                isToday={o.start === today}
+                km={r.role === "self" || !selfHotel ? null : distanceKm(selfHotel, r.hotel)}
+                summary={summaryOf.get(r.hotel.id)}
+                stale={fresh.stale}
+              />
             ))}
           </div>
           <p className="mt-3 text-xs text-muted">{t("signLegend")}</p>

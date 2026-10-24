@@ -12,6 +12,9 @@
   "userNotFound": "Không tìm thấy người dùng",
   "selfLock": "Không thể tự khoá hoặc tự đổi vai trò tài khoản đang đăng nhập",
   "lastOperator": "Không thể khoá hoặc hạ vai trò operator đang hoạt động cuối cùng",
+  "inviteInvalid": "Liên kết đặt mật khẩu không đúng hoặc đã được dùng. Nhờ quản trị khách sạn gửi lại lời mời.",
+  "inviteExpired": "Liên kết đặt mật khẩu đã hết hạn (dùng được 72 giờ). Nhờ quản trị khách sạn gửi lại lời mời.",
+  "inviteAccepted": "Người này đã tự đặt mật khẩu, không cần mời lại",
   "tenantNotFound": "Không tìm thấy tenant",
   "unknownTimezone": "Múi giờ không hợp lệ: {value} (ví dụ đúng: Asia/Ho_Chi_Minh)",
   "badTime": "Giờ không hợp lệ: {value} (định dạng HH:MM)",
@@ -77,6 +80,9 @@
   "suggestionGone": "Gợi ý cho đêm này không còn nữa, tải lại trang",
   "eventNotFound": "Không tìm thấy sự kiện",
   "marketAreaNotFound": "Không tìm thấy khu vực thị trường",
+  "selfNoCoordinates": "Khách sạn của bạn chưa có toạ độ",
+  "latlongNeedsRadius": "Khu vực quanh một điểm phải có bán kính 1, 3 hoặc 5 km",
+  "destIdRequired": "Thiếu mã khu vực Booking.com",
   "eventTooLong": "Sự kiện dài tối đa {max} ngày",
   "recipientsMax": "Tối đa {max} người nhận",
   "recipientExists": "Người nhận này đã có trong danh sách",
@@ -149,6 +155,8 @@
     "applied_price": "Giá đã đặt",
     "as_of_date": "Ngày chụp",
     "rooms_otb": "Phòng đã đặt",
-    "source_markets": "Thị trường nguồn"
+    "source_markets": "Thị trường nguồn",
+    "radius_m": "Bán kính",
+    "segment_nflt": "Phân khúc"
   }
 }

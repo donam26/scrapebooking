@@ -36,7 +36,6 @@ from app.db.models import (
     Listing,
     Notification,
     NotificationDelivery,
-    NotificationRecipient,
     NotificationRule,
     NotificationSubscription,
     Probe,
@@ -47,11 +46,13 @@ from app.db.models import (
 )
 from app.holidays.data import holidays_between
 from app.i18n import DEFAULT_LOCALE, normalize_locale, t
+from app.insight.service import placeholder_clause
 from app.logging import get_logger
 from app.notify.alert_rules import AlertItem, EventFact, NightMarket, evaluate_alerts
 from app.notify.channels import Message, Notifier, build_notifiers
 from app.notify.email_sender import EmailSender
 from app.notify.kinds import ALERT_KINDS, NotificationKind, RuleConfig, effective_rules
+from app.notify.morning import ACTION_NIGHTS, MorningAction, build_morning_actions
 from app.notify.render import (
     Email,
     render_alerts,
@@ -204,17 +205,6 @@ class NotificationService:
             )
         )
         return effective_rules({r[0]: (r[1], r[2]) for r in rows})
-
-    async def recipients(self, tenant_id: int) -> list[str]:
-        rows = await self._s.execute(
-            select(NotificationRecipient.email)
-            .where(
-                NotificationRecipient.tenant_id == tenant_id,
-                NotificationRecipient.active.is_(True),
-            )
-            .order_by(NotificationRecipient.id)
-        )
-        return [r[0] for r in rows]
 
     # ---- outbox ---------------------------------------------------------------
 
@@ -376,19 +366,19 @@ class NotificationService:
             )
         )
 
-    async def _deliver(self, row: Notification, now: datetime) -> None:
-        """Gửi tới mọi người nhận của kênh của dòng outbox và đặt trạng thái cuối."""
+    async def _deliver(
+        self, row: Notification, now: datetime, only: NotificationSubscription | None = None
+    ) -> None:
+        """Gửi tới mọi người đăng ký kênh của dòng outbox (hoặc chỉ `only`, cho "Gửi thử" một
+        hàng) và đặt trạng thái cuối."""
         if row.channel != "email":
-            await self._deliver_channel(row, now)
+            await self._deliver_channel(row, now, only)
             return
-        legacy = await self.recipients(row.tenant_id)
-        subs = await self._subscriptions(row.tenant_id, "email", row.kind)
+        subs = [only] if only else await self._subscriptions(row.tenant_id, "email", row.kind)
         if not self._sender.configured:
             row.status, row.detail = "skipped", SKIP_NOT_CONFIGURED
             return
         targets: dict[str, tuple[str, NotificationSubscription | None]] = {}
-        for addr in legacy:
-            targets.setdefault(addr.lower(), (addr, None))
         for s_ in subs:
             targets.setdefault(s_.target.lower(), (s_.target, s_))
         if not targets:
@@ -429,12 +419,14 @@ class NotificationService:
         else:
             row.status, row.detail = "skipped", "quiet_or_limit"
 
-    async def _deliver_channel(self, row: Notification, now: datetime) -> None:
+    async def _deliver_channel(
+        self, row: Notification, now: datetime, only: NotificationSubscription | None = None
+    ) -> None:
         notifier = self._notifiers.get(row.channel)
         if notifier is None or not notifier.configured:
             row.status, row.detail = "skipped", f"{row.channel}_not_configured"
             return
-        subs = await self._subscriptions(row.tenant_id, row.channel, row.kind)
+        subs = [only] if only else await self._subscriptions(row.tenant_id, row.channel, row.kind)
         if not subs:
             row.status, row.detail = "skipped", SKIP_NO_RECIPIENTS
             return
@@ -677,6 +669,7 @@ class NotificationService:
                 c.price_index,
                 c.sample,
                 c.competitors_priced,
+                c.median_price,
             )
             for c in await compset_by_day(
                 self._s,
@@ -747,11 +740,41 @@ class NotificationService:
         if not rule.active or not output:
             await self._skip(tenant.id, kind, key, SKIP_DISABLED, now, insight_id=insight_id)
             return 0
+        actions, total = await self._morning_actions(tenant, now)
         email = render_insight(
-            tenant.name, insight_id, period_start, output, self._base_url, tenant.language
+            tenant.name,
+            insight_id,
+            period_start,
+            output,
+            self._base_url,
+            tenant.language,
+            actions=actions,
+            more=max(0, total - len(actions)),
+            today=tenant_today(tenant, now),
         )
         row = await self._send(tenant.id, kind, key, email, now, insight_id=insight_id)
         return int(row is not None and row.status == "sent")
+
+    async def _morning_actions(
+        self, tenant: TenantInfo, now: datetime
+    ) -> tuple[list[MorningAction], int]:
+        """Việc cần làm của Hôm nay cho bản tin sáng. Dữ liệu cũ (quá một chu kỳ quét) thì không
+        đưa việc nào, như dashboard. Lỗi khi tính chỉ bỏ phần việc, vẫn gửi bản tin."""
+        from app.market.pace_report import build_pace_report
+
+        try:
+            if (await self._stale_channels(tenant, now))[0]:
+                return [], 0
+            today = tenant_today(tenant, now)
+            end = today + timedelta(days=ACTION_NIGHTS - 1)
+            report = await build_pace_report(self._s, tenant.id, today, end, today, tenant.language)
+            days = await compset_by_day(self._s, tenant.id, today, end, now=now)
+            return build_morning_actions(
+                report.nights, days, today, report.own_hotel_id, tenant.language
+            )
+        except Exception:  # noqa: BLE001
+            log.exception("morning_actions_failed", tenant_id=tenant.id)
+            return [], 0
 
     async def dispatch_insights(self, now: datetime) -> int:
         rows = await self._s.execute(
@@ -762,6 +785,8 @@ class NotificationService:
                 Insight.status == "completed",
                 Insight.generated_at >= now - INSIGHT_LOOKBACK,
                 Tenant.active.is_(True),
+                # Bản tin giả (thiếu khoá AI) không gửi cho khách sạn.
+                ~placeholder_clause(),
             )
             .order_by(Insight.id)
         )
@@ -893,15 +918,10 @@ class NotificationService:
             )
         return n
 
-    async def _stale_unit(self, tenant: TenantInfo, now: datetime) -> int:
-        """Báo khách sạn khi dữ liệu một kênh đang quét cũ hơn một chu kỳ (0.7, 3.5): tối đa một
-        tin mỗi ngày mỗi tenant."""
-        key = f"stale:{tenant.id}:{tenant_today(tenant, now).isoformat()}"
-        if await self._exists(key):
-            return 0
-        rule = (await self.rules(tenant.id))[NotificationKind.DATA_STALE]
-        if not rule.active:
-            return 0
+    async def _stale_channels(
+        self, tenant: TenantInfo, now: datetime
+    ) -> tuple[list[str], datetime | None]:
+        """Kênh đang quét có dữ liệu cũ hơn một chu kỳ quét, và lần thành công cũ nhất trong đó."""
         row = await self._s.get(Tenant, tenant.id)
         hours = stale_after_hours(list(row.scan_times) if row else [])
         ids = [
@@ -913,7 +933,7 @@ class NotificationService:
             )
         ]
         if not ids:
-            return 0
+            return [], None
         channels = {
             c
             for (c,) in await self._s.execute(
@@ -923,14 +943,26 @@ class NotificationService:
             )
         }
         if not channels:
-            return 0
+            return [], None
         last = await channel_last_success(self._s, ids, since=now - timedelta(days=30))
         limit = now - timedelta(hours=hours)
         # Kênh chưa từng có dữ liệu (listing mới, đang chờ lượt quét đầu) không phải "dữ liệu cũ".
         stale = sorted(c for c in channels if c in last and last[c] < limit)
+        since = min((last[c] for c in stale), default=None)
+        return stale, since
+
+    async def _stale_unit(self, tenant: TenantInfo, now: datetime) -> int:
+        """Báo khách sạn khi dữ liệu một kênh đang quét cũ hơn một chu kỳ (0.7, 3.5): tối đa một
+        tin mỗi ngày mỗi tenant."""
+        key = f"stale:{tenant.id}:{tenant_today(tenant, now).isoformat()}"
+        if await self._exists(key):
+            return 0
+        rule = (await self.rules(tenant.id))[NotificationKind.DATA_STALE]
+        if not rule.active:
+            return 0
+        stale, since = await self._stale_channels(tenant, now)
         if not stale:
             return 0
-        since = min((last[c] for c in stale if c in last), default=None)
         email = render_stale(
             tenant.name,
             stale,
@@ -962,11 +994,37 @@ class NotificationService:
     async def send_test(self, tenant: Tenant, now: datetime | None = None) -> Notification:
         """Email thử tới mọi người nhận; tối đa một lần mỗi TEST_COOLDOWN cho mỗi tenant."""
         now = now or datetime.now(tz=UTC)
+        await self._test_cooldown(tenant.id)
+        key = f"{ROW_TEST}:{tenant.id}:{now.strftime('%Y%m%d%H%M%S%f')}"
+        email = render_test(tenant.name, self._base_url, normalize_locale(tenant.insight_language))
+        row = await self._send(tenant.id, ROW_TEST, key, email, now)
+        if row is None:
+            raise TestTooSoon
+        return row
+
+    async def send_test_to(
+        self, tenant: Tenant, sub: NotificationSubscription, now: datetime | None = None
+    ) -> Notification:
+        """Tin thử tới một hàng của "Ai nhận gì" (một người nhận, đúng kênh của hàng đó); dùng
+        chung giới hạn một tin thử mỗi TEST_COOLDOWN cho mỗi tenant."""
+        now = now or datetime.now(tz=UTC)
+        await self._test_cooldown(tenant.id)
+        key = f"{ROW_TEST}:{tenant.id}:{sub.id}:{now.strftime('%Y%m%d%H%M%S%f')}"[:128]
+        email = render_test(tenant.name, self._base_url, normalize_locale(tenant.insight_language))
+        row = await self._claim(tenant.id, ROW_TEST, key, email, now, channel=sub.channel)
+        if row is None:
+            raise TestTooSoon
+        await self._s.commit()
+        await self._deliver(row, now, only=sub)
+        await self._s.commit()
+        return row
+
+    async def _test_cooldown(self, tenant_id: int) -> None:
         recent = (
             await self._s.execute(
                 select(
                     exists().where(
-                        Notification.tenant_id == tenant.id,
+                        Notification.tenant_id == tenant_id,
                         Notification.kind == ROW_TEST,
                         Notification.created_at > func.now() - TEST_COOLDOWN,
                     )
@@ -975,12 +1033,6 @@ class NotificationService:
         ).scalar()
         if recent:
             raise TestTooSoon
-        key = f"{ROW_TEST}:{tenant.id}:{now.strftime('%Y%m%d%H%M%S%f')}"
-        email = render_test(tenant.name, self._base_url, normalize_locale(tenant.insight_language))
-        row = await self._send(tenant.id, ROW_TEST, key, email, now)
-        if row is None:
-            raise TestTooSoon
-        return row
 
     async def _exists(self, key: str) -> bool:
         return bool(

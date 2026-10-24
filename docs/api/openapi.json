@@ -46,6 +46,41 @@
     }
    }
   },
+  "/auth/set-password": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Set Password",
+    "description": "Công khai: người được mời đặt mật khẩu bằng token trong link (dùng một lần, 72 giờ).\nKhông tự đăng nhập; trang /set-password chuyển về /login.",
+    "operationId": "set_password_auth_set_password_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetPasswordRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/auth/logout": {
    "post": {
     "tags": [
@@ -347,6 +382,118 @@
     }
    }
   },
+  "/settings/setup": {
+   "get": {
+    "tags": [
+     "tenants"
+    ],
+    "summary": "Get Setup",
+    "description": "Thẻ \"Thiết lập 5 bước\" trên Hôm nay: bước nào đã xong, đã ẩn chưa, nhóm đối thủ có cân về\ngiá không (Q4).",
+    "operationId": "get_setup_settings_setup_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "tenants"
+    ],
+    "summary": "Update Setup",
+    "description": "\"Ẩn\" thẻ thiết lập (lưu ở tenant, mọi người dùng của tenant cùng thấy) hoặc hiện lại.",
+    "operationId": "update_setup_settings_setup_put",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetupUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/users": {
    "get": {
     "tags": [
@@ -394,6 +541,91 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/users/invite": {
+   "post": {
+    "tags": [
+     "tenants"
+    ],
+    "summary": "Invite User",
+    "description": "Thêm người bằng lời mời: tài khoản có mật khẩu không dùng được cho tới khi họ tự đặt.",
+    "operationId": "invite_user_users_invite_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserInvite"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/users/{user_id}/invite": {
+   "post": {
+    "tags": [
+     "tenants"
+    ],
+    "summary": "Resend Invite",
+    "description": "Gửi lại lời mời cho người chưa đặt mật khẩu; link trước đó hết hiệu lực.",
+    "operationId": "resend_invite_users__user_id__invite_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteOut"
         }
        }
       }
@@ -594,7 +826,7 @@
      "watchlist"
     ],
     "summary": "Compset Review",
-    "description": "Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (7.3).",
+    "description": "Rà soát compset của một khách sạn của bạn theo quy tắc CoStar STR (7.3), kèm \"nhóm đối thủ\ncó cân về giá không\" (Q4: giá giữa đối thủ ≥1,6 lần giá bạn → `pricier_compset`).",
     "operationId": "compset_review_watchlist_compset_review_get",
     "parameters": [
      {
@@ -1664,6 +1896,90 @@
     }
    }
   },
+  "/events/summary": {
+   "get": {
+    "tags": [
+     "data"
+    ],
+    "summary": "Events Summary",
+    "description": "Tóm tắt \"N ngày qua\" theo từng khách sạn đang theo dõi (audit F1): đêm tăng/giảm giá, đêm\nhết phòng, có phòng lại, khuyến mãi, hạn chế, giảm phòng đáng kể. Đếm theo đêm.",
+    "operationId": "events_summary_events_summary_get",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 30,
+       "minimum": 1,
+       "default": 7,
+       "title": "Days"
+      }
+     },
+     {
+      "name": "hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/HotelEventsSummaryOut"
+         },
+         "title": "Response Events Summary Events Summary Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/runs": {
    "get": {
     "tags": [
@@ -1869,6 +2185,7 @@
      "insights"
     ],
     "summary": "Get Insight",
+    "description": "Tenant vẫn đọc được bản lỗi/giả theo id (để màn hình đang chờ biết là đã dừng), nhưng chỉ\nthấy trạng thái \"failed\", không thấy lỗi nội bộ hay nội dung giả.",
     "operationId": "get_insight_insights__insight_id__get",
     "parameters": [
      {
@@ -2152,6 +2469,7 @@
      "pms"
     ],
     "summary": "Preview",
+    "description": "Đọc tệp, tự nhận loại (công suất / phòng đã đặt / danh sách đặt phòng) theo cột, rồi đọc thử\ntheo loại `kind` (người dùng đổi) hoặc loại tự nhận. Không ghi gì.",
     "operationId": "preview_pms_preview_post",
     "parameters": [
      {
@@ -2455,120 +2773,6 @@
         }
        }
       }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/notifications/recipients": {
-   "post": {
-    "tags": [
-     "notifications"
-    ],
-    "summary": "Add Recipient",
-    "operationId": "add_recipient_notifications_recipients_post",
-    "parameters": [
-     {
-      "name": "tenant_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "integer"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "description": "Operator: tenant cần xem",
-       "title": "Tenant Id"
-      },
-      "description": "Operator: tenant cần xem"
-     }
-    ],
-    "requestBody": {
-     "required": true,
-     "content": {
-      "application/json": {
-       "schema": {
-        "$ref": "#/components/schemas/RecipientCreate"
-       }
-      }
-     }
-    },
-    "responses": {
-     "201": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/RecipientOut"
-        }
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/notifications/recipients/{recipient_id}": {
-   "delete": {
-    "tags": [
-     "notifications"
-    ],
-    "summary": "Remove Recipient",
-    "operationId": "remove_recipient_notifications_recipients__recipient_id__delete",
-    "parameters": [
-     {
-      "name": "recipient_id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "integer",
-       "title": "Recipient Id"
-      }
-     },
-     {
-      "name": "tenant_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "integer"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "description": "Operator: tenant cần xem",
-       "title": "Tenant Id"
-      },
-      "description": "Operator: tenant cần xem"
-     }
-    ],
-    "responses": {
-     "204": {
-      "description": "Successful Response"
      },
      "422": {
       "description": "Validation Error",
@@ -2992,6 +3196,67 @@
     "responses": {
      "204": {
       "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/notifications/subscriptions/{sub_id}/test": {
+   "post": {
+    "tags": [
+     "notifications"
+    ],
+    "summary": "Test Subscription",
+    "description": "\"Gửi thử\" một hàng của \"Ai nhận gì\": chỉ tới người nhận đó, đúng kênh của hàng.",
+    "operationId": "test_subscription_notifications_subscriptions__sub_id__test_post",
+    "parameters": [
+     {
+      "name": "sub_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Sub Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/NotificationLogOut"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -3597,6 +3862,118 @@
       "description": "Operator: tenant cần xem"
      }
     ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MarketPaceOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/pace/preview": {
+   "post": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Preview Pace",
+    "description": "Xem trước gợi ý giá với chiến lược nháp `body` (không lưu), tối đa 14 đêm từ `start`\n(mặc định hôm nay). Gợi ý tính như khi chiến lược đã lưu.",
+    "operationId": "preview_pace_market_pace_preview_post",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "own_hotel_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Own Hotel Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StrategyIn"
+       }
+      }
+     }
+    },
     "responses": {
      "200": {
       "description": "Successful Response",
@@ -4277,7 +4654,7 @@
      "market"
     ],
     "summary": "Get Strategy",
-    "description": "Chiến lược giá của khách sạn của bạn (6.1); chưa đặt thì trả mặc định (định vị 100).",
+    "description": "Chiến lược giá của khách sạn của bạn (6.1). Chưa đặt thì trả mặc định (định vị 100) kèm\n`typical_index`: mức giá thường của bạn mà gợi ý đang dùng (cùng cách tính với /pace); đã lưu\n\"giữ như hiện nay\" (`follow_typical`) cũng trả mức thường hôm nay.",
     "operationId": "get_strategy_market_strategy_get",
     "parameters": [
      {
@@ -4636,6 +5013,58 @@
           "$ref": "#/components/schemas/DestinationOut"
          },
          "title": "Response Search Destinations Market Areas Search Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/areas/self-location": {
+   "get": {
+    "tags": [
+     "market-city"
+    ],
+    "summary": "Self Location",
+    "description": "Toạ độ khách sạn \"của bạn\": tâm cho khu vực bán kính (\"quanh khách sạn của bạn\").",
+    "operationId": "self_location_market_areas_self_location_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SelfLocationOut"
         }
        }
       }
@@ -5019,6 +5448,105 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/MarketCityOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/market/city/trend": {
+   "get": {
+    "tags": [
+     "market-city"
+    ],
+    "summary": "Market City Trend",
+    "description": "Mỗi đêm của một dải: số còn phòng, tỉ lệ hết phòng, thang, mức căng, sàn phòng còn, trung vị\ngiá — từ lượt quét tốt nhất của từng đêm.",
+    "operationId": "market_city_trend_market_city_trend_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Đêm đầu (mặc định hôm nay)",
+       "title": "Start"
+      },
+      "description": "Đêm đầu (mặc định hôm nay)"
+     },
+     {
+      "name": "nights",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 30,
+       "minimum": 1,
+       "default": 14,
+       "title": "Nights"
+      }
+     },
+     {
+      "name": "area_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Area Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Operator: tenant cần xem",
+       "title": "Tenant Id"
+      },
+      "description": "Operator: tenant cần xem"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MarketTrendOut"
         }
        }
       }
@@ -6339,6 +6867,22 @@
       "type": "string",
       "title": "Adapter",
       "default": "csv"
+     },
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "daily",
+         "otb_report",
+         "bookings"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
      }
     },
     "type": "object",
@@ -6346,6 +6890,35 @@
      "file"
     ],
     "title": "Body_preview_pms_preview_post"
+   },
+   "BookingHistogramOut": {
+    "properties": {
+     "min": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Min"
+     },
+     "max": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Max"
+     },
+     "bars": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Bars"
+     }
+    },
+    "type": "object",
+    "required": [
+     "min",
+     "max",
+     "bars"
+    ],
+    "title": "BookingHistogramOut",
+    "description": "Thanh \"Ngân sách\" của Booking: `bars` cột đều từ min tới max (VND/đêm), chiều cao tương đối\n(cột cao nhất = 100); chỗ đắt hơn max không nằm trong cột nào."
    },
    "CalibrationOut": {
     "properties": {
@@ -6811,6 +7384,39 @@
        }
       ],
       "title": "Role"
+     },
+     "rooms_min": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Min"
+     },
+     "rooms_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Max"
+     },
+     "only_left": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Only Left"
      }
     },
     "type": "object",
@@ -7033,6 +7639,155 @@
       },
       "type": "array",
       "title": "Histogram"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     },
+     "autoextended": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Autoextended"
+     },
+     "low_availability": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Low Availability"
+     },
+     "unavailability_pct": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unavailability Pct"
+     },
+     "market_available": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Market Available"
+     },
+     "segment_base": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment Base"
+     },
+     "sold_out_share": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sold Out Share"
+     },
+     "ladder": {
+      "items": {
+       "$ref": "#/components/schemas/LadderRungOut"
+      },
+      "type": "array",
+      "title": "Ladder",
+      "default": []
+     },
+     "rooms_left_floor": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Floor"
+     },
+     "tightness": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tightness"
+     },
+     "tightness_median": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tightness Median"
+     },
+     "booking_histogram": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BookingHistogramOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "composition": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Composition",
+      "default": {}
+     },
+     "classes": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Classes",
+      "default": {}
+     },
+     "enumerated": {
+      "type": "boolean",
+      "title": "Enumerated",
+      "default": false
      }
     },
     "type": "object",
@@ -7057,6 +7812,55 @@
      "histogram"
     ],
     "title": "CityListOut"
+   },
+   "CompsetBalanceOut": {
+    "properties": {
+     "nights": {
+      "type": "integer",
+      "title": "Nights"
+     },
+     "own_price": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Own Price"
+     },
+     "comp_price": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Comp Price"
+     },
+     "ratio": {
+      "type": "string",
+      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      "title": "Ratio"
+     },
+     "pricier": {
+      "type": "boolean",
+      "title": "Pricier"
+     },
+     "own_stars": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Own Stars"
+     }
+    },
+    "type": "object",
+    "required": [
+     "nights",
+     "own_price",
+     "comp_price",
+     "ratio",
+     "pricier"
+    ],
+    "title": "CompsetBalanceOut",
+    "description": "Giá giữa nhóm đối thủ so với giá bạn (14 đêm tới, giá niêm yết Booking.com)."
    },
    "CompsetDayOut": {
     "properties": {
@@ -7336,6 +8140,16 @@
        }
       ],
       "title": "Last Change At"
+     },
+     "balance": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CompsetBalanceOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "type": "object",
@@ -8415,6 +9229,114 @@
     ],
     "title": "HotelDetailOut"
    },
+   "HotelEventsSummaryOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "hotel_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hotel Name"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "window_from": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Window From"
+     },
+     "window_to": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Window To"
+     },
+     "last_observed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Observed At"
+     },
+     "price_up": {
+      "$ref": "#/components/schemas/PriceMoveOut"
+     },
+     "price_down": {
+      "$ref": "#/components/schemas/PriceMoveOut"
+     },
+     "sold_out_nights": {
+      "items": {
+       "type": "string",
+       "format": "date"
+      },
+      "type": "array",
+      "title": "Sold Out Nights"
+     },
+     "sold_out_total": {
+      "type": "integer",
+      "title": "Sold Out Total"
+     },
+     "back_available_nights": {
+      "type": "integer",
+      "title": "Back Available Nights"
+     },
+     "promo_on": {
+      "type": "integer",
+      "title": "Promo On"
+     },
+     "promo_off": {
+      "type": "integer",
+      "title": "Promo Off"
+     },
+     "restriction_changes": {
+      "type": "integer",
+      "title": "Restriction Changes"
+     },
+     "rooms_drop_nights": {
+      "type": "integer",
+      "title": "Rooms Drop Nights"
+     },
+     "total_events": {
+      "type": "integer",
+      "title": "Total Events"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "hotel_name",
+     "role",
+     "window_from",
+     "window_to",
+     "last_observed_at",
+     "price_up",
+     "price_down",
+     "sold_out_nights",
+     "sold_out_total",
+     "back_available_nights",
+     "promo_on",
+     "promo_off",
+     "restriction_changes",
+     "rooms_drop_nights",
+     "total_events"
+    ],
+    "title": "HotelEventsSummaryOut",
+    "description": "Tóm tắt thay đổi của một khách sạn trong cửa sổ quan sát (đếm theo đêm, không theo sự\nkiện; giảm phòng bỏ nhiễu ±1 phòng trừ khi còn ≤3 phòng)."
+   },
    "HotelOccNightOut": {
     "properties": {
      "stay_date": {
@@ -9036,6 +9958,39 @@
     ],
     "title": "InsightOut"
    },
+   "InviteOut": {
+    "properties": {
+     "user": {
+      "$ref": "#/components/schemas/UserOut"
+     },
+     "invite_url": {
+      "type": "string",
+      "title": "Invite Url"
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+     },
+     "email_status": {
+      "type": "string",
+      "enum": [
+       "sent",
+       "not_configured",
+       "failed"
+      ],
+      "title": "Email Status"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user",
+     "invite_url",
+     "expires_at",
+     "email_status"
+    ],
+    "title": "InviteOut"
+   },
    "KpiOut": {
     "properties": {
      "nights": {
@@ -9103,6 +10058,33 @@
      "revpar"
     ],
     "title": "KpiOut"
+   },
+   "LadderRungOut": {
+    "properties": {
+     "rooms": {
+      "type": "integer",
+      "title": "Rooms"
+     },
+     "available": {
+      "type": "integer",
+      "title": "Available"
+     },
+     "by_class": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "By Class"
+     }
+    },
+    "type": "object",
+    "required": [
+     "rooms",
+     "available",
+     "by_class"
+    ],
+    "title": "LadderRungOut",
+    "description": "Nấc thang: số khách sạn còn bán được ≥ `rooms` phòng cùng lúc đêm đó (nấc 1 = danh sách)."
    },
    "LeadCalibrationOut": {
     "properties": {
@@ -9528,6 +10510,35 @@
       "title": "Max Pages",
       "default": 60
      },
+     "radius_m": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "enum": [
+         1000,
+         3000,
+         5000
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Radius M"
+     },
+     "segment_nflt": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "pattern": "^(?:ht_id|class|review_score|ht_beach|hotelfacility|mealplan|fc|chaincode)=[0-9]{1,10}(?:;(?:ht_id|class|review_score|ht_beach|hotelfacility|mealplan|fc|chaincode)=[0-9]{1,10}){0,19}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment Nflt"
+     },
      "name": {
       "type": "string",
       "maxLength": 200,
@@ -9535,8 +10546,15 @@
       "title": "Name"
      },
      "dest_id": {
-      "type": "string",
-      "pattern": "^-?\\d{1,30}$",
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^-?\\d{1,30}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Dest Id"
      },
      "dest_type": {
@@ -9544,9 +10562,37 @@
       "enum": [
        "city",
        "district",
-       "region"
+       "region",
+       "landmark",
+       "latlong"
       ],
       "title": "Dest Type"
+     },
+     "lat": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 90.0,
+        "minimum": -90.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lat"
+     },
+     "lng": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 180.0,
+        "minimum": -180.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lng"
      },
      "country_code": {
       "type": "string",
@@ -9564,7 +10610,6 @@
     "type": "object",
     "required": [
      "name",
-     "dest_id",
      "dest_type"
     ],
     "title": "MarketAreaCreate"
@@ -9594,6 +10639,50 @@
      "country_code": {
       "type": "string",
       "title": "Country Code"
+     },
+     "lat": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lat"
+     },
+     "lng": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lng"
+     },
+     "radius_m": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Radius M"
+     },
+     "segment_nflt": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment Nflt"
      },
      "list_nights": {
       "type": "integer",
@@ -9703,6 +10792,10 @@
      "dest_id",
      "dest_type",
      "country_code",
+     "lat",
+     "lng",
+     "radius_m",
+     "segment_nflt",
      "list_nights",
      "detail_horizon_days",
      "detail_max_hotels",
@@ -9795,6 +10888,35 @@
        }
       ],
       "title": "Active"
+     },
+     "radius_m": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "enum": [
+         1000,
+         3000,
+         5000
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Radius M"
+     },
+     "segment_nflt": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "pattern": "^(?:ht_id|class|review_score|ht_beach|hotelfacility|mealplan|fc|chaincode)=[0-9]{1,10}(?:;(?:ht_id|class|review_score|ht_beach|hotelfacility|mealplan|fc|chaincode)=[0-9]{1,10}){0,19}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment Nflt"
      }
     },
     "type": "object",
@@ -9819,6 +10941,16 @@
      },
      "detail": {
       "$ref": "#/components/schemas/CityDetailOut"
+     },
+     "self_hotel": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SelfMarketOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "type": "object",
@@ -9934,6 +11066,159 @@
     ],
     "title": "MarketPaceOut"
    },
+   "MarketTrendNightOut": {
+    "properties": {
+     "stay_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Stay Date"
+     },
+     "scanned_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scanned At"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "properties_found": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Properties Found"
+     },
+     "sold_out_share": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sold Out Share"
+     },
+     "unavailability_pct": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unavailability Pct"
+     },
+     "ladder": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Ladder"
+     },
+     "tightness": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tightness"
+     },
+     "rooms_left_floor": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Floor"
+     },
+     "median_price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Median Price"
+     }
+    },
+    "type": "object",
+    "required": [
+     "stay_date",
+     "scanned_at",
+     "status",
+     "properties_found",
+     "sold_out_share",
+     "unavailability_pct",
+     "ladder",
+     "tightness",
+     "rooms_left_floor",
+     "median_price"
+    ],
+    "title": "MarketTrendNightOut"
+   },
+   "MarketTrendOut": {
+    "properties": {
+     "area_id": {
+      "type": "integer",
+      "title": "Area Id"
+     },
+     "segment_base": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment Base"
+     },
+     "nights": {
+      "items": {
+       "$ref": "#/components/schemas/MarketTrendNightOut"
+      },
+      "type": "array",
+      "title": "Nights"
+     }
+    },
+    "type": "object",
+    "required": [
+     "area_id",
+     "segment_base",
+     "nights"
+    ],
+    "title": "MarketTrendOut"
+   },
    "NotificationKind": {
     "type": "string",
     "enum": [
@@ -9947,7 +11232,9 @@
      "competitor_promo",
      "own_position_drift",
      "own_closed",
-     "data_stale"
+     "data_stale",
+     "competitor_below_median",
+     "competitor_above_median"
     ],
     "title": "NotificationKind"
    },
@@ -10104,13 +11391,6 @@
       "type": "boolean",
       "title": "Email Configured"
      },
-     "recipients": {
-      "items": {
-       "$ref": "#/components/schemas/RecipientOut"
-      },
-      "type": "array",
-      "title": "Recipients"
-     },
      "rules": {
       "items": {
        "$ref": "#/components/schemas/NotificationRuleOut"
@@ -10139,7 +11419,6 @@
     "type": "object",
     "required": [
      "email_configured",
-     "recipients",
      "rules"
     ],
     "title": "NotificationSettingsOut"
@@ -10234,6 +11513,30 @@
      "status": {
       "type": "string",
       "title": "Status"
+     },
+     "stay_from": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stay From"
+     },
+     "stay_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stay To"
      }
     },
     "type": "object",
@@ -11123,6 +12426,41 @@
       "type": "string",
       "format": "date-time",
       "title": "Created At"
+     },
+     "created_by_email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By Email"
+     },
+     "stay_from": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stay From"
+     },
+     "stay_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stay To"
      }
     },
     "type": "object",
@@ -11175,6 +12513,34 @@
       },
       "type": "array",
       "title": "Errors"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "daily",
+       "otb_report",
+       "bookings"
+      ],
+      "title": "Kind",
+      "default": "daily"
+     },
+     "detected_kind": {
+      "type": "string",
+      "enum": [
+       "daily",
+       "otb_report",
+       "bookings"
+      ],
+      "title": "Detected Kind",
+      "default": "daily"
+     },
+     "missing": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Missing",
+      "default": []
      }
     },
     "type": "object",
@@ -11229,6 +12595,32 @@
      "count"
     ],
     "title": "PriceBucketOut"
+   },
+   "PriceMoveOut": {
+    "properties": {
+     "nights": {
+      "type": "integer",
+      "title": "Nights"
+     },
+     "max_pct": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "nights",
+     "max_pct"
+    ],
+    "title": "PriceMoveOut"
    },
    "PromoNightOut": {
     "properties": {
@@ -11542,6 +12934,21 @@
        }
       ],
       "title": "Pct"
+     },
+     "params": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "string"
+        }
+       ]
+      },
+      "type": "object",
+      "title": "Params",
+      "default": {}
      }
     },
     "type": "object",
@@ -11551,49 +12958,6 @@
      "pct"
     ],
     "title": "ReasonOut"
-   },
-   "RecipientCreate": {
-    "properties": {
-     "email": {
-      "type": "string",
-      "format": "email",
-      "title": "Email"
-     }
-    },
-    "type": "object",
-    "required": [
-     "email"
-    ],
-    "title": "RecipientCreate"
-   },
-   "RecipientOut": {
-    "properties": {
-     "id": {
-      "type": "integer",
-      "title": "Id"
-     },
-     "email": {
-      "type": "string",
-      "title": "Email"
-     },
-     "active": {
-      "type": "boolean",
-      "title": "Active"
-     },
-     "created_at": {
-      "type": "string",
-      "format": "date-time",
-      "title": "Created At"
-     }
-    },
-    "type": "object",
-    "required": [
-     "id",
-     "email",
-     "active",
-     "created_at"
-    ],
-    "title": "RecipientOut"
    },
    "ReputationHotelOut": {
     "properties": {
@@ -12330,6 +13694,309 @@
     ],
     "title": "ScrapeSessionOut"
    },
+   "SelfLocationOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "lat": {
+      "type": "number",
+      "title": "Lat"
+     },
+     "lng": {
+      "type": "number",
+      "title": "Lng"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "name",
+     "lat",
+     "lng"
+    ],
+    "title": "SelfLocationOut",
+    "description": "Khách sạn \"của bạn\" làm tâm cho khu vực bán kính."
+   },
+   "SelfMarketOut": {
+    "properties": {
+     "hotel_id": {
+      "type": "integer",
+      "title": "Hotel Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "in_area": {
+      "type": "boolean",
+      "title": "In Area"
+     },
+     "rank": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rank"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price"
+     },
+     "currency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currency"
+     },
+     "price_percentile": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Percentile"
+     },
+     "rooms_min": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Min"
+     },
+     "rooms_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Max"
+     },
+     "rooms_percentile": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Percentile"
+     },
+     "only_left": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Only Left"
+     },
+     "rooms_left_min": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Min"
+     },
+     "rooms_left_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms Left Max"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id",
+     "name",
+     "in_area",
+     "rank",
+     "price",
+     "currency",
+     "price_percentile",
+     "rooms_min",
+     "rooms_max",
+     "rooms_percentile",
+     "only_left",
+     "rooms_left_min",
+     "rooms_left_max"
+    ],
+    "title": "SelfMarketOut",
+    "description": "Khách sạn \"của bạn\" đặt cạnh thị trường đêm đó."
+   },
+   "SetPasswordRequest": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Token"
+     },
+     "password": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 8,
+      "title": "Password"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token",
+     "password"
+    ],
+    "title": "SetPasswordRequest",
+    "description": "Người được mời tự đặt mật khẩu bằng token trong link mời."
+   },
+   "SetupOut": {
+    "properties": {
+     "own_hotel_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Own Hotel Id"
+     },
+     "own_hotel": {
+      "type": "boolean",
+      "title": "Own Hotel"
+     },
+     "competitors": {
+      "type": "integer",
+      "title": "Competitors"
+     },
+     "competitors_needed": {
+      "type": "integer",
+      "title": "Competitors Needed"
+     },
+     "strategy": {
+      "type": "boolean",
+      "title": "Strategy"
+     },
+     "alerts": {
+      "type": "boolean",
+      "title": "Alerts"
+     },
+     "pms": {
+      "type": "boolean",
+      "title": "Pms"
+     },
+     "done": {
+      "type": "boolean",
+      "title": "Done"
+     },
+     "dismissed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dismissed At"
+     },
+     "balance": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CompsetBalanceOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "own_hotel_id",
+     "own_hotel",
+     "competitors",
+     "competitors_needed",
+     "strategy",
+     "alerts",
+     "pms",
+     "done",
+     "dismissed_at"
+    ],
+    "title": "SetupOut",
+    "description": "Thẻ \"Thiết lập 5 bước\" trên Hôm nay (C1). Bước 1–4 bắt buộc, bước 5 (PMS) tuỳ chọn."
+   },
+   "SetupUpdate": {
+    "properties": {
+     "dismissed": {
+      "type": "boolean",
+      "title": "Dismissed"
+     }
+    },
+    "type": "object",
+    "required": [
+     "dismissed"
+    ],
+    "title": "SetupUpdate"
+   },
    "StrategyIn": {
     "properties": {
      "base_price": {
@@ -12394,6 +14061,11 @@
       ],
       "title": "Target Index",
       "default": "100"
+     },
+     "follow_typical": {
+      "type": "boolean",
+      "title": "Follow Typical",
+      "default": false
      },
      "round_to": {
       "type": "integer",
@@ -12485,6 +14157,11 @@
       "title": "Target Index",
       "default": "100"
      },
+     "follow_typical": {
+      "type": "boolean",
+      "title": "Follow Typical",
+      "default": false
+     },
      "round_to": {
       "type": "integer",
       "maximum": 1000000.0,
@@ -12534,6 +14211,17 @@
      "configured": {
       "type": "boolean",
       "title": "Configured"
+     },
+     "typical_index": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Typical Index"
      }
     },
     "type": "object",
@@ -13117,6 +14805,38 @@
     ],
     "title": "UserCreate"
    },
+   "UserInvite": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "role": {
+      "type": "string",
+      "pattern": "^(operator|tenant_admin|viewer)$",
+      "title": "Role"
+     },
+     "tenant_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tenant Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "role"
+    ],
+    "title": "UserInvite",
+    "description": "Thêm người bằng lời mời: họ tự đặt mật khẩu qua link (email hoặc admin gửi tay)."
+   },
    "UserOut": {
     "properties": {
      "id": {
@@ -13145,6 +14865,34 @@
      "active": {
       "type": "boolean",
       "title": "Active"
+     },
+     "last_login_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Login At"
+     },
+     "invite_pending": {
+      "type": "boolean",
+      "title": "Invite Pending"
+     },
+     "invite_expires_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Invite Expires At"
      }
     },
     "type": "object",
@@ -13153,7 +14901,10 @@
      "email",
      "role",
      "tenant_id",
-     "active"
+     "active",
+     "last_login_at",
+     "invite_pending",
+     "invite_expires_at"
     ],
     "title": "UserOut"
    },

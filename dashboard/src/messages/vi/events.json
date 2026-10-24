@@ -1,6 +1,6 @@
 {
-  "title": "Thay đổi",
-  "subtitle": "Mọi biến động trên Booking.com giữa hai lượt quét liên tiếp: hết phòng, có phòng lại, số phòng, giá, hạn chế và khuyến mãi",
+  "title": "Nhật ký thay đổi",
+  "subtitle": "Biến động trên Booking.com giữa hai lượt quét liên tiếp: hết phòng, có phòng lại, số phòng, giá, hạn chế và khuyến mãi",
   "downloadCsv": "Tải CSV",
   "since": {
     "h24": "24 giờ",
@@ -12,7 +12,8 @@
   "filters": {
     "hotel": "Khách sạn",
     "allHotels": "Tất cả khách sạn",
-    "yours": "(của bạn)",
+    "yourHotels": "Khách sạn của bạn",
+    "competitors": "Đối thủ",
     "inactive": "(ngừng)",
     "observedWithin": "Quan sát trong",
     "stayNight": "Đêm lưu trú",
@@ -24,11 +25,16 @@
     "group": {
       "rooms": "Phòng",
       "price": "Giá",
-      "restrictions": "Hạn chế & KM"
-    }
+      "restrictions": "Hạn chế",
+      "promos": "Khuyến mãi"
+    },
+    "groupTitle": "Bấm để lọc cả nhóm: {types}",
+    "more": "Thêm lọc",
+    "less": "Thu gọn lọc",
+    "small": "Hiện cả thay đổi nhỏ (±1 phòng)"
   },
   "highlight": {
-    "text": "Đang làm nổi bật thay đổi #{id} được dẫn từ bản tin (nếu nằm trong trang này).",
+    "text": "Đang làm nổi bật thay đổi được dẫn từ bản tin (nếu nằm trong trang này).",
     "clear": "Bỏ đánh dấu"
   },
   "list": {
@@ -36,10 +42,14 @@
     "countMore": "{count}+ thay đổi",
     "filtered": "Theo bộ lọc đang chọn",
     "newestFirst": "Mới nhất trước",
+    "smallHidden": "đã ẩn {count} thay đổi ±1 phòng trên trang này",
     "prev": "Trước",
     "next": "Sau",
     "page": "Trang {page}",
     "emptyFiltered": "Không có thay đổi nào khớp bộ lọc. Thử nới khoảng thời gian hoặc bỏ bớt loại thay đổi.",
-    "empty": "Chưa có thay đổi nào. Thay đổi xuất hiện khi hai lượt quét liên tiếp khác nhau."
+    "empty": "Chưa có thay đổi nào. Thay đổi xuất hiện khi hai lượt quét liên tiếp khác nhau.",
+    "emptyNoScan": "Chưa có lượt quét nào sau {when} nên chưa có thay đổi mới.",
+    "emptyNeverScanned": "Chưa có lượt quét nào nên chưa có thay đổi.",
+    "emptyRuns": "Xem tình trạng quét"
   }
 }

@@ -31,11 +31,29 @@ Thành công: khách sạn ra quyết định giá mỗi sáng dựa trên dữ 
 
 ## Operating Context
 
-Dashboard tenant theo giao diện OTARadar (thanh trên xanh, tab ngang; dữ liệu Booking.com; Bảng điều khiển, Đối thủ, Giá chọn được đêm bắt đầu bất kỳ và 14/30/60 đêm để xem trước dịp lễ, Tết). Quyết định lên trước: tab đầu là **Hôm nay**, đầu Hôm nay và Bảng điều khiển là thẻ "Việc cần làm hôm nay" (gợi ý giá kèm giá mục tiêu bằng VND và cơ sở giá, đối thủ hết phòng đêm nay, đêm căng trong 14 đêm). Bảng điều khiển: toàn cảnh compset, đối thủ hết/sắp hết x/N, giá niêm yết TB (trung vị) đối thủ, chỉ báo lấp đầy kèm sai số so PMS, mức căng thị trường hiện tại (hai nguồn tách riêng, không phải dự báo), xu hướng compset, cảnh báo, khách sạn của bạn, trạng thái dữ liệu. Đối thủ (thẻ từng khách sạn, giá đối thủ so với giá bạn theo quy ước (+) đắt hơn/(−) rẻ hơn; chi tiết khách sạn: ≈ phòng còn giảm, giá đổi 7 ngày, dòng thời gian thay đổi; chi tiết đêm: giá Booking.com và điều kiện gói, từng loại phòng, lịch sử), Phòng trống (heatmap khách sạn × 16 đêm, dấu ngày lễ, thay đổi 24 giờ, chỉ báo lấp đầy; tải CSV), Giá & định giá (xu hướng từng khách sạn và trung vị đối thủ, vị trí giá so trung vị, heatmap giá có đơn vị, tình báo cạnh tranh; mọi giá hoặc giá hoàn huỷ), Terminal+ (chỉ báo khu vực hoặc compset, thời tiết OpenWeather, doanh thu PMS 14 ngày khi đã nhập PMS, lịch ngày lễ 12 tháng, nhịp đặt phòng và gợi ý giá có lý do với "Đã áp dụng/Bỏ qua"), Bản tin (bản tin AI và nhật ký thay đổi, tải CSV), Lịch sử quét, Cài đặt (thêm khách sạn bằng URL Booking.com, giờ quét, sự kiện địa phương, thông báo email, nhập PMS, người dùng). "Cập nhật lúc" ở mọi màn là lượt quét compset gần nhất đã xong và có dữ liệu; lượt mới nhất không thu được gì thì cờ đỏ/vàng. Operator onboard từng tenant; chưa có self-serve đăng ký, chưa có billing.
+Dashboard tenant theo giao diện OTARadar (thanh trên xanh; từ 24/10 có **5 tab theo công việc**, trên điện thoại là thanh đáy). Dữ liệu lấy từ Booking.com. Chi tiết trong DESIGN.md và `plans/261024-0007-tenant-admin-ux-overhaul/`.
+
+1. **Hôm nay** (trang mở đầu, gộp Bảng điều khiển cũ):
+   - "Việc cần làm hôm nay": tối đa 5 việc trong 14 đêm. Gồm gợi ý giá có giá mục tiêu VND, một câu lý do bằng lời và nút "Tôi đã đổi giá"/"Bỏ qua" ngay trên thẻ; đối thủ hết phòng đêm nay; đêm căng.
+   - Dải 14 đêm bạn so với đối thủ, thay đổi 24 giờ, bản tin, khách sạn của bạn đêm nay.
+2. **Lịch giá & phòng:** một lưới khách sạn × đêm, chuyển Phòng còn / Giá / Chênh với bạn. Có bộ chọn đêm bắt đầu và 14/30/60 đêm để xem trước dịp lễ, Tết; chọn cơ sở giá; hàng công suất PMS khi đã nhập. Bấm ô mở chi tiết đêm: cùng đêm của mọi khách sạn, gợi ý của đêm, từng loại phòng, lịch sử.
+3. **Đối thủ:**
+   - thẻ từng khách sạn với quy ước (+) đắt hơn / (−) rẻ hơn bạn, kèm "7 ngày qua";
+   - Khuyến mãi & hạn chế;
+   - Tìm khách sạn để theo dõi;
+   - trang đối thủ có tóm tắt 7 ngày và nhật ký.
+4. **Thị trường:** mức căng khu vực 14 đêm, hôm nay trong khu vực, lịch sự kiện và ngày lễ 12 tháng.
+5. **Báo cáo:** Bản tin AI, Nhật ký thay đổi (tải CSV), Kết quả gợi ý, Nhịp đặt phòng (PMS/OTB).
+
+**⚙ Cài đặt:** khách sạn và đối thủ bằng URL Booking.com, cảnh báo và người nhận, người dùng, PMS, chiến lược giá; phần Nâng cao gồm giờ quét, khu vực thị trường, sự kiện địa phương.
+
+**Độ mới dữ liệu** nằm trên thanh trên ở mọi màn: lần đọc Booking.com thành công cuối. Dữ liệu cũ quá một chu kỳ quét thì app tạm dừng gợi ý giá và khoá nút ghi quyết định.
+
+Operator onboard từng tenant; chưa có self-serve đăng ký, chưa có billing.
 
 ## Capabilities and Constraints
 
-- Thị trường cả khu vực (từ 02/10, chỉ Booking.com): tenant chọn thành phố/quận; mỗi ngày đọc số khách sạn còn phòng từng đêm, ghép dần danh sách mọi khách sạn (điểm, số đánh giá, hạng sao, quận, giá) và quét chi tiết top N khách sạn để ước tính phòng còn/công suất cả khu vực. Booking không cho phân trang trang kết quả nên danh sách được ghép qua nhiều lát cắt; giá khu vực là mẫu cho tới khi phủ ≥98%.
+- Thị trường khu vực (từ 02/10, chỉ Booking.com; bản quận/bán kính từ 16/10): tenant chọn thành phố/quận/địa danh của Booking hoặc bán kính 1/3/5 km quanh khách sạn của mình, lọc theo phân khúc (loại chỗ ở như khách sạn/resort/căn hộ khách sạn). Mỗi ngày, từng đêm: số chỗ còn phòng, % đã kín Booking tự tính (khi không lọc), danh sách đủ mọi khách sạn còn phòng (tới 1.000) với giá và hạng hiển thị, và **thang phòng trống**: số khách sạn còn bán được ≥1/5/10/20/30 phòng cùng lúc (cận dưới phòng Booking còn bán, không phải tồn kho), khoảng phòng còn của từng khách sạn ở 14 đêm gần; khách sạn của bạn đặt cạnh thị trường (phòng còn, phân vị giá, hạng). Quét chi tiết top N khách sạn vẫn có, tuỳ chọn.
 - Kênh quét: **chỉ Booking.com** (từ 09/10/2026 bỏ Agoda, iVIVU, Trip.com, Mytour, Traveloka, Expedia cùng mọi tính năng chéo kênh: parity, đóng bán trên một kênh, tín hiệu cầu của kênh). Số phòng còn là phần Booking.com hiển thị, không phải tổng phòng khách sạn.
 - Giá chuẩn hoá: VND cố định toàn hệ thống (không quy đổi), theo phòng/đêm, đã gồm thuế phí, sau khuyến mãi kênh tự áp (mã phải tự nhập thì không trừ); lưu kèm giá gốc, nhãn khuyến mãi, điều kiện gói (hoàn huỷ, bữa sáng).
 - Probe với 2 người lớn; loại phòng chỉ cho 1 người không xuất hiện.

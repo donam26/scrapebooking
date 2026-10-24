@@ -65,17 +65,17 @@
     },
     "legend": {
       "hotelExact": "Exact rooms left: red/orange is nearly full, green has plenty",
-      "hotelFloor": "≥N or N–M: not exact yet (colour only when the level is certain)",
+      "hotelFloor": "≥N: at least N rooms left; N–M: within a range (colour only when the level is certain)",
       "hidden": "Available, count hidden",
       "soldOut": "Sold out",
       "unknown": "Could not read",
       "notScanned": "Not scanned",
       "roomExact": "Exact (“Only 2 rooms left”)",
-      "roomCapped": "At least N (Booking.com only shows a floor)",
+      "roomCapped": "At least N left (Booking.com does not show the exact count)",
       "restricted": "Restricted (≥2n = 2-night minimum), still selling",
       "noPrice": "No price",
       "error": "Read failed",
-      "stale": "Data older than 48 hours",
+      "stale": "Figure older than 48 hours (colour kept, striped corner)",
       "promo": "Promotion running"
     },
     "restrictedShort": "RESTR",
@@ -100,31 +100,31 @@
     "floorLegend": "Hollow dot: at least (actual number may be higher)"
   },
   "marketSuggestion": {
-    "confidenceHigh": "High confidence",
-    "confidenceMedium": "Medium confidence",
     "target": "Target rate",
     "holdAt": "Hold at",
     "basis": "from your rate {price}",
-    "applied": "Applied",
+    "applied": "Recorded: you changed the rate",
     "dismissed": "Dismissed",
     "undo": "Undo",
-    "markApplied": "Mark as applied",
+    "markApplied": "I changed the rate",
     "dismiss": "Dismiss",
-    "confidenceLow": "Low confidence (small sample)",
-    "reference": "Reference {price}",
-    "referenceTitle": "Competitors' median listed rate × target position (or base price when the sample is too small), rounded",
-    "restrictions": "Restriction ideas",
+    "confidenceLow": "Low confidence",
+    "reference": "Fair level before adjustments: {price}",
+    "howComputed": "How it was worked out",
+    "restrictions": "Also consider",
     "clamp": {
-      "floor": "Held at your floor price",
-      "ceiling": "Held at your ceiling price",
-      "max_change": "Capped at the maximum change per day",
+      "floor": "Stopped at your floor rate",
+      "ceiling": "Stopped at your ceiling rate",
+      "max_change": "Never changes more than your daily limit in Pricing strategy",
       "no_lower_tight": "No price cut while the night is tight or you're nearly full"
     },
     "applyPrice": "Rate you set (VND)",
     "applyHint": "Edit if you set a different rate than the target, so results are measured correctly.",
     "confirm": "Confirm",
     "cancel": "Cancel",
-    "invalidPrice": "Enter a rate above 0, or leave empty to use the target."
+    "invalidPrice": "Enter a rate above 0, or leave empty to use the target.",
+    "staleNote": "Based on Booking.com figures from {when}: they are old, wait for a new scan before deciding.",
+    "staleDisabled": "Data is old: wait for a new scan"
   },
   "priceBasis": {
     "label": "Rate compared",
@@ -161,10 +161,12 @@
     "label": "Sub-sections",
     "tabs": {
       "aiBriefs": "AI briefs",
-      "events": "Changes",
-      "compset": "Your comp set",
-      "market": "Explore the market",
-      "radar": "Competitive radar"
+      "events": "Change log",
+      "outcomes": "Suggestion results",
+      "pace": "Booking pace",
+      "compset": "Competitor group",
+      "market": "Find hotels to track",
+      "radar": "Promotions & restrictions"
     }
   },
   "dateRange": {
@@ -204,30 +206,31 @@
   },
   "todayActions": {
     "title": "Today's actions",
-    "info": "Pending raise/lower suggestions (with the target rate from your price strategy), competitors sold out tonight and tight nights in the next {nights} nights: at least half of observed competitors sold out or with ≤3 rooms left, or a fill indicator of 85%+. “Hold” nights aren't listed. Up to 5 items; nothing changes your rates automatically.",
-    "empty": "Nothing to do yet: no raise/lower suggestions, no competitor sold out tonight and no tight night in the next {nights} nights.",
+    "info": "Nights in the next {nights} that need a decision: raise/lower suggestions backed by a market signal, competitors sold out tonight, tight nights (at least half of competitors sold out or ≤3 rooms left). Nothing changes your rates automatically; tap “I changed the rate” to record it.",
+    "empty": "No night needs a rate change in the next {nights}: your rates sit at their usual level against competitors and no competitor is sold out tonight.",
     "more": "{count, plural, one {# more item} other {# more items}}",
     "tonight": "Tonight",
     "badge": {
       "soldOut": "Competitor sold out",
       "tight": "Tight night"
     },
-    "target": "Target rate <b>{price}</b> ({change})",
-    "basis": "Basis: your rate {price} (lowest rate on Booking.com)",
-    "noOwnPrice": "Change {change}; no rate of yours on Booking.com to calculate a target",
-    "reason": "Why: {reason}",
     "soldOutTonight": "{count, plural, one {# competitor} other {# competitors}} sold out: {names}",
     "tightCount": "{tight}/{observed} competitors sold out or nearly",
-    "fill": "fill indicator on Booking.com ≈{pct}%"
+    "fill": "fill indicator on Booking.com ≈{pct}%",
+    "staleTitle": "No rate suggestions for now",
+    "staleBody": "Booking.com has had no new figures since {when} ({ago}). Suggestions based on old figures may be wrong.",
+    "staleNever": "No successful Booking.com read yet.",
+    "staleLink": "See scan status",
+    "decided": "Recorded ({count})"
   },
   "sample": {
     "countShort": "{n}/{total}",
     "count": "{n}/{total} competitors priced",
     "small": "small sample",
-    "insufficient": "not enough data ({n}/{total}, need ≥{min})",
-    "okTitle": "{n}/{total} primary-compset competitors have a like-for-like price this night.",
-    "smallTitle": "Only {n}/{total} competitors have a like-for-like price: indicative only (CoStar STR standard needs ≥{min}).",
-    "insufficientTitle": "{n}/{total} competitors have a like-for-like price: below 3, median, price index and price position are not computed (need ≥{min}).",
+    "insufficient": "not enough data ({n}/{total}, need at least {min})",
+    "okTitle": "{n}/{total} primary competitors have a like-for-like price this night.",
+    "smallTitle": "Only {n}/{total} competitors have a like-for-like price: indicative only (a fair comparison needs at least {min}).",
+    "insufficientTitle": "{n}/{total} competitors have a like-for-like price: below 3, the middle rate, price index and price position are not computed (need at least {min}).",
     "index": "Listed-rate index",
     "indexTitle": "Your lowest listed rate ÷ competitor median × 100 (100 = at the median). This is an asking-rate index, not a revenue index: competitors’ actual revenue is unknown.",
     "rankLabel": "Price position",
@@ -240,7 +243,7 @@
     "hiddenTitle": "Hidden: error vs PMS at {bucket} is ±{mae} pts (above the 20-pt limit), so this night’s indicator is not reliable.",
     "calibrated": "error vs PMS {values} pts at 0–7 / 8–30 / 31–90 days",
     "calibratedAll": "error vs PMS ±{mae} pts ({count, plural, one {# night} other {# nights}})",
-    "uncalibrated": "not calibrated (no PMS data yet)",
+    "uncalibrated": "not calibrated yet: not enough nights with PMS figures to compare",
     "calibrationInfo": "Mean absolute error of the indicator vs actual PMS occupancy, by days before arrival. Buckets with error above 20 pts are hidden.",
     "leadLine": "{bucket}: ±{mae} pts, bias {bias}, {count, plural, one {# night} other {# nights}}{usable, select, no { (hidden)} other {}}",
     "leadLineNone": "{bucket}: no nights to compare yet",
@@ -265,5 +268,67 @@
     "monthlyHint": "Opens the owner report page; print it or save as PDF.",
     "monthAria": "Report month",
     "open": "Open"
+  },
+  "areaSelect": {
+    "label": "Market area"
+  },
+  "changeSummary": {
+    "window": "{days, plural, =1 {Last 24 hours} other {Last # days}}",
+    "cardDescription": "Changes on Booking.com, counted per night",
+    "noScans": "No new scans in the last {days, plural, =1 {24 hours} other {# days}}",
+    "lastScan": "last scan {when}",
+    "none": "No changes in the last {days, plural, =1 {24 hours} other {# days}}",
+    "minorOnly": "Only small changes (1 room) in the last {days, plural, =1 {24 hours} other {# days}}",
+    "untilLast": "up to the last scan {when}",
+    "roomsDropTitle": "Nights where a room type dropped by 2 or more rooms, or fell to 3 rooms or fewer",
+    "label": {
+      "priceUp": "Rate up",
+      "priceDown": "Rate down",
+      "soldOut": "Sold out",
+      "roomsDrop": "Rooms dropping fast",
+      "promo": "Promotions",
+      "restrictions": "Sales restrictions"
+    },
+    "value": {
+      "nights": "{count, plural, one {# night} other {# nights}}",
+      "price": "{count, plural, one {# night} other {# nights}}, at most {pct}",
+      "soldOutMore": "{nights} and {count, plural, one {# other night} other {# other nights}}",
+      "restrictions": "{count, plural, one {# night} other {# nights}} with a condition added or removed"
+    },
+    "short": {
+      "priceUp": "rate ↑ {count, plural, one {# night} other {# nights}}",
+      "priceUpPct": "rate ↑ {count, plural, one {# night} other {# nights}} (up to {pct})",
+      "priceDown": "rate ↓ {count, plural, one {# night} other {# nights}}",
+      "priceDownPct": "rate ↓ {count, plural, one {# night} other {# nights}} (up to {pct})",
+      "soldOut": "sold out {nights}",
+      "back": "available again {count, plural, one {# night} other {# nights}}",
+      "roomsDrop": "rooms dropping fast {count, plural, one {# night} other {# nights}}",
+      "promoOn": "promo on {count, plural, one {# night} other {# nights}}",
+      "promoOff": "promo off {count, plural, one {# night} other {# nights}}",
+      "restrictions": "sales conditions changed {count, plural, one {# night} other {# nights}}"
+    }
+  },
+  "addHotel": {
+    "title": "Add hotel",
+    "description": "Paste the hotel page link on Booking.com. We check the link, then add the hotel to the scan schedule.",
+    "urlHint": "Open the hotel on Booking.com and copy the address from the browser bar.",
+    "explore": "Find in your area",
+    "cancel": "Cancel",
+    "done": "Done",
+    "close": "Close"
+  },
+  "nightLog": {
+    "title": "Changes by night",
+    "description": "{count} latest changes, grouped into {nights, plural, one {# night} other {# nights}}",
+    "showMinor": "Show small changes",
+    "changes": "{count, plural, one {# change} other {# changes}}",
+    "past": "Past nights",
+    "more": "Show {count, plural, one {# more night} other {# more nights}}",
+    "remaining": "{count, plural, one {# night} other {# nights}} left",
+    "seenAt": "Seen at {when}",
+    "moreLines": "+{count, plural, one {# more change} other {# more changes}} this night",
+    "fewer": "Show less",
+    "empty": "No changes recorded for this hotel yet.",
+    "onlyMinor": "Only {count, plural, one {# small change} other {# small changes}} (1 room). Turn on “Show small changes” to see them."
   }
 }

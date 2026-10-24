@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
-import { Button, ErrorBox, Field, Input, cx } from "@/components/ui";
-import { BrandMark, IconArrowRight, IconChevronLeft, IconLock } from "@/components/icons";
+import { Button, ErrorBox, Field, Input, Note, cx } from "@/components/ui";
+import { BrandMark, IconArrowRight, IconCheck, IconChevronLeft, IconLock } from "@/components/icons";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 
 function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/login")) return "/dashboard";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/login")) return "/today";
   return raw;
 }
 
@@ -126,6 +126,12 @@ function LoginForm() {
         <h1 className="text-2xl font-bold tracking-[-0.015em] text-ink">{t("title")}</h1>
         <p className="mt-1 text-base text-muted">{t("subtitle")}</p>
       </div>
+      {/* Về từ /set-password sau khi người được mời đặt mật khẩu. */}
+      {params.get("password") === "set" && (
+        <Note tone="info" icon={<IconCheck size={16} className="text-yours-deep" />}>
+          <p role="status">{t("passwordSet")}</p>
+        </Note>
+      )}
       <Field label={t("email")} htmlFor="login-email">
         <Input
           id="login-email"

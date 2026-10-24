@@ -3,8 +3,24 @@
   "meta": "{count, plural, one {# recent Booking.com run} other {# recent Booking.com runs}}",
   "trigger": {
     "manual": "Scan now",
-    "catchup": "Catch-up",
-    "scheduled": "Scheduled"
+    "catchup": "Catch-up scan",
+    "scheduled": "Scheduled",
+    "market": "Area scan"
+  },
+  "status": {
+    "ok": "Scanning normally: last read {when}{pct, select, none {} other {, {pct}% of reads succeeded in the last 7 days}}.",
+    "stale": "No scan has brought new figures since {when} ({ago}). Every figure in the app is old; price suggestions are paused until a new scan.",
+    "staleEmpty": "Scans since {when} ({ago}) could not read new figures. Every figure in the app is old; price suggestions are paused until reads work again.",
+    "latestEmpty": "The latest scan could not read any figures. What you see is from the read at {when}.",
+    "overdue": "The scheduled scan has not run. Figures shown are from {ago}.",
+    "never": "No successful Booking.com read yet.",
+    "last7Days": "Last 7 days",
+    "legend": "Green: new figures · Red: scanned but nothing read · Grey: no scan",
+    "day": {
+      "ok": "New figures",
+      "empty": "Scanned but nothing read",
+      "none": "No scan"
+    }
   },
   "kpi": {
     "runs24h": "Scans in 24 hours",
@@ -21,7 +37,11 @@
   "table": {
     "title": "Scans",
     "info": "Click a scan to see each hotel: status, pages read, blocked, errors.",
+    "tenantInfo": "Each scan reads the rates and rooms left of the hotels you track on Booking.com.",
     "run": "Scan",
+    "time": "Time",
+    "kind": "Kind",
+    "result": "Result",
     "trigger": "Trigger",
     "started": "Started",
     "duration": "Duration",
@@ -33,7 +53,16 @@
     "errors": "Errors",
     "ratio": "Ratio",
     "expand": "Show each hotel in scan #{id}",
-    "noData": "No data"
+    "noData": "No data",
+    "showMore": "Show {count} more",
+    "shown": "Showing {shown}/{total} scans"
+  },
+  "result": {
+    "full": "Figures for {count, plural, one {# hotel} other {# hotels}}",
+    "partial": "Figures read, some pages not read",
+    "none": "Nothing read",
+    "running": "Scanning…",
+    "queued": "Waiting"
   },
   "empty": {
     "title": "No scans yet",

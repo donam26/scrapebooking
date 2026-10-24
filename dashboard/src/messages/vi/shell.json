@@ -1,21 +1,28 @@
 {
-  "homeLink": "OTARadar, về Bảng điều khiển",
+  "homeLink": "OTARadar, về Hôm nay",
   "mainNav": "Điều hướng chính",
   "operatorSection": "Vận hành",
   "sessionError": "Không tải được phiên đăng nhập",
   "nav": {
     "today": "Hôm nay",
-    "dashboard": "Bảng điều khiển",
+    "calendar": "Lịch giá & phòng",
     "competitors": "Đối thủ",
-    "availability": "Phòng trống",
-    "rates": "Giá & định giá",
-    "terminal": "Terminal+",
-    "insights": "Bản tin",
-    "runs": "Lịch sử quét",
+    "market": "Thị trường",
+    "reports": "Báo cáo",
     "settings": "Cài đặt",
     "tenants": "Tenant",
     "users": "Tài khoản",
     "health": "Sức khoẻ scraper"
+  },
+  "navShort": {
+    "today": "Hôm nay",
+    "calendar": "Lịch",
+    "competitors": "Đối thủ",
+    "market": "Thị trường",
+    "reports": "Báo cáo",
+    "tenants": "Tenant",
+    "users": "Tài khoản",
+    "health": "Sức khoẻ"
   },
   "tenant": {
     "pick": "Chọn tenant",
@@ -27,18 +34,31 @@
   },
   "freshness": {
     "noScan": "Chưa có lượt quét",
-    "scanning": "Đang quét…",
-    "updatedAt": "Cập nhật lúc {when}",
-    "failed": "Lượt quét gần nhất không thu được dữ liệu",
-    "overdue": "Lỡ lịch quét · dữ liệu từ {ago}",
-    "next": "Lượt tiếp theo {when}"
-  },
-  "help": {
-    "title": "Trợ giúp",
-    "data": "Dữ liệu",
-    "pickTenant": "Chọn tenant để xem",
-    "heatTitle": "Màu số phòng còn",
-    "heatNote": "Số phòng còn trên Booking.com. “≥N” là Booking.com chỉ lộ mức sàn."
+    "scanning": "đang quét",
+    "pillOk": "Cập nhật {when}",
+    "pillWarn": "Lỡ lịch quét · {when}",
+    "pillStale": "Dữ liệu dừng · {ago}",
+    "panelTitle": "Tình trạng dữ liệu",
+    "statusOk": "Booking.com đọc bình thường. Lần đọc cuối {when}.",
+    "statusOverdue": "Lượt quét theo lịch chưa chạy. Số đang hiện có từ {ago}.",
+    "statusLatestEmpty": "Lượt quét gần nhất không thu được dữ liệu. Số đang hiện là của lần đọc {when}.",
+    "statusStale": "Không có số mới từ {when} ({ago}). Mọi con số trên app là số cũ; gợi ý giá tạm dừng tới khi có lượt quét mới.",
+    "statusNever": "Chưa có lần đọc Booking.com nào thành công.",
+    "nextScan": "Lượt quét kế tiếp",
+    "success7d": "Đọc thành công 7 ngày",
+    "last7Days": "7 ngày qua",
+    "last7DaysLegend": "Xanh: có số mới · Đỏ: có quét nhưng không đọc được · Xám: không có lượt quét",
+    "day": {
+      "ok": "Có số mới",
+      "empty": "Có quét nhưng không đọc được",
+      "none": "Không có lượt quét"
+    },
+    "viewRuns": "Xem các lượt quét →",
+    "howToRead": "Cách đọc số phòng còn",
+    "readExact": "7 · Booking.com báo chính xác còn 7 phòng.",
+    "readFloor": "≥10 · còn ít nhất 10 phòng (Booking.com chỉ cho xem tới mức đó).",
+    "readRange": "60–79 · cả khách sạn còn trong khoảng này.",
+    "readEstimate": "≈ · ước tính từ Booking.com, không phải công suất thật."
   },
   "bell": {
     "title": "Thông báo",

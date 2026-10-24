@@ -22,6 +22,10 @@ class NotificationKind(StrEnum):
     OWN_POSITION_DRIFT = "own_position_drift"  # giá bạn lệch định vị mục tiêu > x%
     OWN_CLOSED = "own_closed"  # bạn hết phòng / không nhận khách ngày đến trên Booking.com
     DATA_STALE = "data_stale"  # dữ liệu cũ hơn một chu kỳ quét
+    # UX Phase 3 (Access RMS): giá đối thủ vừa lệch khỏi giá giữa nhóm ≥ x% hoặc ≥ x VND, luật
+    # xuống (rẻ hơn) và lên (đắt hơn) riêng.
+    COMPETITOR_BELOW_MEDIAN = "competitor_below_median"
+    COMPETITOR_ABOVE_MEDIAN = "competitor_above_median"
 
 
 # Loại sinh từ sự kiện của một lượt quét, gom chung vào một email cảnh báo mỗi lượt.
@@ -34,6 +38,8 @@ ALERT_KINDS = (
     NotificationKind.COMPETITOR_PROMO,
     NotificationKind.OWN_POSITION_DRIFT,
     NotificationKind.OWN_CLOSED,
+    NotificationKind.COMPETITOR_BELOW_MEDIAN,
+    NotificationKind.COMPETITOR_ABOVE_MEDIAN,
 )
 
 DEFAULT_PARAMS: dict[NotificationKind, dict[str, int]] = {
@@ -48,10 +54,23 @@ DEFAULT_PARAMS: dict[NotificationKind, dict[str, int]] = {
     NotificationKind.OWN_POSITION_DRIFT: {"within_days": 14, "max_gap_pct": 10},
     NotificationKind.OWN_CLOSED: {"within_days": 30},
     NotificationKind.DATA_STALE: {},
+    NotificationKind.COMPETITOR_BELOW_MEDIAN: {"within_days": 14, "min_pct": 15, "min_vnd": 0},
+    NotificationKind.COMPETITOR_ABOVE_MEDIAN: {"within_days": 14, "min_pct": 15, "min_vnd": 0},
 }
 
-# Loại mặc định tắt (bật trong Cài đặt): lệch định vị cần khách sạn đặt mục tiêu trước.
-DEFAULT_OFF = frozenset({NotificationKind.OWN_POSITION_DRIFT})
+# Loại mặc định tắt (bật trong Cài đặt). Mặc định = mức "Vừa" của Cài đặt › Cảnh báo: đối thủ hết
+# phòng, đối thủ giảm giá, đêm căng, bạn hết phòng, dữ liệu cũ, bản tin. Lệch vị trí giá cần khách
+# sạn đặt chiến lược trước.
+DEFAULT_OFF = frozenset(
+    {
+        NotificationKind.OWN_POSITION_DRIFT,
+        NotificationKind.COMPETITOR_LOW_STOCK,
+        NotificationKind.COMPETITOR_PRICE_RISE,
+        NotificationKind.COMPETITOR_PROMO,
+        NotificationKind.COMPETITOR_BELOW_MEDIAN,
+        NotificationKind.COMPETITOR_ABOVE_MEDIAN,
+    }
+)
 
 PARAM_BOUNDS: dict[str, tuple[int, int]] = {
     "within_days": (1, 90),
@@ -59,6 +78,7 @@ PARAM_BOUNDS: dict[str, tuple[int, int]] = {
     "min_pct": (3, 90),
     "min_share_pct": (25, 100),
     "max_gap_pct": (3, 50),
+    "min_vnd": (0, 50_000_000),  # 0 = chỉ xét %
 }
 
 

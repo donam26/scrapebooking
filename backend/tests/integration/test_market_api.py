@@ -30,6 +30,7 @@ from tests.integration.test_api import _login
 NOW = datetime.now(tz=UTC)
 TODAY = NOW.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).date()
 NIGHT = TODAY + timedelta(days=5)
+CAPPED_EN = "never more than 15% change at a time (set in Price strategy)"
 
 
 async def _seed(db: AsyncSession) -> dict[str, int]:
@@ -214,10 +215,25 @@ async def test_pace_estimates_suggestion_and_decision_flow(
 
     # Chiến lược giá (6.1): giá gốc dùng khi compset chưa đủ mẫu; làm tròn tới 1 (giá test nhỏ).
     strat = {"base_price": "100", "round_to": 0, "max_daily_change_pct": 15}
+    # Xem trước chiến lược nháp (không lưu), kể cả viewer; tối đa 14 đêm.
+    pv = await client.post("/market/pace/preview", params=params, json=strat)
+    assert pv.status_code == 200, pv.text
+    assert pv.json()["nights"][0]["suggestion"]["target_price"] == "92"
+    long_pv = {"start": TODAY.isoformat(), "end": (TODAY + timedelta(days=14)).isoformat()}
+    assert (
+        await client.post("/market/pace/preview", params=long_pv, json=strat)
+    ).status_code == 422
+    assert len((await client.post("/market/pace/preview", json=strat)).json()["nights"]) == 14
+    cur = (await client.get("/market/strategy")).json()
+    assert cur["configured"] is False and cur["typical_index"] is None  # chưa đủ 3 đối thủ có giá
+    assert (await client.get("/market/pace", params=params)).json()["nights"][0][
+        "suggestion"
+    ] is None
     assert (await client.put("/market/strategy", json=strat)).status_code == 403
     await _login(client, "admin@rex.vn", "admin-pass-1")
     st = await client.put("/market/strategy", json=strat)
     assert st.status_code == 200 and st.json()["configured"] is True, st.text
+    assert st.json()["typical_index"] is None
     bad = await client.put("/market/strategy", json={"floor_price": "90", "ceiling_price": "80"})
     assert bad.status_code == 422
     await _login(client, "view@rex.vn", "view-pass-1")
@@ -227,15 +243,20 @@ async def test_pace_estimates_suggestion_and_decision_flow(
     assert sug["kind"] == "raise" and sug["change_pct"] == 15 and sug["decision"] is None
     assert sug["target_price"] == "92" and sug["clamped"] == "max_change"
     assert [a["key"] for a in sug["adjustments"]] == ["base_price", "comp_occ", "clamp_max_change"]
-    assert "chỉ báo lấp đầy đối thủ trên kênh ≈95% (thử nghiệm) (+5%)" in sug["reasons"]
+    assert (
+        "đối thủ trên Booking có vẻ đã kín khoảng 95% phòng (chỉ báo lấp đầy ≈, thử nghiệm) (+5%)"
+        in sug["reasons"]
+    )
+    assert sug["adjustments"][0]["params"] == {"price": 100}
     en = (await client.get("/market/pace", params=params, headers={"Accept-Language": "en"})).json()
-    assert "capped at 15% change per update" in en["nights"][0]["suggestion"]["reasons"]
+    assert CAPPED_EN in en["nights"][0]["suggestion"]["reasons"]
+    assert "using your strategy base rate ₫100" in en["nights"][0]["suggestion"]["reasons"][0]
 
     path = f"/market/suggestions/{NIGHT.isoformat()}/raise"
     assert (await client.put(path, json={"decision": "applied"})).status_code == 403
     await _login(client, "admin@rex.vn", "admin-pass-1")
     put = await client.put(path, json={"decision": "applied"}, headers={"Accept-Language": "en"})
-    assert put.status_code == 200 and "capped at 15% change per update" in put.json()["reasons"]
+    assert put.status_code == 200 and CAPPED_EN in put.json()["reasons"]
     again = (await client.get("/market/pace", params=params)).json()["nights"][0]
     assert again["suggestion"]["decision"] == "applied"
     wrong = f"/market/suggestions/{NIGHT.isoformat()}/lower"
@@ -246,6 +267,61 @@ async def test_pace_estimates_suggestion_and_decision_flow(
 
     too_long = {"start": TODAY.isoformat(), "end": (TODAY + timedelta(days=60)).isoformat()}
     assert (await client.get("/market/pace", params=too_long)).status_code == 422
+
+
+async def test_typical_index_without_strategy_and_raise_needs_demand(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Chưa lưu chiến lược: /strategy trả mức thường (typical_index) mà /pace đang dùng; đêm chỉ
+    rẻ hơn mức thường <10 điểm và thị trường không có tín hiệu cầu thì giữ giá (Q2)."""
+    ids = await _seed(db)
+    c = Hotel(name="Comp C", country_code="vn")
+    db.add(c)
+    await db.flush()
+    db.add(TenantHotel(tenant_id=ids["t"], hotel_id=c.id, role="competitor", active=True))
+    run = ScanRun(
+        trigger_key="m",
+        channel="booking",
+        scheduled_at=NOW,
+        started_at=NOW,
+        finished_at=NOW,
+        status="completed",
+        total_probes=8,
+    )
+    db.add(run)
+    await db.flush()
+    n1, n2 = NIGHT, NIGHT + timedelta(days=1)
+    # Chỉ số giá của bạn: đêm 1 = 50, đêm 2 = 60 → mức thường (trung vị) 55.
+    for night, own_price in ((n1, Decimal("500000")), (n2, Decimal("600000"))):
+        for hid, price in ((ids["own"], own_price), (ids["a"], 0), (ids["b"], 0), (c.id, 0)):
+            db.add(
+                HotelDateMetric(
+                    hotel_id=hid,
+                    channel="booking",
+                    stay_date=night,
+                    as_of_scan_run_id=run.id,
+                    days_to_arrival=(night - TODAY).days,
+                    min_price=price or Decimal("1000000"),
+                    currency="VND",
+                    availability_status="available",
+                    exact_rooms_left=8,
+                    rooms_left_min=8,
+                    rooms_left_max=8,
+                    last_observed_at=NOW,
+                )
+            )
+    await db.commit()
+    await _login(client, "view@rex.vn", "view-pass-1")
+    st = (await client.get("/market/strategy")).json()
+    assert st["configured"] is False and st["typical_index"] == 55
+    params = {"start": n1.isoformat(), "end": n2.isoformat()}
+    nights = (await client.get("/market/pace", params=params)).json()["nights"]
+    s1 = nights[0]["suggestion"]
+    assert s1["kind"] == "hold" and s1["clamped"] == "no_raise_without_demand"
+    assert s1["adjustments"][0]["key"] == "position_typical"
+    assert s1["adjustments"][0]["params"]["median"] == 1000000
+    assert s1["reasons"][0].startswith("đối thủ bán đêm này khoảng 1.000.000 ₫")
+    assert nights[1]["suggestion"]["clamped"] == "no_lower_without_demand"
 
 
 async def test_pace_empty_tenant_returns_nights_without_data(

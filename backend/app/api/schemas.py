@@ -20,12 +20,23 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
 
+class SetPasswordRequest(BaseModel):
+    """Người được mời tự đặt mật khẩu bằng token trong link mời."""
+
+    token: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=8, max_length=200)
+
+
 class UserOut(ORM):
     id: int
     email: str
     role: str
     tenant_id: int | None
     active: bool
+    last_login_at: datetime | None
+    # Được mời nhưng chưa tự đặt mật khẩu; `invite_expires_at` = hạn của link mời gần nhất.
+    invite_pending: bool
+    invite_expires_at: datetime | None
 
 
 class UserCreate(BaseModel):
@@ -33,6 +44,23 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8)
     role: str = Field(pattern="^(operator|tenant_admin|viewer)$")
     tenant_id: int | None = None
+
+
+class UserInvite(BaseModel):
+    """Thêm người bằng lời mời: họ tự đặt mật khẩu qua link (email hoặc admin gửi tay)."""
+
+    email: EmailStr
+    role: str = Field(pattern="^(operator|tenant_admin|viewer)$")
+    tenant_id: int | None = None
+
+
+class InviteOut(BaseModel):
+    user: UserOut
+    # Link đặt mật khẩu (luôn có, để admin tự gửi khi email chưa gửi được).
+    invite_url: str
+    expires_at: datetime
+    # sent = đã gửi email; not_configured = đơn vị vận hành chưa bật gửi email; failed = gửi lỗi.
+    email_status: Literal["sent", "not_configured", "failed"]
 
 
 class UserUpdate(BaseModel):
@@ -221,6 +249,17 @@ class WatchItemUpdate(BaseModel):
     rooms_total_source: str | None = Field(default=None, max_length=500)
 
 
+class CompsetBalanceOut(BaseModel):
+    """Giá giữa nhóm đối thủ so với giá bạn (14 đêm tới, giá niêm yết Booking.com)."""
+
+    nights: int
+    own_price: Decimal
+    comp_price: Decimal
+    ratio: Decimal  # giá giữa đối thủ / giá bạn (trung vị theo đêm)
+    pricier: bool  # ratio ≥ 1,6: nhóm đối thủ đắt hơn bạn nhiều
+    own_stars: Decimal | None = None  # hạng sao khách sạn bạn (gợi ý khách sạn cùng tầm)
+
+
 class CompsetReviewOut(BaseModel):
     """Rà soát compset theo quy tắc CoStar STR (7.3): ≥4 đối thủ, ≥3 không cùng chủ (chưa kiểm
     được), không khách sạn nào quá 50% số phòng compset; nhắc rà soát ≥2 lần/năm."""
@@ -229,10 +268,32 @@ class CompsetReviewOut(BaseModel):
     primary: int
     secondary: int
     rooms_known: int
-    warnings: list[str]  # mã: too_few | dominant_hotel | rooms_unknown | review_due
+    # mã: too_few | dominant_hotel | rooms_unknown | review_due | pricier_compset
+    warnings: list[str]
     dominant_hotel_id: int | None = None
     dominant_share: Decimal | None = None
     last_change_at: datetime | None = None
+    # Nhóm đối thủ có cân về giá không (Q4), 14 đêm tới: null khi chưa đủ 3 đêm để so.
+    balance: CompsetBalanceOut | None = None
+
+
+class SetupOut(BaseModel):
+    """Thẻ "Thiết lập 5 bước" trên Hôm nay (C1). Bước 1–4 bắt buộc, bước 5 (PMS) tuỳ chọn."""
+
+    own_hotel_id: int | None
+    own_hotel: bool
+    competitors: int  # đối thủ chính đang theo dõi
+    competitors_needed: int
+    strategy: bool  # đã lưu chiến lược giá
+    alerts: bool  # có ít nhất một người nhận đang bật
+    pms: bool  # đã nhập dữ liệu PMS
+    done: bool  # xong bước 1–4
+    dismissed_at: datetime | None
+    balance: CompsetBalanceOut | None = None
+
+
+class SetupUpdate(BaseModel):
+    dismissed: bool
 
 
 # ---- data ----
@@ -445,6 +506,33 @@ class EventOut(BaseModel):
     detail: dict[str, Any] | None = None
 
 
+class PriceMoveOut(BaseModel):
+    nights: int  # số đêm có đổi giá (giá rẻ nhất cùng phòng, cùng gói)
+    max_pct: Decimal | None  # tăng: % tăng lớn nhất (dương); giảm: % giảm sâu nhất (âm)
+
+
+class HotelEventsSummaryOut(BaseModel):
+    """Tóm tắt thay đổi của một khách sạn trong cửa sổ quan sát (đếm theo đêm, không theo sự
+    kiện; giảm phòng bỏ nhiễu ±1 phòng trừ khi còn ≤3 phòng)."""
+
+    hotel_id: int
+    hotel_name: str | None
+    role: str  # self | competitor
+    window_from: datetime
+    window_to: datetime
+    last_observed_at: datetime | None  # lần quét gần nhất có dữ liệu của khách sạn (Booking)
+    price_up: PriceMoveOut
+    price_down: PriceMoveOut
+    sold_out_nights: list[date]  # đêm từ hôm nay đã hết phòng trong cửa sổ, tăng dần, tối đa 10
+    sold_out_total: int  # tổng số đêm như trên (có thể > 10)
+    back_available_nights: int
+    promo_on: int
+    promo_off: int
+    restriction_changes: int  # không nhận khách ngày đến / mở lại / đổi số đêm tối thiểu
+    rooms_drop_nights: int
+    total_events: int
+
+
 class HotelDetailOut(BaseModel):
     hotel: HotelOut
     role: str
@@ -526,17 +614,6 @@ class HealthSummaryOut(BaseModel):
 # ---- Thông báo email ----
 
 
-class RecipientOut(ORM):
-    id: int
-    email: str
-    active: bool
-    created_at: datetime
-
-
-class RecipientCreate(BaseModel):
-    email: EmailStr
-
-
 class NotificationRuleOut(BaseModel):
     kind: str
     active: bool
@@ -551,7 +628,6 @@ class NotificationRuleUpdate(BaseModel):
 class NotificationSettingsOut(BaseModel):
     # Máy chủ email đã cấu hình chưa (chưa thì mọi thông báo chỉ ghi nhật ký, không gửi).
     email_configured: bool
-    recipients: list[RecipientOut]
     rules: list[NotificationRuleOut]
     # Zalo ZNS đã cấu hình (OA xác thực + template duyệt) chưa (3.3).
     zalo_configured: bool = False

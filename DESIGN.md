@@ -510,9 +510,48 @@ Hai bề mặt dùng chung bảng màu, bốn dấu mức tin cậy, một họ 
 - Thang nhiệt số phòng còn `--sb-heat-0..5` / lớp `sb-heat-0..5`: 0 đỏ #dc2626 · ≤3 cam #f97316 · 4–10 hổ phách #fbbf24 · 11–20 vàng nhạt #fde68a · 21–30 xanh nhạt #bbf7d0 · >30 xanh lá #4ade80 (`exactShade`, `HEAT_LEVELS` trong `components/marks.tsx`). Còn phòng không lộ số: viền đứt xanh; ≥N: sọc xanh nhạt; không đọc được: "?" xám.
 - Chữ: Inter (latin + vietnamese), số tabular. Thứ 6/7/CN tô đỏ ở đầu cột ngày, "Hôm nay" xanh trên nền xanh nhạt.
 
-**Khung** (`components/app-shell.tsx`): thanh trên cao 56px (logo dấu sao tám cánh trên ô trắng 18% + chữ "OTARadar" 19px/600; bên phải: tên khách sạn/ô chọn tenant cho operator, ⓘ trợ giúp (độ mới dữ liệu, chú giải màu), chuông (8 thay đổi mới nhất, chấm đỏ nếu có trong 24 giờ), avatar (email, vai trò, đăng xuất)). Hàng tab trắng cao 48px, tab đang mở chữ đậm gạch chân xanh 2.5px; operator có thêm nhóm "Vận hành". Không còn thanh bên và ngăn kéo; hàng tab cuộn ngang trên điện thoại.
+**Khung** (`components/app-shell.tsx`, cập nhật 24/10).
+- **Thanh trên** cao 56px. Bên trái: logo dấu sao tám cánh trên ô trắng 18% + chữ "OTARadar" 19px/600, bấm về Hôm nay.
+- **Bên phải thanh trên:**
+  - tên khách sạn (operator: ô chọn tenant);
+  - **pill độ mới dữ liệu**: chấm xanh lá/vàng/đỏ + "Cập nhật 18:36 hôm nay" / "Lỡ lịch quét · …" / "Dữ liệu dừng · 8 ngày trước"; mobile chỉ còn chấm. Bấm mở bảng "Tình trạng dữ liệu" rộng 360px: câu trạng thái, lượt kế tiếp, tỷ lệ đọc thành công 7 ngày, dải 7 ngày (xanh có số mới / đỏ quét không đọc được / xám không quét), "Cách đọc số phòng còn" (7 · ≥10 · 60–79 · ≈) + màu nhiệt, link "Xem các lượt quét";
+  - chuông (8 thay đổi mới nhất);
+  - nút ⚙ Cài đặt;
+  - avatar (email, vai trò, ngôn ngữ, đăng xuất; operator có link Vận hành trên điện thoại).
+- **Hàng tab** trắng cao 48px (≥768px), tab đang mở chữ đậm gạch chân xanh 2.5px; operator có thêm nhóm "Vận hành".
+- **Dưới 768px**: thanh đáy cố định 5 mục (biểu tượng 22px + nhãn 11px, cao 56px, chừa vùng an toàn), nội dung chừa 96px đáy.
 
-**Tám tab:** Bảng điều khiển `/dashboard` · Đối thủ `/competitors` (+ `/hotels/[id]`) · Phòng trống `/availability` (`/overview` chuyển hướng) · Giá & định giá `/rates` · Terminal+ `/terminal` (`/pace` chuyển hướng tới `#pace`) · Bản tin `/insights` + `/events` (tab con) · Lịch sử quét `/runs` · Cài đặt `/settings`. PWA mở vào `/dashboard`; `/today` vẫn có, mở từ menu trợ giúp.
+**Năm tab theo công việc (từ 24/10, thay tám tab):**
+- **Hôm nay** `/today`: trang mở đầu. Gộp Hôm nay + Bảng điều khiển; `/dashboard` chuyển về đây.
+- **Lịch giá & phòng** `/calendar`: Phòng trống + Giá & định giá trong một lưới, chuyển Phòng còn / Giá / Chênh với bạn. `/availability`, `/overview`, `/rates` chuyển về đây.
+- **Đối thủ** `/competitors`: tab con Nhóm đối thủ · Khuyến mãi & hạn chế · Tìm khách sạn để theo dõi; `/hotels/[id]`.
+- **Thị trường** `/market`: mức căng khu vực 14 đêm, hôm nay trong khu vực, lịch sự kiện. `/terminal` chuyển về đây.
+- **Báo cáo** `/insights`: tab con Bản tin AI · Nhật ký thay đổi `/events` · Kết quả gợi ý `/reports/outcomes` · Nhịp đặt phòng `/reports/pace`. `/pace` chuyển về đây.
+
+Cài đặt là nút ⚙. Lịch sử quét `/runs` mở từ bảng Tình trạng dữ liệu. Đăng nhập, PWA và logo đều mở Hôm nay. Tên "Terminal+" của giao diện mẫu không còn dùng (quyết định Q5, plan `plans/261024-0007-tenant-admin-ux-overhaul/`).
+
+**Hôm nay** (`app/(app)/today/`), 2 cột trên ≥1280px (chính 1fr + phụ 360px):
+1. **Việc cần làm hôm nay:** ≤5 việc trong 14 đêm. Gợi ý giá là thẻ `SuggestionCard brief`: đêm, nhãn, giá mục tiêu, một câu lý do, "Cách tính" gập, nút "Tôi đã đổi giá" / "Bỏ qua". Đã ghi thì thu một dòng có "Hoàn tác". Sau đó tới đối thủ hết phòng đêm nay, rồi đêm căng. Dữ liệu cũ (`stale`) thì chỉ một hộp đỏ "Chưa đưa gợi ý giá".
+2. **14 đêm tới: bạn so với đối thủ:** mỗi đêm một cột gồm dấu phòng còn 36px, giá của bạn, % so giá giữa đối thủ, x/N đối thủ hết, chấm tím khi có gợi ý chờ.
+3. Thay đổi 24 giờ.
+4. Bản tin, ghi giờ tạo.
+
+Cột phụ: "Khách sạn của bạn đêm nay". Số chính là giá bạn so giá giữa đối thủ (28px); công suất chỉ là một dòng khi có PMS hoặc ước tính đủ tin cậy.
+
+**Các tab khác (24/10):**
+- **Lịch giá & phòng** (`app/(app)/calendar/`): `PageStrip` có chọn ngày, 14/30/60 (mặc định 14) và cơ sở giá (chỉ hiện ở chế độ giá).
+  - Nhóm chọn `Phòng còn | Giá | Chênh với bạn` lưu ở `?view=`.
+  - Chú giải chính 5 mục; các mục còn lại trong "Cách đọc ô".
+  - Hàng "Công suất của bạn (PMS)" nằm dưới hàng khách sạn của bạn. Chấm tím trên cột là đêm có gợi ý chờ.
+  - Xu hướng giá và chỉ báo lấp đầy nằm dưới, gập sẵn. Đường PMS màu xanh thương hiệu, nét đứt.
+- **Chi tiết đêm:** đầu trang là thẻ gợi ý (khách sạn của bạn) và thẻ "Cùng đêm trên Booking.com". Gói giá chỉ hiện thẻ tiếng Việt. Không có cột mã lượt quét. Dưới 2 lượt quét thì thay biểu đồ bằng một câu.
+- **Đối thủ:** mỗi thẻ có dòng "7 ngày qua" (`components/change-summary.tsx`). Trang đối thủ có thẻ 7 ngày ở đầu và nhật ký gom theo đêm (ẩn thay đổi ±1 phòng). "Thêm khách sạn" mở hộp thoại tại chỗ (`components/add-hotel-dialog.tsx`). Quận/thành phố viết tiếng Việt (`lib/place-names.ts`).
+- **Thị trường** (`app/(app)/market/`): mức căng khu vực 14 đêm, "Hôm nay trong khu vực" là một câu chính (thang phòng, phân bố giá và loại chỗ ở nằm trong "Chi tiết"), lịch sự kiện 12 tháng. Thẻ thời tiết chỉ hiện khi có số.
+- **Báo cáo:** tab con Bản tin AI · Nhật ký thay đổi (mặc định 7 ngày, 4 nhóm lọc) · Kết quả gợi ý · Nhịp đặt phòng. Doanh thu và OTB chỉ hiện khi có PMS; không có thì một thẻ "Nhập PMS để mở…".
+- **Cài đặt** (nút ⚙): Khách sạn & đối thủ · Cảnh báo ("Ai nhận gì", 3 mức sẵn) · Người dùng (mặc định Chỉ xem) · Dữ liệu PMS (một ô thả tệp) · Chiến lược giá (4 thẻ vị trí + xem trước 7 đêm) · Nâng cao (lịch quét, khu vực thị trường, sự kiện).
+- **ⓘ trên điện thoại:** bảng giải thích cố định ở đáy màn hình để không làm trang cuộn ngang.
+
+**Dữ liệu cũ hơn 48 giờ** (`.sb-stale`): ô giữ màu nhiệt, góc phải có sọc chéo mực 10px mờ 55%; giá cũ in chữ phụ kèm `title`. Không làm xám hay mờ cả ô: bản cũ grayscale + opacity 0,45 cho tương phản ~1,8:1. Chữ mờ `--sb-faint` = #6b7280 (≥4,5:1 trên trắng).
 
 **Thành phần mới:**
 - `PageStrip`: dải đầu trang (tên tab xanh 18px/700, mục thông tin ngăn bằng vạch dọc, chọn kênh bên phải).

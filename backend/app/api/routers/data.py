@@ -9,6 +9,7 @@ from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.compset import STALE_AFTER, PriceBasis, compset_by_day, metric_price
+from app.analytics.event_summary import EventRow, summarize_events
 from app.api.deps import (
     LocaleDep,
     PrincipalDep,
@@ -27,8 +28,10 @@ from app.api.schemas import (
     HolidayOut,
     HotelDateSnapshotOut,
     HotelDetailOut,
+    HotelEventsSummaryOut,
     HotelRow,
     OverviewOut,
+    PriceMoveOut,
     RateDetailOut,
     RoomSnapshotOut,
     RoomTypeOut,
@@ -668,6 +671,84 @@ async def list_events(
         .limit(limit)
     )
     return await _events_out(session, stmt)
+
+
+@router.get("/events/summary", response_model=list[HotelEventsSummaryOut])
+async def events_summary(
+    tenant_id: TenantDep,
+    session: SessionDep,
+    days: int = Query(7, ge=1, le=30),
+    hotel_id: int | None = None,
+) -> list[HotelEventsSummaryOut]:
+    """Tóm tắt "N ngày qua" theo từng khách sạn đang theo dõi (audit F1): đêm tăng/giảm giá, đêm
+    hết phòng, có phòng lại, khuyến mãi, hạn chế, giảm phòng đáng kể. Đếm theo đêm."""
+    stmt = (
+        select(TenantHotel.hotel_id, TenantHotel.role, Hotel.name)
+        .join(Hotel, Hotel.id == TenantHotel.hotel_id)
+        .where(TenantHotel.tenant_id == tenant_id)
+    )
+    if hotel_id is not None:
+        await ensure_hotel_in_tenant(session, tenant_id, hotel_id)
+        stmt = stmt.where(TenantHotel.hotel_id == hotel_id)
+    else:
+        stmt = stmt.where(TenantHotel.active.is_(True))
+    hotels = (await session.execute(stmt.order_by(TenantHotel.role.desc(), Hotel.name))).all()
+    if not hotels:
+        return []
+    ids = [h.hotel_id for h in hotels]
+    to = datetime.now(tz=UTC)
+    since = to - timedelta(days=days)
+    channel = tenant_channel()
+    by_hotel: dict[int, list[EventRow]] = {i: [] for i in ids}
+    for hid, *fields in await session.execute(
+        select(
+            AvailabilityEvent.hotel_id,
+            AvailabilityEvent.stay_date,
+            AvailabilityEvent.event_type,
+            AvailabilityEvent.room_type_id,
+            AvailabilityEvent.from_value,
+            AvailabilityEvent.to_value,
+            AvailabilityEvent.delta,
+        ).where(
+            AvailabilityEvent.hotel_id.in_(ids),
+            AvailabilityEvent.channel == channel,
+            AvailabilityEvent.observed_at >= since,
+        )
+    ):
+        by_hotel[hid].append(EventRow(*fields))
+    last_seen: dict[int, datetime] = {
+        hid: at
+        for hid, at in await session.execute(
+            select(HotelDateMetric.hotel_id, func.max(HotelDateMetric.last_observed_at))
+            .where(HotelDateMetric.hotel_id.in_(ids), HotelDateMetric.channel == channel)
+            .group_by(HotelDateMetric.hotel_id)
+        )
+    }
+    today = await _local_today(session, tenant_id)
+    out = []
+    for h in hotels:
+        sm = summarize_events(by_hotel[h.hotel_id], today)
+        out.append(
+            HotelEventsSummaryOut(
+                hotel_id=h.hotel_id,
+                hotel_name=h.name,
+                role=h.role,
+                window_from=since,
+                window_to=to,
+                last_observed_at=last_seen.get(h.hotel_id),
+                price_up=PriceMoveOut(nights=sm.price_up.nights, max_pct=sm.price_up.max_pct),
+                price_down=PriceMoveOut(nights=sm.price_down.nights, max_pct=sm.price_down.max_pct),
+                sold_out_nights=sm.sold_out_nights,
+                sold_out_total=sm.sold_out_total,
+                back_available_nights=sm.back_available_nights,
+                promo_on=sm.promo_on,
+                promo_off=sm.promo_off,
+                restriction_changes=sm.restriction_changes,
+                rooms_drop_nights=sm.rooms_drop_nights,
+                total_events=sm.total_events,
+            )
+        )
+    return out
 
 
 @router.get("/runs", response_model=list[ScanRunOut])

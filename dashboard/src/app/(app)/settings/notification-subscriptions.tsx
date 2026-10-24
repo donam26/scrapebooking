@@ -1,8 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { api, type EngagementWeekOut, type NotificationSettingsOut, type NotifyChannel, type SubscriptionIn, type SubscriptionKind, type SubscriptionOut } from "@/lib/api";
+import { Fragment, useState, type FormEvent, type ReactNode } from "react";
+import { api, type EngagementWeekOut, type NotificationLogOut, type NotificationSettingsOut, type NotifyChannel, type SubscriptionIn, type SubscriptionKind, type SubscriptionOut } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { num, useFmt } from "@/lib/format";
@@ -10,9 +10,16 @@ import { useLabel } from "@/lib/labels";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, ROW_CLASS, Select, Skeleton, Switch, Table, Td, Th, cx } from "@/components/ui";
 import { IconAlert, IconBell, IconCheck, IconLink, IconMail, IconPencil, IconPlus, IconTrash, IconTrend } from "@/components/icons";
 
-/** Nhóm tin của một đăng ký (rỗng = mọi loại), khớp `SubscriptionIn.kinds` ở backend. */
-const SUB_KINDS: readonly SubscriptionKind[] = ["alerts", "daily_insight", "weekly_report", "data_stale"];
+/**
+ * Cài đặt › Cảnh báo › "Ai nhận gì" (UX Phase 3, C2): một bảng duy nhất, mỗi người nhận (email, số
+ * Zalo hoặc webhook) một hàng, mỗi loại tin một công tắc. Hàng là một đăng ký nhận tin ở backend
+ * (`kinds` rỗng = mọi loại; tắt hết = tạm dừng hàng).
+ */
+
+/** Cột của bảng, khớp `SubscriptionIn.kinds` ở backend. */
+export const SUB_KINDS: readonly SubscriptionKind[] = ["alerts", "daily_insight", "weekly_report", "data_stale"];
 const CHANNEL_ORDER: readonly NotifyChannel[] = ["email", "zalo", "webhook"];
+const DEFAULT_QUIET = { start: "22:00", end: "06:00" };
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -34,13 +41,21 @@ function validWebhook(raw: string): boolean {
   }
 }
 
+/** Đoán kênh từ chữ người dùng gõ: có @ là email, https:// là webhook, còn lại là số Zalo. */
+function guessChannel(raw: string): NotifyChannel {
+  const v = raw.trim();
+  if (v.includes("@")) return "email";
+  if (/^https?:\/\//i.test(v)) return "webhook";
+  return "zalo";
+}
+
 function channelIcon(channel: string, size = 16): ReactNode {
   if (channel === "email") return <IconMail size={size} />;
   if (channel === "webhook") return <IconLink size={size} />;
   return <IconBell size={size} />;
 }
 
-/** Chip kênh gửi (email/Zalo/webhook) dùng chung cho đăng ký, nhật ký gửi và bảng hiệu quả. */
+/** Chip kênh gửi (email/Zalo/webhook) dùng chung cho bảng người nhận, nhật ký gửi và bảng hiệu quả. */
 export function ChannelChip({ channel }: { channel: string }) {
   const label = useLabel();
   return (
@@ -53,12 +68,17 @@ export function ChannelChip({ channel }: { channel: string }) {
   );
 }
 
-// ---- Kênh gửi ----
+/** Kênh gửi được: email/Zalo khi đơn vị vận hành đã bật, webhook luôn được. */
+export function usableChannels(data: NotificationSettingsOut): Record<NotifyChannel, boolean> {
+  return { email: data.email_configured, zalo: data.zalo_configured, webhook: true };
+}
+
+// ---- Kênh gửi (chỉ operator: trạng thái kỹ thuật) ----
 
 export function ChannelStatus({ data }: { data: NotificationSettingsOut }) {
   const t = useTranslations("settings.notifications.channels");
   const channels = CHANNEL_ORDER.filter((c) => data.channels.includes(c));
-  const ready: Record<NotifyChannel, boolean> = { email: data.email_configured, zalo: data.zalo_configured, webhook: true };
+  const ready = usableChannels(data);
   return (
     <Card title={t("title")} description={t("description")}>
       <ul className="grid gap-3 md:grid-cols-3">
@@ -84,50 +104,34 @@ export function ChannelStatus({ data }: { data: NotificationSettingsOut }) {
   );
 }
 
-// ---- Đăng ký nhận tin ----
+// ---- Bảng "Ai nhận gì" ----
 
-type Draft = { channel: NotifyChannel; target: string; kinds: SubscriptionKind[]; quietStart: string; quietEnd: string; maxPerDay: string; active: boolean };
+/** Loại tin hàng đang nhận (hàng tạm dừng = không nhận gì). */
+function receives(s: SubscriptionOut): SubscriptionKind[] {
+  if (!s.active) return [];
+  return s.kinds.length ? SUB_KINDS.filter((k) => s.kinds.includes(k)) : [...SUB_KINDS];
+}
 
-function toDraft(s: SubscriptionOut | null, defaultEmail: string): Draft {
-  if (!s) return { channel: "email", target: defaultEmail, kinds: [], quietStart: "", quietEnd: "", maxPerDay: "", active: true };
+function body(s: SubscriptionOut, patch: Partial<SubscriptionIn> = {}): SubscriptionIn {
   return {
     channel: s.channel,
     target: s.target,
-    kinds: [...s.kinds],
-    quietStart: s.quiet_start ?? "",
-    quietEnd: s.quiet_end ?? "",
-    maxPerDay: s.max_per_day ? String(s.max_per_day) : "",
+    kinds: SUB_KINDS.filter((k) => s.kinds.includes(k)),
+    quiet_start: s.quiet_start ?? null,
+    quiet_end: s.quiet_end ?? null,
+    max_per_day: s.max_per_day ?? null,
     active: s.active,
+    ...patch,
   };
 }
 
-function toBody(d: Draft): SubscriptionIn {
-  return {
-    channel: d.channel,
-    target: d.target.trim(),
-    kinds: SUB_KINDS.filter((k) => d.kinds.includes(k)),
-    quiet_start: d.quietStart || null,
-    quiet_end: d.quietEnd || null,
-    max_per_day: d.maxPerDay.trim() ? Number(d.maxPerDay) : null,
-    active: d.active,
-  };
-}
-
-type InvalidKey = "email" | "phone" | "webhook" | "quiet" | "quietSame" | "maxPerDay";
-
-function validate(d: Draft): InvalidKey | null {
-  const target = d.target.trim();
-  if (d.channel === "email" && !EMAIL_RE.test(target)) return "email";
-  if (d.channel === "zalo" && normalizeVnPhone(target) === null) return "phone";
-  if (d.channel === "webhook" && !validWebhook(target)) return "webhook";
-  if (!!d.quietStart !== !!d.quietEnd) return "quiet";
-  if (d.quietStart && (!HHMM_RE.test(d.quietStart) || !HHMM_RE.test(d.quietEnd))) return "quiet";
-  if (d.quietStart && d.quietStart === d.quietEnd) return "quietSame";
-  if (d.maxPerDay.trim()) {
-    const n = Number(d.maxPerDay);
-    if (!Number.isInteger(n) || n < 1 || n > 50) return "maxPerDay";
-  }
-  return null;
+/** Bật/tắt một loại tin của một hàng. Tắt hết thì tạm dừng hàng (kinds rỗng ở backend = mọi loại). */
+function toggled(s: SubscriptionOut, kind: SubscriptionKind, on: boolean): SubscriptionIn {
+  const now = new Set(receives(s));
+  if (on) now.add(kind);
+  else now.delete(kind);
+  const kinds = SUB_KINDS.filter((k) => now.has(k));
+  return kinds.length === 0 ? body(s, { active: false, kinds: [] }) : body(s, { active: true, kinds });
 }
 
 /** Nơi nhận hiển thị: số Zalo dạng 0912 345 678 cho dễ đọc. */
@@ -138,267 +142,330 @@ function shownTarget(s: Pick<SubscriptionOut, "channel" | "target">): string {
   return local.length === 10 ? `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}` : s.target;
 }
 
-export function Subscriptions({ channels, zaloConfigured }: { channels: string[]; zaloConfigured: boolean }) {
-  const t = useTranslations("settings.notifications.subscriptions");
-  const { user, canWrite } = useSession();
+export function Recipients({ settings, onSent }: { settings: NotificationSettingsOut; onSent: () => void }) {
+  const t = useTranslations("settings.notifications.who");
+  const { canWrite, isOperator } = useSession();
   const subs = useApi("notifications:subscriptions", () => api.notifications.subscriptions.list());
-  const [editing, setEditing] = useState<SubscriptionOut | "new" | null>(null);
-  const toggle = useMutation(async (s: SubscriptionOut, active: boolean) => {
-    await api.notifications.subscriptions.update(s.id, { ...toBody(toDraft(s, "")), active });
+  const [editing, setEditing] = useState<number | null>(null);
+  const [tested, setTested] = useState<{ id: number; row: NotificationLogOut } | null>(null);
+  const ready = usableChannels(settings);
+  const save = useMutation(async (id: number, next: SubscriptionIn) => {
+    await api.notifications.subscriptions.update(id, next);
     subs.reload();
   });
-  const remove = useMutation(async (id: number) => {
-    await api.notifications.subscriptions.remove(id);
-    if (editing !== null && editing !== "new" && editing.id === id) setEditing(null);
+  const remove = useMutation(async (s: SubscriptionOut) => {
+    if (!window.confirm(t("removeConfirm", { target: shownTarget(s) }))) return;
+    await api.notifications.subscriptions.remove(s.id);
+    if (editing === s.id) setEditing(null);
     subs.reload();
   });
-  const available = CHANNEL_ORDER.filter((c) => channels.includes(c));
+  const test = useMutation(async (id: number) => {
+    setTested(null);
+    setTested({ id, row: await api.notifications.subscriptions.test(id) });
+    onSent();
+  });
   const list = subs.data ?? [];
+  // Kênh khách sạn thêm được: kênh chưa bật bị ẩn với khách sạn (Q6); operator thấy mọi kênh.
+  const addable = CHANNEL_ORDER.filter((c) => settings.channels.includes(c) && (isOperator || ready[c]));
 
   return (
-    <Card
-      title={t("title")}
-      description={canWrite ? t("descriptionAdmin") : t("descriptionViewer")}
-      actions={
-        editing === null && (
-          <Button size="sm" variant="primary" icon={<IconPlus size={15} />} onClick={() => setEditing("new")}>
-            {t("add")}
-          </Button>
-        )
-      }
-    >
-      <ErrorBox error={subs.error ?? toggle.error ?? remove.error} className="mb-3" />
-      {editing === "new" && (
-        <SubscriptionForm
-          initial={null}
-          defaultEmail={user?.email ?? ""}
-          channels={available}
-          zaloConfigured={zaloConfigured}
-          onDone={() => {
-            setEditing(null);
-            subs.reload();
-          }}
-          onCancel={() => setEditing(null)}
-        />
-      )}
-      {!subs.data && !subs.error && <Skeleton rows={2} />}
-      {subs.data && list.length === 0 && editing !== "new" && (
-        <EmptyState icon={<IconBell />} title={t("emptyTitle")} compact>
-          {t("emptyBody")}
-        </EmptyState>
+    <Card title={t("title")} description={canWrite ? t("descriptionAdmin") : t("descriptionViewer")} padded={false}>
+      <div className="px-5 pt-4">
+        <AddRecipient channels={addable} onAdded={subs.reload} />
+      </div>
+      <ErrorBox error={subs.error ?? save.error ?? remove.error ?? test.error} className="mx-5 mt-3" />
+      {!subs.data && !subs.error && <Skeleton rows={2} className="p-5" />}
+      {subs.data && list.length === 0 && (
+        <div className="p-5">
+          <EmptyState icon={<IconBell />} title={t("emptyTitle")} compact>
+            {t("emptyBody")}
+          </EmptyState>
+        </div>
       )}
       {list.length > 0 && (
-        <ul className={cx("divide-y divide-line rounded-lg border border-line", editing === "new" && "mt-4")}>
-          {list.map((s) =>
-            editing !== null && editing !== "new" && editing.id === s.id ? (
-              <li key={s.id} className="p-4">
-                <SubscriptionForm
-                  initial={s}
-                  defaultEmail={user?.email ?? ""}
-                  channels={available}
-                  zaloConfigured={zaloConfigured}
-                  onDone={() => {
+        // Điện thoại: mỗi người nhận một thẻ (bảng 7 cột quá rộng cho 375px).
+        <ul className="mt-4 divide-y divide-line border-t border-line sm:hidden">
+          {list.map((s) => {
+            const on = receives(s);
+            const target = shownTarget(s);
+            return (
+              <li key={s.id} className="space-y-2.5 px-5 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={cx("truncate font-semibold tabular", s.active ? "text-ink" : "text-muted")} title={s.target}>
+                      {target}
+                    </p>
+                    <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <ChannelChip channel={s.channel} />
+                      {!ready[s.channel] && <span className="text-xs text-warning-deep">{isOperator ? t("blockedOperator") : t("blocked")}</span>}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button size="sm" variant="ghost" icon={<IconMail size={14} />} aria-label={t("testAria", { target })} onClick={() => void test.run(s.id)} />
+                    <Button size="sm" variant="ghost" icon={<IconPencil size={14} />} aria-label={t("editAria", { target })} onClick={() => setEditing(editing === s.id ? null : s.id)} />
+                    <Button size="sm" variant="ghost" icon={<IconTrash size={14} />} aria-label={t("removeAria", { target })} disabled={remove.busy} onClick={() => void remove.run(s)} />
+                  </div>
+                </div>
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-2">
+                  {SUB_KINDS.map((k) => (
+                    <li key={k} className="flex items-center gap-2 text-sm text-body">
+                      <Switch checked={on.includes(k)} label={t("toggleAria", { kind: t(`kind.${k}`), target })} busy={save.busy} onChange={(next) => void save.run(s.id, toggled(s, k, next))} />
+                      {t(`kind.${k}`)}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted">
+                  {t("quiet")}: {s.quiet_start && s.quiet_end ? t("quietRange", { start: s.quiet_start, end: s.quiet_end }) : t("quietNone")}
+                </p>
+                {tested?.id === s.id && <TestResult row={tested.row} />}
+                {editing === s.id && (
+                  <EditRow sub={s} busy={save.busy} onCancel={() => setEditing(null)} onSave={async (next) => {
+                    await save.run(s.id, next);
                     setEditing(null);
-                    subs.reload();
-                  }}
-                  onCancel={() => setEditing(null)}
-                />
+                  }} />
+                )}
               </li>
-            ) : (
-              <SubscriptionRow
-                key={s.id}
-                s={s}
-                mine={s.user_id !== null && s.user_id === user?.id}
-                showOwner={canWrite}
-                zaloConfigured={zaloConfigured}
-                busy={toggle.busy || remove.busy}
-                onToggle={(active) => void toggle.run(s, active)}
-                onEdit={() => setEditing(s)}
-                onRemove={() => void remove.run(s.id)}
-              />
-            ),
-          )}
+            );
+          })}
         </ul>
       )}
+      {list.length > 0 && (
+        <Table dense className="mt-4 hidden border-t border-line sm:block">
+          <thead>
+            <tr>
+              <Th className="pl-5">{t("person")}</Th>
+              {SUB_KINDS.map((k) => (
+                <Th key={k} className="text-center">
+                  <span className="block whitespace-normal leading-tight">{t(`kind.${k}`)}</span>
+                </Th>
+              ))}
+              <Th>{t("quiet")}</Th>
+              <Th className="pr-5">
+                <span className="sr-only">{t("actions")}</span>
+              </Th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((s) => {
+              const on = receives(s);
+              const target = shownTarget(s);
+              const blocked = !ready[s.channel];
+              return (
+                <Fragment key={s.id}>
+                  <tr className={cx(ROW_CLASS, "align-middle")}>
+                    <Td className="pl-5">
+                      <div className="flex min-w-0 max-w-[260px] flex-col gap-1">
+                        <span className={cx("truncate font-semibold tabular", s.active ? "text-ink" : "text-muted")} title={s.target}>
+                          {target}
+                        </span>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <ChannelChip channel={s.channel} />
+                          {!s.active && <span className="text-xs font-semibold text-muted">{t("paused")}</span>}
+                          {blocked && <span className="text-xs text-warning-deep">{isOperator ? t("blockedOperator") : t("blocked")}</span>}
+                        </span>
+                      </div>
+                    </Td>
+                    {SUB_KINDS.map((k) => (
+                      <Td key={k} className="text-center">
+                        <span className="inline-flex">
+                          <Switch checked={on.includes(k)} label={t("toggleAria", { kind: t(`kind.${k}`), target })} busy={save.busy} onChange={(next) => void save.run(s.id, toggled(s, k, next))} />
+                        </span>
+                      </Td>
+                    ))}
+                    <Td className="whitespace-nowrap">
+                      <button type="button" onClick={() => setEditing(editing === s.id ? null : s.id)} className="rounded-sm text-sm text-body underline decoration-dotted underline-offset-2 hover:text-brand" aria-expanded={editing === s.id} aria-label={t("editAria", { target })}>
+                        {s.quiet_start && s.quiet_end ? t("quietRange", { start: s.quiet_start, end: s.quiet_end }) : t("quietNone")}
+                      </button>
+                    </Td>
+                    <Td className="whitespace-nowrap pr-5">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="sm" variant="quiet" icon={<IconMail size={14} />} busy={test.busy && tested === null} onClick={() => void test.run(s.id)} aria-label={t("testAria", { target })}>
+                          <span className="max-md:sr-only">{t("test")}</span>
+                        </Button>
+                        <Button size="sm" variant="ghost" icon={<IconPencil size={14} />} aria-label={t("editAria", { target })} onClick={() => setEditing(editing === s.id ? null : s.id)} />
+                        <Button size="sm" variant="ghost" icon={<IconTrash size={14} />} aria-label={t("removeAria", { target })} disabled={remove.busy} onClick={() => void remove.run(s)} />
+                      </div>
+                    </Td>
+                  </tr>
+                  {tested?.id === s.id && (
+                    <tr>
+                      <td colSpan={SUB_KINDS.length + 3} className="px-5 pb-2">
+                        <TestResult row={tested.row} />
+                      </td>
+                    </tr>
+                  )}
+                  {editing === s.id && (
+                    <tr>
+                      <td colSpan={SUB_KINDS.length + 3} className="border-b border-line bg-subtle/60 px-5 py-3">
+                        <EditRow sub={s} busy={save.busy} onCancel={() => setEditing(null)} onSave={async (next) => {
+                          await save.run(s.id, next);
+                          setEditing(null);
+                        }} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </Table>
+      )}
+      <p className="px-5 py-3 text-xs text-muted">{t("legend")}</p>
     </Card>
   );
 }
 
-function SubscriptionRow({
-  s,
-  mine,
-  showOwner,
-  zaloConfigured,
-  busy,
-  onToggle,
-  onEdit,
-  onRemove,
-}: {
-  s: SubscriptionOut;
-  mine: boolean;
-  showOwner: boolean;
-  zaloConfigured: boolean;
-  busy: boolean;
-  onToggle: (active: boolean) => void;
-  onEdit: () => void;
-  onRemove: () => void;
-}) {
-  const t = useTranslations("settings.notifications.subscriptions");
-  const target = shownTarget(s);
-  const facts: string[] = [s.kinds.length ? s.kinds.map((k) => t(`kind.${k}`)).join(", ") : t("allKinds")];
-  if (s.quiet_start && s.quiet_end) facts.push(t("quiet", { start: s.quiet_start, end: s.quiet_end }));
-  if (s.max_per_day) facts.push(t("maxPerDay", { count: s.max_per_day }));
+function TestResult({ row }: { row: NotificationLogOut }) {
+  const t = useTranslations("settings.notifications.who");
+  const label = useLabel();
+  if (row.status === "sent") {
+    return (
+      <p role="status" className="flex items-center gap-1.5 text-sm text-yours-deep">
+        <IconCheck size={15} /> {t("testSent")}
+      </p>
+    );
+  }
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
-      <div className="pt-0.5">
-        <Switch checked={s.active} label={t("toggleAria", { target })} busy={busy} onChange={onToggle} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <ChannelChip channel={s.channel} />
-          <span className={cx("min-w-0 truncate text-base font-semibold tabular", s.active ? "text-ink" : "text-muted")} title={s.target}>
-            {target}
-          </span>
-          {showOwner && (mine ? <Badge tone="blue">{t("mine")}</Badge> : <span className="text-xs text-muted">{s.user_id ? t("owner", { id: s.user_id }) : t("ownerUnknown")}</span>)}
-          {!s.active && <span className="text-xs font-semibold text-muted">{t("paused")}</span>}
-        </div>
-        <p className={cx("mt-0.5 text-sm", s.active ? "text-body" : "text-faint")}>{facts.join(" · ")}</p>
-        {s.channel === "zalo" && !zaloConfigured && (
-          <p className="mt-1 flex items-start gap-1 text-xs text-warning-deep">
-            <IconAlert size={13} className="mt-px shrink-0" /> {t("zaloNotReady")}
-          </p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button size="sm" variant="ghost" icon={<IconPencil size={15} />} aria-label={t("editAria", { target })} onClick={onEdit} />
-        <Button size="sm" variant="ghost" icon={<IconTrash size={15} />} aria-label={t("removeAria", { target })} disabled={busy} onClick={onRemove} />
-      </div>
-    </li>
+    <p role="status" className="flex items-center gap-1.5 text-sm font-semibold text-warning-deep">
+      <IconAlert size={15} /> {row.reason ? label("notificationReason", row.reason) : t("testNotSent")}
+    </p>
   );
 }
 
-function SubscriptionForm({
-  initial,
-  defaultEmail,
-  channels,
-  zaloConfigured,
-  onDone,
-  onCancel,
-}: {
-  initial: SubscriptionOut | null;
-  defaultEmail: string;
-  channels: readonly NotifyChannel[];
-  zaloConfigured: boolean;
-  onDone: () => void;
-  onCancel: () => void;
-}) {
-  const t = useTranslations("settings.notifications.subscriptions");
-  const tf = useTranslations("settings.notifications.subscriptions.form");
-  const [d, setD] = useState<Draft>(() => toDraft(initial, defaultEmail));
+type Invalid = "email" | "phone" | "webhook" | "channel" | "quiet" | "quietSame" | "maxPerDay";
+
+function targetProblem(channel: NotifyChannel, raw: string): Invalid | null {
+  const v = raw.trim();
+  if (channel === "email" && !EMAIL_RE.test(v)) return "email";
+  if (channel === "zalo" && normalizeVnPhone(v) === null) return "phone";
+  if (channel === "webhook" && !validWebhook(v)) return "webhook";
+  return null;
+}
+
+/** "Thêm người nhận": gõ email, số Zalo hoặc URL webhook; kênh tự đoán, đổi được khi có nhiều kênh. */
+function AddRecipient({ channels, onAdded }: { channels: readonly NotifyChannel[]; onAdded: () => void }) {
+  const t = useTranslations("settings.notifications.who");
+  const tf = useTranslations("settings.notifications.who.form");
+  const [target, setTarget] = useState("");
+  const [picked, setPicked] = useState<NotifyChannel | null>(null);
   const [touched, setTouched] = useState(false);
-  const invalid = validate(d);
-  const save = useMutation(async () => {
-    const body = toBody(d);
-    if (initial) await api.notifications.subscriptions.update(initial.id, body);
-    else await api.notifications.subscriptions.create(body);
-    onDone();
+  const guessed = guessChannel(target);
+  const channel: NotifyChannel = picked ?? (channels.includes(guessed) ? guessed : (channels[0] ?? "email"));
+  const problem: Invalid | null = channels.length === 0 ? null : !channels.includes(channel) ? "channel" : targetProblem(channel, target);
+  const add = useMutation(async () => {
+    await api.notifications.subscriptions.create({
+      channel,
+      target: target.trim(),
+      kinds: [...SUB_KINDS],
+      quiet_start: DEFAULT_QUIET.start,
+      quiet_end: DEFAULT_QUIET.end,
+      max_per_day: null,
+      active: true,
+    });
+    setTarget("");
+    setPicked(null);
+    setTouched(false);
+    onAdded();
   });
-  const set = (patch: Partial<Draft>) => {
-    save.clearError();
-    setD((x) => ({ ...x, ...patch }));
-  };
+  if (channels.length === 0) return null;
   function submit(e: FormEvent) {
     e.preventDefault();
     setTouched(true);
-    if (!invalid) void save.run();
+    if (!problem) void add.run();
   }
-  const hint = tf(`hint.${d.channel}`);
-
   return (
-    <form onSubmit={submit} noValidate className="space-y-4 rounded-lg border border-brand/30 bg-brand-softer/40 p-4">
-      <div className="text-sm font-bold text-ink">{initial ? tf("titleEdit") : tf("titleNew")}</div>
-      <div className="grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)]">
-        <Field label={tf("channel")}>
-          <Select
-            value={d.channel}
-            onChange={(e) => {
-              const channel = e.target.value as NotifyChannel;
-              set({ channel, target: channel === d.channel ? d.target : channel === "email" ? defaultEmail : "" });
-            }}
-          >
-            {channels.map((c) => (
-              <option key={c} value={c}>
-                {tf(`target.${c}`)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={tf(`target.${d.channel}`)} hint={hint || undefined}>
+    <form onSubmit={submit} noValidate className="space-y-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label={tf(`target.${channels.length === 1 ? channels[0] : "any"}`)} className="min-w-0 flex-1 basis-64">
           <Input
-            type={d.channel === "email" ? "email" : d.channel === "zalo" ? "tel" : "url"}
-            inputMode={d.channel === "zalo" ? "tel" : undefined}
+            type="text"
+            inputMode={channel === "zalo" ? "tel" : channel === "email" ? "email" : "url"}
             autoComplete="off"
-            placeholder={tf(`placeholder.${d.channel}`)}
-            value={d.target}
-            onChange={(e) => set({ target: e.target.value })}
-            aria-invalid={(touched && (invalid === "email" || invalid === "phone" || invalid === "webhook")) || undefined}
+            placeholder={tf(`placeholder.${channels.length === 1 ? channels[0] : "any"}`)}
+            value={target}
+            onChange={(e) => {
+              setTarget(e.target.value);
+              add.clearError();
+            }}
+            aria-invalid={(touched && !!problem) || undefined}
           />
         </Field>
+        {channels.length > 1 && (
+          <Field label={tf("channel")} className="w-36">
+            <Select value={channel} onChange={(e) => setPicked(e.target.value as NotifyChannel)}>
+              {channels.map((c) => (
+                <option key={c} value={c}>
+                  {tf(`channelName.${c}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+        <Button type="submit" variant="primary" busy={add.busy} icon={<IconPlus size={15} />}>
+          {t("add")}
+        </Button>
       </div>
-      {d.channel === "zalo" && !zaloConfigured && (
-        <p className="flex items-start gap-1.5 text-sm text-warning-deep">
-          <IconAlert size={15} className="mt-px shrink-0" /> {t("zaloNotReady")}
+      {touched && problem ? (
+        <p role="alert" className="text-sm text-danger">
+          {tf(`invalid.${problem}`)}
         </p>
+      ) : (
+        <p className="text-xs text-muted">{tf("hint", { start: DEFAULT_QUIET.start, end: DEFAULT_QUIET.end })}</p>
       )}
-      <fieldset>
-        <legend className="text-sm font-semibold text-body">{tf("kinds")}</legend>
-        <div className="mt-1.5 flex flex-wrap gap-2">
-          {SUB_KINDS.map((k) => {
-            const on = d.kinds.includes(k);
-            return (
-              <label
-                key={k}
-                className={cx(
-                  "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-brand",
-                  on ? "border-brand bg-brand-soft text-brand-hover" : "border-line-strong bg-surface text-body hover:border-brand-light",
-                )}
-              >
-                <input type="checkbox" className="sr-only" checked={on} onChange={() => set({ kinds: on ? d.kinds.filter((x) => x !== k) : [...d.kinds, k] })} />
-                {on && <IconCheck size={13} />}
-                {t(`kind.${k}`)}
-              </label>
-            );
-          })}
-        </div>
-        <p className="mt-1 text-xs text-muted">{tf("kindsHint")}</p>
-      </fieldset>
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_160px] sm:items-start">
+      <ErrorBox error={add.error} />
+    </form>
+  );
+}
+
+/** Sửa nơi nhận, giờ im lặng và trần tin mỗi ngày của một hàng. */
+function EditRow({ sub, busy, onSave, onCancel }: { sub: SubscriptionOut; busy: boolean; onSave: (b: SubscriptionIn) => void; onCancel: () => void }) {
+  const tf = useTranslations("settings.notifications.who.form");
+  const [target, setTarget] = useState(shownTarget(sub));
+  const [quietStart, setQuietStart] = useState(sub.quiet_start ?? "");
+  const [quietEnd, setQuietEnd] = useState(sub.quiet_end ?? "");
+  const [maxPerDay, setMaxPerDay] = useState(sub.max_per_day ? String(sub.max_per_day) : "");
+  const [touched, setTouched] = useState(false);
+  let problem: Invalid | null = targetProblem(sub.channel, target);
+  if (!problem && !!quietStart !== !!quietEnd) problem = "quiet";
+  if (!problem && quietStart && (!HHMM_RE.test(quietStart) || !HHMM_RE.test(quietEnd))) problem = "quiet";
+  if (!problem && quietStart && quietStart === quietEnd) problem = "quietSame";
+  if (!problem && maxPerDay.trim()) {
+    const n = Number(maxPerDay);
+    if (!Number.isInteger(n) || n < 1 || n > 50) problem = "maxPerDay";
+  }
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    setTouched(true);
+    if (problem) return;
+    onSave(body(sub, { target: target.trim(), quiet_start: quietStart || null, quiet_end: quietEnd || null, max_per_day: maxPerDay.trim() ? Number(maxPerDay) : null }));
+  }
+  return (
+    <form onSubmit={submit} noValidate className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] sm:items-end">
+        <Field label={tf(`target.${sub.channel}`)}>
+          <Input type="text" autoComplete="off" value={target} onChange={(e) => setTarget(e.target.value)} aria-invalid={(touched && (problem === "email" || problem === "phone" || problem === "webhook")) || undefined} />
+        </Field>
         <Field label={tf("quietStart")}>
-          <Input type="time" step={60} value={d.quietStart} onChange={(e) => set({ quietStart: e.target.value })} aria-invalid={(touched && (invalid === "quiet" || invalid === "quietSame")) || undefined} />
+          <Input type="time" step={60} value={quietStart} onChange={(e) => setQuietStart(e.target.value)} />
         </Field>
         <Field label={tf("quietEnd")}>
-          <Input type="time" step={60} value={d.quietEnd} onChange={(e) => set({ quietEnd: e.target.value })} aria-invalid={(touched && (invalid === "quiet" || invalid === "quietSame")) || undefined} />
+          <Input type="time" step={60} value={quietEnd} onChange={(e) => setQuietEnd(e.target.value)} />
         </Field>
-        <Field label={tf("maxPerDay")} hint={tf("maxPerDayHint")}>
-          <Input type="number" inputMode="numeric" min={1} max={50} value={d.maxPerDay} onChange={(e) => set({ maxPerDay: e.target.value })} aria-invalid={(touched && invalid === "maxPerDay") || undefined} />
+        <Field label={tf("maxPerDay")}>
+          <Input type="number" inputMode="numeric" min={1} max={50} placeholder={tf("maxPerDayNone")} value={maxPerDay} onChange={(e) => setMaxPerDay(e.target.value)} />
         </Field>
       </div>
-      <p className="-mt-2 text-xs text-muted">{tf("quietHint")}</p>
-      <label className="inline-flex items-center gap-2 text-sm font-semibold text-body">
-        <Switch checked={d.active} label={tf("active")} onChange={(active) => set({ active })} />
-        {tf("active")}
-      </label>
-      {touched && invalid && (
+      <p className="text-xs text-muted">{tf("quietHint")}</p>
+      {touched && problem && (
         <p role="alert" className="text-sm text-danger">
-          {t(`invalid.${invalid}`)}
+          {tf(`invalid.${problem}`)}
         </p>
       )}
-      <ErrorBox error={save.error} />
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" variant="primary" busy={save.busy} icon={<IconCheck size={15} />}>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" size="sm" variant="primary" busy={busy} icon={<IconCheck size={14} />}>
           {tf("save")}
         </Button>
-        <Button variant="ghost" onClick={onCancel}>
+        <Button size="sm" variant="ghost" onClick={onCancel}>
           {tf("cancel")}
         </Button>
       </div>
@@ -406,7 +473,7 @@ function SubscriptionForm({
   );
 }
 
-// ---- Hiệu quả tin gửi (đo O4) ----
+// ---- Hiệu quả tin gửi (đo O4, chỉ operator) ----
 
 const ENGAGEMENT_WEEKS = 8;
 

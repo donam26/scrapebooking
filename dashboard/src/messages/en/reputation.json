@@ -3,15 +3,16 @@
   "yourHotel": "Your hotel",
   "badge": {
     "ad": "Ad",
-    "preferred": "Preferred",
-    "preferred_plus": "Preferred Plus",
+    "preferred": "Booking Preferred Partner",
+    "preferred_plus": "Booking Preferred Plus Partner",
     "genius": "Genius",
-    "free_cancellation": "Free cancellation"
+    "free_cancellation": "Free cancellation",
+    "deal": "Promo: {name}"
   },
   "reputation": {
     "title": "Reputation",
     "description": "Review score and count on Booking.com, last {days} days.",
-    "info": "Read from search result pages already scanned, no extra scans. New reviews per month reflect how many guests stay. Booking score milestones: 7.0 qualifies for Preferred, 7.5 for Genius, 8.0 Traveller Review Award, 9.0 the “Superb” label.",
+    "info": "Read from search result pages already scanned. New reviews per month reflect how many guests stay. Booking score milestones: 7.0 qualifies for Preferred Partner, 7.5 for Genius, 8.0 Traveller Review Award, 9.0 the “Superb” label.",
     "col": {
       "hotel": "Hotel",
       "score": "Score",
@@ -35,9 +36,9 @@
   },
   "valueMap": {
     "title": "Price versus score",
-    "description": "Listed-price index and score index versus the comp set median (100 = median).",
+    "description": "Listed-rate index and score index, 100 = the competitors' middle value (half the competitors are lower, half higher).",
     "caveat": "This is correlation, not causation: a price above the score level doesn't mean the price is losing guests, only that it's worth a look.",
-    "axisPrice": "Listed-price index",
+    "axisPrice": "Listed-rate index",
     "axisScore": "Score index",
     "point": "{name}: price {price}, score {score}",
     "verdict": {

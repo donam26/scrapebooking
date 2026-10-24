@@ -5,22 +5,29 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { api, cellState, type DateCell } from "@/lib/api";
-import { useApi } from "@/lib/hooks";
+import { useApi, useTenantToday } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
-import { isWeekend, num, useFmt } from "@/lib/format";
+import { daysBetween, isWeekend, num, useFmt } from "@/lib/format";
+import { useDataFreshness } from "@/lib/freshness";
 import { useLabel } from "@/lib/labels";
 import { hotelTitle } from "@/lib/hotels";
+import { usePlaceName } from "@/lib/place-names";
 import { LOW_ROOMS } from "@/lib/market-metrics";
 import { definitelyAtMost, roomsLeftOf, roomsLeftText } from "@/lib/rooms-left";
 import { Card, ErrorBox, PageHeader, ROW_CLASS, SkeletonBlock, StatStrip, Table, Td, Th, cx } from "@/components/ui";
 import { ListingChips } from "@/components/listing-chip";
 import { DateRangePicker, useDateRange } from "@/components/date-range";
-import { EventTable } from "@/components/event-table";
+import { NightChangeLog } from "@/components/night-change-log";
+import { ChangeSummaryCard } from "@/components/change-summary";
 import { MarkSwatch, PromoDot, useMarks } from "@/components/marks";
 import { holidayMap } from "@/components/holiday-mark";
 import { Board } from "../../overview/board";
 import { ScanHotelButton } from "@/components/scan-hotel-button";
 import { IconArrowDown, IconArrowUp, IconStar } from "@/components/icons";
+
+/** Kỳ xem mặc định (như mọi màn) và cửa sổ thẻ "7 ngày qua". */
+const DEFAULT_DAYS = 14;
+const SUMMARY_DAYS = 7;
 
 type Col = {
   key: string;
@@ -63,13 +70,17 @@ function HotelView() {
   const t = useTranslations("hotels.detail");
   const { fmtCompact, fmtDayTime, fmtInt, fmtNight, fmtNightRel, fmtNum, fmtPct } = useFmt();
   const label = useLabel();
+  const place = usePlaceName();
   const { cellMark, promoText } = useMarks();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const hotelId = Number(id);
   const { isOperator } = useSession();
-  const { start, end } = useDateRange();
+  const { start, end } = useDateRange(DEFAULT_DAYS);
+  const today = useTenantToday();
+  const fresh = useDataFreshness();
   const { data, error, loading } = useApi(Number.isFinite(hotelId) ? `hotel:${hotelId}:${start}:${end}` : null, () => api.hotel(hotelId, { start, end }));
+  const summary = useApi(Number.isFinite(hotelId) ? `events:summary:${SUMMARY_DAYS}:${hotelId}` : null, () => api.eventsSummary({ days: SUMMARY_DAYS, hotel_id: hotelId }));
   // Ngày lễ của kỳ đang xem (theo nước của tenant) để đánh dấu trên dải ô.
   const holidays = useApi(`hotel:holidays:${start}:${end}`, () => api.market.holidays({ start, end }));
   const holidayOn = holidayMap(holidays.data);
@@ -84,6 +95,11 @@ function HotelView() {
   const soldOut = metrics.filter((m) => cellState(m) === "sold_out").length;
   const restricted = metrics.filter((m) => cellState(m) === "restricted").length;
   const tight = metrics.filter((m) => cellState(m) === "available" && definitelyAtMost(m, LOW_ROOMS)).length;
+  // "Đêm nay / Còn N ngày" tính từ hôm nay của tenant, không dùng `days_to_arrival` lưu lúc quan sát (D9).
+  const relOf = (m: DateCell) => {
+    const d = today ? daysBetween(today, m.stay_date) : m.days_to_arrival;
+    return d !== null && d >= 0 ? fmtNightRel(d) : null;
+  };
   const lastObs = metrics.reduce<string | null>((acc, m) => (m.last_observed_at && (!acc || m.last_observed_at > acc) ? m.last_observed_at : acc), null);
 
   const cols: Col[] = [
@@ -97,7 +113,8 @@ function HotelView() {
         return (
           <span className="inline-flex items-center gap-2.5" title={mark.label}>
             <span className="relative">
-              <MarkSwatch mark={mark} size={26} />
+              {/* Số đã ghi ngay bên cạnh: ô chỉ giữ màu, không nhồi "80–99" vào ô 26px. */}
+              <MarkSwatch mark={{ ...mark, text: "" }} size={26} />
               <PromoDot promo={mark.promo} />
             </span>
             <span className={cx("text-sm", state === "restricted" ? "font-semibold text-warning-deep" : "text-body", m.stale && "text-faint")}>
@@ -118,7 +135,7 @@ function HotelView() {
                           : left.exact !== null
                             ? t("rooms.count", { count: left.exact })
                             : t("rooms.countText", { rooms: roomsLeftText(left) })}
-              {m.stale && <span className="block text-2xs font-normal text-muted">{t("rooms.stale")}</span>}
+              {m.stale && <span className="block text-2xs font-normal text-muted max-sm:hidden">{t("rooms.stale")}</span>}
             </span>
           </span>
         );
@@ -165,7 +182,7 @@ function HotelView() {
   return (
     <>
       <PageHeader
-        crumbs={[{ href: "/competitors", label: t("crumb") }, { label: title }]}
+        crumbs={[{ href: "/competitors", label: isSelf ? t("crumbSelf") : t("crumb") }, { label: title }]}
         title={
           <span className="flex flex-wrap items-center gap-2.5">
             {isSelf && <span aria-hidden className="h-3 w-3 rounded-full bg-yours shadow-[0_0_0_3px_rgba(0,176,144,0.18)]" />}
@@ -181,7 +198,7 @@ function HotelView() {
           data && (
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {data.hotel.name && data.label && data.hotel.name !== data.label && <span>{data.hotel.name}</span>}
-              {data.hotel.city && <span>{data.hotel.city}</span>}
+              {data.hotel.city && <span>{place(data.hotel.city)}</span>}
               {data.hotel.star_rating && (
                 <span className="inline-flex items-center gap-1">
                   <IconStar size={14} className="text-[#e0a100]" /> {t("stars", { stars: fmtNum(data.hotel.star_rating, 1) })}
@@ -192,7 +209,7 @@ function HotelView() {
         }
         actions={
           <>
-            <DateRangePicker />
+            <DateRangePicker defaultDays={DEFAULT_DAYS} />
             {data && <ScanHotelButton hotelId={data.hotel.id} />}
           </>
         }
@@ -207,6 +224,7 @@ function HotelView() {
       )}
       {data && (
         <div className={cx("space-y-5 transition-opacity duration-200", loading && "opacity-60")}>
+          <ChangeSummaryCard summary={summary.data?.[0] ?? null} days={SUMMARY_DAYS} stale={fresh.stale} error={summary.error} loading={summary.loading} />
           <StatStrip
             items={[
               {
@@ -270,7 +288,7 @@ function HotelView() {
                         <Link href={href} onClick={(e) => e.stopPropagation()} className={cx("text-ink hover:text-brand hover:underline", isWeekend(m.stay_date) ? "font-extrabold" : "font-semibold")}>
                           {fmtNight(m.stay_date)}
                         </Link>
-                        <span className="text-xs text-muted max-sm:block sm:ml-2">{fmtNightRel(m.days_to_arrival)}</span>
+                        <span className="text-xs text-muted max-sm:block sm:ml-2">{relOf(m)}</span>
                         {holidayOn.get(m.stay_date) && <span className="block text-2xs font-semibold text-ink">{holidayOn.get(m.stay_date)?.name}</span>}
                       </Td>
                       {visibleCols.map((c) => (
@@ -285,9 +303,7 @@ function HotelView() {
             </Table>
           </Card>
 
-          <Card title={t("events.title")} description={t("events.description", { count: data.events.length })} padded={false}>
-            <EventTable events={data.events} showHotel={false} emptyText={t("events.empty")} />
-          </Card>
+          <NightChangeLog events={data.events} hotelId={data.hotel.id} today={today} />
         </div>
       )}
     </>

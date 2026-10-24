@@ -11,7 +11,12 @@ Cấu trúc theo chuẩn RMS cho khách sạn nhỏ (RoomPriceGenie, Atomize):
 4. **Gợi ý hạn chế ngoài giá**: số đêm tối thiểu đêm cao điểm, tắt KM/gói không hoàn huỷ khi căng,
    bật KM giờ chót khi chậm.
 
-Lý do trả dạng mã + tham số (`Reason`); chữ dịch ở biên API bằng `reason_text`.
+5. **Tăng/giảm cần bằng chứng cầu** khi khách sạn chưa đặt chiến lược: giảm cần OTB/PMS hoặc
+   pace của chính bạn; tăng cần tín hiệu cầu (đối thủ căng, bạn sắp kín, lễ/sự kiện…). Chỉ "rẻ hơn
+   mức thường của bạn" ≥10 điểm thì vẫn gợi ý tăng nhưng tin cậy thấp và nói rõ lý do.
+
+Lý do trả dạng mã + tham số thô (`Reason`, tiền là số nguyên VND); chữ dịch và định dạng tiền theo
+ngôn ngữ ở biên API bằng `reason_text`.
 """
 
 from dataclasses import dataclass, field
@@ -19,6 +24,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from app.i18n import t
+from app.notify.fmt import fmt_money
 
 SOLD_SHARE_TIGHT = Decimal("0.5")
 COMP_OCC_TIGHT = Decimal("0.85")
@@ -26,6 +32,14 @@ PACE_FAST = Decimal("0.15")
 MAX_UP_PCT = Decimal(30)
 MAX_DOWN_PCT = Decimal(-20)
 HOLD_BAND_PCT = 2  # |đổi| < 2% = giữ giá
+BELOW_USUAL_PTS = 10  # chưa có chiến lược: rẻ hơn mức thường ≥10 điểm mới gợi ý tăng không cần cầu
+# Lý do là tín hiệu cầu (khi có đóng góp dương): đủ để gợi ý tăng khi chưa đặt chiến lược.
+DEMAND_KEYS = frozenset(
+    {"comp_tight", "comp_occ", "comp_pace", "own_rooms_few", "own_pace_ahead", "holiday", "event"}
+)
+# Câu "giá đối thủ đêm này" theo nguồn định vị: chiến lược đã lưu, mức thường của bạn, mặc định.
+POSITION_KEY = {"typical": "position_typical", "default": "position_default"}
+MONEY_PARAMS = frozenset({"median", "price"})  # tham số tiền (VND nguyên), định dạng khi ra chữ
 
 
 @dataclass(frozen=True)
@@ -81,8 +95,16 @@ class Reason:
     pct: int | None = None  # đóng góp % vào giá mục tiêu (None = thông tin / chặn)
 
 
+def _is_demand(r: Reason) -> bool:
+    return bool(r.pct and r.pct > 0) and (r.key in DEMAND_KEYS or r.key.startswith("own_occ_high_"))
+
+
 def reason_text(r: Reason, locale: str) -> str:
-    text = t(locale, f"price.{r.key}", **r.params)
+    params = {
+        k: fmt_money(Decimal(v), "VND", locale) if k in MONEY_PARAMS and isinstance(v, int) else v
+        for k, v in r.params.items()
+    }
+    text = t(locale, f"price.{r.key}", **params)
     if r.pct:
         text += f" ({'+' if r.pct > 0 else ''}{r.pct}%)"
     return text
@@ -99,6 +121,7 @@ class Suggestion:
     reference_price: Decimal | None = None
     restrictions: tuple[Reason, ...] = ()
     # floor | ceiling | max_change | no_lower_tight | no_lower_without_demand
+    # | no_raise_without_demand
     clamped: str | None = None
 
 
@@ -112,8 +135,9 @@ def _round(price: Decimal, step: int) -> Decimal:
     return (price / step).quantize(Decimal(1), ROUND_HALF_UP) * step
 
 
-def _money(v: Decimal) -> str:
-    return f"{int(v):,}".replace(",", ".")
+def _money(v: Decimal) -> int:
+    """Tiền VND nguyên cho tham số lý do; `reason_text` định dạng theo ngôn ngữ."""
+    return int(v.quantize(Decimal(1), ROUND_HALF_UP))
 
 
 def _reference(n: NightSignals, st: Strategy) -> tuple[Decimal, list[Reason], bool] | None:
@@ -122,7 +146,7 @@ def _reference(n: NightSignals, st: Strategy) -> tuple[Decimal, list[Reason], bo
         assert n.comp_median_price is not None
         reasons = [
             Reason(
-                "position_typical" if st.target_source == "typical" else "position",
+                POSITION_KEY.get(st.target_source, "position"),
                 {
                     "median": _money(n.comp_median_price),
                     "target": int(st.target_index),
@@ -181,7 +205,8 @@ def _adjustments(n: NightSignals, st: Strategy) -> tuple[list[Reason], bool, boo
         adj.append(Reason("event", {"event": n.event_name, "uplift": n.event_uplift_pct}, up))
     soft = not tight and (n.own_occ is None or n.own_occ < Decimal("0.7"))
     if 0 <= n.days_to_arrival <= st.last_minute_days and soft and st.last_minute_adj_pct:
-        adj.append(Reason("last_minute", {"count": n.days_to_arrival}, st.last_minute_adj_pct))
+        key = "last_minute_tonight" if n.days_to_arrival == 0 else "last_minute"
+        adj.append(Reason(key, {"count": n.days_to_arrival}, st.last_minute_adj_pct))
     return adj, tight, own_full, soft
 
 
@@ -224,6 +249,29 @@ def suggest(n: NightSignals, strategy: Strategy | None = None) -> Suggestion | N
     if kind == "lower" and not evidence and st.target_source != "strategy":
         target, change, kind, clamped = n.own_price, 0, "hold", "no_lower_without_demand"
         reasons.append(Reason("no_lower_without_demand"))
+    # Đối xứng: chưa đặt chiến lược thì tăng giá cũng cần tín hiệu cầu. Thứ trong tuần của chiến
+    # lược hay "sát ngày" không phải tín hiệu cầu. Không có cầu mà rẻ hơn mức thường của chính bạn
+    # ≥10 điểm thì vẫn gợi ý tăng (tin cậy thấp, nói rõ lý do); lệch ít hơn thì giữ giá.
+    below_usual = False
+    if kind == "raise" and st.target_source != "strategy" and not any(map(_is_demand, adj)):
+        gap = st.target_index - n.own_index if n.own_index is not None else None
+        if gap is not None and gap >= BELOW_USUAL_PTS:
+            below_usual = True
+            pts = int(gap.quantize(Decimal(1), ROUND_HALF_UP))
+            reasons.append(Reason("below_usual", {"gap": pts}))
+        else:
+            target, change, kind, clamped = n.own_price, 0, "hold", "no_raise_without_demand"
+            reasons.append(Reason("no_raise_without_demand"))
+
+    # Gợi ý giảm chỉ vì giá đêm này cao hơn mức thường (không có điều chỉnh âm nào): nói rõ vì sao,
+    # để người dùng không chỉ thấy câu "đối thủ bán khoảng …".
+    if kind == "lower" and not any((r.pct or 0) < 0 for r in adj):
+        if n.own_occ is not None and n.own_occ_source in ("otb", "pms"):
+            reasons.append(Reason(f"own_occ_low_{n.own_occ_source}", {"pct": _pct(n.own_occ)}))
+        above = n.own_index - st.target_index if n.own_index is not None else None
+        if above is not None and above >= HOLD_BAND_PCT:
+            gap_pts = int(above.quantize(Decimal(1), ROUND_HALF_UP))
+            reasons.append(Reason("above_usual", {"gap": gap_pts}))
 
     restrictions: list[Reason] = []
     peak = n.holiday is not None or n.stay_date.weekday() in (4, 5)
@@ -243,6 +291,8 @@ def suggest(n: NightSignals, strategy: Strategy | None = None) -> Suggestion | N
     has_otb = n.own_occ_source in ("otb", "pms")
     full_sample = sample_ok and n.comp_priced >= 4
     confidence = "high" if full_sample and has_otb else "medium" if full_sample else "low"
+    if below_usual:
+        confidence = "low"
     return Suggestion(
         n.stay_date,
         kind,

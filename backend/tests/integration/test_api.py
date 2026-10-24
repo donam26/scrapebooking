@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.service import AnalyticsService
 from app.api.auth import hash_password
-from app.db.models import ScanJob, Tenant, TenantHotel, User
+from app.config import Settings
+from app.db.models import AvailabilityEvent, Insight, ScanJob, Tenant, TenantHotel, User
 from app.domain.models import ProbeMethod, ProbeResult, ProbeStatus, RatePlan, RoomOffer
+from app.insight.service import PLACEHOLDER_MODEL, build_insight_client
 from app.repo.snapshots import SnapshotRepository
 from tests.integration.conftest import FakeQueue
 from tests.integration.seed import add_hotel, scan_run
@@ -550,6 +552,119 @@ async def test_insight_generate_enqueues_and_dedups(
     await _login(client, "op@x.com", "op-pass-123")
     r = await client.get(f"/insights/{first['id']}", params={"tenant_id": ids["t2"]})
     assert r.status_code == 404
+
+
+async def test_tenant_does_not_see_failed_or_placeholder_insights(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """L2/F4: tenant chỉ thấy bản tin đang tạo và bản thật; operator thấy hết."""
+    ids = await _seed(db)
+    now = datetime.now(tz=UTC)
+    fake_old = {"summary": "OPENROUTER_API_KEY chưa cấu hình; đây là đầu ra giả.", "highlights": []}
+    real = {"summary": "T7: giữ giá.", "highlights": [], "data_quality_note": ""}
+    rows = {
+        "real": ("completed", "m", real, None),
+        "pending": ("pending", "m", None, None),
+        "failed": ("failed", "m", None, "schema: boom"),
+        "fake_old": ("completed", "m", fake_old, None),
+        "fake_new": ("completed", PLACEHOLDER_MODEL, real, None),
+    }
+    made = {}
+    for i, (key, (st, model, out, err)) in enumerate(rows.items()):
+        row = Insight(
+            tenant_id=ids["t1"],
+            period_start=now.date(),
+            period_end=now.date(),
+            generated_at=now - timedelta(minutes=i),
+            trigger="on_demand",
+            status=st,
+            model=model,
+            prompt_version="4",
+            input_json={},
+            output_json=out,
+            dropped_highlights=[],
+            error=err,
+        )
+        db.add(row)
+        await db.flush()
+        made[key] = row.id
+    await db.commit()
+
+    await _login(client, "view@a.com", "view-pass-1")
+    listed = [r["id"] for r in (await client.get("/insights")).json()]
+    assert listed == [made["real"], made["pending"]]
+    failed = (await client.get(f"/insights/{made['failed']}")).json()
+    assert failed["status"] == "failed" and failed["error"] is None
+    fake = (await client.get(f"/insights/{made['fake_old']}")).json()
+    assert fake["status"] == "failed" and fake["output_json"] is None
+
+    await _login(client, "op@x.com", "op-pass-123")
+    op = (await client.get("/insights", params={"tenant_id": ids["t1"]})).json()
+    assert len(op) == 5
+    detail = await client.get(f"/insights/{made['failed']}", params={"tenant_id": ids["t1"]})
+    assert detail.json()["error"] == "schema: boom"
+
+
+def test_missing_api_key_client_marks_placeholder() -> None:
+    client = build_insight_client(Settings(openrouter_api_key=""))
+    assert getattr(client, "placeholder", False) is True
+
+
+async def test_events_summary_per_hotel_counts_nights(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """F1: tóm tắt 7 ngày theo khách sạn, tenant-scoped, đếm theo đêm."""
+    ids = await _seed(db)
+    now = datetime.now(tz=UTC)
+    run = scan_run("summary", now - timedelta(hours=1))
+    db.add(run)
+    await db.flush()
+    night = (now + timedelta(days=10)).date()
+
+    def ev(kind: str, at: datetime, rt: int | None = None, **kw: object) -> AvailabilityEvent:
+        return AvailabilityEvent(
+            hotel_id=kw.pop("hotel", ids["comp"]),
+            channel="booking",
+            room_type_id=rt,
+            stay_date=kw.pop("stay", night),
+            event_type=kind,
+            confidence="exact",
+            scan_run_id=run.id,
+            observed_at=at,
+            **kw,
+        )
+
+    recent = now - timedelta(days=1)
+    db.add_all(
+        [
+            ev("price_up", recent, from_value="100", to_value="130", delta=Decimal("30")),
+            ev("sold_out", recent, from_value="available", to_value="sold_out"),
+            ev("promo_start", recent, to_value="Late Escape Deal"),
+            ev("price_down", now - timedelta(days=9), delta=Decimal("-50")),  # ngoài cửa sổ 7 ngày
+            ev("sold_out", recent, hotel=ids["other"]),  # khách sạn của tenant khác
+        ]
+    )
+    await db.commit()
+
+    await _login(client, "view@a.com", "view-pass-1")
+    r = await client.get("/events/summary")
+    assert r.status_code == 200, r.text
+    rows = {h["hotel_id"]: h for h in r.json()}
+    assert set(rows) == {ids["own"], ids["comp"]}
+    comp = rows[ids["comp"]]
+    assert comp["role"] == "competitor" and comp["total_events"] == 3
+    assert comp["price_up"] == {"nights": 1, "max_pct": "30.00"}
+    assert comp["price_down"] == {"nights": 0, "max_pct": None}
+    assert comp["sold_out_nights"] == [night.isoformat()] and comp["promo_on"] == 1
+    assert rows[ids["own"]]["total_events"] == 0
+    wide = (
+        await client.get("/events/summary", params={"days": 10, "hotel_id": ids["comp"]})
+    ).json()
+    assert len(wide) == 1 and wide[0]["price_down"]["nights"] == 1
+    assert (
+        await client.get("/events/summary", params={"hotel_id": ids["other"]})
+    ).status_code == 404
+    assert (await client.get("/events/summary", params={"days": 31})).status_code == 422
 
 
 async def test_health_endpoints_operator(client: AsyncClient, db: AsyncSession) -> None:

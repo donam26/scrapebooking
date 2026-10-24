@@ -1,16 +1,16 @@
 {
   "import": {
-    "title": "Daily OTB",
-    "description": "OTB (on the books) is the number of rooms booked for each upcoming night, from your PMS. With OTB you get your own pickup, pace versus 4 weeks earlier, same time last year (STLY) and a forecast, and price suggestions use it too.",
+    "title": "Rooms booked per day (PMS)",
+    "description": "The number of rooms booked for each upcoming night, from your PMS. With it you see rooms added each day, the comparison with 4 weeks earlier and with last year, and your own forecast; price suggestions use it too.",
     "kindLabel": "File type",
     "kind": {
       "otb_report": {
-        "label": "Daily rooms-on-the-books report",
-        "body": "One row per night: rooms booked, revenue, rooms available (optional: as-of date, cancellations, group rooms). Import once a day; days don't overwrite each other, which gives you pickup."
+        "label": "Daily rooms-booked report",
+        "body": "One row per night: rooms booked, revenue, rooms available (optional: as-of date, cancellations, group rooms). Import once a day; days don't overwrite each other, so rooms added can be measured."
       },
       "bookings": {
         "label": "Detailed bookings file",
-        "body": "One row per booking: booking date, arrival, departure, cancellation date, status, rooms, revenue. The past OTB is rebuilt from it, so pickup, pace and STLY are available right away."
+        "body": "One row per booking: booking date, arrival, departure, cancellation date, status, rooms, revenue. Past rooms booked are rebuilt from it, so rooms added and the comparisons with past weeks and last year are available right away."
       }
     },
     "hotel": "Hotel",
@@ -20,41 +20,41 @@
     "rooms": "Rooms available",
     "roomsHint": "Optional: use when the file has no rooms-available column.",
     "template": "Download template",
-    "submit": "Import OTB",
-    "noSelf": "Add your hotel (role “Your hotel”) under <link>Hotels</link> before importing OTB.",
-    "importError": "Couldn't import OTB",
+    "submit": "Import rooms booked",
+    "noSelf": "Add your hotel (role “Your hotel”) under <link>Hotels</link> before importing rooms booked.",
+    "importError": "Couldn't import rooms booked",
     "invalidRooms": "Rooms available must be a whole number above 0.",
     "result": {
       "summary": "Read <b>{rows}</b> rows · wrote <b>{snapshots}</b> snapshots · {asOf} as-of dates · {stays} nights",
       "failedRows": "{count} rows with errors",
-      "done": "OTB now shows in <pace>Booking pace</pace> and <today>Today</today>."
+      "done": "Rooms booked now show in <pace>Reports › Booking pace</pace> and <today>Today</today>."
     }
   },
   "panel": {
-    "title": "Your OTB",
-    "info": "OTB = rooms booked for each night, from your PMS. Pickup = rooms added (net of cancellations) versus 1 or 7 days ago. Versus 4 weeks earlier = current OTB versus the same weekday 4 weeks earlier, at the same days before arrival. Same time last year (STLY) = the same weekday 364 days earlier, at the same days before arrival. Forecast = OTB + average historical pickup from now to arrival (same weekdays).",
+    "title": "Your rooms booked (PMS)",
+    "info": "Rooms booked for each night, from your PMS. Added: new bookings (net of cancellations) versus 1 or 7 days ago. Vs 4 weeks earlier and vs last year: the same weekday, at the same days before arrival. Forecast: rooms booked plus what usually gets added between now and arrival.",
     "asOf": "Latest snapshot: {date}",
     "kpi": {
       "occ": "Occupancy · PMS, last 30 days",
       "occHint": "{sold}/{available} room nights",
       "adr": "ADR · PMS, last 30 days",
-      "adrHint": "Room revenue / rooms sold",
+      "adrHint": "Average rate: room revenue ÷ rooms sold",
       "revpar": "RevPAR · PMS, last 30 days",
-      "revparHint": "Room revenue / rooms available",
-      "noPms": "No PMS numbers for the last 30 days",
-      "otb": "OTB this period",
+      "revparHint": "Room revenue ÷ rooms available",
+      "noPms": "No PMS figures for the last 30 days",
+      "otb": "Rooms booked this period",
       "otbHint": "{rooms} room nights · {revenue}",
-      "otbNone": "No OTB for this period yet",
-      "index": "Listed-price index (median)",
-      "indexHint": "{count} nights with enough sample · 100 = competitor median",
+      "otbNone": "No rooms booked for this period yet",
+      "index": "Advertised price vs competitors",
+      "indexHint": "{count} nights with enough competitors · 100 = competitors' middle rate",
       "indexNone": "Not enough priced competitors to compare"
     },
     "col": {
       "night": "Night",
-      "otb": "OTB",
-      "adr": "OTB ADR",
-      "pickup1": "Pickup 1 day",
-      "pickup7": "Pickup 7 days",
+      "otb": "Booked",
+      "adr": "Booked ADR",
+      "pickup1": "Added, 1 day",
+      "pickup7": "Added, 7 days",
       "pace4w": "Vs 4 weeks earlier (same weekday)",
       "stly": "Same time last year",
       "forecast": "Forecast"
@@ -66,21 +66,21 @@
     "showAll": "Show all {count} nights",
     "showLess": "Show less",
     "noSelfTitle": "No hotel of yours yet",
-    "noSelfBody": "Add your hotel to the watchlist to see OTB and KPIs.",
-    "noSelfAction": "Open watchlist",
-    "emptyTitle": "No daily OTB yet",
-    "emptyBody": "OTB is the number of rooms booked for each night, from your PMS. Import a rooms-on-the-books report every day, or one detailed bookings file to get pickup, pace and same time last year right away.",
-    "emptyViewer": "Ask your hotel admin to import OTB under Settings › PMS import.",
-    "importAction": "Import OTB"
+    "noSelfBody": "Add your hotel to the tracked list to see rooms booked and PMS figures.",
+    "noSelfAction": "Open hotel list",
+    "emptyTitle": "No daily rooms-booked figures yet",
+    "emptyBody": "Import a rooms-booked report from your PMS every day, or one detailed bookings file to get rooms added and same time last year right away.",
+    "emptyViewer": "Ask your hotel admin to import it under Settings › PMS import.",
+    "importAction": "Import rooms booked"
   },
   "compact": {
-    "title": "Your OTB & KPIs",
+    "title": "Rooms booked & PMS figures",
     "details": "Details",
     "next": "Next 7 nights",
-    "pickup7": "+7 days",
+    "pickup7": "added in 7 days",
     "vsStly": "vs last year",
     "forecast": "forecast",
-    "empty": "No daily OTB yet: import it from your PMS to see pickup and same time last year.",
-    "importLink": "Import OTB"
+    "empty": "No daily rooms-booked figures yet: import them from your PMS to see rooms added and same time last year.",
+    "importLink": "Import rooms booked"
   }
 }

@@ -114,7 +114,7 @@ def strategy_from(row: PriceStrategy | None) -> Strategy:
     if row is None:
         return Strategy()
     return Strategy(
-        target_source="strategy",
+        target_source="typical" if row.follow_typical else "strategy",
         base_price=row.base_price,
         floor=row.floor_price,
         ceiling=row.ceiling_price,
@@ -130,6 +130,24 @@ def strategy_from(row: PriceStrategy | None) -> Strategy:
 
 async def load_strategy(s: AsyncSession, tenant_id: int, hotel_id: int) -> Strategy:
     return strategy_from(await s.get(PriceStrategy, (tenant_id, hotel_id)))
+
+
+async def effective_strategy(
+    s: AsyncSession,
+    row: PriceStrategy | None,
+    own_id: int,
+    comp_ids: list[int],
+    channel: str,
+    today: date,
+) -> Strategy:
+    """Chiến lược dùng để gợi ý: chưa lưu, hoặc lưu "giữ như hiện nay" (`follow_typical`), thì vị
+    trí giá là mức thường của khách sạn tính hôm nay; không tính được thì giữ số đã lưu/mặc định."""
+    strategy = strategy_from(row)
+    if row is None or row.follow_typical:
+        typical = await typical_index(s, own_id, comp_ids, channel, today)
+        if typical is not None:
+            strategy = replace(strategy, target_index=typical, target_source="typical")
+    return strategy
 
 
 TYPICAL_WINDOW = 30
@@ -303,9 +321,11 @@ async def build_pace_report(
     today: date | None = None,
     locale: str = DEFAULT_LOCALE,
     own_hotel_id: int | None = None,
+    strategy_override: Strategy | None = None,
 ) -> PaceReport:
     """`locale`: ngôn ngữ tên ngày lễ (cũng là tham số của lý do gợi ý giá). `own_hotel_id`:
-    khách sạn của bạn đang xem (5.5); mặc định khách sạn đầu tiên. Dữ liệu Booking.com."""
+    khách sạn của bạn đang xem (5.5); mặc định khách sạn đầu tiên. `strategy_override`: chiến
+    lược nháp để xem trước gợi ý (không lưu). Dữ liệu Booking.com."""
     tenant = await s.get(Tenant, tenant_id)
     if tenant is None:
         raise LookupError("tenant not found")
@@ -383,14 +403,10 @@ async def build_pace_report(
         )
     }
 
-    strategy = Strategy()
-    if own_id:
+    strategy = strategy_override or Strategy()
+    if own_id and strategy_override is None:
         row = await s.get(PriceStrategy, (tenant_id, own_id))
-        strategy = strategy_from(row)
-        if row is None:
-            typical = await typical_index(s, own_id, comp_ids, channel, today)
-            if typical is not None:
-                strategy = replace(strategy, target_index=typical, target_source="typical")
+        strategy = await effective_strategy(s, row, own_id, comp_ids, channel, today)
     otb_curves: dict[date, dict[int, int]] = {}
     otb_latest: dict[date, tuple[int, int | None]] = {}  # đêm -> (phòng OTB, sức chứa)
     if own_id:

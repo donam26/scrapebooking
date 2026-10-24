@@ -223,6 +223,7 @@ export function Segmented<T extends string | number>({
   label,
   size = "md",
   className,
+  disabled,
 }: {
   value: T;
   onChange: (v: T) => void;
@@ -230,9 +231,10 @@ export function Segmented<T extends string | number>({
   label: string;
   size?: "sm" | "md";
   className?: string;
+  disabled?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cx("inline-flex shrink-0 rounded-lg bg-sunken p-0.5", className)}>
+    <div role="radiogroup" aria-label={label} aria-disabled={disabled || undefined} className={cx("inline-flex shrink-0 rounded-lg bg-sunken p-0.5", className)}>
       {items.map((it) => {
         const on = it.value === value;
         return (
@@ -242,11 +244,12 @@ export function Segmented<T extends string | number>({
             role="radio"
             aria-checked={on}
             title={it.title}
+            disabled={disabled}
             onClick={() => onChange(it.value)}
             className={cx(
-              "whitespace-nowrap rounded-md font-semibold transition-[background-color,color,box-shadow] duration-150",
+              "whitespace-nowrap rounded-md font-semibold transition-[background-color,color,box-shadow] duration-150 disabled:cursor-not-allowed",
               size === "sm" ? "h-7 px-2.5 text-xs" : "h-8 px-3 text-sm",
-              on ? "bg-surface text-ink shadow-[0_1px_2px_rgba(17,24,39,0.12),0_0_0_1px_rgba(17,24,39,0.04)]" : "text-muted hover:text-ink",
+              on ? "bg-surface text-ink shadow-[0_1px_2px_rgba(17,24,39,0.12),0_0_0_1px_rgba(17,24,39,0.04)]" : "text-muted enabled:hover:text-ink",
             )}
           >
             {it.label}
@@ -302,7 +305,11 @@ export function Switch({
 
 // ---- Layout blocks ----
 
-/** Biểu tượng ⓘ cạnh tiêu đề thẻ: rê chuột hoặc tab vào để đọc giải thích; Esc để ẩn. */
+/**
+ * Biểu tượng ⓘ cạnh tiêu đề thẻ: rê chuột hoặc tab vào để đọc giải thích; Esc để ẩn. Trên điện thoại
+ * (<640px) bảng giải thích cố định ở đáy màn hình, không theo vị trí ⓘ: hộp ẩn 256px đặt tuyệt đối gần
+ * mép phải vẫn tính vào chiều rộng trang và làm trang cuộn ngang.
+ */
 export function InfoTip({ children, className }: { children: ReactNode; className?: string }) {
   const t = useTranslations("components.ui");
   const id = useId();
@@ -320,7 +327,7 @@ export function InfoTip({ children, className }: { children: ReactNode; classNam
       <span
         id={id}
         role="tooltip"
-        className="pointer-events-none invisible absolute left-1/2 top-[calc(100%+6px)] z-40 w-64 -translate-x-1/2 rounded-lg bg-ink px-3 py-2 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-float transition-opacity duration-150 group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100"
+        className="pointer-events-none invisible absolute left-1/2 top-[calc(100%+6px)] z-40 w-64 -translate-x-1/2 rounded-lg max-sm:fixed max-sm:inset-x-4 max-sm:bottom-20 max-sm:top-auto max-sm:left-4 max-sm:w-auto max-sm:translate-x-0 bg-ink px-3 py-2 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-float transition-opacity duration-150 group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100"
       >
         {children}
       </span>

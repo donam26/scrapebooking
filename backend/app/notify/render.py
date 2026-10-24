@@ -1,5 +1,6 @@
 # ruff: noqa: E501  (chuỗi HTML nội tuyến dễ đọc hơn khi để nguyên dòng)
-"""Dựng email (tiêu đề + text + HTML) cho cảnh báo, bản tin AI, báo cáo tuần, email thử (hàm thuần).
+"""Dựng email (tiêu đề + text + HTML) cho cảnh báo, bản tin AI, báo cáo tuần, email thử, lời mời
+người dùng (hàm thuần).
 
 Chữ cố định theo ngôn ngữ báo cáo của tenant (`tenants.insight_language`, catalog `email.*`).
 HTML dùng style nội tuyến và bảng (trình đọc email không hỗ trợ CSS ngoài), cùng màu thương hiệu
@@ -7,6 +8,7 @@ với dashboard: đầu tím than, liên kết tím, chữ mực. Không đưa t
 token, mô hình AI) vào email; mọi chữ động đều được escape.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from html import escape
@@ -15,6 +17,7 @@ from typing import Any
 from app.i18n import DEFAULT_LOCALE, normalize_locale, t
 from app.notify.alert_rules import AlertItem
 from app.notify.fmt import fmt_night
+from app.notify.morning import MorningAction
 from app.notify.weekly import WeeklyReport
 
 NIGHT = "#16123a"
@@ -106,7 +109,7 @@ def render_alerts(
             base_url,
             f"/hotels/{it.hotel_id}/dates/{it.stay_date.isoformat()}"
             if it.hotel_id
-            else f"/dashboard?start={it.stay_date.isoformat()}",
+            else f"/calendar?start={it.stay_date.isoformat()}",
         )
         text_lines += [f"• {it.headline}: {it.detail}", f"  {link}"]
         rows.append(
@@ -158,8 +161,13 @@ def render_insight(
     output: dict[str, Any],
     base_url: str,
     locale: str = DEFAULT_LOCALE,
+    actions: Sequence[MorningAction] = (),
+    more: int = 0,
+    today: date | None = None,
 ) -> Email:
-    """Nội dung do AI viết theo ngôn ngữ báo cáo (cùng `insight_language`); chữ khung dịch ở đây."""
+    """Nội dung do AI viết theo ngôn ngữ báo cáo (cùng `insight_language`); chữ khung dịch ở đây.
+    `actions`: việc cần làm của Hôm nay (≤5, mỗi việc link tới đêm đó), đặt trước phần AI viết;
+    `more`: số việc còn lại chỉ xem trên Hôm nay."""
     summary = str(output.get("summary") or "").strip()
     highlights = [h for h in output.get("highlights") or [] if isinstance(h, dict)][:5]
     day = f"{period_start.day:02d}/{period_start.month:02d}"
@@ -172,7 +180,8 @@ def render_insight(
     link = _url(base_url, f"/insights/{insight_id}")
     rec_label = t(locale, "email.insight.recommendation")
 
-    text_lines = [heading, "", summary, ""]
+    todo_text, todo_html = _actions_block(actions, more, base_url, locale, today or period_start)
+    text_lines = [heading, "", *todo_text, summary, ""]
     rows = []
     for h in highlights:
         title = str(h.get("title") or "")
@@ -197,7 +206,8 @@ def render_insight(
         _footer(tenant_name, locale),
     ]
     body = (
-        f'<tr><td style="padding:0 28px 8px;font:400 16px/1.7 {FONT};color:{INK}">{escape(summary)}</td></tr>'
+        todo_html
+        + f'<tr><td style="padding:0 28px 8px;font:400 16px/1.7 {FONT};color:{INK}">{escape(summary)}</td></tr>'
         + (
             '<tr><td style="padding:8px 28px"><table role="presentation" width="100%" '
             f'cellpadding="0" cellspacing="0">{"".join(rows)}</table></td></tr>'
@@ -216,6 +226,49 @@ def render_insight(
     return Email(
         _subject(subject), "\n".join(line for line in text_lines if line is not None), html
     )
+
+
+def _actions_block(
+    actions: Sequence[MorningAction], more: int, base_url: str, locale: str, today: date
+) -> tuple[list[str], str]:
+    """Khối "Việc cần làm" (text + HTML); rỗng khi không có việc."""
+    if not actions:
+        return [], ""
+    title = t(locale, "email.insight.actions_title")
+    open_label = t(locale, "email.insight.action.open")
+    text = [title]
+    rows = []
+    for a in actions:
+        night = (
+            t(locale, "email.insight.tonight")
+            if a.stay_date == today
+            else fmt_night(a.stay_date, locale)
+        )
+        link = _url(base_url, a.path)
+        text += [f"• {night}: {a.headline}" + (f" ({a.detail})" if a.detail else ""), f"  {link}"]
+        rows.append(
+            f'<tr><td style="padding:10px 0;border-bottom:1px solid {LINE}">'
+            f'<div style="font:700 15px/1.45 {FONT};color:{INK}">{escape(night)} · {escape(a.headline)}</div>'
+            + (
+                f'<div style="margin-top:2px;font:400 14px/1.55 {FONT};color:{BODY}">{escape(a.detail)}</div>'
+                if a.detail
+                else ""
+            )
+            + f'<div style="margin-top:4px"><a href="{escape(link)}" style="font:600 13px/1.6 {FONT};color:{BRAND};text-decoration:none">{escape(open_label)} →</a></div>'
+            "</td></tr>"
+        )
+    tail = ""
+    if more > 0:
+        more_text = t(locale, "email.insight.actions_more", count=more)
+        text.append(more_text)
+        tail = f'<div style="margin-top:8px;font:400 13px/1.6 {FONT};color:{MUTED}">{escape(more_text)}</div>'
+    text.append("")
+    html = (
+        f'<tr><td style="padding:0 28px 12px"><div style="font:700 13px/1.4 {FONT};letter-spacing:.04em;'
+        f'text-transform:uppercase;color:{MUTED}">{escape(title)}</div>'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0">{"".join(rows)}</table>{tail}</td></tr>'
+    )
+    return text, html
 
 
 def _dm(d: date) -> str:
@@ -306,7 +359,7 @@ def render_weekly(
     focus, sections = weekly_sections(report, locale)
     heading = t(locale, "email.weekly.title", day=_dm(report.outlook_start))
     subject = t(locale, "email.weekly.subject", day=_dm(report.outlook_start), focus=focus)
-    link = _url(base_url, "/overview?days=14")
+    link = _url(base_url, "/calendar?days=14")
     text_lines = [heading, ""]
     rows = []
     for heading, lines in sections:
@@ -346,7 +399,7 @@ def render_stale(
     subject = t(locale, "email.stale.subject", channels=names, since=when)
     title = t(locale, "email.stale.title")
     body_text = t(locale, "email.stale.body", channels=names, since=when)
-    url = _url(base_url, "/dashboard")
+    url = _url(base_url, "/runs")
     html = _layout(
         preheader=body_text,
         title=title,
@@ -376,3 +429,32 @@ def render_test(tenant_name: str, base_url: str, locale: str = DEFAULT_LOCALE) -
     )
     footer = _footer(tenant_name, locale)
     return Email(_subject(title), f"{title}\n\n{msg}\n\n{link}\n\n{footer}", html)
+
+
+def render_invite(
+    tenant_name: str,
+    email: str,
+    role: str,
+    url: str,
+    hours: int,
+    locale: str = DEFAULT_LOCALE,
+) -> Email:
+    """Lời mời đặt mật khẩu (UX Phase 3, C5): một nút "Đặt mật khẩu", hạn dùng của link."""
+    role_label = t(locale, f"email.invite.role.{role}")
+    title = t(locale, "email.invite.title", tenant=tenant_name)
+    body = t(locale, "email.invite.body", tenant=tenant_name, email=email, role=role_label)
+    expiry = t(locale, "email.invite.expiry", hours=hours)
+    footer = t(locale, "email.invite.footer", tenant=tenant_name)
+    html = _layout(
+        preheader=body,
+        title=title,
+        body_html=(
+            f'<tr><td style="padding:0 28px 8px;font:400 15px/1.7 {FONT};color:{BODY}">{escape(body)}</td></tr>'
+            f'<tr><td style="padding:0 28px 8px;font:400 13px/1.6 {FONT};color:{MUTED}">{escape(expiry)}</td></tr>'
+        ),
+        cta=(url, t(locale, "email.invite.cta")),
+        footer=footer,
+        locale=locale,
+    )
+    text = "\n".join([title, "", body, "", url, "", expiry, "", footer])
+    return Email(_subject(t(locale, "email.invite.subject", tenant=tenant_name)), text, html)

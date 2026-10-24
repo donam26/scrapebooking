@@ -5,7 +5,7 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -27,6 +27,33 @@ from app.ops.metrics import INSIGHTS_TOTAL
 
 log = get_logger(__name__)
 
+# Bản tin sinh khi thiếu OPENROUTER_API_KEY (đầu ra giả): ghi ở cột model để nhận ra và ẩn khỏi
+# tenant. Bản cũ (trước khi có dấu này) nhận ra qua câu tóm tắt / ghi chú dữ liệu của client giả.
+PLACEHOLDER_MODEL = "placeholder"
+_PLACEHOLDER_SUMMARY_PREFIX = "OPENROUTER_API_KEY"
+_PLACEHOLDER_NOTE = "fake client"
+
+
+def placeholder_clause() -> ColumnElement[bool]:
+    """Điều kiện SQL: bản tin là đầu ra giả (dùng để lọc khỏi danh sách/email của tenant)."""
+    # coalesce: output_json NULL (bản đang tạo) phải ra false chứ không phải NULL, để NOT(...) đúng.
+    summary = func.coalesce(Insight.output_json["summary"].astext, "")
+    note = func.coalesce(Insight.output_json["data_quality_note"].astext, "")
+    return or_(
+        Insight.model == PLACEHOLDER_MODEL,
+        summary.startswith(_PLACEHOLDER_SUMMARY_PREFIX),
+        note == _PLACEHOLDER_NOTE,
+    )
+
+
+def is_placeholder(model: str, output_json: dict[str, Any] | None) -> bool:
+    out = output_json or {}
+    return (
+        model == PLACEHOLDER_MODEL
+        or str(out.get("summary", "")).startswith(_PLACEHOLDER_SUMMARY_PREFIX)
+        or out.get("data_quality_note") == _PLACEHOLDER_NOTE
+    )
+
 
 def build_insight_client(settings: Settings) -> InsightClient:
     if not settings.openrouter_api_key:
@@ -39,7 +66,8 @@ def build_insight_client(settings: Settings) -> InsightClient:
                 "pricing_opportunities": [],
                 "risks": [],
                 "data_quality_note": "fake client",
-            }
+            },
+            placeholder=True,
         )
     headers: dict[str, str] = {}
     if settings.openrouter_app_name:
@@ -177,7 +205,8 @@ class InsightService:
         row.period_start, row.period_end = built.period_start, built.period_end
         row.scan_run_id = built.scan_run_id
         row.input_json = built.payload
-        row.model = self._settings.openrouter_model
+        placeholder = getattr(self._client, "placeholder", False)
+        row.model = PLACEHOLDER_MODEL if placeholder else self._settings.openrouter_model
         row.prompt_version = PROMPT_VERSION
 
         if not built.hotel_ids:

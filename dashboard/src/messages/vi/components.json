@@ -65,17 +65,17 @@
     },
     "legend": {
       "hotelExact": "Số phòng còn chính xác: đỏ/cam là sắp kín, xanh là còn nhiều",
-      "hotelFloor": "≥N hoặc N–M: chưa biết chính xác (màu chỉ hiện khi chắc mức)",
+      "hotelFloor": "≥N: còn ít nhất N phòng; N–M: trong khoảng (màu chỉ hiện khi chắc mức)",
       "hidden": "Còn phòng, không lộ số",
       "soldOut": "Hết phòng",
       "unknown": "Không đọc được",
       "notScanned": "Chưa quét",
       "roomExact": "Chính xác (“Chỉ còn 2 phòng”)",
-      "roomCapped": "Ít nhất N (Booking.com chỉ lộ mức sàn)",
+      "roomCapped": "Còn ít nhất N (Booking.com không lộ số chính xác)",
       "restricted": "Hạn chế (≥2đ = phải ở từ 2 đêm), vẫn bán",
       "noPrice": "Không có giá",
       "error": "Lỗi đọc trang",
-      "stale": "Dữ liệu cũ hơn 48 giờ",
+      "stale": "Số cũ hơn 48 giờ (giữ màu, sọc ở góc)",
       "promo": "Đang khuyến mãi"
     },
     "restrictedShort": "H.CHẾ",
@@ -100,31 +100,31 @@
     "floorLegend": "Chấm rỗng: ít nhất (số thật có thể cao hơn)"
   },
   "marketSuggestion": {
-    "confidenceHigh": "Tin cậy cao",
-    "confidenceMedium": "Tin cậy vừa",
     "target": "Giá mục tiêu",
     "holdAt": "Giữ ở",
     "basis": "từ giá của bạn {price}",
-    "applied": "Đã áp dụng",
+    "applied": "Đã ghi: bạn đã đổi giá",
     "dismissed": "Đã bỏ qua",
     "undo": "Hoàn tác",
-    "markApplied": "Đã áp dụng",
+    "markApplied": "Tôi đã đổi giá",
     "dismiss": "Bỏ qua",
-    "confidenceLow": "Tin cậy thấp (mẫu nhỏ)",
-    "reference": "Tham chiếu {price}",
-    "referenceTitle": "Trung vị giá niêm yết đối thủ × định vị mục tiêu (hoặc giá gốc khi chưa đủ mẫu), đã làm tròn",
-    "restrictions": "Gợi ý hạn chế",
+    "confidenceLow": "Tin cậy thấp",
+    "reference": "Mức hợp lý trước điều chỉnh: {price}",
+    "howComputed": "Cách tính",
+    "restrictions": "Gợi ý thêm",
     "clamp": {
-      "floor": "Đã chặn ở giá sàn",
-      "ceiling": "Đã chặn ở giá trần",
-      "max_change": "Đã giới hạn ở mức đổi tối đa mỗi ngày",
+      "floor": "Dừng ở giá sàn bạn đặt",
+      "ceiling": "Dừng ở giá trần bạn đặt",
+      "max_change": "Mỗi lần không đổi quá mức bạn đặt trong Chiến lược giá",
       "no_lower_tight": "Không gợi ý giảm khi đêm đang căng hoặc bạn sắp kín phòng"
     },
     "applyPrice": "Giá bạn đã đặt (VND)",
     "applyHint": "Sửa nếu bạn đặt khác giá mục tiêu, để đo kết quả đúng.",
     "confirm": "Xác nhận",
     "cancel": "Huỷ",
-    "invalidPrice": "Nhập giá lớn hơn 0, hoặc để trống để dùng giá mục tiêu."
+    "invalidPrice": "Nhập giá lớn hơn 0, hoặc để trống để dùng giá mục tiêu.",
+    "staleNote": "Dựa trên số Booking.com lúc {when}: số đã cũ, chờ lượt quét mới rồi hãy quyết.",
+    "staleDisabled": "Dữ liệu đã cũ: chờ lượt quét mới"
   },
   "priceBasis": {
     "label": "Giá đem so",
@@ -161,10 +161,12 @@
     "label": "Mục con",
     "tabs": {
       "aiBriefs": "Bản tin AI",
-      "events": "Thay đổi",
-      "compset": "Compset của bạn",
-      "market": "Khám phá thị trường",
-      "radar": "Radar cạnh tranh"
+      "events": "Nhật ký thay đổi",
+      "outcomes": "Kết quả gợi ý",
+      "pace": "Nhịp đặt phòng",
+      "compset": "Nhóm đối thủ",
+      "market": "Tìm khách sạn để theo dõi",
+      "radar": "Khuyến mãi & hạn chế"
     }
   },
   "dateRange": {
@@ -204,32 +206,33 @@
   },
   "todayActions": {
     "title": "Việc cần làm hôm nay",
-    "info": "Gợi ý tăng/giảm giá đang chờ (kèm giá mục tiêu theo chiến lược giá), đối thủ hết phòng đêm nay và đêm căng trong {nights} đêm tới: từ một nửa số đối thủ quan sát được đã hết hoặc còn ≤3 phòng, hoặc chỉ báo lấp đầy từ 85%. Đêm “giữ giá” không liệt kê. Tối đa 5 việc; hệ thống không tự đổi giá.",
-    "empty": "Chưa có việc cần làm: không có gợi ý tăng/giảm giá, đối thủ hết phòng đêm nay hay đêm căng trong {nights} đêm tới.",
+    "info": "Những đêm trong {nights} đêm tới cần bạn quyết: gợi ý tăng/giảm giá có tín hiệu thị trường, đối thủ hết phòng đêm nay, đêm căng (từ một nửa đối thủ đã hết hoặc còn ≤3 phòng). Hệ thống không tự đổi giá; bấm “Tôi đã đổi giá” để ghi lại.",
+    "empty": "Không có đêm nào cần đổi giá trong {nights} đêm tới: giá của bạn đang ở mức thường so với đối thủ, chưa đối thủ nào hết phòng đêm nay.",
     "more": "Còn {count} việc khác",
     "tonight": "Đêm nay",
     "badge": {
       "soldOut": "Đối thủ hết phòng",
       "tight": "Đêm căng"
     },
-    "target": "Giá mục tiêu <b>{price}</b> ({change})",
-    "basis": "Cơ sở: giá của bạn {price} (giá thấp nhất trên Booking.com)",
-    "noOwnPrice": "Đổi {change}; chưa có giá của bạn trên Booking.com để tính giá mục tiêu",
-    "reason": "Lý do: {reason}",
     "soldOutTonight": "{count} đối thủ hết phòng: {names}",
     "tightCount": "{tight}/{observed} đối thủ hết/sắp hết phòng",
-    "fill": "chỉ báo lấp đầy trên Booking.com ≈{pct}%"
+    "fill": "chỉ báo lấp đầy trên Booking.com ≈{pct}%",
+    "staleTitle": "Chưa đưa gợi ý giá",
+    "staleBody": "Booking.com chưa có số mới từ {when} ({ago}). Gợi ý dựa trên số cũ có thể sai.",
+    "staleNever": "Chưa có lần đọc Booking.com nào thành công.",
+    "staleLink": "Xem tình trạng quét",
+    "decided": "Đã ghi ({count})"
   },
   "sample": {
     "countShort": "{n}/{total}",
     "count": "{n}/{total} đối thủ có giá",
     "small": "mẫu nhỏ",
-    "insufficient": "chưa đủ mẫu ({n}/{total}, cần ≥{min})",
-    "okTitle": "{n}/{total} đối thủ compset chính có giá cùng điều kiện đêm này.",
-    "smallTitle": "Chỉ {n}/{total} đối thủ có giá cùng điều kiện: số chỉ để tham khảo (chuẩn CoStar STR cần ≥{min}).",
-    "insufficientTitle": "{n}/{total} đối thủ có giá cùng điều kiện: dưới 3 thì không tính trung vị, chỉ số giá và vị trí giá (cần ≥{min}).",
+    "insufficient": "chưa đủ mẫu ({n}/{total}, cần ít nhất {min})",
+    "okTitle": "{n}/{total} đối thủ trong nhóm chính có giá cùng điều kiện đêm này.",
+    "smallTitle": "Chỉ {n}/{total} đối thủ có giá cùng điều kiện: số chỉ để tham khảo (cần ít nhất {min} đối thủ thì so mới cân).",
+    "insufficientTitle": "{n}/{total} đối thủ có giá cùng điều kiện: dưới 3 thì không tính giá giữa, chỉ số giá và vị trí giá (cần ít nhất {min}).",
     "index": "Chỉ số giá niêm yết",
-    "indexTitle": "Giá niêm yết thấp nhất của bạn ÷ trung vị giá đối thủ × 100 (100 = ngang trung vị). Đây là chỉ số giá chào bán, không phải chỉ số doanh thu: chưa có doanh thu thật của đối thủ.",
+    "indexTitle": "Giá niêm yết thấp nhất của bạn ÷ giá giữa của đối thủ × 100 (100 = ngang giá giữa nhóm đối thủ; giá giữa: một nửa đối thủ rẻ hơn, một nửa đắt hơn). Đây là chỉ số giá chào bán, không phải chỉ số doanh thu: chưa có doanh thu thật của đối thủ.",
     "rankLabel": "Vị trí giá",
     "rank": "{rank}/{total} (1 = rẻ nhất)"
   },
@@ -240,7 +243,7 @@
     "hiddenTitle": "Ẩn: sai số so PMS ở nhóm {bucket} là ±{mae} điểm (trên ngưỡng 20 điểm), chỉ báo đêm này không đáng tin.",
     "calibrated": "sai số so PMS {values} điểm ở 0–7 / 8–30 / 31–90 ngày",
     "calibratedAll": "sai số so PMS ±{mae} điểm ({count} đêm)",
-    "uncalibrated": "chưa hiệu chỉnh (chưa có PMS)",
+    "uncalibrated": "chưa hiệu chỉnh: chưa đủ đêm có số PMS để so",
     "calibrationInfo": "Sai số tuyệt đối trung bình của chỉ báo so công suất PMS thật, theo số ngày trước khi đến. Nhóm nào sai số trên 20 điểm thì ẩn chỉ báo.",
     "leadLine": "{bucket}: ±{mae} điểm, lệch {bias}, {count} đêm{usable, select, no { (ẩn)} other {}}",
     "leadLineNone": "{bucket}: chưa có đêm để so",
@@ -252,7 +255,7 @@
   },
   "ownHotel": {
     "label": "Khách sạn của bạn",
-    "title": "Xem compset và nhịp của {name}"
+    "title": "Xem nhóm đối thủ và nhịp đặt phòng của {name}"
   },
   "exportMenu": {
     "label": "Xuất dữ liệu",
@@ -265,5 +268,67 @@
     "monthlyHint": "Mở trang báo cáo cho chủ đầu tư, in hoặc lưu thành PDF.",
     "monthAria": "Tháng của báo cáo",
     "open": "Mở"
+  },
+  "areaSelect": {
+    "label": "Khu vực thị trường"
+  },
+  "changeSummary": {
+    "window": "{days, plural, =1 {24 giờ qua} other {# ngày qua}}",
+    "cardDescription": "Thay đổi trên Booking.com, đếm theo đêm",
+    "noScans": "Chưa có lượt quét mới trong {days, plural, =1 {24 giờ} other {# ngày}}",
+    "lastScan": "lần quét cuối {when}",
+    "none": "Không đổi gì trong {days, plural, =1 {24 giờ} other {# ngày}}",
+    "minorOnly": "Chỉ có thay đổi nhỏ (1 phòng) trong {days, plural, =1 {24 giờ} other {# ngày}}",
+    "untilLast": "tới lần quét cuối {when}",
+    "roomsDropTitle": "Đêm có loại phòng giảm từ 2 phòng trở lên, hoặc chỉ còn 3 phòng trở xuống",
+    "label": {
+      "priceUp": "Giá tăng",
+      "priceDown": "Giá giảm",
+      "soldOut": "Hết phòng",
+      "roomsDrop": "Phòng giảm mạnh",
+      "promo": "Khuyến mãi",
+      "restrictions": "Hạn chế bán"
+    },
+    "value": {
+      "nights": "{count} đêm",
+      "price": "{count} đêm, nhiều nhất {pct}",
+      "soldOutMore": "{nights} và {count} đêm khác",
+      "restrictions": "{count} đêm thêm hoặc bỏ điều kiện bán"
+    },
+    "short": {
+      "priceUp": "giá ↑ {count} đêm",
+      "priceUpPct": "giá ↑ {count} đêm (tới {pct})",
+      "priceDown": "giá ↓ {count} đêm",
+      "priceDownPct": "giá ↓ {count} đêm (tới {pct})",
+      "soldOut": "hết phòng {nights}",
+      "back": "có phòng lại {count} đêm",
+      "roomsDrop": "phòng giảm mạnh {count} đêm",
+      "promoOn": "bật KM {count} đêm",
+      "promoOff": "tắt KM {count} đêm",
+      "restrictions": "đổi điều kiện bán {count} đêm"
+    }
+  },
+  "addHotel": {
+    "title": "Thêm khách sạn",
+    "description": "Dán đường dẫn trang khách sạn trên Booking.com. Hệ thống kiểm tra đường dẫn rồi đưa khách sạn vào lịch quét.",
+    "urlHint": "Mở khách sạn trên Booking.com, sao chép địa chỉ trên thanh trình duyệt.",
+    "explore": "Tìm trong khu vực",
+    "cancel": "Huỷ",
+    "done": "Xong",
+    "close": "Đóng"
+  },
+  "nightLog": {
+    "title": "Thay đổi theo đêm",
+    "description": "{count} thay đổi gần nhất, gom theo {nights} đêm",
+    "showMinor": "Hiện cả thay đổi nhỏ",
+    "changes": "{count} thay đổi",
+    "past": "Đêm đã qua",
+    "more": "Xem thêm {count} đêm",
+    "remaining": "còn {count} đêm",
+    "seenAt": "Thấy lúc {when}",
+    "moreLines": "+{count} thay đổi khác của đêm này",
+    "fewer": "Thu gọn",
+    "empty": "Chưa có thay đổi nào được ghi nhận cho khách sạn này.",
+    "onlyMinor": "Chỉ có {count} thay đổi nhỏ (1 phòng). Bật “Hiện cả thay đổi nhỏ” để xem."
   }
 }

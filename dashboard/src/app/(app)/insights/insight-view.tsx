@@ -79,6 +79,36 @@ export function parseInsightOutput(raw: Record<string, unknown> | null | undefin
   };
 }
 
+/**
+ * Bản tin không nên cho tenant thấy (L2, F4): lượt tạo lỗi, hoặc đầu ra giả khi chưa cấu hình mô hình
+ * (tóm tắt bắt đầu bằng tên biến môi trường). Backend đã lọc cho tenant; đây là lớp chặn thứ hai.
+ */
+export function hiddenFromTenant(r: Pick<InsightDetailOut, "status" | "output_json">): boolean {
+  if (r.status === "failed") return true;
+  const summary = r.output_json?.summary;
+  return typeof summary === "string" && summary.trimStart().startsWith("OPENROUTER_API_KEY");
+}
+
+/** Bản tin cũ hơn 1 ngày thì ghi tuổi ("Bản tin ngày 16/10 · 8 ngày trước", D7). */
+export function briefIsOld(generatedAt: string, now = Date.now()): boolean {
+  return now - new Date(generatedAt).getTime() > 24 * 3600 * 1000;
+}
+
+/** "Bản tin ngày 16/10 · 8 ngày trước" khi bản tin cũ hơn 1 ngày (D7); không hiện gì khi còn mới. */
+export function BriefAge({ at, onDark }: { at: string; onDark?: boolean }) {
+  const t = useTranslations("insights.list");
+  const { fmtAgo, fmtDateShort } = useFmt();
+  if (!briefIsOld(at)) return null;
+  return (
+    <span
+      title={t("briefAgeTitle")}
+      className={cx("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", onDark ? "bg-[#fbbf24] text-ink" : "bg-warning-soft text-warning-deep")}
+    >
+      {t("briefAge", { date: fmtDateShort(at), ago: fmtAgo(at) })}
+    </span>
+  );
+}
+
 export function parseDropped(raw: Record<string, unknown>[]): Dropped[] {
   return raw.map((d) => ({ section: str(d.section), item: obj(d.item), reasons: arr(d.reasons).map(str) }));
 }

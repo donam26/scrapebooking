@@ -10,9 +10,9 @@ import { useSession } from "@/lib/session";
 import { useFmt } from "@/lib/format";
 import { INSIGHT_STATUS_TONE, LEVEL_TONE, useLabel } from "@/lib/labels";
 import { Badge, Button, EmptyState, ErrorBox, Note, PageHeader, SkeletonBlock, Spinner, cx } from "@/components/ui";
-import { BRIEF_TABS, SubTabs } from "@/components/sub-tabs";
+import { REPORT_TABS, SubTabs } from "@/components/sub-tabs";
 import { IconArrowRight, IconBrief, IconCalendar, IconSparkle } from "@/components/icons";
-import { insightCounts, parseInsightOutput } from "./insight-view";
+import { BriefAge, hiddenFromTenant, insightCounts, parseInsightOutput } from "./insight-view";
 
 const POLL_MS = 5000;
 
@@ -55,8 +55,11 @@ function Latest({ r, isOperator }: { r: InsightOut; isOperator: boolean }) {
           </span>
           <div>
             <h2 className="text-md font-bold text-white">{t("latest")}</h2>
-            <div className="text-sm">
-              {fmtWhen(r.generated_at)} · {label("insightTrigger", r.trigger)}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span>
+                {fmtWhen(r.generated_at)} · {label("insightTrigger", r.trigger)}
+              </span>
+              <BriefAge at={r.generated_at} onDark />
             </div>
           </div>
         </div>
@@ -141,8 +144,10 @@ export default function InsightsPage() {
   const list = useApi("insights", () => api.insights.list(50));
   const settings = useApi("settings", () => api.settings.get());
   const [pollingId, setPollingId] = useState<number | null>(null);
+  const [lastFailed, setLastFailed] = useState(false);
   const generate = useMutation(async () => {
     const created = await api.insights.generate();
+    setLastFailed(false);
     setPollingId(created.id);
     list.reload();
     return created;
@@ -157,6 +162,8 @@ export default function InsightsPage() {
         const row = await api.insights.get(pollingId);
         if (row.status !== "pending") {
           setPollingId(null);
+          // Tenant không thấy dòng lỗi trong danh sách: báo một câu thay vì im lặng.
+          setLastFailed(row.status === "failed" && !isOperator);
           reload();
         }
       } catch {
@@ -164,16 +171,17 @@ export default function InsightsPage() {
       }
     }, POLL_MS);
     return () => window.clearInterval(id);
-  }, [pollingId, reload]);
+  }, [pollingId, reload, isOperator]);
 
-  const rows = list.data ?? [];
+  // Tenant không thấy bản tin lỗi hoặc đầu ra giả (L2); operator thấy hết để xử lý.
+  const rows = (list.data ?? []).filter((r) => isOperator || !hiddenFromTenant(r));
   const latest = rows.find((r) => r.status === "completed") ?? null;
   const others = rows.filter((r) => r !== latest);
   const hour = settings.data?.insight_hour;
 
   return (
     <>
-      <SubTabs items={BRIEF_TABS} />
+      <SubTabs items={REPORT_TABS} />
       <PageHeader
         title={t("title")}
         subtitle={hour ? t("subtitleAt", { hour }) : t("subtitle")}
@@ -188,6 +196,11 @@ export default function InsightsPage() {
       {pollingId !== null && (
         <Note tone="info" icon={<Spinner className="text-brand" />} className="mb-4">
           {t("generatingNote")}
+        </Note>
+      )}
+      {lastFailed && (
+        <Note tone="warn" className="mb-4">
+          {t("generateFailed")}
         </Note>
       )}
       <ErrorBox error={generate.error} className="mb-4" />

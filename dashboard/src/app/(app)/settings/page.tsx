@@ -2,44 +2,55 @@
 
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useSession } from "@/lib/session";
 import { Note, PageHeader, SkeletonBlock, Tabs } from "@/components/ui";
-import { IconBell, IconBuilding, IconCalendar, IconClock, IconLock, IconPin, IconTrend, IconUpload, IconUsers } from "@/components/icons";
+import { IconBell, IconBuilding, IconLock, IconSliders, IconTrend, IconUpload, IconUsers } from "@/components/icons";
 import { WatchlistTab } from "./watchlist-tab";
-import { ScheduleTab } from "./schedule-tab";
-import { EventsTab } from "./events-tab";
-import { MarketTab } from "./market-tab";
 import { UsersTab } from "./users-tab";
 import { PmsTab } from "./pms-tab";
 import { NotificationsTab } from "./notifications-tab";
 import { StrategyTab } from "./strategy-tab";
+import { AdvancedTab, type AdvancedSection } from "./advanced-tab";
 
-type TabKey = "watchlist" | "market" | "schedule" | "events" | "notifications" | "users" | "pms" | "strategy";
+/**
+ * Cài đặt (UX Phase 3, C3): sáu tab theo việc của khách sạn. "Nâng cao" gom Lịch quét, Khu vực thị
+ * trường và Sự kiện địa phương. URL cũ `?tab=schedule|market|events` mở "Nâng cao" và cuộn tới mục đó.
+ */
+type TabKey = "watchlist" | "notifications" | "users" | "pms" | "strategy" | "advanced";
 
 const TABS: Array<{ key: TabKey; icon: React.ReactNode }> = [
   { key: "watchlist", icon: <IconBuilding size={16} /> },
-  { key: "market", icon: <IconPin size={16} /> },
-  { key: "schedule", icon: <IconClock size={16} /> },
-  { key: "events", icon: <IconCalendar size={16} /> },
   { key: "notifications", icon: <IconBell size={16} /> },
   { key: "users", icon: <IconUsers size={16} /> },
   { key: "pms", icon: <IconUpload size={16} /> },
   { key: "strategy", icon: <IconTrend size={16} /> },
+  { key: "advanced", icon: <IconSliders size={16} /> },
 ];
 
-function isTab(v: string | null): v is TabKey {
-  return TABS.some((it) => it.key === v);
+/** `?tab=` cũ → mục trong "Nâng cao". */
+const SECTION_ALIASES: readonly AdvancedSection[] = ["schedule", "market", "events"];
+
+function resolve(raw: string | null): { tab: TabKey; section: AdvancedSection | null } {
+  if (raw && (SECTION_ALIASES as readonly string[]).includes(raw)) return { tab: "advanced", section: raw as AdvancedSection };
+  const tab = TABS.find((it) => it.key === raw)?.key ?? "watchlist";
+  return { tab, section: null };
 }
 
 function SettingsView() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const raw = params.get("tab");
-  const tab: TabKey = isTab(raw) ? raw : "watchlist";
+  const { tab, section } = resolve(params.get("tab"));
   const { canWrite } = useSession();
   const t = useTranslations("settings.page");
+
+  // Link cũ tới một mục của "Nâng cao": cuộn tới mục đó sau khi tab hiện ra.
+  useEffect(() => {
+    if (!section) return;
+    const id = window.setTimeout(() => document.getElementById(`settings-${section}`)?.scrollIntoView({ block: "start" }), 50);
+    return () => window.clearTimeout(id);
+  }, [section]);
 
   function setTab(next: TabKey) {
     const q = new URLSearchParams(params.toString());
@@ -51,10 +62,7 @@ function SettingsView() {
 
   return (
     <div className="max-w-[1100px]">
-      <PageHeader
-        title={t("title")}
-        subtitle={canWrite ? t("subtitleWrite") : t("subtitleRead")}
-      />
+      <PageHeader title={t("title")} subtitle={canWrite ? t("subtitleWrite") : t("subtitleRead")} />
       {!canWrite && (
         <Note tone="info" icon={<IconLock size={16} />} className="mb-5">
           {t("readOnlyNote")}
@@ -63,13 +71,11 @@ function SettingsView() {
       <Tabs value={tab} onChange={setTab} items={TABS.map((it) => ({ ...it, label: t(`tabs.${it.key}`) }))} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "watchlist" && <WatchlistTab />}
-        {tab === "market" && <MarketTab />}
-        {tab === "schedule" && <ScheduleTab />}
-        {tab === "events" && <EventsTab />}
         {tab === "notifications" && <NotificationsTab />}
         {tab === "users" && <UsersTab />}
         {tab === "pms" && <PmsTab />}
         {tab === "strategy" && <StrategyTab />}
+        {tab === "advanced" && <AdvancedTab />}
       </div>
     </div>
   );

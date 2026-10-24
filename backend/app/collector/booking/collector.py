@@ -2,15 +2,18 @@
 tìm kiếm cho thị trường toàn thành phố."""
 
 from datetime import date
+from typing import Any
 
 from app.collector.base import ListingBlocked, ListingNotFound
 from app.collector.booking.browser import BrowserCollector
+from app.collector.booking.calendar import GRAPHQL_URL
 from app.collector.booking.hybrid import HybridCollector
 from app.collector.booking.identity import parse_identity
 from app.collector.booking.playwright_bootstrap import PlaywrightBootstrapper
+from app.collector.booking.selectors import extract_csrf_token
 from app.collector.factory import CollectorDeps
 from app.collector.fetch import CurlFetcher, FetchOutcome
-from app.collector.session import SessionManager
+from app.collector.session import ScrapeSession, SessionManager
 from app.domain.models import (
     CalendarResult,
     ListingIdentity,
@@ -18,6 +21,7 @@ from app.domain.models import (
     ProbeResult,
 )
 from app.logging import get_logger
+from app.marketscan.graphql import search_headers
 
 log = get_logger(__name__)
 
@@ -87,6 +91,45 @@ class BookingCollector:
         ngân sách và giãn cách với probe. Bị chặn (kể cả trang 200 không phải trang kết quả): thu
         hồi session, ném ListingBlocked."""
         return await self._get_page(url, "https://www.booking.com/", expect=SEARCH_PAGE_MARKERS)
+
+    async def _retire(self, session: ScrapeSession) -> None:
+        await self._sessions.retire(session, reason="blocked")
+        await self._fetcher.close(session.id)
+
+    async def search_graphql(self, payload: dict[str, Any], referer: str) -> str:
+        """GraphQL `FullSearch` (thị trường khu vực, app/marketscan/graphql.py): cùng session,
+        proxy, ngân sách và giãn cách với probe/lịch.
+
+        Session chưa có csrf: tải một trang lấy `b_csrf_token` (trang kết quả `referer` khi có
+        tham số tìm kiếm, không thì trang chủ); vẫn không có → coi như bị chặn. Chặn thật (403/429,
+        challenge) hoặc trả 200 mà không phải JSON: thu hồi session, ném ListingBlocked. HTTP lỗi
+        khác (4xx đầu vào, 5xx): lỗi thường, không làm tạm dừng kênh."""
+        warmup = "https://www.booking.com/"
+        session = await self._sessions.get(self._deps.country, warmup)
+        if not session.csrf_token:
+            if "?" in referer:
+                html = await self._get_page(referer, warmup, expect=SEARCH_PAGE_MARKERS)
+            else:
+                html = await self._get_page(warmup, warmup)
+            session = await self._sessions.get(self._deps.country, warmup)
+            session.csrf_token = extract_csrf_token(html)
+            if not session.csrf_token:
+                await self._retire(session)
+                raise ListingBlocked("graphql search: no csrf token")
+        await self._deps.budget.acquire()
+        await self._deps.limiter.wait(session.id)
+        headers = search_headers(session.csrf_token, referer)
+        response = await self._fetcher.post_json(GRAPHQL_URL, payload, headers, session)
+        self._sessions.mark_request(session)
+        if response.outcome == FetchOutcome.BLOCKED:
+            await self._retire(session)
+            raise ListingBlocked(f"graphql search blocked (http {response.status})")
+        if response.outcome != FetchOutcome.OK:
+            raise RuntimeError(f"graphql search http {response.status}")
+        if not response.text.lstrip().startswith("{"):
+            await self._retire(session)  # trang challenge/HTML với mã 200
+            raise ListingBlocked("graphql search: non-json body")
+        return response.text
 
     async def verify(self, listing: ListingRef) -> ListingIdentity:
         html = await self._get_page(listing.url.replace(".html", ".en-gb.html"), listing.url)

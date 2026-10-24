@@ -8,6 +8,7 @@ vọng đọc tay từ thẻ HTML (khối giá, "Scored …", "N reviews").
 import gzip
 import json
 import re
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -137,13 +138,76 @@ def test_district_of() -> None:
 def test_autocomplete_keeps_only_area_destinations() -> None:
     path = Path(__file__).parent.parent / "fixtures" / "html" / "autocomplete_ho_chi_minh_city.json"
     found = parse_destinations(json.loads(path.read_text(encoding="utf-8")))
+    # Địa danh được giữ (dùng kèm bán kính); khách sạn lẻ, sân bay thì không.
     assert [(d.dest_id, d.dest_type) for d in found] == [
         ("-3730078", "city"),
         ("2088", "district"),
         ("6750", "district"),
+        ("234878", "landmark"),
+        ("900061383", "landmark"),
     ]
     city = found[0]
     assert city.name == "Ho Chi Minh City"
     assert city.label == "Ho Chi Minh City, Ho Chi Minh Municipality, Vietnam"
     assert (city.country_code, city.nr_hotels) == ("vn", 6890)
     assert city.lat == pytest.approx(10.771475)
+
+
+def test_apollo_store_carries_market_signals(html: str) -> None:
+    page = parse_search_page(html)
+    # Số còn phòng trong khu vực (không tính phần Booking nới thêm) + % đã kín Booking tự tính.
+    assert (page.total, page.autoextended, page.unavailability_pct) == (3944, 0, 21)
+    assert page.low_availability is False and (page.rooms, page.adults) == (1, 2)
+    assert page.facets["di=2088"] == 1107 and page.facets["class=4"] == 798
+    assert all("=" in uid for uid in page.facets)
+    first = page.cards[0]
+    assert first.only_left == 6 and first.autoextended is False
+
+
+def _store_variant(html: str, mutate: Callable[[dict], None]) -> str:
+    m = re.search(
+        r"(<script[^>]*data-capla-store-data=\"apollo\"[^>]*>)(.*?)(</script>)", html, re.S
+    )
+    assert m is not None
+    store = json.loads(m.group(2))
+    entry = next(
+        v for k, v in store["ROOT_QUERY"]["searchQueries"].items() if k.startswith("search(")
+    )
+    mutate(entry)
+    return m.group(1) + json.dumps(store) + m.group(3)
+
+
+def test_autoextended_cards_are_dropped_and_total_excludes_them(html: str) -> None:
+    def mutate(entry: dict) -> None:
+        for raw in entry["results"][:3]:
+            raw["persuasion"] = {"autoextended": True}
+        info = entry["searchMeta"]["availabilityInfo"]
+        info.update(totalAvailableNotAutoextended=13, totalAutoextendedAvailable=3)
+        info["hasLowAvailability"] = True
+        entry["pagination"]["nbResultsTotal"] = 16
+
+    page = parse_search_page(_store_variant(html, mutate))
+    assert (page.total, page.autoextended, page.low_availability) == (13, 3, True)
+    assert len(page.cards) == 22 and not any(c.autoextended for c in page.cards)
+
+
+def test_only_autoextended_results_never_fall_back_to_html_cards(html: str) -> None:
+    def mutate(entry: dict) -> None:
+        for raw in entry["results"]:
+            raw["persuasion"] = {"autoextended": True}
+        info = entry["searchMeta"]["availabilityInfo"]
+        info.update(totalAvailableNotAutoextended=0, totalAutoextendedAvailable=845)
+
+    page = parse_search_page(_store_variant(html, mutate) + html)  # kèm thẻ HTML của trang thật
+    assert (page.source, page.total, page.autoextended, page.cards) == ("apollo", 0, 845, [])
+
+
+def test_total_without_area_count_excludes_autoextended(html: str) -> None:
+    def mutate(entry: dict) -> None:
+        info = entry["searchMeta"]["availabilityInfo"]
+        del info["totalAvailableNotAutoextended"]
+        info["totalAutoextendedAvailable"] = 12
+        entry["pagination"]["nbResultsTotal"] = 40
+
+    page = parse_search_page(_store_variant(html, mutate))
+    assert (page.total, page.autoextended, page.raw_count) == (28, 12, 25)

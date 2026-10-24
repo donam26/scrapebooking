@@ -1,4 +1,4 @@
-"""Tìm địa điểm (thành phố/quận/vùng) trên Booking qua autocomplete.json → dest_id/dest_type.
+"""Tìm địa điểm (thành phố/quận/vùng/địa danh) trên Booking qua autocomplete.json → dest_id/type.
 
 API gợi ý là JSON nhẹ, không qua challenge: gọi bằng curl_cffi qua proxy giống
 `BookingCollector.suggest`, có tính vào ngân sách request của kênh.
@@ -14,8 +14,9 @@ from app.collector.proxy import ProxyProvider
 
 # Cùng endpoint với BookingCollector.suggest (không import collector: kéo theo Playwright vào API).
 AUTOCOMPLETE_URL = "https://accommodations.booking.com/autocomplete.json"
-# Loại địa điểm quét được cả chợ (bỏ khách sạn lẻ, sân bay, địa danh).
-AREA_DEST_TYPES = ("city", "district", "region")
+# Loại địa điểm quét được cả chợ (bỏ khách sạn lẻ, sân bay). Địa danh (bãi biển, quảng trường…)
+# dùng kèm bán kính: nơi quận của Booking không dùng được (vd. Vũng Tàu).
+AREA_DEST_TYPES = ("city", "district", "region", "landmark")
 
 
 @dataclass(frozen=True)

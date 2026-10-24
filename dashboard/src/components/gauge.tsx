@@ -35,8 +35,8 @@ export function ArcGauge({ value, color, caption, size = 120 }: { value: number 
   );
 }
 
-/** Vòng tròn đầy với phần trăm ở giữa (chỉ báo thị trường). */
-export function RingGauge({ value, color, unit = "%", sub, size = 108 }: { value: number | null; color: string; unit?: string; sub?: string; size?: number }) {
+/** Vòng tròn đầy với phần trăm ở giữa (chỉ báo thị trường). `prefix` ("≥", "≈") đứng trước số. */
+export function RingGauge({ value, color, unit = "%", prefix = "", sub, size = 108 }: { value: number | null; color: string; unit?: string; prefix?: string; sub?: string; size?: number }) {
   const stroke = 9;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -51,7 +51,7 @@ export function RingGauge({ value, color, unit = "%", sub, size = 108 }: { value
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
         <div className="text-[26px] font-bold leading-none tabular" style={{ color: value === null ? "var(--sb-faint)" : color }}>
-          {value === null ? "—" : `${Math.round(v)}${unit}`}
+          {value === null ? "—" : `${prefix}${Math.round(v)}${unit}`}
         </div>
         {sub && <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-faint">{sub}</div>}
       </div>

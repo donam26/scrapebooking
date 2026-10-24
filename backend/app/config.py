@@ -51,11 +51,14 @@ class Settings(BaseSettings):
     market_list_time: str = "03:00"
     market_detail_time: str = "05:00"
     market_detail_inflight: int = 4
-    # Đêm khám phá (số ngày kể từ đêm đầu của vòng quét danh sách): thêm các lát bộ lọc × thứ tự
-    # để mở rộng danh sách khách sạn của khu vực, tối đa `market_areas.max_pages` request.
-    market_discovery_night: int = 7
+    # Thang phòng trống của thị trường: các nấc N phòng (1 người lớn/phòng, Booking kẹp ≤ 30) quét
+    # sau danh sách mỗi đêm; `market_enumerate_nights` đêm đầu vòng liệt kê đủ id ở mọi nấc (khoảng
+    # phòng còn của từng khách sạn), các đêm sau chỉ đếm.
+    # Không hỏi nấc 2: đo 16/10 (Quận 1, 4 đêm) c(2) ≈ c(1) mà tốn ~5 request/đêm khi liệt kê id.
+    market_ladder_rungs: str = "3,5,10,20,30"
+    market_enumerate_nights: int = 14
     # Trần tải phía server (áp khi tạo/sửa khu vực và khi chạy): số KS quét chi tiết, số request
-    # của đêm khám phá, số khu vực mỗi tenant (operator không bị giới hạn số khu vực).
+    # mỗi đêm của một khu vực, số khu vực mỗi tenant (operator không bị giới hạn số khu vực).
     market_max_hotels: int = 500
     market_max_pages: int = 100
     market_max_areas_per_tenant: int = 3
@@ -122,6 +125,11 @@ class Settings(BaseSettings):
     @property
     def capacity_rungs(self) -> tuple[int, ...]:
         return tuple(int(x) for x in self.capacity_ladder.split(",") if x.strip())
+
+    @property
+    def market_rungs(self) -> tuple[int, ...]:
+        rungs = {int(x) for x in self.market_ladder_rungs.split(",") if x.strip().isdigit()}
+        return tuple(sorted(n for n in rungs if 2 <= n <= 30))
 
     @property
     def proxy_templates(self) -> list[str]:

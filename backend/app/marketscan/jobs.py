@@ -1,10 +1,11 @@
 """Job arq `scan_market_list` trên hàng đợi của kênh (đăng ký trong app/worker/settings.py, một lần
 thử: chuỗi tự lo việc đi tiếp).
 
-Mỗi job quét một đêm (một request; đêm khám phá thêm các lát bộ lọc × thứ tự) rồi đẩy job đêm kế
-tiếp vào cuối hàng đợi, nên job probe của các lượt quét thường xen vào giữa thay vì chờ cả lượt
-danh sách. Đêm lỗi (mạng, lỗi nội bộ) thì bỏ qua sang đêm sau; bị chặn thì dừng chuỗi và tạm dừng
-quét danh sách của kênh (`market_pause_key`) để "Quét ngay" không gửi tiếp vào chỗ đang chặn.
+Mỗi job quét một đêm (thị trường + danh sách + thang, app/marketscan/service.py; các đêm đầu vòng
+liệt kê id ở mọi nấc) rồi đẩy job đêm kế tiếp vào cuối hàng đợi, nên job probe của các lượt quét
+thường xen vào giữa thay vì chờ cả lượt danh sách. Đêm lỗi (mạng, lỗi nội bộ) thì bỏ qua sang đêm
+sau; bị chặn thì dừng chuỗi và tạm dừng quét danh sách của kênh (`market_pause_key`) để "Quét
+ngay" không gửi tiếp vào chỗ đang chặn.
 """
 
 from datetime import UTC, date, datetime, timedelta
@@ -26,12 +27,6 @@ log = get_logger(__name__)
 
 def local_today(timezone: str, now: datetime) -> date:
     return now.astimezone(safe_zone(timezone) or UTC).date()
-
-
-def discovery_index(list_nights: int) -> int:
-    """Đêm khám phá của vòng (số ngày kể từ đêm đầu): mặc định đêm thứ 8, khi phòng còn nhiều nhất
-    (đêm gần đã vơi, đêm xa nhiều khách sạn chưa mở bán); vòng ngắn hơn thì đêm cuối."""
-    return max(0, min(get_settings().market_discovery_night, list_nights - 1))
 
 
 async def _set_area(
@@ -60,7 +55,7 @@ async def scan_market_list(
     deps = ctx["deps"]
     sf: async_sessionmaker[AsyncSession] = deps.session_factory
     collector, channel = ctx["collector"], ctx["channel"]
-    if not hasattr(collector, "search_page"):
+    if not hasattr(collector, "search_graphql"):
         return "unsupported"
     async with sf() as s:
         row = (
@@ -99,9 +94,16 @@ async def scan_market_list(
         dest_type=area.dest_type,
         max_requests=min(area.max_pages, settings.market_max_pages),
         round_started=requested or now - timedelta(hours=1),
+        lat=area.lat,
+        lng=area.lng,
+        radius_m=area.radius_m,
+        segment_nflt=area.segment_nflt,
+        rungs=settings.market_rungs,
     )
     result = await svc.scan_night(
-        target, first + timedelta(days=index), discover=index == discovery_index(nights)
+        target,
+        first + timedelta(days=index),
+        enumerate_ids=index < settings.market_enumerate_nights,
     )
     if result.status == "blocked":
         await pauses.pause(

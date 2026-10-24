@@ -1,5 +1,5 @@
-"""Ghi một trang kết quả tìm kiếm: khách sạn + listing kênh (`active`, quét được ngay không cần
-verify), khách sạn của khu vực, giá trên thẻ.
+"""Ghi kết quả tìm kiếm của khu vực: khách sạn + listing kênh (`active`, quét được ngay không cần
+verify), khách sạn của khu vực, giá trên thẻ, nấc phòng còn bán được (thang).
 
 Khách sạn dùng chung toàn hệ thống: thẻ nào đã có listing cùng kênh (cùng slug hoặc cùng id của
 kênh) thì dùng khách sạn đó, không tạo trùng; thông tin định danh không ghi đè (như verify), chỉ
@@ -106,27 +106,15 @@ async def resolve_hotels(
     return out
 
 
-async def record_page(
+async def _area_hotels(
     s: AsyncSession,
-    *,
     area_id: int,
-    scan_id: int,
-    channel: str,
-    ranked: list[tuple[int, SearchCard]],
+    ranks: dict[int, int | None],
     now: datetime,
     round_started: datetime,
-    currency: str,
-    area_rank: bool = True,
-) -> list[int]:
-    """Ghi các thẻ (vị trí, thẻ) của một trang; trả hotel_id theo thứ tự. Thẻ trùng khách sạn (quảng
-    cáo lặp lại) chỉ ghi lần đầu. `area_rank`: vị trí là hạng theo thứ tự mặc định của kênh (trang
-    đầu không lọc) → cập nhật `best_rank`; thẻ từ lát khám phá thì không."""
-    hotel_ids = await resolve_hotels(s, channel, [c for _, c in ranked], now)
-    rows: dict[int, tuple[int, SearchCard]] = {}
-    for hotel_id, (rank, card) in zip(hotel_ids, ranked, strict=True):
-        rows.setdefault(hotel_id, (rank, card))
-    if not rows:
-        return hotel_ids
+) -> None:
+    """Khách sạn của khu vực: lần thấy cuối + hạng tốt nhất TRONG lượt quét ngày này (dòng thấy lần
+    cuối trước lượt này thì đặt lại; LEAST bỏ qua NULL nên thẻ không hạng không xoá hạng đã có)."""
     stmt = insert(MarketAreaHotel).values(
         [
             {
@@ -134,21 +122,15 @@ async def record_page(
                 "hotel_id": h,
                 "first_seen_at": now,
                 "last_seen_at": now,
-                "best_rank": rank if area_rank else None,
+                "best_rank": rank,
             }
-            for h, (rank, _) in rows.items()
+            for h, rank in ranks.items()
         ]
     )
-    # Hạng tốt nhất tính trong lượt quét ngày này: dòng thấy lần cuối trước lượt này thì đặt lại
-    # (lát khám phá chỉ xoá hạng cũ của lượt trước; LEAST bỏ qua NULL).
     stale = MarketAreaHotel.last_seen_at < round_started
-    best_rank = (
-        case(
-            (stale, stmt.excluded.best_rank),
-            else_=func.least(MarketAreaHotel.best_rank, stmt.excluded.best_rank),
-        )
-        if area_rank
-        else case((stale, None), else_=MarketAreaHotel.best_rank)
+    best_rank = case(
+        (stale, stmt.excluded.best_rank),
+        else_=func.least(MarketAreaHotel.best_rank, stmt.excluded.best_rank),
     )
     await s.execute(
         stmt.on_conflict_do_update(
@@ -156,6 +138,28 @@ async def record_page(
             set_={"last_seen_at": stmt.excluded.last_seen_at, "best_rank": best_rank},
         )
     )
+
+
+async def record_page(
+    s: AsyncSession,
+    *,
+    area_id: int,
+    scan_id: int,
+    channel: str,
+    ranked: list[tuple[int | None, SearchCard]],
+    now: datetime,
+    round_started: datetime,
+    currency: str,
+) -> list[int]:
+    """Ghi các thẻ (hạng, thẻ) của danh sách (1 phòng, 2 người lớn); trả hotel_id theo thứ tự. Hạng
+    None: thẻ từ trang lấp theo giá. Thẻ trùng khách sạn (quảng cáo lặp lại) chỉ ghi lần đầu."""
+    hotel_ids = await resolve_hotels(s, channel, [c for _, c in ranked], now)
+    rows: dict[int, tuple[int | None, SearchCard]] = {}
+    for hotel_id, (rank, card) in zip(hotel_ids, ranked, strict=True):
+        rows.setdefault(hotel_id, (rank, card))
+    if not rows:
+        return hotel_ids
+    await _area_hotels(s, area_id, {h: rank for h, (rank, _) in rows.items()}, now, round_started)
     prices = insert(MarketListPrice).values(
         [
             {
@@ -166,13 +170,57 @@ async def record_page(
                 "currency": card.currency if card.currency == currency else None,
                 "sponsored": card.sponsored,
                 "badges": _badges(card) or None,
+                "rooms_min": 1,
+                "only_left": card.only_left,
             }
             for h, (rank, card) in rows.items()
         ]
     )
-    await s.execute(prices.on_conflict_do_nothing())
+    await s.execute(
+        prices.on_conflict_do_update(
+            index_elements=[MarketListPrice.scan_id, MarketListPrice.hotel_id],
+            # Khách sạn thấy ở nấc thang trước rồi mới tới danh sách: điền giá/hạng, giữ nấc lớn.
+            set_={
+                "rank": func.coalesce(MarketListPrice.rank, prices.excluded.rank),
+                "price": func.coalesce(MarketListPrice.price, prices.excluded.price),
+                "currency": func.coalesce(MarketListPrice.currency, prices.excluded.currency),
+                "sponsored": func.coalesce(MarketListPrice.sponsored, prices.excluded.sponsored),
+                "badges": func.coalesce(MarketListPrice.badges, prices.excluded.badges),
+                "only_left": func.coalesce(MarketListPrice.only_left, prices.excluded.only_left),
+                "rooms_min": func.greatest(MarketListPrice.rooms_min, prices.excluded.rooms_min),
+            },
+        )
+    )
     await record_reviews(s, channel, [(h, c) for h, (_, c) in rows.items()], now)
     return hotel_ids
+
+
+async def record_rung(
+    s: AsyncSession,
+    *,
+    area_id: int,
+    scan_id: int,
+    channel: str,
+    cards: list[SearchCard],
+    rooms: int,
+    now: datetime,
+    round_started: datetime,
+) -> None:
+    """Khách sạn còn bán được `rooms` phòng cùng lúc đêm đó (một nấc của thang): `rooms_min` =
+    GREATEST(nấc đã có, `rooms`). Giá ở nấc N phòng không so được với giá 1 phòng nên không ghi."""
+    hotel_ids = list(dict.fromkeys(await resolve_hotels(s, channel, cards, now)))
+    if not hotel_ids:
+        return
+    await _area_hotels(s, area_id, {h: None for h in hotel_ids}, now, round_started)
+    rows = insert(MarketListPrice).values(
+        [{"scan_id": scan_id, "hotel_id": h, "rank": None, "rooms_min": rooms} for h in hotel_ids]
+    )
+    await s.execute(
+        rows.on_conflict_do_update(
+            index_elements=[MarketListPrice.scan_id, MarketListPrice.hotel_id],
+            set_={"rooms_min": func.greatest(MarketListPrice.rooms_min, rows.excluded.rooms_min)},
+        )
+    )
 
 
 def _badges(card: SearchCard) -> list[str]:

@@ -1,7 +1,7 @@
 """URL trang kết quả tìm kiếm Booking.com cho một khu vực (thuần).
 
-Trang SSR chỉ trả trang đầu (20–25 thẻ; `offset` bị bỏ qua), nên muốn thấy nhiều khách sạn hơn phải
-đổi "lát": bộ lọc `nflt` (hạng sao, loại chỗ ở, điểm đánh giá, khu phố…) và thứ tự `order`.
+Trang SSR chỉ trả trang đầu (20–25 thẻ; `offset` bị bỏ qua): dùng làm Referer/lấy csrf cho GraphQL
+`FullSearch` (app/marketscan/graphql.py) và làm dự phòng khi GraphQL đổi schema.
 """
 
 from datetime import date, timedelta

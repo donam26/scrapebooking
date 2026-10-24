@@ -135,6 +135,45 @@ Mọi bước idempotent: run theo `trigger_key`, probe theo `(scan_run_id, hote
   (chạy lại luật trên quan sát ~7 ngày trước đêm, chấm theo công suất thật).
 - PWA: `dashboard/src/app/manifest.ts`, icon trong `public/icons/`, `src/app/icon.svg`, `src/app/apple-icon.png`; `proxy.ts` cho qua manifest/icon không cần cookie.
 
+## 5d. Thị trường khu vực: quận/bán kính + thang phòng trống (16/10/2026, migration 0018)
+
+Khu vực (`market_areas`, Cài đặt › Thị trường) = điểm đến Booking (`city`/`district`/`region`/`landmark`,
+dest_id lấy từ autocomplete) hoặc bán kính quanh khách sạn của tenant (`latlong` + `radius_m`
+1000/3000/5000 = bộ lọc `distance` của Booking), tuỳ chọn phân khúc `segment_nflt` (cú pháp nflt của
+Booking, các lựa chọn cùng nhóm là OR: `ht_id=204;ht_id=206;ht_id=219` = khách sạn + resort + căn hộ
+khách sạn). Quận của Booking dùng tốt ở TP.HCM (`di` 2088 = Quận 1); ở Vũng Tàu quận "Back Beach"
+(16195) trả 0 khách sạn trong quận → dùng địa danh (Bãi Sau 258614, Bãi Trước 258615) hoặc bán kính.
+
+Job `scan_market_list` (03:00 giờ tenant, một job mỗi đêm, `list_nights` đêm) gọi GraphQL `FullSearch`
+của Booking (`app/marketscan/graphql.py`, cùng endpoint/csrf/session/proxy/ngân sách với lịch):
+1. thị trường: khu vực (+ bán kính), không lọc phân khúc, 1 kết quả → số còn phòng, % đã kín Booking tự
+   tính (`unavailability_pct`, chỉ lưu khi không có bộ lọc nào), thành phần loại hình;
+2. danh sách: + phân khúc, 1 phòng 2 người lớn, 100 kết quả/request (Booking cắt ở 1.000) → khách sạn,
+   giá, hạng hiển thị, "We have N left"; khách sạn Booking "nới thêm" ngoài khu vực bị loại;
+3. thang: nấc `MARKET_LADDER_RUNGS` (mặc định 3,5,10,20,30; 1 người lớn/phòng, Booking kẹp ≤ 30) →
+   số khách sạn còn bán được ≥ N phòng. Trang đầu của mọi nấc được hỏi ngay sau trang danh sách đầu,
+   nên hết trần giữa chừng vẫn có thang đủ nấc (thang chỉ được lưu khi đủ nấc; nấc trên một nấc 0
+   điền 0). `MARKET_ENUMERATE_NIGHTS` (14) đêm đầu lật đủ id ở mọi nấc → `market_list_prices.rooms_min`
+   (khoảng phòng còn từng khách sạn); `enumerated` chỉ bật khi danh sách và mọi nấc đủ ≥ 98% và không
+   nấc nào vượt trần 1.000 của Booking (khu vực lớn hơn: chỉ có số đếm, không có khoảng từng KS).
+Trần request mỗi đêm = `max_pages` (≤ `MARKET_MAX_PAGES`); hết trần → `capped`, giữ phần đã có. Lỗi
+GraphQL hỏi lại 1 lần; vẫn lỗi (đổi schema) → dự phòng trang SSR đầu (`source=ssr`, không thang). Chặn
+thật (403/429, challenge, 200 không phải JSON, thiếu csrf) → thử lại 1 lần với phiên mới rồi tạm dừng
+quét danh sách của kênh (`booking:market`); HTTP 4xx khác/5xx chỉ là lỗi của đêm đó. Mỗi lượt quét ghi
+bộ lọc đã dùng (`market_list_scans.nflt`); đổi phân khúc/bán kính thì lượt cũ ẩn khỏi API và danh
+sách khách sạn của khu vực được dựng lại. Phân khúc chỉ nhận trường `ht_id`, `class`, `review_score`,
+`ht_beach`, `hotelfacility`, `mealplan`, `fc`, `chaincode`.
+
+Chi phí đo thật (16/10, Quận 1, phân khúc khách sạn + resort + căn hộ khách sạn): ~30 request,
+~80 giây mỗi đêm liệt kê đủ (428–464 khách sạn còn phòng), so với ~30 trang × 300 khách sạn mỗi ngày
+của quét chi tiết top N (`detail_max_hotels`, giữ mặc định 300; đặt 0 để tắt).
+
+API: `GET /market/city?date&area_id` (thêm `ladder`, `rooms_left_floor`, `tightness`,
+`tightness_median`, `sold_out_share`/`segment_base`, `unavailability_pct`, `composition`, `classes`,
+`booking_histogram`, `self_hotel`), `GET /market/city/trend?start&nights` (≤ 30 đêm),
+`GET /market/areas/self-location`. Đối chiếu thang tìm kiếm với thang lịch của compset:
+`uv run python scripts/validate_market_ladder.py <area_id> [đêm]` (cần một lượt quét compset cùng ngày).
+
 ## 6. Lệnh vận hành (`uv run sb ...`)
 
 | Lệnh | Việc |

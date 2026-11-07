@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>OTARadar video stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --brand: #0062ff; --brand-2: #4f8bff; --ink: #0f1733; --muted: #5b6785;
+    --night: #070b24; --night-2: #0e1a4a; --amber: #ffcd35; --red: #ef4444; --green: #10b981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  body { font-family: "Be Vietnam Pro", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--night); }
+  .abs { position: absolute; }
+  .layer { position: absolute; inset: 0; }
+
+  /* Nền */
+  #bg-dark { background:
+      radial-gradient(1200px 700px at 70% 20%, rgba(0, 98, 255, .28), transparent 60%),
+      radial-gradient(900px 600px at 10% 90%, rgba(124, 58, 237, .22), transparent 60%),
+      linear-gradient(160deg, #0b1236 0%, #060a20 100%); }
+  #bg-dark::after { content: ""; position: absolute; inset: 0; opacity: .35;
+    background-image: radial-gradient(rgba(255,255,255,.12) 1px, transparent 1px); background-size: 28px 28px; }
+  #bg-light { background:
+      radial-gradient(900px 600px at 85% 10%, rgba(0, 98, 255, .14), transparent 60%),
+      radial-gradient(800px 600px at 5% 95%, rgba(124, 58, 237, .10), transparent 60%),
+      linear-gradient(180deg, #f3f6ff 0%, #eef2fb 100%); }
+
+  /* Cửa sổ trình duyệt chứa ảnh dashboard */
+  #win { left: 296px; top: 150px; width: 1328px; height: 870px; border-radius: 18px; overflow: hidden;
+    background: #fff; box-shadow: 0 40px 90px rgba(15, 23, 51, .28), 0 0 0 1px rgba(15, 23, 51, .08); }
+  #win .bar { height: 40px; background: #f1f3f8; border-bottom: 1px solid #e3e7f0; display: flex; align-items: center; padding: 0 16px; gap: 8px; }
+  #win .dot { width: 12px; height: 12px; border-radius: 50%; }
+  #win .tab { margin-left: 18px; height: 30px; margin-top: 10px; padding: 0 16px; background: #fff; border-radius: 9px 9px 0 0;
+    display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink); }
+  #view { position: absolute; left: 0; top: 40px; width: 1328px; height: 830px; overflow: hidden; background: #f6f7fb; }
+  #cam { position: absolute; left: 0; top: 0; width: 1440px; transform-origin: 0 0; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+  #cam img.shot { position: absolute; left: 0; top: 0; width: 1440px; opacity: 0; }
+  .hl { position: absolute; border-radius: 12px; border: 3px solid var(--brand); opacity: 0;
+    box-shadow: 0 0 0 6px rgba(0, 98, 255, .18), 0 0 40px rgba(0, 98, 255, .35); }
+  .hl.amber { border-color: #f59e0b; box-shadow: 0 0 0 6px rgba(245, 158, 11, .22), 0 0 40px rgba(245, 158, 11, .4); }
+  .hl.red { border-color: var(--red); box-shadow: 0 0 0 6px rgba(239, 68, 68, .2), 0 0 36px rgba(239, 68, 68, .45); }
+  .hl.green { border-color: var(--green); box-shadow: 0 0 0 6px rgba(16, 185, 129, .2), 0 0 36px rgba(16, 185, 129, .4); }
+  .spot { position: absolute; border-radius: 12px; opacity: 0; box-shadow: 0 0 0 4000px rgba(10, 16, 40, .42); }
+  .cursor { position: absolute; width: 30px; height: 30px; opacity: 0; filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); }
+  .ripple { position: absolute; width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--brand); opacity: 0; }
+
+  /* Chữ */
+  .kicker { font-size: 20px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--brand); }
+  .title { font-size: 52px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; line-height: 1.1; }
+  .title b { color: var(--brand); font-weight: 800; }
+  .cap { left: 300px; top: 34px; opacity: 0; }
+  .demo-tag { right: 300px; top: 52px; font-size: 17px; font-weight: 600; color: var(--muted); padding: 8px 14px;
+    border-radius: 999px; background: rgba(255,255,255,.75); border: 1px solid #dfe4f0; opacity: 0; }
+  #subs { left: 0; right: 0; bottom: 34px; display: flex; justify-content: center; pointer-events: none; }
+  .sub { position: absolute; bottom: 0; max-width: 1720px; padding: 12px 26px; border-radius: 14px; text-align: center;
+    background: rgba(8, 12, 32, .80); color: #fff; font-size: 32px; font-weight: 600; line-height: 1.32; opacity: 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+
+  /* Cảnh mở đầu */
+  .fake { width: 1040px; height: 600px; border-radius: 16px; overflow: hidden; background: #1a2350;
+    box-shadow: 0 40px 80px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08); }
+  .fake .tabs { height: 46px; background: #121a40; display: flex; align-items: flex-end; padding: 0 12px; gap: 6px; position: relative; }
+  .fake .t { width: 138px; height: 34px; border-radius: 9px 9px 0 0; background: #1d2756; color: #93a0c9; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; padding: 0 12px; white-space: nowrap; overflow: hidden; }
+  .fake .ind { position: absolute; bottom: 0; left: 12px; width: 138px; height: 34px; border-radius: 9px 9px 0 0; background: #2b3a7a;
+    box-shadow: inset 0 3px 0 var(--amber); }
+  .fake .pages { position: absolute; left: 0; top: 46px; width: 100%; }
+  .fake .pg { height: 554px; padding: 28px; filter: blur(5px); }
+  .pg .hero { height: 250px; border-radius: 12px; }
+  .pg .l { height: 22px; border-radius: 6px; background: rgba(255,255,255,.22); margin-top: 18px; }
+  .pg .price { margin-top: 26px; font-size: 44px; font-weight: 800; color: #ffd76a; }
+  .clock { right: 120px; top: 70px; color: #fff; font-weight: 800; font-size: 64px; font-variant-numeric: tabular-nums; letter-spacing: .02em;
+    display: flex; align-items: center; gap: 2px; text-shadow: 0 6px 24px rgba(0,0,0,.4); }
+  .clock .lab { font-size: 18px; font-weight: 600; color: #9fb0e8; letter-spacing: .12em; text-transform: uppercase; margin-right: 18px; }
+  .mins { height: 76px; overflow: hidden; position: relative; width: 96px; }
+  .mins .strip { position: absolute; left: 0; top: 0; }
+  .mins .strip div { height: 76px; line-height: 76px; }
+  .hook-q { left: 0; right: 0; top: 820px; text-align: center; color: #fff; font-size: 74px; font-weight: 800; letter-spacing: -.02em; }
+  .hook-q span { display: inline-block; opacity: 0; margin: 0 .12em; }
+  .hook-q2 { left: 0; right: 0; top: 925px; text-align: center; color: var(--amber); font-size: 44px; font-weight: 700; opacity: 0; }
+  .sheet { width: 720px; height: 520px; border-radius: 16px; background: #fff; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,.45); }
+  .sheet .hd { height: 46px; background: #1f8a4c; color: #fff; display: flex; align-items: center; padding: 0 18px; font-weight: 700; font-size: 17px; gap: 10px; }
+  .sheet table { border-collapse: collapse; width: 100%; font-size: 21px; font-variant-numeric: tabular-nums; }
+  .sheet th, .sheet td { border: 1px solid #e3e7ee; height: 64px; padding: 0 14px; text-align: right; color: #1f2937; }
+  .sheet th { background: #f3f5f8; font-weight: 700; color: #64748b; font-size: 17px; }
+  .sheet td:first-child, .sheet th:first-child { text-align: left; font-weight: 600; }
+  .sheet td span { opacity: 0; }
+  .sheet td.q span { color: var(--red); font-weight: 800; }
+  .note { width: 300px; padding: 22px 24px; background: #ffe36e; color: #3b2f00; font-weight: 800; font-size: 34px; font-style: italic;
+    box-shadow: 0 20px 40px rgba(0,0,0,.35); transform-origin: 50% 0; opacity: 0; }
+  .pain-h { left: 120px; top: 70px; color: #fff; font-size: 60px; font-weight: 800; letter-spacing: -.02em; opacity: 0; }
+  .pain-h em { font-style: normal; color: var(--amber); }
+  .bad { top: 800px; width: 560px; height: 120px; border-radius: 18px; background: rgba(239, 68, 68, .14); border: 2px solid rgba(239, 68, 68, .6);
+    color: #fff; display: flex; align-items: center; gap: 22px; padding: 0 28px; font-size: 32px; font-weight: 700; opacity: 0; }
+  .bad small { display: block; font-size: 20px; font-weight: 600; color: #fca5a5; }
+  .bad svg { flex: none; }
+
+  /* Lộ diện + kêu gọi */
+  .logo { display: flex; align-items: center; gap: 26px; color: #fff; }
+  .logo .word { font-size: 92px; font-weight: 800; letter-spacing: -.03em; }
+  .reveal-tag { left: 0; right: 0; top: 600px; text-align: center; color: #cdd7ff; font-size: 40px; font-weight: 600; opacity: 0; }
+  .reveal-chip { left: 0; right: 0; top: 680px; display: flex; justify-content: center; opacity: 0; }
+  .reveal-chip span { padding: 14px 26px; border-radius: 999px; background: rgba(0, 98, 255, .22); border: 1px solid rgba(79, 139, 255, .6);
+    color: #fff; font-size: 26px; font-weight: 600; }
+  .glow { left: 160px; top: 40px; width: 1600px; height: 900px; opacity: 0;
+    background: radial-gradient(closest-side, rgba(0, 98, 255, .55), rgba(0, 98, 255, .18) 55%, transparent); }
+  .toast { right: 330px; top: 196px; width: 520px; padding: 20px 22px; border-radius: 18px; background: #fff; opacity: 0;
+    box-shadow: 0 30px 70px rgba(15, 23, 51, .35), 0 0 0 1px rgba(15,23,51,.06); display: flex; gap: 16px; }
+  .toast .t1 { font-size: 16px; color: var(--muted); font-weight: 600; }
+  .toast .t2 { font-size: 24px; color: var(--ink); font-weight: 800; margin-top: 4px; line-height: 1.25; }
+  .toast .t3 { font-size: 18px; color: #475569; font-weight: 500; margin-top: 6px; }
+  .chips { left: 300px; top: 52px; display: flex; gap: 16px; }
+  .chip { padding: 14px 24px; border-radius: 999px; background: #fff; border: 2px solid rgba(0, 98, 255, .35); color: var(--ink);
+    font-size: 30px; font-weight: 700; opacity: 0; box-shadow: 0 10px 24px rgba(15,23,51,.10); display: flex; align-items: center; gap: 12px; }
+  .chip i { width: 14px; height: 14px; border-radius: 50%; background: var(--green); display: inline-block; }
+  .cta-h { left: 0; right: 0; top: 380px; text-align: center; color: #fff; font-size: 120px; font-weight: 800; letter-spacing: -.03em; opacity: 0; }
+  .cta-s { left: 0; right: 0; top: 560px; text-align: center; color: #cdd7ff; font-size: 40px; font-weight: 600; line-height: 1.4; opacity: 0; }
+  .cta-s b { color: #fff; }
+  .cta-btn { left: 0; right: 0; top: 720px; display: flex; justify-content: center; opacity: 0; }
+  .cta-btn span { padding: 26px 56px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 40px; font-weight: 800;
+    box-shadow: 0 20px 60px rgba(0, 98, 255, .55), inset 0 1px 0 rgba(255,255,255,.25); }
+  .cta-contact { left: 0; right: 0; top: 850px; text-align: center; color: #fff; font-size: 34px; font-weight: 700; opacity: 0; }
+  .disclaimer { left: 0; right: 0; bottom: 40px; text-align: center; color: #8d9bc9; font-size: 20px; font-weight: 500; opacity: 0; }
+  #fade { background: #000; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg-dark" class="layer"></div>
+  <div id="bg-light" class="layer" style="opacity:0"></div>
+  <div id="root" class="layer"></div>
+  <div id="subs" class="abs"></div>
+  <div id="fade" class="layer"></div>
+</div>
+<script src="stage.js"></script>
+</body>
+</html>

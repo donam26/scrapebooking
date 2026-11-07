@@ -1,0 +1,119 @@
+{
+  "voice": "coral",
+  "instructions": "Đọc hoàn toàn bằng tiếng Việt. Bạn là phát thanh viên quảng cáo người Việt Nam: giọng nữ ấm, chuyên nghiệp nhưng gần gũi, nhịp hơi nhanh và tự tin như video giới thiệu sản phẩm, phát âm rõ thanh điệu, ngắt nghỉ ngắn ở dấu phẩy và dấu chấm.",
+  "contact": "",
+  "scenes": [
+    {
+      "id": "hook",
+      "min": 5.0,
+      "lines": [
+        {
+          "say": "Đêm nay, khách sạn bên cạnh bán giá bao nhiêu?"
+        },
+        {
+          "say": "Bạn có chắc không?"
+        }
+      ]
+    },
+    {
+      "id": "pain",
+      "min": 8.0,
+      "lines": [
+        {
+          "say": "Mở từng trang, chép từng con số, rồi đặt giá theo cảm tính."
+        },
+        {
+          "say": "Đêm đông khách lại bán rẻ, đêm vắng lại treo giá cao."
+        }
+      ]
+    },
+    {
+      "id": "reveal",
+      "min": 6.5,
+      "lines": [
+        {
+          "say": "Ô-tê-a Ra-đa thay bạn theo dõi giá và phòng trống của đối thủ trên Booking chấm com.",
+          "show": "OTARadar thay bạn theo dõi giá và phòng trống của đối thủ trên Booking.com."
+        }
+      ]
+    },
+    {
+      "id": "grid",
+      "min": 10.0,
+      "lines": [
+        {
+          "say": "Mọi đối thủ trên một bảng: giá từng đêm trong chín mươi ngày tới, đặt ngay bên cạnh giá của bạn.",
+          "show": "Mọi đối thủ trên một bảng: giá từng đêm trong 90 ngày tới, đặt ngay bên cạnh giá của bạn."
+        },
+        {
+          "say": "Đắt hơn hay rẻ hơn, nhìn là thấy."
+        }
+      ]
+    },
+    {
+      "id": "soldout",
+      "min": 9.5,
+      "lines": [
+        {
+          "say": "Không chỉ giá."
+        },
+        {
+          "say": "Bạn thấy đối thủ còn phòng hay đã hết, đêm nào sắp kín, và nhận cảnh báo khi có biến động."
+        }
+      ]
+    },
+    {
+      "id": "suggest",
+      "min": 11.5,
+      "lines": [
+        {
+          "say": "Mỗi sáng, bạn nhận những việc cần làm: giá nên đặt, kèm lý do dễ hiểu."
+        },
+        {
+          "say": "Đồng ý thì bấm, không thì bỏ qua."
+        },
+        {
+          "say": "Quyết định vẫn là của bạn."
+        }
+      ]
+    },
+    {
+      "id": "market",
+      "min": 7.5,
+      "lines": [
+        {
+          "say": "Muốn nhìn rộng hơn?"
+        },
+        {
+          "say": "Xem cả khu vực quanh bạn đang căng hay vắng, trước cả dịp lễ, Tết."
+        }
+      ]
+    },
+    {
+      "id": "trust",
+      "min": 6.5,
+      "lines": [
+        {
+          "say": "Mọi con số đều ghi rõ giờ cập nhật và mức độ chắc chắn."
+        },
+        {
+          "say": "Không đoán mò."
+        }
+      ]
+    },
+    {
+      "id": "cta",
+      "min": 11.0,
+      "lines": [
+        {
+          "say": "Đặt lịch đê-mô cùng Ô-tê-a Ra-đa.",
+          "show": "Đặt lịch demo cùng OTARadar."
+        },
+        {
+          "say": "Gửi link Booking chấm com của khách sạn bạn, chúng tôi cho bạn xem bảng giá đối thủ của chính mình.",
+          "show": "Gửi link Booking.com của khách sạn bạn, chúng tôi cho bạn xem bảng giá đối thủ của chính mình."
+        }
+      ]
+    }
+  ]
+}
